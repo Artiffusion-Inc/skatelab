@@ -49,40 +49,46 @@ class _CapturingScreenState extends State<CapturingScreen> {
   Future<void> _startCapture() async {
     final captureProvider = context.read<CaptureProvider>();
 
-    try {
-      await captureProvider.start(
-        onLeftEdgeAngle: (a) {
-          setState(() {
-            _leftAngle = a;
-            _leftActive = true;
-          });
-          _leftTimeout?.cancel();
-          _leftTimeout = Timer(const Duration(milliseconds: 100), () {
-            if (mounted) setState(() => _leftActive = false);
-          });
-        },
-        onRightEdgeAngle: (a) {
-          setState(() {
-            _rightAngle = a;
-            _rightActive = true;
-          });
-          _rightTimeout?.cancel();
-          _rightTimeout = Timer(const Duration(milliseconds: 100), () {
-            if (mounted) setState(() => _rightActive = false);
-          });
-        },
-      );
-
-      final start = captureProvider.startTime;
-      if (start != null) {
-        _elapsedTimer = Timer.periodic(const Duration(milliseconds: 200), (_) {
-          if (mounted && captureProvider.status == CaptureStatus.recording) {
-            setState(() => _elapsed = DateTime.now().difference(start));
-          }
+    await captureProvider.start(
+      onLeftEdgeAngle: (a) {
+        setState(() {
+          _leftAngle = a;
+          _leftActive = true;
         });
+        _leftTimeout?.cancel();
+        _leftTimeout = Timer(const Duration(milliseconds: 100), () {
+          if (mounted) setState(() => _leftActive = false);
+        });
+      },
+      onRightEdgeAngle: (a) {
+        setState(() {
+          _rightAngle = a;
+          _rightActive = true;
+        });
+        _rightTimeout?.cancel();
+        _rightTimeout = Timer(const Duration(milliseconds: 100), () {
+          if (mounted) setState(() => _rightActive = false);
+        });
+      },
+    );
+
+    if (captureProvider.status == CaptureStatus.error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(captureProvider.lastError ?? 'Capture failed')),
+        );
       }
-    } catch (e) {
-      if (mounted) widget.onComplete(null);
+      widget.onComplete(null);
+      return;
+    }
+
+    final start = captureProvider.startTime;
+    if (start != null) {
+      _elapsedTimer = Timer.periodic(const Duration(milliseconds: 200), (_) {
+        if (mounted && captureProvider.status == CaptureStatus.recording) {
+          setState(() => _elapsed = DateTime.now().difference(start));
+        }
+      });
     }
   }
 
@@ -96,6 +102,10 @@ class _CapturingScreenState extends State<CapturingScreen> {
 
     try {
       final result = await captureProvider.stop();
+      if (result == null) {
+        if (mounted) widget.onComplete(null);
+        return;
+      }
 
       final leftRef = calibration.leftRef ?? [1.0, 0.0, 0.0, 0.0];
       final rightRef = calibration.rightRef ?? [1.0, 0.0, 0.0, 0.0];
@@ -113,7 +123,12 @@ class _CapturingScreenState extends State<CapturingScreen> {
       await Share.shareXFiles([XFile(exportPath)], text: t.capture.shareText);
       if (mounted) widget.onComplete(exportPath);
     } catch (e) {
-      if (mounted) widget.onComplete(null);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.toString())),
+        );
+        widget.onComplete(null);
+      }
     }
   }
 

@@ -21,28 +21,42 @@ class CameraRecorder extends ChangeNotifier {
   ResolutionPreset get resolution => _resolution;
   CameraController? get controller => _controller;
 
+  bool _initializing = false;
+
   Future<void> initialize(List<CameraDescription> cameras) async {
     if (cameras.isEmpty) {
       _controller = null;
       return;
     }
+    if (_initializing) return;
+    _initializing = true;
     _controller?.dispose();
-    _controller = _factory.createController(
-      cameras.firstWhere(
-        (c) => c.lensDirection == _lensDirection,
-        orElse: () => cameras.first,
-      ),
-      _resolution,
-      enableAudio: false,
-      fps: 60,
-    );
-    await _controller!.initialize();
-    if (_orientationLocked) {
-      await SystemChrome.setPreferredOrientations([
-        DeviceOrientation.portraitUp,
-      ]);
+    _controller = null;
+    try {
+      final ctrl = _factory.createController(
+        cameras.firstWhere(
+          (c) => c.lensDirection == _lensDirection,
+          orElse: () => cameras.first,
+        ),
+        _resolution,
+        enableAudio: false,
+        fps: 60,
+      );
+      await ctrl.initialize();
+      if (_orientationLocked) {
+        await SystemChrome.setPreferredOrientations([
+          DeviceOrientation.portraitUp,
+        ]);
+      }
+      _controller = ctrl;
+    } catch (_) {
+      _controller?.dispose();
+      _controller = null;
+      rethrow;
+    } finally {
+      _initializing = false;
+      notifyListeners();
     }
-    notifyListeners();
   }
 
   Future<void> toggleCamera() async {

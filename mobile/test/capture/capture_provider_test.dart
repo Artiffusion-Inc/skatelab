@@ -45,27 +45,23 @@ void main() {
     test('start transitions status to recording', () async {
       when(() => bleManager.startStreams()).thenAnswer((_) => Stream.empty());
 
-      final result = await provider.start(
+      await provider.start(
         onLeftEdgeAngle: (_) {},
         onRightEdgeAngle: (_) {},
       );
 
-      expect(result, isNull);
       expect(provider.status, equals(CaptureStatus.recording));
     });
 
     test(
-      'start while already recording returns null and does not reinitialize',
+      'start while already recording keeps status recording and does not reinitialize',
       () async {
         when(() => bleManager.startStreams()).thenAnswer((_) => Stream.empty());
 
         await provider.start(onLeftEdgeAngle: (_) {}, onRightEdgeAngle: (_) {});
-        final result = await provider.start(
-          onLeftEdgeAngle: (_) {},
-          onRightEdgeAngle: (_) {},
-        );
+        await provider.start(onLeftEdgeAngle: (_) {}, onRightEdgeAngle: (_) {});
 
-        expect(result, isNull);
+        expect(provider.status, equals(CaptureStatus.recording));
         verify(() => bleManager.connectAll()).called(1); // Only once
       },
     );
@@ -113,6 +109,20 @@ void main() {
       await provider.start(onLeftEdgeAngle: (_) {}, onRightEdgeAngle: (_) {});
 
       expect(provider.startTime, isA<DateTime>());
+    });
+
+    test('start sets error status on failure', () async {
+      when(() => bleManager.connectAll()).thenThrow(Exception('BLE failed'));
+
+      await provider.start(onLeftEdgeAngle: (_) {}, onRightEdgeAngle: (_) {});
+
+      expect(provider.status, equals(CaptureStatus.error));
+      expect(provider.lastError, isNotNull);
+    });
+
+    test('stop returns null when not recording', () async {
+      final result = await provider.stop();
+      expect(result, isNull);
     });
   });
 }

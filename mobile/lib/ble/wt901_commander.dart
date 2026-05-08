@@ -2,23 +2,35 @@ import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 
 class WT901Commander {
   final BluetoothDevice device;
+  BluetoothCharacteristic? _writeCharacteristic;
 
   WT901Commander(this.device);
 
   static final List<int> _unlock = [0xFF, 0xAA, 0x69, 0x88, 0xB5];
   static final List<int> _save = [0xFF, 0xAA, 0x00, 0x00, 0x00];
 
-  Future<void> _sendCommand(List<int> cmd) async {
+  Future<BluetoothCharacteristic> _getWriteCharacteristic() async {
+    if (_writeCharacteristic != null) return _writeCharacteristic!;
     final services = await device.discoverServices();
     final target = services.firstWhere(
       (s) => s.uuid.toString().toLowerCase().contains('ffe0'),
       orElse: () => services.first,
     );
-    final c = target.characteristics.firstWhere(
+    _writeCharacteristic = target.characteristics.firstWhere(
       (c) => c.properties.write || c.properties.writeWithoutResponse,
       orElse: () => target.characteristics.first,
     );
-    await c.write(cmd, withoutResponse: true);
+    return _writeCharacteristic!;
+  }
+
+  Future<void> _sendCommand(List<int> cmd) async {
+    try {
+      final c = await _getWriteCharacteristic();
+      await c.write(cmd, withoutResponse: true);
+    } catch (_) {
+      _writeCharacteristic = null;
+      rethrow;
+    }
   }
 
   /// Unlock device for configuration

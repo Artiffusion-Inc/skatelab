@@ -27,6 +27,10 @@ class _CameraReadyScreenState extends State<CameraReadyScreen> {
   }
 
   Future<void> _initCamera() async {
+    setState(() {
+      _initializing = true;
+      _error = null;
+    });
     try {
       final cameras = await availableCameras();
       if (!mounted) return;

@@ -30,34 +30,30 @@ void main() {
       repo.dispose();
     });
 
-    test('start returns null when not already recording', () async {
+    test('start succeeds when not already recording', () async {
       when(() => bleManager.connectAll()).thenAnswer((_) async {});
       when(() => cameraRecorder.startRecording()).thenAnswer((_) async {});
       when(() => bleManager.startStreams()).thenAnswer((_) => Stream.empty());
 
-      final result = await repo.start(
+      await repo.start(
         onLeftEdgeAngle: (_) {},
         onRightEdgeAngle: (_) {},
       );
 
-      expect(result, isNull);
       verify(() => bleManager.connectAll()).called(1);
       verify(() => cameraRecorder.startRecording()).called(1);
     });
 
-    test('start returns null when already recording', () async {
+    test('start throws when already recording', () async {
       when(() => bleManager.connectAll()).thenAnswer((_) async {});
       when(() => cameraRecorder.startRecording()).thenAnswer((_) async {});
       when(() => bleManager.startStreams()).thenAnswer((_) => Stream.empty());
 
       await repo.start(onLeftEdgeAngle: (_) {}, onRightEdgeAngle: (_) {});
-      final result = await repo.start(
-        onLeftEdgeAngle: (_) {},
-        onRightEdgeAngle: (_) {},
+      expect(
+        () => repo.start(onLeftEdgeAngle: (_) {}, onRightEdgeAngle: (_) {}),
+        throwsStateError,
       );
-
-      expect(result, isNull);
-      verify(() => bleManager.connectAll()).called(1); // Only once
     });
 
     test('stop returns CaptureResult with samples and t0', () async {

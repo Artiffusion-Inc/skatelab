@@ -128,17 +128,17 @@ class BleManager extends ChangeNotifier {
         notifyListeners();
       },
     );
-    // Subscribe to connection state changes
-    imu.isConnected.addListener(notifyListeners);
 
     if (side == 'left') {
+      leftDevice?.isConnected.removeListener(notifyListeners);
       leftDevice?.dispose();
       leftDevice = imu;
     } else {
+      rightDevice?.isConnected.removeListener(notifyListeners);
       rightDevice?.dispose();
       rightDevice = imu;
     }
-    // Auto-connect after assigning
+    imu.isConnected.addListener(notifyListeners);
     _connectDevice(imu);
     notifyListeners();
   }
@@ -147,7 +147,9 @@ class BleManager extends ChangeNotifier {
     try {
       await imu.connect();
     } catch (e) {
-      // Connection will be retried or user can tap to retry
+      scanError = BleScanError.unknown;
+      scanErrorMessage = 'Connection failed: $e';
+      notifyListeners();
     }
   }
 
@@ -183,22 +185,37 @@ class BleManager extends ChangeNotifier {
         StreamController<(WT901Packet?, WT901Packet?)>.broadcast();
     WT901Packet? lastLeft, lastRight;
     StreamSubscription? leftSub, rightSub;
+    StreamSubscription? leftConnSub, rightConnSub;
     Timer? timer;
 
     void emit() {
       if (!controller.isClosed) controller.add((lastLeft, lastRight));
     }
 
+    void onDeviceDisconnected() {
+      if (!controller.isClosed) controller.close();
+    }
+
     if (leftDevice != null && leftDevice!.isConnected.value) {
       leftSub = leftDevice!.startNotifications().listen((p) {
         lastLeft = p;
         emit();
+      }, onError: (_) => onDeviceDisconnected());
+      leftConnSub = leftDevice!.device.connectionState.listen((state) {
+        if (state == BluetoothConnectionState.disconnected) {
+          onDeviceDisconnected();
+        }
       });
     }
     if (rightDevice != null && rightDevice!.isConnected.value) {
       rightSub = rightDevice!.startNotifications().listen((p) {
         lastRight = p;
         emit();
+      }, onError: (_) => onDeviceDisconnected());
+      rightConnSub = rightDevice!.device.connectionState.listen((state) {
+        if (state == BluetoothConnectionState.disconnected) {
+          onDeviceDisconnected();
+        }
       });
     }
 
@@ -208,6 +225,8 @@ class BleManager extends ChangeNotifier {
       timer?.cancel();
       leftSub?.cancel();
       rightSub?.cancel();
+      leftConnSub?.cancel();
+      rightConnSub?.cancel();
     };
 
     return controller.stream;

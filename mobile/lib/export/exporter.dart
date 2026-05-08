@@ -120,7 +120,8 @@ class Exporter {
         ),
       );
     }
-    await File(path).writeAsBytes(stream.writeToBuffer());
+    final bytes = stream.writeToBuffer();
+    await File(path).writeAsBytes(bytes);
   }
 
   int _computeDuration(

@@ -23,23 +23,26 @@ class IMUDevice {
     });
   }
 
+  static const _connectTimeout = Duration(seconds: 10);
+  static const _disconnectTimeout = Duration(seconds: 5);
+
   Future<void> connect() async {
-    await device.connect(autoConnect: false);
+    await device.connect(autoConnect: false).timeout(_connectTimeout);
   }
 
   Future<void> disconnect() async {
     await _notifySubscription?.cancel();
     _notifySubscription = null;
-    // Do NOT mutate isConnected.value here. Let device.connectionState stream do it.
     try {
-      await device.disconnect();
+      await device.disconnect().timeout(_disconnectTimeout);
     } catch (_) {}
-    // Do NOT cancel _connectionSubscription here — the platform stack may still
-    // emit a disconnected event we want to observe.
   }
 
   void dispose() {
+    _notifySubscription?.cancel();
+    _notifySubscription = null;
     _connectionSubscription?.cancel();
+    _connectionSubscription = null;
     isConnected.dispose();
   }
 
@@ -53,7 +56,9 @@ class IMUDevice {
       (c) => c.properties.notify,
     );
     await characteristic.setNotifyValue(true);
+    _notifySubscription = characteristic.lastValueStream.listen((_) {});
     await for (final event in characteristic.lastValueStream) {
+      if (!device.isConnected) break;
       final packet = WT901Parser.parse(event);
       if (packet != null) {
         if (packet.type == WT901PacketType.battery && packet.battery != null) {
@@ -62,5 +67,7 @@ class IMUDevice {
         yield packet;
       }
     }
+    await _notifySubscription?.cancel();
+    _notifySubscription = null;
   }
 }

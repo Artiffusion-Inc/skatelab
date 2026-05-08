@@ -25,12 +25,14 @@ class CaptureRepository {
   int get leftSampleCount => _leftBuffer.length;
   int get rightSampleCount => _rightBuffer.length;
 
-  /// Starts capture. Returns null if already recording.
-  Future<CaptureResult?> start({
+  /// Starts capture. Throws if already recording.
+  Future<void> start({
     required void Function(double edgeAngle) onLeftEdgeAngle,
     required void Function(double edgeAngle) onRightEdgeAngle,
   }) async {
-    if (_streamSubscription != null) return null;
+    if (_streamSubscription != null) {
+      throw StateError('Capture already in progress');
+    }
 
     _leftBuffer.clear();
     _rightBuffer.clear();
@@ -60,8 +62,6 @@ class CaptureRepository {
         }
       }
     });
-
-    return null;
   }
 
   Future<CaptureResult> stop() async {
@@ -70,6 +70,10 @@ class CaptureRepository {
 
     final videoFile = await _cameraRecorder.stopRecording();
     await _bleManager.disconnectAll();
+
+    if (_t0 == null) {
+      throw StateError('No capture in progress');
+    }
 
     return CaptureResult(
       videoPath: videoFile.path,

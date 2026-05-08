@@ -26,6 +26,7 @@ class _MetricsScreenState extends State<MetricsScreen> {
     final ble = context.read<BleManager>();
     ble.connectAll();
     _sub = ble.startStreams().listen((pair) {
+      if (!mounted) return;
       setState(() {
         final left = pair.$1;
         if (left != null) {
