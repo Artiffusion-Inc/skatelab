@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 import 'package:provider/provider.dart';
+import 'package:shadcn_flutter/shadcn_flutter.dart' as shad;
 import 'ble_manager.dart';
 import 'wt901_commander.dart';
 import 'ui/status_bar.dart';
@@ -41,46 +42,34 @@ class _BleScanScreenState extends State<BleScanScreen> {
         children: [
           StatusBar(leftDevice: ble.leftDevice, rightDevice: ble.rightDevice),
           if (!ble.isBluetoothOn)
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(12),
-              color: Colors.red.shade900,
-              child: Text(
-                t.ble.bluetoothOff,
-                style: const TextStyle(fontSize: 14),
-              ),
+            shad.Alert(
+              leading: const Icon(Icons.bluetooth_disabled),
+              title: Text(t.ble.bluetoothOff),
             ),
           if (!ble.locationPermissionGranted)
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(12),
-              color: Colors.orange.shade900,
-              child: Text(
-                t.permissions.bleRequired,
-                style: const TextStyle(fontSize: 14),
-              ),
+            shad.Alert(
+              leading: const Icon(Icons.location_on),
+              title: Text(t.permissions.bleRequired),
             ),
           if (ble.scanError != null)
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(12),
-              color: Colors.red.shade900,
-              child: Text(switch (ble.scanError!) {
+            shad.Alert.destructive(
+              leading: const Icon(Icons.error),
+              title: Text(switch (ble.scanError!) {
                 BleScanError.bluetoothOff => t.ble.bluetoothOff,
                 BleScanError.locationRequired => t.ble.errors.locationRequired,
                 BleScanError.unknown =>
                   ble.scanErrorMessage ?? t.ble.errors.locationRequired,
-              }, style: const TextStyle(fontSize: 12)),
+              }),
             ),
           Expanded(
             child: devices.isEmpty
                 ? Center(
                     child: ble.isScanning
                         ? const CircularProgressIndicator()
-                        : TextButton.icon(
+                        : shad.GhostButton(
                             onPressed: _startScan,
-                            icon: const Icon(Icons.refresh),
-                            label: Text(t.ble.rescan),
+                            leading: const Icon(Icons.refresh),
+                            child: Text(t.ble.rescan),
                           ),
                   )
                 : ListView.builder(
@@ -101,18 +90,18 @@ class _BleScanScreenState extends State<BleScanScreen> {
             child: Row(
               children: [
                 Expanded(
-                  child: OutlinedButton.icon(
+                  child: shad.OutlineButton(
                     onPressed: ble.isScanning ? null : _startScan,
-                    icon: const Icon(Icons.search),
-                    label: Text(t.ble.scan),
+                    leading: const Icon(Icons.search),
+                    child: Text(t.ble.scan),
                   ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
-                  child: FilledButton.icon(
+                  child: shad.PrimaryButton(
                     onPressed: ble.canProceed ? widget.onReady : null,
-                    icon: const Icon(Icons.arrow_forward),
-                    label: Text(t.ble.next),
+                    leading: const Icon(Icons.arrow_forward),
+                    child: Text(t.ble.next),
                   ),
                 ),
               ],
@@ -137,8 +126,9 @@ class _BleScanScreenState extends State<BleScanScreen> {
       return;
     }
 
-    showModalBottomSheet(
+    shad.openSheet(
       context: context,
+      position: shad.OverlayPosition.bottom,
       builder: (ctx) => ConnectionSheet(
         device: result.device,
         onLeft: () {
@@ -153,8 +143,9 @@ class _BleScanScreenState extends State<BleScanScreen> {
 
   void _showSensorSettings(ScanResult result, BleManager ble) {
     final commander = WT901Commander(result.device);
-    showModalBottomSheet(
+    shad.openSheet(
       context: context,
+      position: shad.OverlayPosition.bottom,
       builder: (ctx) => DeviceSettingsSheet(
         device: result.device,
         voltage: ble.batteryLevels[result.device.remoteId.str],
@@ -173,7 +164,7 @@ class _BleScanScreenState extends State<BleScanScreen> {
   }
 
   void _showRenameDialog(BluetoothDevice device) {
-    showDialog(
+    shad.showDialog(
       context: context,
       builder: (ctx) => RenameDialog(device: device),
     );

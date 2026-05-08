@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
+import 'package:shadcn_flutter/shadcn_flutter.dart' as shad;
 import '../../../i18n/strings.g.dart';
+import '../../../theme/app_theme.dart';
 
 class ConnectionSheet extends StatelessWidget {
   final BluetoothDevice device;
@@ -25,9 +27,9 @@ class ConnectionSheet extends StatelessWidget {
             title: Text(device.platformName),
             subtitle: Text(device.remoteId.str),
           ),
-          const Divider(),
+          const shad.Divider(),
           ListTile(
-            leading: const Icon(Icons.skip_previous, color: Colors.blue),
+            leading: const Icon(Icons.skip_previous, color: AppColors.leftSide),
             title: Text(t.ble.left),
             onTap: () {
               onLeft();
@@ -35,7 +37,7 @@ class ConnectionSheet extends StatelessWidget {
             },
           ),
           ListTile(
-            leading: const Icon(Icons.skip_next, color: Colors.purple),
+            leading: const Icon(Icons.skip_next, color: AppColors.rightSide),
             title: Text(t.ble.right),
             onTap: () {
               onRight();

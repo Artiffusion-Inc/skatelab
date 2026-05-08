@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:shadcn_flutter/shadcn_flutter.dart' as shad;
 import '../../i18n/strings.g.dart';
+import '../../theme/app_theme.dart';
 
 class EdgeOverlay extends StatelessWidget {
   final double leftAngle;
@@ -27,10 +29,10 @@ class EdgeOverlay extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: Colors.black54,
+          color: AppColors.overlayBg,
           borderRadius: BorderRadius.circular(8),
           border: (leftStale || rightStale)
-              ? Border.all(color: Colors.red.shade700, width: 2)
+              ? Border.all(color: AppColors.danger.withValues(alpha: 0.7), width: 2)
               : null,
         ),
         child: Column(
@@ -39,11 +41,11 @@ class EdgeOverlay extends StatelessWidget {
             Row(
               children: [
                 if (leftStale) ...[
-                  Tooltip(
-                    message: t.overlay.staleAlert,
+                  shad.Tooltip(
+                    tooltip: (_) => Text(t.overlay.staleAlert),
                     child: Icon(
                       Icons.warning_amber,
-                      color: Colors.red.shade400,
+                      color: AppColors.danger.withValues(alpha: 0.8),
                       size: 16,
                     ),
                   ),
@@ -52,7 +54,7 @@ class EdgeOverlay extends StatelessWidget {
                 Text(
                   '${t.overlay.leftLabel} ${leftAngle.toStringAsFixed(1)}°',
                   style: TextStyle(
-                    color: leftStale ? Colors.red.shade300 : Colors.white,
+                    color: leftStale ? AppColors.danger.withValues(alpha: 0.7) : Colors.white,
                     fontSize: 18,
                     fontWeight: leftStale ? FontWeight.bold : null,
                   ),
@@ -62,11 +64,11 @@ class EdgeOverlay extends StatelessWidget {
             Row(
               children: [
                 if (rightStale) ...[
-                  Tooltip(
-                    message: t.overlay.staleAlert,
+                  shad.Tooltip(
+                    tooltip: (_) => Text(t.overlay.staleAlert),
                     child: Icon(
                       Icons.warning_amber,
-                      color: Colors.red.shade400,
+                      color: AppColors.danger.withValues(alpha: 0.8),
                       size: 16,
                     ),
                   ),
@@ -75,7 +77,7 @@ class EdgeOverlay extends StatelessWidget {
                 Text(
                   '${t.overlay.rightLabel} ${rightAngle.toStringAsFixed(1)}°',
                   style: TextStyle(
-                    color: rightStale ? Colors.red.shade300 : Colors.white,
+                    color: rightStale ? AppColors.danger.withValues(alpha: 0.7) : Colors.white,
                     fontSize: 18,
                     fontWeight: rightStale ? FontWeight.bold : null,
                   ),

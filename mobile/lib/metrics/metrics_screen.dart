@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../i18n/strings.g.dart';
+import '../../theme/app_theme.dart';
 import '../ble/ble_manager.dart';
 import '../ble/wt901_parser.dart';
 import 'gauge_widget.dart';
@@ -18,6 +19,7 @@ class _MetricsScreenState extends State<MetricsScreen> {
   double _gx = 0, _gy = 0, _gz = 0;
   double _ax = 0, _ay = 0, _az = 0;
   double _edgeAngle = 0;
+  bool _hasData = false;
   StreamSubscription? _sub;
 
   @override
@@ -37,6 +39,7 @@ class _MetricsScreenState extends State<MetricsScreen> {
           _ay = left.accY ?? _ay;
           _az = left.accZ ?? _az;
           _edgeAngle = _computeRoll(left);
+          _hasData = true;
         }
       });
     });
@@ -63,65 +66,83 @@ class _MetricsScreenState extends State<MetricsScreen> {
   @override
   Widget build(BuildContext context) {
     final t = Translations.of(context);
+    final cs = Theme.of(context).colorScheme;
+
     return Scaffold(
       appBar: AppBar(title: Text(t.metrics.title)),
-      body: Row(
-        children: [
-          Expanded(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
+      body: !_hasData
+          ? Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.sensors, size: 48, color: AppColors.muted),
+                  const SizedBox(height: 16),
+                  Text(
+                    t.ble.connecting,
+                    style: TextStyle(color: cs.onSurfaceVariant),
+                  ),
+                  const SizedBox(height: 16),
+                  const CircularProgressIndicator(),
+                ],
+              ),
+            )
+          : Row(
               children: [
-                Text(
-                  t.metrics.gyro,
-                  style: const TextStyle(fontWeight: FontWeight.bold),
+                Expanded(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        t.metrics.gyro,
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      const SizedBox(height: 8),
+                      RadialGauge(value: _gx, label: 'X', unit: '°/s'),
+                      const SizedBox(height: 8),
+                      RadialGauge(value: _gy, label: 'Y', unit: '°/s'),
+                      const SizedBox(height: 8),
+                      RadialGauge(value: _gz, label: 'Z', unit: '°/s'),
+                    ],
+                  ),
                 ),
-                const SizedBox(height: 8),
-                RadialGauge(value: _gx, label: 'X', unit: '°/s'),
-                const SizedBox(height: 8),
-                RadialGauge(value: _gy, label: 'Y', unit: '°/s'),
-                const SizedBox(height: 8),
-                RadialGauge(value: _gz, label: 'Z', unit: '°/s'),
+                Expanded(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        t.metrics.accel,
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      const SizedBox(height: 8),
+                      RadialGauge(value: _ax, label: 'X', unit: 'g'),
+                      const SizedBox(height: 8),
+                      RadialGauge(value: _ay, label: 'Y', unit: 'g'),
+                      const SizedBox(height: 8),
+                      RadialGauge(value: _az, label: 'Z', unit: 'g'),
+                    ],
+                  ),
+                ),
+                Expanded(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        t.metrics.edgeAngle,
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      const SizedBox(height: 8),
+                      RadialGauge(
+                        value: _edgeAngle,
+                        min: -90,
+                        max: 90,
+                        label: 'Roll',
+                        unit: '°',
+                      ),
+                    ],
+                  ),
+                ),
               ],
             ),
-          ),
-          Expanded(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(
-                  t.metrics.accel,
-                  style: const TextStyle(fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 8),
-                RadialGauge(value: _ax, label: 'X', unit: 'g'),
-                const SizedBox(height: 8),
-                RadialGauge(value: _ay, label: 'Y', unit: 'g'),
-                const SizedBox(height: 8),
-                RadialGauge(value: _az, label: 'Z', unit: 'g'),
-              ],
-            ),
-          ),
-          Expanded(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(
-                  t.metrics.edgeAngle,
-                  style: const TextStyle(fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 8),
-                RadialGauge(
-                  value: _edgeAngle,
-                  min: -90,
-                  max: 90,
-                  label: 'Roll',
-                  unit: '°',
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
     );
   }
 }

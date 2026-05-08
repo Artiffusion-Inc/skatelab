@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
+import 'package:shadcn_flutter/shadcn_flutter.dart' as shad;
 import '../../../i18n/strings.g.dart';
+import '../../../widgets/battery_indicator.dart';
 import '../wt901_commander.dart';
 
 class DeviceSettingsSheet extends StatelessWidget {
@@ -33,20 +35,23 @@ class DeviceSettingsSheet extends StatelessWidget {
           children: [
             Text(
               device.platformName,
-              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              style: Theme.of(context).textTheme.titleMedium,
             ),
             Text(
               device.remoteId.str,
-              style: const TextStyle(fontSize: 12, color: Colors.white70),
+              style: TextStyle(
+                fontSize: 12,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
             ),
             const SizedBox(height: 16),
             _BatteryTile(voltage: voltage, onRequest: onRequestBattery),
-            const Divider(),
+            const shad.Divider(),
             _ReturnRateTile(onSelected: onSetReturnRate),
             ListTile(
               leading: const Icon(Icons.edit),
               title: Text(t.ble.rename.title),
-              trailing: FilledButton.tonal(
+              trailing: shad.SecondaryButton(
                 onPressed: onRenamePressed,
                 child: Text(t.ble.rename.action),
               ),
@@ -63,26 +68,18 @@ class _BatteryTile extends StatelessWidget {
   final VoidCallback onRequest;
   const _BatteryTile({this.voltage, required this.onRequest});
 
-  Color get _color => voltage == null
-      ? Colors.grey
-      : voltage! > 3.7
-      ? Colors.green
-      : voltage! > 3.5
-      ? Colors.orange
-      : Colors.red;
-
   @override
   Widget build(BuildContext context) {
     final t = Translations.of(context);
     return ListTile(
-      leading: Icon(Icons.battery_full, color: _color),
+      leading: BatteryIndicator(voltage: voltage, iconSize: 24, fontSize: 12),
       title: Text(t.ble.battery.title),
       subtitle: Text(
         voltage == null
             ? t.ble.battery.unknown
             : '${voltage!.toStringAsFixed(2)} ${t.ble.battery.unit}',
       ),
-      trailing: TextButton(
+      trailing: shad.GhostButton(
         onPressed: onRequest,
         child: Text(t.ble.battery.request),
       ),

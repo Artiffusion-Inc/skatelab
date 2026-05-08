@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:shadcn_flutter/shadcn_flutter.dart' as shad;
 import 'permission_service.dart';
 import '../../i18n/strings.g.dart';
+import '../../theme/app_theme.dart';
 
 class PermissionsScreen extends StatelessWidget {
   final VoidCallback onGranted;
@@ -18,16 +19,13 @@ class PermissionsScreen extends StatelessWidget {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(Icons.security, size: 64, color: Colors.white54),
+              const Icon(Icons.security, size: 64, color: AppColors.muted),
               const SizedBox(height: 24),
-              Text(
-                t.permissions.required,
-                style: const TextStyle(fontSize: 18),
-              ),
+              Text(t.permissions.required, style: Theme.of(context).textTheme.titleMedium),
               const SizedBox(height: 8),
               Text(
                 t.permissions.list,
-                style: const TextStyle(color: Colors.white70),
+                style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
               ),
               const SizedBox(height: 32),
               shad.PrimaryButton(

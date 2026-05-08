@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:shadcn_flutter/shadcn_flutter.dart' as shad;
 import '../../i18n/strings.g.dart';
+import '../../theme/app_theme.dart';
 
 class ExportResultScreen extends StatelessWidget {
   final String? exportPath;
@@ -13,49 +15,43 @@ class ExportResultScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final success = exportPath != null;
+    final t = Translations.of(context);
 
     return Scaffold(
-      appBar: AppBar(title: Text(Translations.of(context).export.title)),
+      appBar: AppBar(title: Text(t.export.title)),
       body: Center(
         child: Padding(
           padding: const EdgeInsets.all(32),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(
-                success ? Icons.check_circle : Icons.error,
-                size: 72,
-                color: success ? Colors.green : Colors.red,
-              ),
-              const SizedBox(height: 24),
-              Text(
-                success
-                    ? Translations.of(context).export.success
-                    : Translations.of(context).export.error,
-                style: Theme.of(context).textTheme.headlineSmall,
-              ),
-              if (success) ...[
-                const SizedBox(height: 16),
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Colors.white10,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: SelectableText(
-                    exportPath!,
-                    style: const TextStyle(
-                      fontFamily: 'monospace',
-                      fontSize: 12,
+              if (success)
+                shad.Alert(
+                  leading: const Icon(Icons.check_circle, size: 48, color: AppColors.success),
+                  title: Text(t.export.success),
+                  content: Container(
+                    margin: const EdgeInsets.only(top: 8),
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: SelectableText(
+                      exportPath!,
+                      style: const TextStyle(fontFamily: 'monospace', fontSize: 12),
                     ),
                   ),
+                )
+              else
+                shad.Alert.destructive(
+                  leading: const Icon(Icons.error, size: 48),
+                  title: Text(t.export.error),
                 ),
-              ],
               const SizedBox(height: 32),
-              FilledButton.icon(
+              shad.PrimaryButton(
                 onPressed: onNewCapture,
-                icon: const Icon(Icons.add),
-                label: Text(Translations.of(context).export.newCapture),
+                leading: const Icon(Icons.add),
+                child: Text(t.export.newCapture),
               ),
             ],
           ),

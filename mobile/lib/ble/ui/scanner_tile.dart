@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
+import 'package:shadcn_flutter/shadcn_flutter.dart' as shad;
 import '../../../i18n/strings.g.dart';
+import '../../../theme/app_theme.dart';
+import '../../../widgets/battery_indicator.dart';
 import '../imu_device.dart';
 
 class ScannerTile extends StatelessWidget {
@@ -31,7 +34,7 @@ class ScannerTile extends StatelessWidget {
     return ListTile(
       leading: Icon(
         Icons.bluetooth,
-        color: isLeft || isRight ? Colors.blue : Colors.grey,
+        color: isLeft || isRight ? AppColors.leftSide : AppColors.muted,
       ),
       title: Text(name),
       subtitle: Text(result.device.remoteId.str),
@@ -41,64 +44,28 @@ class ScannerTile extends StatelessWidget {
           if (voltage != null)
             Padding(
               padding: const EdgeInsets.only(right: 8),
-              child: _BatteryIndicator(voltage: voltage!),
+              child: BatteryIndicator(voltage: voltage!),
             ),
           if (isLeft)
-            _SideChip(
-              label:
-                  '${t.ble.left} ${leftDevice?.isConnected.value ?? false ? t.ble.status.connected : t.ble.status.disconnected}',
-              color: Colors.blue.shade800,
+            SideBadge(
+              label: t.ble.left,
+              isConnected: leftDevice?.isConnected.value ?? false,
+              isLeft: true,
             )
           else if (isRight)
-            _SideChip(
-              label:
-                  '${t.ble.right} ${rightDevice?.isConnected.value ?? false ? t.ble.status.connected : t.ble.status.disconnected}',
-              color: Colors.purple.shade800,
+            SideBadge(
+              label: t.ble.right,
+              isConnected: rightDevice?.isConnected.value ?? false,
+              isLeft: false,
             ),
-          IconButton(
-            icon: const Icon(Icons.settings, size: 20),
+          shad.GhostButton(
             onPressed: onSettings,
+            size: shad.ButtonSize.small,
+            child: const Icon(Icons.settings, size: 18),
           ),
         ],
       ),
       onTap: onAssign,
     );
-  }
-}
-
-class _BatteryIndicator extends StatelessWidget {
-  final double voltage;
-  const _BatteryIndicator({required this.voltage});
-
-  Color get _color => voltage > 3.7
-      ? Colors.green
-      : voltage > 3.5
-      ? Colors.orange
-      : Colors.red;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(Icons.battery_full, size: 14, color: _color),
-        const SizedBox(width: 2),
-        Text(
-          '${voltage.toStringAsFixed(1)}V',
-          style: TextStyle(fontSize: 11, color: _color),
-        ),
-      ],
-    );
-  }
-}
-
-class _SideChip extends StatelessWidget {
-  final String label;
-  final Color color;
-  const _SideChip({required this.label, required this.color});
-
-  @override
-  Widget build(BuildContext context) {
-    return Chip(label: Text(label), backgroundColor: color);
   }
 }
