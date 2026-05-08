@@ -74,14 +74,10 @@ export default function UploadPage() {
     data: Blob | ArrayBuffer,
     fileName: string,
     contentType: string,
-  ): Promise<string | null> {
-    try {
-      const { url, key } = await presignUpload(fileName, contentType)
-      await uploadToPresignedUrl(url, data, contentType)
-      return key
-    } catch {
-      return null
-    }
+  ): Promise<string> {
+    const { url, key } = await presignUpload(fileName, contentType)
+    await uploadToPresignedUrl(url, data, contentType)
+    return key
   }
 
   async function handleUpload() {
@@ -120,10 +116,6 @@ export default function UploadPage() {
             "manifest.json",
             "application/json",
           )
-        }
-
-        if ((zipContents.imuLeft && !imuLeftKey) || (zipContents.imuRight && !imuRightKey)) {
-          toast.warning(t("imuUploadWarning"))
         }
       }
 

@@ -3,7 +3,6 @@
  * silent refresh with mutex on 401.
  */
 
-import { redirect } from "next/navigation"
 import { z } from "zod"
 
 export const API_BASE = "/api/v1"
@@ -80,7 +79,11 @@ async function silentRefresh(): Promise<boolean> {
 
 function handleAuthFailure(): never {
   clearTokens()
-  redirect("/login")
+  if (typeof window !== "undefined") {
+    window.location.href = "/login"
+    return new Promise(() => {}) as never
+  }
+  throw new ApiError("Authentication required", 401)
 }
 
 // ---------------------------------------------------------------------------
