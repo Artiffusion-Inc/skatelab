@@ -20,6 +20,7 @@ class RadialGauge extends StatelessWidget {
   Widget build(BuildContext context) {
     final clamped = value.clamp(min, max);
     final fraction = (clamped - min) / (max - min);
+    final cs = Theme.of(context).colorScheme;
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -29,18 +30,15 @@ class RadialGauge extends StatelessWidget {
           child: CircularProgressIndicator(
             value: fraction,
             strokeWidth: 8,
-            backgroundColor: Colors.grey.shade800,
+            backgroundColor: cs.surfaceContainerHighest,
           ),
         ),
         const SizedBox(height: 4),
         Text(
           '${value.toStringAsFixed(1)} $unit',
-          style: const TextStyle(fontSize: 12),
+          style: TextStyle(fontSize: 12, color: cs.onSurface),
         ),
-        Text(
-          label,
-          style: const TextStyle(fontSize: 10, color: Colors.white70),
-        ),
+        Text(label, style: TextStyle(fontSize: 10, color: cs.onSurfaceVariant)),
       ],
     );
   }

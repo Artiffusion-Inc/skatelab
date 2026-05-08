@@ -35,10 +35,7 @@ void main() {
       when(() => cameraRecorder.startRecording()).thenAnswer((_) async {});
       when(() => bleManager.startStreams()).thenAnswer((_) => Stream.empty());
 
-      await repo.start(
-        onLeftEdgeAngle: (_) {},
-        onRightEdgeAngle: (_) {},
-      );
+      await repo.start(onLeftEdgeAngle: (_) {}, onRightEdgeAngle: (_) {});
 
       verify(() => bleManager.connectAll()).called(1);
       verify(() => cameraRecorder.startRecording()).called(1);

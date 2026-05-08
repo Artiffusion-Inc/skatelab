@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:shadcn_flutter/shadcn_flutter.dart' as shad;
 import '../../i18n/strings.g.dart';
+import '../../theme/app_theme.dart';
+import '../../widgets/battery_indicator.dart';
 import '../ble/ble_manager.dart';
 import '../metrics/metrics_screen.dart';
 import 'grid_overlay.dart';
@@ -56,22 +58,30 @@ class _CameraReadyScreenState extends State<CameraReadyScreen> {
       return Scaffold(
         appBar: AppBar(title: Text(t.camera.title)),
         body: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(Icons.videocam_off, size: 64, color: Colors.white54),
-              const SizedBox(height: 16),
-              Text(
-                _error ?? t.camera.unavailable,
-                style: const TextStyle(fontSize: 16),
-              ),
-              const SizedBox(height: 24),
-              FilledButton.icon(
-                onPressed: _initCamera,
-                icon: const Icon(Icons.refresh),
-                label: Text(t.camera.retry),
-              ),
-            ],
+          child: Padding(
+            padding: const EdgeInsets.all(32),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(
+                  Icons.videocam_off,
+                  size: 64,
+                  color: AppColors.muted,
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  _error ?? t.camera.unavailable,
+                  style: Theme.of(context).textTheme.bodyMedium,
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 24),
+                shad.PrimaryButton(
+                  onPressed: _initCamera,
+                  leading: const Icon(Icons.refresh),
+                  child: Text(t.camera.retry),
+                ),
+              ],
+            ),
           ),
         ),
       );
@@ -115,36 +125,35 @@ class _CameraReadyScreenState extends State<CameraReadyScreen> {
                     horizontal: 12,
                     vertical: 8,
                   ),
-                  color: Colors.black54,
+                  color: AppColors.overlayBarBg,
                   child: Row(
                     children: [
-                      // Grid toggle
-                      IconButton(
-                        icon: Icon(
+                      shad.GhostButton(
+                        onPressed: () => recorder.toggleGrid(),
+                        size: shad.ButtonSize.small,
+                        child: Icon(
                           recorder.showGrid ? Icons.grid_on : Icons.grid_off,
-                          color: recorder.showGrid ? Colors.blue : Colors.white,
+                          color: recorder.showGrid
+                              ? AppColors.leftSide
+                              : Colors.white,
                           size: 22,
                         ),
-                        tooltip: t.camera.grid,
-                        onPressed: () => recorder.toggleGrid(),
                       ),
-                      // Settings
-                      IconButton(
-                        icon: const Icon(
+                      shad.GhostButton(
+                        onPressed: () => _showSettings(context),
+                        size: shad.ButtonSize.small,
+                        child: const Icon(
                           Icons.settings,
                           color: Colors.white,
                           size: 22,
                         ),
-                        tooltip: t.camera.settings,
-                        onPressed: () => _showSettings(context),
                       ),
                       const Spacer(),
-                      // Battery levels
                       Consumer<BleManager>(
                         builder: (ctx, ble, _) => Row(
                           children: [
                             if (ble.leftDevice != null) ...[
-                              _BatteryChip(
+                              BatteryIndicator(
                                 label: 'L',
                                 voltage:
                                     ble.batteryLevels[ble
@@ -152,11 +161,13 @@ class _CameraReadyScreenState extends State<CameraReadyScreen> {
                                         .device
                                         .remoteId
                                         .str],
+                                iconSize: 14,
+                                fontSize: 11,
                               ),
                               const SizedBox(width: 6),
                             ],
                             if (ble.rightDevice != null) ...[
-                              _BatteryChip(
+                              BatteryIndicator(
                                 label: 'R',
                                 voltage:
                                     ble.batteryLevels[ble
@@ -164,19 +175,14 @@ class _CameraReadyScreenState extends State<CameraReadyScreen> {
                                         .device
                                         .remoteId
                                         .str],
+                                iconSize: 14,
+                                fontSize: 11,
                               ),
                             ],
                           ],
                         ),
                       ),
-                      // Metrics button
-                      IconButton(
-                        icon: const Icon(
-                          Icons.show_chart,
-                          color: Colors.white,
-                          size: 22,
-                        ),
-                        tooltip: t.camera.sensors,
+                      shad.GhostButton(
                         onPressed: () {
                           Navigator.push(
                             context,
@@ -185,6 +191,12 @@ class _CameraReadyScreenState extends State<CameraReadyScreen> {
                             ),
                           );
                         },
+                        size: shad.ButtonSize.small,
+                        child: const Icon(
+                          Icons.show_chart,
+                          color: Colors.white,
+                          size: 22,
+                        ),
                       ),
                     ],
                   ),
@@ -199,21 +211,23 @@ class _CameraReadyScreenState extends State<CameraReadyScreen> {
                             horizontal: 12,
                             vertical: 4,
                           ),
-                          color: Colors.black38,
+                          color: AppColors.overlayBg,
                           child: Wrap(
                             spacing: 8,
                             children: [
                               if (ble.leftDevice != null)
-                                shad.PrimaryBadge(
-                                  child: Text(
-                                    '${t.ble.left} ${ble.leftDevice!.isConnected.value ? "✓" : "…"}',
-                                  ),
+                                SideBadge(
+                                  label: t.ble.left,
+                                  isConnected:
+                                      ble.leftDevice!.isConnected.value,
+                                  isLeft: true,
                                 ),
                               if (ble.rightDevice != null)
-                                shad.PrimaryBadge(
-                                  child: Text(
-                                    '${t.ble.right} ${ble.rightDevice!.isConnected.value ? "✓" : "…"}',
-                                  ),
+                                SideBadge(
+                                  label: t.ble.right,
+                                  isConnected:
+                                      ble.rightDevice!.isConnected.value,
+                                  isLeft: false,
                                 ),
                             ],
                           ),
@@ -247,14 +261,13 @@ class _CameraReadyScreenState extends State<CameraReadyScreen> {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: [
-                    // Flip camera
-                    IconButton(
-                      icon: const Icon(
+                    shad.GhostButton(
+                      onPressed: () => recorder.toggleCamera(),
+                      child: const Icon(
                         Icons.flip_camera_ios,
                         color: Colors.white70,
                         size: 28,
                       ),
-                      onPressed: () => recorder.toggleCamera(),
                     ),
                     // Record button
                     GestureDetector(
@@ -270,12 +283,11 @@ class _CameraReadyScreenState extends State<CameraReadyScreen> {
                           margin: const EdgeInsets.all(4),
                           decoration: const BoxDecoration(
                             shape: BoxShape.circle,
-                            color: Colors.red,
+                            color: AppColors.danger,
                           ),
                         ),
                       ),
                     ),
-                    // Placeholder for future feature
                     const SizedBox(width: 28, height: 28),
                   ],
                 ),
@@ -289,8 +301,9 @@ class _CameraReadyScreenState extends State<CameraReadyScreen> {
 
   void _showSettings(BuildContext context) {
     final t = Translations.of(context);
-    showModalBottomSheet(
+    shad.openSheet(
       context: context,
+      position: shad.OverlayPosition.bottom,
       builder: (ctx) => SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(16),
@@ -300,10 +313,7 @@ class _CameraReadyScreenState extends State<CameraReadyScreen> {
             children: [
               Text(
                 t.camera.settingsTitle,
-                style: const TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                ),
+                style: Theme.of(context).textTheme.titleMedium,
               ),
               const SizedBox(height: 16),
               Consumer<CameraRecorder>(
@@ -337,12 +347,10 @@ class _CameraReadyScreenState extends State<CameraReadyScreen> {
                         },
                       ),
                     ),
-                    SwitchListTile(
-                      secondary: const Icon(Icons.screen_lock_portrait),
-                      title: Text(t.camera.orientation),
-                      subtitle: Text(t.camera.portrait),
+                    shad.Switch(
                       value: recorder.orientationLocked,
                       onChanged: (v) => recorder.setOrientationLocked(v),
+                      trailing: Text(t.camera.orientation),
                     ),
                   ],
                 ),
@@ -351,37 +359,6 @@ class _CameraReadyScreenState extends State<CameraReadyScreen> {
           ),
         ),
       ),
-    );
-  }
-}
-
-class _BatteryChip extends StatelessWidget {
-  final String label;
-  final double? voltage;
-
-  const _BatteryChip({required this.label, this.voltage});
-
-  @override
-  Widget build(BuildContext context) {
-    final v = voltage;
-    final color = v == null
-        ? Colors.grey
-        : v > 3.7
-        ? Colors.green
-        : v > 3.5
-        ? Colors.orange
-        : Colors.red;
-
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(Icons.battery_full, color: color, size: 14),
-        const SizedBox(width: 2),
-        Text(
-          '$label ${v?.toStringAsFixed(1) ?? "—"}V',
-          style: TextStyle(fontSize: 11, color: color),
-        ),
-      ],
     );
   }
 }

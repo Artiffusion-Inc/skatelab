@@ -4,9 +4,11 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:shadcn_flutter/shadcn_flutter.dart' as shad;
 import '../../i18n/strings.g.dart';
+import '../../theme/app_theme.dart';
+import '../../widgets/battery_indicator.dart';
 import '../ble/ble_manager.dart';
-import '../capture/capture_provider.dart';
-import '../capture/capture_state.dart';
+import 'capture_provider.dart';
+import 'capture_state.dart';
 import '../calibration/calibration_service.dart';
 import '../camera/recorder.dart';
 import 'package:share_plus/share_plus.dart';
@@ -75,7 +77,9 @@ class _CapturingScreenState extends State<CapturingScreen> {
     if (captureProvider.status == CaptureStatus.error) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(captureProvider.lastError ?? 'Capture failed')),
+          SnackBar(
+            content: Text(captureProvider.lastError ?? 'Capture failed'),
+          ),
         );
       }
       widget.onComplete(null);
@@ -124,9 +128,9 @@ class _CapturingScreenState extends State<CapturingScreen> {
       if (mounted) widget.onComplete(exportPath);
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.toString())),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(e.toString())));
         widget.onComplete(null);
       }
     }
@@ -183,41 +187,13 @@ class _CapturingScreenState extends State<CapturingScreen> {
                     horizontal: 12,
                     vertical: 8,
                   ),
-                  color: Colors.black54,
+                  color: AppColors.overlayBarBg,
                   child: Row(
                     children: [
-                      // REC chip
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 4,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.red.shade900,
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                        child: Row(
-                          children: [
-                            Icon(
-                              Icons.fiber_manual_record,
-                              color: Colors.red.shade300,
-                              size: 12,
-                            ),
-                            const SizedBox(width: 4),
-                            Text(
-                              '${_elapsed.inMinutes.toString().padLeft(2, '0')}:${(_elapsed.inSeconds % 60).toString().padLeft(2, '0')}',
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 12,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
+                      RecChip(elapsed: _elapsed),
                       const Spacer(),
-                      // Battery levels
                       if (ble.leftDevice != null) ...[
-                        _BatteryChip(
+                        BatteryIndicator(
                           label: 'L',
                           voltage:
                               ble.batteryLevels[ble
@@ -225,11 +201,13 @@ class _CapturingScreenState extends State<CapturingScreen> {
                                   .device
                                   .remoteId
                                   .str],
+                          iconSize: 12,
+                          fontSize: 10,
                         ),
                         const SizedBox(width: 6),
                       ],
                       if (ble.rightDevice != null) ...[
-                        _BatteryChip(
+                        BatteryIndicator(
                           label: 'R',
                           voltage:
                               ble.batteryLevels[ble
@@ -237,16 +215,17 @@ class _CapturingScreenState extends State<CapturingScreen> {
                                   .device
                                   .remoteId
                                   .str],
+                          iconSize: 12,
+                          fontSize: 10,
                         ),
                       ],
                       const SizedBox(width: 6),
-                      // Sample counts
                       Text(
                         'L:${context.select<CaptureProvider, int>((c) => c.leftSampleCount)}  '
                         'R:${context.select<CaptureProvider, int>((c) => c.rightSampleCount)}',
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 11,
-                          color: Colors.white70,
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
                         ),
                       ),
                     ],
@@ -268,37 +247,6 @@ class _CapturingScreenState extends State<CapturingScreen> {
             : const Icon(Icons.stop),
         child: Text(_stopping ? t.capture.saving : t.capture.stop),
       ),
-    );
-  }
-}
-
-class _BatteryChip extends StatelessWidget {
-  final String label;
-  final double? voltage;
-
-  const _BatteryChip({required this.label, this.voltage});
-
-  @override
-  Widget build(BuildContext context) {
-    final v = voltage;
-    final color = v == null
-        ? Colors.grey
-        : v > 3.7
-        ? Colors.green
-        : v > 3.5
-        ? Colors.orange
-        : Colors.red;
-
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(Icons.battery_full, color: color, size: 12),
-        const SizedBox(width: 2),
-        Text(
-          '$label ${v?.toStringAsFixed(1) ?? "—"}V',
-          style: TextStyle(fontSize: 10, color: color),
-        ),
-      ],
     );
   }
 }

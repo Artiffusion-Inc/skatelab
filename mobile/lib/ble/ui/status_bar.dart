@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../i18n/strings.g.dart';
+import '../../../theme/app_theme.dart';
 import '../imu_device.dart';
 
 class StatusBar extends StatelessWidget {
@@ -26,10 +27,10 @@ class StatusBar extends StatelessWidget {
     final leftOk = leftDevice?.isConnected.value ?? false;
     final rightOk = rightDevice?.isConnected.value ?? false;
     final color = leftOk && rightOk
-        ? Colors.green.shade800
+        ? AppColors.statusBothConnected
         : leftOk || rightOk
-        ? Colors.orange.shade800
-        : Colors.grey.shade800;
+        ? AppColors.statusOneConnected
+        : AppColors.statusNone;
 
     final text = parts.isEmpty
         ? t.ble.assignHint

@@ -1,7 +1,9 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:shadcn_flutter/shadcn_flutter.dart' as shad;
 import '../../i18n/strings.g.dart';
+import '../../theme/app_theme.dart';
 import '../ble/ble_manager.dart';
 import 'calibration_service.dart';
 
@@ -113,7 +115,7 @@ class _CalibrationScreenState extends State<CalibrationScreen> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(Icons.straighten, size: 64, color: Colors.white54),
+              const Icon(Icons.straighten, size: 64, color: AppColors.muted),
               const SizedBox(height: 24),
               Text(
                 _done
@@ -126,19 +128,18 @@ class _CalibrationScreenState extends State<CalibrationScreen> {
               ),
               const SizedBox(height: 24),
               if (_running) ...[
-                SizedBox(
-                  width: 200,
-                  child: LinearProgressIndicator(value: _progress),
-                ),
+                SizedBox(width: 200, child: shad.Progress(progress: _progress)),
                 const SizedBox(height: 8),
                 Text(
                   '${(_progress * _calibDuration.inSeconds).toStringAsFixed(1)} / ${_calibDuration.inSeconds} ${t.calibration.seconds}',
-                  style: const TextStyle(color: Colors.white70),
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
                 ),
               ],
               if (_error != null) ...[
                 const SizedBox(height: 16),
-                Text(_error!, style: const TextStyle(color: Colors.red)),
+                shad.Alert.destructive(title: Text(_error!)),
               ],
               if (_done) ...[
                 const SizedBox(height: 16),
@@ -152,21 +153,21 @@ class _CalibrationScreenState extends State<CalibrationScreen> {
                   ref: context.watch<CalibrationService>().rightRef,
                 ),
                 const SizedBox(height: 24),
-                FilledButton.icon(
+                shad.PrimaryButton(
                   onPressed: widget.onComplete,
-                  icon: const Icon(Icons.arrow_forward),
-                  label: Text(t.calibration.startCapture),
+                  leading: const Icon(Icons.arrow_forward),
+                  child: Text(t.calibration.startCapture),
                 ),
               ],
               if (!_running && !_done) ...[
                 const SizedBox(height: 24),
-                FilledButton.icon(
+                shad.PrimaryButton(
                   onPressed: _startCalibration,
-                  icon: const Icon(Icons.play_arrow),
-                  label: Text(t.calibration.calibrate),
+                  leading: const Icon(Icons.play_arrow),
+                  child: Text(t.calibration.calibrate),
                 ),
                 const SizedBox(height: 12),
-                TextButton(
+                shad.GhostButton(
                   onPressed: widget.onComplete,
                   child: Text(t.calibration.skip),
                 ),
@@ -191,7 +192,7 @@ class _CalibResult extends StatelessWidget {
     if (r == null) {
       return Text(
         '$label: ${t.calibration.noData}',
-        style: const TextStyle(color: Colors.white54),
+        style: const TextStyle(color: AppColors.muted),
       );
     }
     return Text(
