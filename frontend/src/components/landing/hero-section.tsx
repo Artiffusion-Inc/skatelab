@@ -5,10 +5,12 @@ import { useMountEffect } from "@/lib/useMountEffect"
 import { Button } from "@/components/ui/button"
 import { ChevronDown } from "lucide-react"
 import { useTranslations } from "@/i18n"
+import { useAuth } from "@/components/auth-provider"
 
 export function HeroSection() {
   const [mounted, setMounted] = useState(false)
   const t = useTranslations("landing")
+  const { isAuthenticated } = useAuth()
 
   useMountEffect(() => {
     setMounted(true)
@@ -72,7 +74,7 @@ export function HeroSection() {
                 style={{ background: "var(--ice-deep)", color: "white" }}
                 asChild
               >
-                <a href="/register">{t("ctaPrimary")}</a>
+                <a href={isAuthenticated ? "/feed" : "/register"}>{t("ctaPrimary")}</a>
               </Button>
               <Button
                 variant="ghost"
@@ -80,7 +82,9 @@ export function HeroSection() {
                 className="h-14 rounded-full px-8 text-base font-medium text-muted-foreground hover:text-foreground"
                 asChild
               >
-                <a href="#features">{t("ctaSecondary")}</a>
+                <a href={isAuthenticated ? "/progress" : "#features"}>
+                  {isAuthenticated ? t("ctaDashboard") : t("ctaSecondary")}
+                </a>
               </Button>
             </div>
           </div>
