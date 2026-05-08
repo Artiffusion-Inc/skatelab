@@ -10,7 +10,7 @@
 | OOFSkate proxy features implementation | Proprietary | Trade secret + copyright |
 | Anatomical Re-ID algorithm | Proprietary | Trade secret |
 | Choreography CSP solver | Proprietary | Copyright |
-| CoM-based phase detection | Proprietary | Trade secret |
+| CoM-based phase detection | Proprietary | trade secret |
 | Russian recommendation engine | Proprietary | Copyright |
 
 ### 2. Datasets (Curated)
@@ -42,18 +42,67 @@
 - Правила рекомендаций (jump_rules, three_turn_rules)
 - Идеальные диапазоны элементов (element_defs)
 
-## Legal Structure
+## Patents
 
-### Required
+> **Consultation:** ЦРИИС ИТМО, 2026-05-07. Инженер-патентовед.
 
-| Документ | Статус | Примечание |
-|----------|--------|-----------|
-| Terms of Service | ❌ Не создан | Нужен перед пилотом |
-| Privacy Policy | ❌ Не создан | GDPR/152-ФЗ compliance |
-| Data Processing Agreement | ❌ Не создан | Для B2B клиентов |
-| Cookie Policy | ❌ Не создан | EU users |
+### Type: Industrial Design (промышленный образец)
 
-### Data Privacy
+- **Объект:** Архитектура flow (IMU + ML pipeline + edge detection)
+- **Технический результат:** Ускорение процесса обучения, сокращение расходов
+- **Срок:** ~ месяцы
+- **Стоимость:** Трёхзначные числа (1000+ ₽ за класс)
+- **Подача:** Через ЦРИИС ИТМО (возможна скидка, комплексный пакет)
+
+### Patent Search Tools
+
+| Ресурс | URL | Назначение |
+|--------|-----|-----------|
+| Роспатент | searchplatform.rospatent.gov.ru | Поиск по России |
+| Espacenet | worldwide.espacenet.com | Глобальный поиск |
+| Lens.org | lens.org | Открытый патентный поиск |
+
+### Trademark (Товарный знак)
+
+| Параметр | Статус |
+|----------|--------|
+| Название | SkateLab |
+| Риск конфликта | ⚠️ За рубежом есть похожие (например, SpaceLab). В России — нужна проверка. |
+| Тип регистрации | Словесный (слово «SkateLab») или комбинированный (слово + логотип) |
+| Международный | WIPO (Madrid Protocol) для выхода на глобальный рынок |
+| Действие | 10 лет, продлевается |
+
+> **Важно:** После получения свидетельства расширить scope нельзя. Сразу закладывать все классы: мобильное приложение, SaaS, hardware, обучение.
+
+## Legal Documents for Website
+
+> **Source:** Консультация юриста ЦРИИС ИТМО, 2026-05-07.
+
+### Required Documents
+
+| Документ | Статус | Что содержит | Где разместить |
+|----------|--------|-------------|----------------|
+| Terms of Service (Пользовательское соглашение) | ❌ Не создан | Правила использования сервиса, аккаунта | Подвал сайта, чекбокс при регистрации |
+| Offer (Оферта) | ❌ Не создан | Условия платной подписки (что за деньги предлагаем) | Страница тарифов, оплата |
+| Privacy Policy (Политика конфиденциальности) | ❌ Не создан | Как собираем, храним, обрабатываем данные | Подвал сайта |
+| Consent — Personal Data (Согласие на обработку ПДн) | ❌ Не создан | Отдельное согласие на обработку персональных данных | Чекбокс при вводе данных |
+| Consent — Anonymized Data (Согласие на обработку анонимизированных) | ❌ Не создан | Отдельное согласие на обработку анонимизированных/биометрических данных | Чекбокс при вводе данных |
+| Cookie Policy | ❌ Не создан | Использование cookies | Баннер/подвал |
+| Data Processing Agreement (ДПА) | ❌ Не создан | Для B2B клиентов (академии, федерации) | В договоре |
+
+> **Критично:** С 2024 законодательство требует **два отдельных согласия** — на ПДн и на анонимизированные данные. Раньше можно было объединить. Сейчас нельзя. Биометрия (скелетон) → анонимизированные данные.
+
+### Implementation Checklist
+
+- [ ] Terms of Service
+- [ ] Offer (оферта)
+- [ ] Privacy Policy
+- [ ] Consent — Personal Data (чекбокс)
+- [ ] Consent — Anonymized Data (чекбокс)
+- [ ] Cookie banner
+- [ ] DPA (для B2B)
+
+## Data Privacy
 
 | Регламент | Требования | Статус |
 |-----------|-----------|--------|
@@ -63,7 +112,7 @@
 
 > **Критичный риск:** 152-ФЗ требует хранение персональных данных россиян на серверах в РФ. R2/Cloudflare — США/EU. Решение: российский хостинг для БД + R2 для медиа (персональные данные ≠ видео).
 
-### IP Risks
+## IP Risks
 
 | Риск | Вероятность | Влияние | Mitigation |
 |------|------------|---------|-----------|
@@ -71,8 +120,9 @@
 | Dataset licensing | Высокая | Высокое | Проверить все лицензии, получить коммерческие |
 | Patent troll (ML methods) | Низкая | Высокое | Prior art documentation |
 | Employee IP (open-source contribs) | Средняя | Среднее | CLA для контрибьюторов |
+| Trademark conflict (SkateLab abroad) | Средняя | Среднее | WIPO search + registration |
 
-### Competitive IP Position
+## Competitive IP Position
 
 **Moat:** Не патенты, а:
 1. **Data network effect** — больше пользователей → больше эталонов → лучше рекомендации
@@ -84,6 +134,7 @@
 - Алгоритмы (patent → раскрытие → копирование)
 
 **Что стоит защищать:**
-- Бренд SkateLab → товарный знак
+- Бренд SkateLab → товарный знак (Роспатент + WIPO)
+- Архитектура flow → промышленный образец (патент)
 - Дизайн → авторское право
 - Dataset эталонов → trade secret
