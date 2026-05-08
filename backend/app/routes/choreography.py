@@ -281,16 +281,14 @@ class ChoreographyController(Controller):
         """List user's choreography programs."""
         programs = await list_programs_by_user(db, user.id, limit=limit, offset=offset)
         total = await count_programs_by_user(db, user.id)
-        limit_int: int = limit  # type: ignore[assignment]
-        offset_int: int = offset  # type: ignore[assignment]
-        page = (offset_int // limit_int) + 1 if limit_int else 1
-        pages = (total + limit_int - 1) // limit_int if limit_int else 1
+        page = (offset // limit) + 1 if limit else 1  # type: ignore[operator]
+        pages = (total + limit - 1) // limit if limit else 1  # type: ignore[operator]
 
         return ProgramListResponse(
             programs=[_program_to_response(p) for p in programs],
             total=total,
             page=page,
-            page_size=limit_int,
+            page_size=limit,  # type: ignore[arg-type]
             pages=pages,
         )
 

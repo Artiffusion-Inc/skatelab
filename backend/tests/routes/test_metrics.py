@@ -162,6 +162,30 @@ async def test_trend_with_data(client, auth_headers_a, user_a, db_session: Async
 
 
 @pytest.mark.asyncio
+async def test_trend_with_linear_regression(
+    client, auth_headers_a, user_a, db_session: AsyncSession
+):
+    """GET /metrics/trend with ≥3 data points triggers linear_regression for trend."""
+    s1 = await _insert_session(db_session, user_a.id, "waltz_jump")
+    await _insert_metric(db_session, s1.id, "airtime", 0.30, is_pr=False)
+    s2 = await _insert_session(db_session, user_a.id, "waltz_jump")
+    await _insert_metric(db_session, s2.id, "airtime", 0.40, is_pr=False)
+    s3 = await _insert_session(db_session, user_a.id, "waltz_jump")
+    await _insert_metric(db_session, s3.id, "airtime", 0.50, is_pr=True)
+
+    response = await client.get(
+        "/api/v1/metrics/trend",
+        params={"element_type": "waltz_jump", "metric_name": "airtime"},
+        headers=auth_headers_a,
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data["data_points"]) == 3
+    assert data["trend"] == "improving"
+    assert data["current_pr"] == 0.50
+
+
+@pytest.mark.asyncio
 async def test_trend_unknown_metric(client, auth_headers_a):
     """GET /metrics/trend with invalid metric_name returns 400."""
     response = await client.get(
