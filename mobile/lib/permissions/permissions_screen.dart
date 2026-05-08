@@ -21,11 +21,16 @@ class PermissionsScreen extends StatelessWidget {
             children: [
               const Icon(Icons.security, size: 64, color: AppColors.muted),
               const SizedBox(height: 24),
-              Text(t.permissions.required, style: Theme.of(context).textTheme.titleMedium),
+              Text(
+                t.permissions.required,
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
               const SizedBox(height: 8),
               Text(
                 t.permissions.list,
-                style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
               ),
               const SizedBox(height: 32),
               shad.PrimaryButton(

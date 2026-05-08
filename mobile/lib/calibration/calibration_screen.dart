@@ -128,10 +128,7 @@ class _CalibrationScreenState extends State<CalibrationScreen> {
               ),
               const SizedBox(height: 24),
               if (_running) ...[
-                SizedBox(
-                  width: 200,
-                  child: shad.Progress(progress: _progress),
-                ),
+                SizedBox(width: 200, child: shad.Progress(progress: _progress)),
                 const SizedBox(height: 8),
                 Text(
                   '${(_progress * _calibDuration.inSeconds).toStringAsFixed(1)} / ${_calibDuration.inSeconds} ${t.calibration.seconds}',

@@ -77,7 +77,9 @@ class _CapturingScreenState extends State<CapturingScreen> {
     if (captureProvider.status == CaptureStatus.error) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(captureProvider.lastError ?? 'Capture failed')),
+          SnackBar(
+            content: Text(captureProvider.lastError ?? 'Capture failed'),
+          ),
         );
       }
       widget.onComplete(null);
@@ -126,9 +128,9 @@ class _CapturingScreenState extends State<CapturingScreen> {
       if (mounted) widget.onComplete(exportPath);
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.toString())),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(e.toString())));
         widget.onComplete(null);
       }
     }
@@ -193,7 +195,12 @@ class _CapturingScreenState extends State<CapturingScreen> {
                       if (ble.leftDevice != null) ...[
                         BatteryIndicator(
                           label: 'L',
-                          voltage: ble.batteryLevels[ble.leftDevice!.device.remoteId.str],
+                          voltage:
+                              ble.batteryLevels[ble
+                                  .leftDevice!
+                                  .device
+                                  .remoteId
+                                  .str],
                           iconSize: 12,
                           fontSize: 10,
                         ),
@@ -202,7 +209,12 @@ class _CapturingScreenState extends State<CapturingScreen> {
                       if (ble.rightDevice != null) ...[
                         BatteryIndicator(
                           label: 'R',
-                          voltage: ble.batteryLevels[ble.rightDevice!.device.remoteId.str],
+                          voltage:
+                              ble.batteryLevels[ble
+                                  .rightDevice!
+                                  .device
+                                  .remoteId
+                                  .str],
                           iconSize: 12,
                           fontSize: 10,
                         ),

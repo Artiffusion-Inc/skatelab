@@ -63,7 +63,11 @@ class _CameraReadyScreenState extends State<CameraReadyScreen> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const Icon(Icons.videocam_off, size: 64, color: AppColors.muted),
+                const Icon(
+                  Icons.videocam_off,
+                  size: 64,
+                  color: AppColors.muted,
+                ),
                 const SizedBox(height: 16),
                 Text(
                   _error ?? t.camera.unavailable,
@@ -129,14 +133,20 @@ class _CameraReadyScreenState extends State<CameraReadyScreen> {
                         size: shad.ButtonSize.small,
                         child: Icon(
                           recorder.showGrid ? Icons.grid_on : Icons.grid_off,
-                          color: recorder.showGrid ? AppColors.leftSide : Colors.white,
+                          color: recorder.showGrid
+                              ? AppColors.leftSide
+                              : Colors.white,
                           size: 22,
                         ),
                       ),
                       shad.GhostButton(
                         onPressed: () => _showSettings(context),
                         size: shad.ButtonSize.small,
-                        child: const Icon(Icons.settings, color: Colors.white, size: 22),
+                        child: const Icon(
+                          Icons.settings,
+                          color: Colors.white,
+                          size: 22,
+                        ),
                       ),
                       const Spacer(),
                       Consumer<BleManager>(
@@ -145,7 +155,12 @@ class _CameraReadyScreenState extends State<CameraReadyScreen> {
                             if (ble.leftDevice != null) ...[
                               BatteryIndicator(
                                 label: 'L',
-                                voltage: ble.batteryLevels[ble.leftDevice!.device.remoteId.str],
+                                voltage:
+                                    ble.batteryLevels[ble
+                                        .leftDevice!
+                                        .device
+                                        .remoteId
+                                        .str],
                                 iconSize: 14,
                                 fontSize: 11,
                               ),
@@ -154,7 +169,12 @@ class _CameraReadyScreenState extends State<CameraReadyScreen> {
                             if (ble.rightDevice != null) ...[
                               BatteryIndicator(
                                 label: 'R',
-                                voltage: ble.batteryLevels[ble.rightDevice!.device.remoteId.str],
+                                voltage:
+                                    ble.batteryLevels[ble
+                                        .rightDevice!
+                                        .device
+                                        .remoteId
+                                        .str],
                                 iconSize: 14,
                                 fontSize: 11,
                               ),
@@ -172,7 +192,11 @@ class _CameraReadyScreenState extends State<CameraReadyScreen> {
                           );
                         },
                         size: shad.ButtonSize.small,
-                        child: const Icon(Icons.show_chart, color: Colors.white, size: 22),
+                        child: const Icon(
+                          Icons.show_chart,
+                          color: Colors.white,
+                          size: 22,
+                        ),
                       ),
                     ],
                   ),
@@ -194,13 +218,15 @@ class _CameraReadyScreenState extends State<CameraReadyScreen> {
                               if (ble.leftDevice != null)
                                 SideBadge(
                                   label: t.ble.left,
-                                  isConnected: ble.leftDevice!.isConnected.value,
+                                  isConnected:
+                                      ble.leftDevice!.isConnected.value,
                                   isLeft: true,
                                 ),
                               if (ble.rightDevice != null)
                                 SideBadge(
                                   label: t.ble.right,
-                                  isConnected: ble.rightDevice!.isConnected.value,
+                                  isConnected:
+                                      ble.rightDevice!.isConnected.value,
                                   isLeft: false,
                                 ),
                             ],
@@ -237,7 +263,11 @@ class _CameraReadyScreenState extends State<CameraReadyScreen> {
                   children: [
                     shad.GhostButton(
                       onPressed: () => recorder.toggleCamera(),
-                      child: const Icon(Icons.flip_camera_ios, color: Colors.white70, size: 28),
+                      child: const Icon(
+                        Icons.flip_camera_ios,
+                        color: Colors.white70,
+                        size: 28,
+                      ),
                     ),
                     // Record button
                     GestureDetector(

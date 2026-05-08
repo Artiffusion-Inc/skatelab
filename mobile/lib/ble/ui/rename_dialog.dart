@@ -44,10 +44,7 @@ class _RenameDialogState extends State<RenameDialog> {
           onPressed: () => Navigator.pop(context),
           child: Text(t.ble.rename.cancel),
         ),
-        shad.PrimaryButton(
-          onPressed: _save,
-          child: Text(t.ble.rename.save),
-        ),
+        shad.PrimaryButton(onPressed: _save, child: Text(t.ble.rename.save)),
       ],
     );
   }

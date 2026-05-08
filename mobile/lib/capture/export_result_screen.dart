@@ -27,18 +27,27 @@ class ExportResultScreen extends StatelessWidget {
             children: [
               if (success)
                 shad.Alert(
-                  leading: const Icon(Icons.check_circle, size: 48, color: AppColors.success),
+                  leading: const Icon(
+                    Icons.check_circle,
+                    size: 48,
+                    color: AppColors.success,
+                  ),
                   title: Text(t.export.success),
                   content: Container(
                     margin: const EdgeInsets.only(top: 8),
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                      color: Theme.of(
+                        context,
+                      ).colorScheme.surfaceContainerHighest,
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: SelectableText(
                       exportPath!,
-                      style: const TextStyle(fontFamily: 'monospace', fontSize: 12),
+                      style: const TextStyle(
+                        fontFamily: 'monospace',
+                        fontSize: 12,
+                      ),
                     ),
                   ),
                 )

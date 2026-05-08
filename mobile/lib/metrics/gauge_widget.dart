@@ -38,10 +38,7 @@ class RadialGauge extends StatelessWidget {
           '${value.toStringAsFixed(1)} $unit',
           style: TextStyle(fontSize: 12, color: cs.onSurface),
         ),
-        Text(
-          label,
-          style: TextStyle(fontSize: 10, color: cs.onSurfaceVariant),
-        ),
+        Text(label, style: TextStyle(fontSize: 10, color: cs.onSurfaceVariant)),
       ],
     );
   }

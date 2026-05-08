@@ -32,7 +32,10 @@ class EdgeOverlay extends StatelessWidget {
           color: AppColors.overlayBg,
           borderRadius: BorderRadius.circular(8),
           border: (leftStale || rightStale)
-              ? Border.all(color: AppColors.danger.withValues(alpha: 0.7), width: 2)
+              ? Border.all(
+                  color: AppColors.danger.withValues(alpha: 0.7),
+                  width: 2,
+                )
               : null,
         ),
         child: Column(
@@ -54,7 +57,9 @@ class EdgeOverlay extends StatelessWidget {
                 Text(
                   '${t.overlay.leftLabel} ${leftAngle.toStringAsFixed(1)}°',
                   style: TextStyle(
-                    color: leftStale ? AppColors.danger.withValues(alpha: 0.7) : Colors.white,
+                    color: leftStale
+                        ? AppColors.danger.withValues(alpha: 0.7)
+                        : Colors.white,
                     fontSize: 18,
                     fontWeight: leftStale ? FontWeight.bold : null,
                   ),
@@ -77,7 +82,9 @@ class EdgeOverlay extends StatelessWidget {
                 Text(
                   '${t.overlay.rightLabel} ${rightAngle.toStringAsFixed(1)}°',
                   style: TextStyle(
-                    color: rightStale ? AppColors.danger.withValues(alpha: 0.7) : Colors.white,
+                    color: rightStale
+                        ? AppColors.danger.withValues(alpha: 0.7)
+                        : Colors.white,
                     fontSize: 18,
                     fontWeight: rightStale ? FontWeight.bold : null,
                   ),

@@ -9,8 +9,13 @@ class AppColors {
   static const muted = Color(0xFF9E9E9E);
 
   // Battery levels
-  static Color batteryLevel(double? v) =>
-      v == null ? muted : v > 3.7 ? success : v > 3.5 ? warning : danger;
+  static Color batteryLevel(double? v) => v == null
+      ? muted
+      : v > 3.7
+      ? success
+      : v > 3.5
+      ? warning
+      : danger;
 
   // Side indicators
   static const leftSide = Color(0xFF42A5F5);

@@ -45,10 +45,7 @@ void main() {
     test('start transitions status to recording', () async {
       when(() => bleManager.startStreams()).thenAnswer((_) => Stream.empty());
 
-      await provider.start(
-        onLeftEdgeAngle: (_) {},
-        onRightEdgeAngle: (_) {},
-      );
+      await provider.start(onLeftEdgeAngle: (_) {}, onRightEdgeAngle: (_) {});
 
       expect(provider.status, equals(CaptureStatus.recording));
     });
