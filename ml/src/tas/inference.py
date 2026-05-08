@@ -8,6 +8,7 @@ from pathlib import Path
 import numpy as np
 import torch
 
+from ..device import DeviceConfig
 from .classifier import SegmentClassifier, extract_segment_features
 from .model import BiGRUTAS
 
@@ -19,10 +20,11 @@ class TASElementSegmenter:
         self,
         model_path: Path | str,
         classifier_path: Path | str | None = None,
-        device: str = "cuda",
+        device: str | None = None,
         min_segment_duration: float = 0.5,
     ) -> None:
-        self.device = torch.device(device if torch.cuda.is_available() else "cpu")
+        cfg = DeviceConfig(device=device) if device else DeviceConfig.default()
+        self.device = torch.device(cfg.device)
         checkpoint = torch.load(model_path, map_location=self.device, weights_only=True)
         cfg = checkpoint.get("config", {})
         self.model = BiGRUTAS(
@@ -37,6 +39,7 @@ class TASElementSegmenter:
         self.classifier: SegmentClassifier | None = None
         if classifier_path is not None:
             import joblib
+
             self.classifier = joblib.load(classifier_path)
 
         self.min_segment_duration = min_segment_duration
@@ -85,12 +88,14 @@ class TASElementSegmenter:
                             features = extract_segment_features(seg_poses, fps)
                             element_type, confidence = self.classifier.predict(features)
 
-                        segments.append({
-                            "element_type": element_type,
-                            "start": start,
-                            "end": i - 1,
-                            "confidence": confidence,
-                        })
+                        segments.append(
+                            {
+                                "element_type": element_type,
+                                "start": start,
+                                "end": i - 1,
+                                "confidence": confidence,
+                            }
+                        )
                 current = int(labels[i])
                 start = i
 
@@ -104,12 +109,14 @@ class TASElementSegmenter:
                 if self.classifier is not None and current in (1, 2, 3):
                     features = extract_segment_features(seg_poses, fps)
                     element_type, confidence = self.classifier.predict(features)
-                segments.append({
-                    "element_type": element_type,
-                    "start": start,
-                    "end": len(labels) - 1,
-                    "confidence": confidence,
-                })
+                segments.append(
+                    {
+                        "element_type": element_type,
+                        "start": start,
+                        "end": len(labels) - 1,
+                        "confidence": confidence,
+                    }
+                )
 
         return segments
 

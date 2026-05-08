@@ -18,7 +18,7 @@ class Finding:
     detail: str
 
 
-def _linear_regression(values: list[float]) -> tuple[float, float]:
+def linear_regression(values: list[float]) -> tuple[float, float]:
     """Return (slope, r_squared) for a simple linear regression."""
     n = len(values)
     if n < 2:
@@ -73,7 +73,7 @@ def check_declining_trend(
     """Warning when linear regression shows decline with R² > 0.5."""
     if len(values) < 5:
         return None
-    slope, r_squared = _linear_regression(values)
+    slope, r_squared = linear_regression(values)
     if slope < 0 and r_squared > 0.5:
         return Finding(
             severity="warning",

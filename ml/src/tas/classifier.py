@@ -58,7 +58,13 @@ class SegmentClassifier:
             random_state=42,
             n_jobs=-1,
         )
-        self.feature_names = ["duration", "hip_y_range", "motion_energy", "rotation_speed", "num_frames"]
+        self.feature_names = [
+            "duration",
+            "hip_y_range",
+            "motion_energy",
+            "rotation_speed",
+            "num_frames",
+        ]
         self.label_encoder = LabelEncoder()
 
     def fit(self, segments: list[dict]) -> None:

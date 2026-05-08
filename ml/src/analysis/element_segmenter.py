@@ -154,7 +154,9 @@ class ElementSegmenter:
             video_path=video_path,
             video_meta=video_meta,
             method="tas_ml",
-            confidence=float(np.mean([s.confidence for s in element_segs])) if element_segs else 0.0,
+            confidence=float(np.mean([s.confidence for s in element_segs]))
+            if element_segs
+            else 0.0,
         )
 
     def _compute_motion_energy(self, poses: NormalizedPose) -> NDArray[np.float32]:

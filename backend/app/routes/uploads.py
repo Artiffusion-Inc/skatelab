@@ -14,7 +14,7 @@ from pydantic import BaseModel
 
 from app.auth.deps import VerifiedUser
 from app.config import get_settings
-from app.storage import _client
+from app.storage import get_r2_client
 
 CHUNK_SIZE = 5 * 1024 * 1024  # 5MB
 
@@ -38,7 +38,7 @@ class UploadsController(Controller):
         total_size: int = Parameter(gt=0),
     ) -> dict:
         """Initialize a multipart upload. Returns upload_id and pre-signed part URLs."""
-        r2 = _client()
+        r2 = get_r2_client()
         bucket = get_settings().r2.bucket
         key = f"uploads/{verified_user.id}/{uuid.uuid4()}/{file_name}"
 
@@ -79,12 +79,12 @@ class UploadsController(Controller):
         self, verified_user: VerifiedUser, data: CompleteUploadRequest
     ) -> dict:
         """Complete a multipart upload. Returns the final object key."""
-        r2 = _client()
+        r2 = get_r2_client()
         bucket = get_settings().r2.bucket
 
         multipart_parts = [
             {"PartNumber": p["part_number"], "ETag": p["etag"]}
-            for p in sorted(data.parts, key=lambda x: x["part_number"])
+            for p in sorted(data.parts, key=lambda x: int(x["part_number"]))
         ]
 
         if not multipart_parts:
@@ -110,7 +110,7 @@ class UploadsController(Controller):
         content_type: str = Parameter(default="application/octet-stream"),
     ) -> dict:
         """Generate a presigned PUT URL for direct R2 upload (small files)."""
-        r2 = _client()
+        r2 = get_r2_client()
         bucket = get_settings().r2.bucket
         key = f"uploads/{verified_user.id}/{uuid.uuid4()}/{file_name}"
 

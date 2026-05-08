@@ -66,7 +66,6 @@ class BiGRUTAS(nn.Module):
         )
         packed_out, _ = self.gru(packed)
         out, _ = nn.utils.rnn.pad_packed_sequence(packed_out, batch_first=True)
-        # out: (B, T, hidden_dim * 2)
 
         logits = self.classifier(out)  # (B, T, 4)
         return logits

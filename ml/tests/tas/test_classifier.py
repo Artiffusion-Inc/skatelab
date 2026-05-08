@@ -8,6 +8,7 @@ try:
 except ImportError:
     import sys
     from pathlib import Path
+
     sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
     from tas.classifier import SegmentClassifier, extract_segment_features
 
@@ -25,8 +26,26 @@ def test_extract_features():
 
 def test_classifier_fit_predict():
     segments = [
-        {"features": {"duration": 1.0, "hip_y_range": 0.5, "motion_energy": 0.1, "rotation_speed": 200.0, "num_frames": 30}, "label": "3Flip"},
-        {"features": {"duration": 3.0, "hip_y_range": 0.1, "motion_energy": 0.05, "rotation_speed": 50.0, "num_frames": 90}, "label": "ChComboSpin4"},
+        {
+            "features": {
+                "duration": 1.0,
+                "hip_y_range": 0.5,
+                "motion_energy": 0.1,
+                "rotation_speed": 200.0,
+                "num_frames": 30,
+            },
+            "label": "3Flip",
+        },
+        {
+            "features": {
+                "duration": 3.0,
+                "hip_y_range": 0.1,
+                "motion_energy": 0.05,
+                "rotation_speed": 50.0,
+                "num_frames": 90,
+            },
+            "label": "ChComboSpin4",
+        },
     ]
     clf = SegmentClassifier(n_estimators=10)
     clf.fit(segments)

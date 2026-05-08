@@ -5,7 +5,7 @@ Called after successful video processing to persist sessions and metrics.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from app.crud.session import get_by_id, update
 from app.crud.session_metric import bulk_create, get_current_best_batch
@@ -19,8 +19,8 @@ if TYPE_CHECKING:
 async def save_analysis_results(
     db: AsyncSession,
     session_id: str,
-    metrics: list,  # list[MetricResult]
-    phases,  # ElementPhase
+    metrics: list[Any],  # list[MetricResult]
+    phases: Any,  # ElementPhase
     recommendations: list[str],
 ) -> None:
     """Save analysis results to Postgres.

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence  # noqa: TC003
-from typing import ClassVar
+from typing import TYPE_CHECKING, ClassVar
 
 from litestar import Controller, delete, get, patch, post
 from litestar.exceptions import ClientException
@@ -27,8 +27,11 @@ from app.schemas import (
 )
 from app.storage import get_object_url_async
 
+if TYPE_CHECKING:
+    from app.models.session import Session
 
-async def _session_to_response(session) -> SessionResponse:
+
+async def _session_to_response(session: Session) -> SessionResponse:
     """Convert ORM Session to response schema with presigned URLs."""
     video_url = (
         await get_object_url_async(session.video_key) if session.video_key else session.video_url
@@ -124,16 +127,14 @@ class SessionsController(Controller):
             sort=sort,
         )
         total = await count_by_user(db, user_id=target_user_id, element_type=element_type)
-        limit_int = int(limit) if isinstance(limit, int) else limit.default
-        offset_int = int(offset) if isinstance(offset, int) else offset.default
-        page = (offset_int // limit_int) + 1 if limit_int else 1
-        pages = (total + limit_int - 1) // limit_int if limit_int else 1
+        page = (offset // limit) + 1 if limit else 1  # type: ignore[operator]
+        pages = (total + limit - 1) // limit if limit else 1  # type: ignore[operator]
 
         return SessionListResponse(
             sessions=[await _session_to_response(s) for s in sessions],
             total=total,
             page=page,
-            page_size=limit_int,
+            page_size=limit,  # type: ignore[arg-type]
             pages=pages,
         )
 

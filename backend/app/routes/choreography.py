@@ -6,7 +6,7 @@ import asyncio
 import tempfile
 from collections.abc import Sequence  # noqa: TC003
 from pathlib import Path
-from typing import ClassVar
+from typing import TYPE_CHECKING, ClassVar
 
 from litestar import Controller, delete, get, post, put
 from litestar.connection import Request  # noqa: TC002
@@ -54,8 +54,11 @@ from app.services.choreography.rink_renderer import render_rink
 from app.services.choreography.rules_engine import validate_layout as validate_layout_engine
 from app.storage import upload_file
 
+if TYPE_CHECKING:
+    from app.models.choreography import ChoreographyProgram
 
-def _program_to_response(program) -> ChoreographyProgramResponse:
+
+def _program_to_response(program: ChoreographyProgram) -> ChoreographyProgramResponse:
     """Convert ORM ChoreographyProgram to response schema."""
     return ChoreographyProgramResponse.model_validate(program)
 
@@ -278,16 +281,14 @@ class ChoreographyController(Controller):
         """List user's choreography programs."""
         programs = await list_programs_by_user(db, user.id, limit=limit, offset=offset)
         total = await count_programs_by_user(db, user.id)
-        limit_int = int(limit) if isinstance(limit, int) else limit.default
-        offset_int = int(offset) if isinstance(offset, int) else offset.default
-        page = (offset_int // limit_int) + 1 if limit_int else 1
-        pages = (total + limit_int - 1) // limit_int if limit_int else 1
+        page = (offset // limit) + 1 if limit else 1  # type: ignore[operator]
+        pages = (total + limit - 1) // limit if limit else 1  # type: ignore[operator]
 
         return ProgramListResponse(
             programs=[_program_to_response(p) for p in programs],
             total=total,
             page=page,
-            page_size=limit_int,
+            page_size=limit,  # type: ignore[arg-type]
             pages=pages,
         )
 

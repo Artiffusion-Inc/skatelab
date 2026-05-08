@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import sqlalchemy as sa
 from sqlalchemy import desc, func, select
@@ -14,7 +14,7 @@ if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession
 
 
-async def create(db: AsyncSession, *, user_id: str, element_type: str, **kwargs) -> Session:
+async def create(db: AsyncSession, *, user_id: str, element_type: str, **kwargs: Any) -> Session:
     session = Session(user_id=user_id, element_type=element_type, **kwargs)
     db.add(session)
     await db.flush()
@@ -63,7 +63,7 @@ async def count_by_user(
     return result.scalar_one()
 
 
-async def update(db: AsyncSession, session: Session, **kwargs) -> Session:
+async def update(db: AsyncSession, session: Session, **kwargs: Any) -> Session:
     for key, value in kwargs.items():
         if value is not None:
             setattr(session, key, value)

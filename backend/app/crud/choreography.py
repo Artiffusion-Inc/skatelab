@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import desc, func, select
 
@@ -22,7 +22,7 @@ async def create_music_analysis(
     filename: str,
     audio_url: str,
     duration_sec: float,
-    **kwargs,
+    **kwargs: Any,
 ) -> MusicAnalysis:
     music = MusicAnalysis(
         user_id=user_id,
@@ -58,7 +58,7 @@ async def find_music_by_fingerprint(db: AsyncSession, fingerprint: str) -> Music
 async def update_music_analysis(
     db: AsyncSession,
     music: MusicAnalysis,
-    **kwargs,
+    **kwargs: Any,
 ) -> MusicAnalysis:
     for key, value in kwargs.items():
         if value is not None:
@@ -78,7 +78,7 @@ async def create_program(
     user_id: str,
     discipline: str,
     segment: str,
-    **kwargs,
+    **kwargs: Any,
 ) -> ChoreographyProgram:
     program = ChoreographyProgram(
         user_id=user_id,
@@ -129,7 +129,7 @@ async def count_programs_by_user(db: AsyncSession, user_id: str) -> int:
 async def update_program(
     db: AsyncSession,
     program: ChoreographyProgram,
-    **kwargs,
+    **kwargs: Any,
 ) -> ChoreographyProgram:
     for key, value in kwargs.items():
         if value is not None:

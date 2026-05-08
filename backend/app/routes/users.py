@@ -4,7 +4,6 @@ from collections.abc import Sequence  # noqa: TC003
 from typing import ClassVar
 
 from litestar import Controller, get, patch
-from sqlalchemy.ext.asyncio import AsyncSession  # noqa: F401
 
 from app.auth.deps import CurrentUser, DbDep
 from app.crud.user import update

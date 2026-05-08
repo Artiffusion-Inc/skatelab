@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import select
 
@@ -24,7 +24,7 @@ async def get_by_email(db: AsyncSession, email: str) -> User | None:
     return result.scalar_one_or_none()
 
 
-async def create(db: AsyncSession, *, email: str, hashed_password: str, **kwargs) -> User:
+async def create(db: AsyncSession, *, email: str, hashed_password: str, **kwargs: Any) -> User:
     """Create a new user."""
     user = User(email=email, hashed_password=hashed_password, **kwargs)
     db.add(user)
@@ -33,7 +33,7 @@ async def create(db: AsyncSession, *, email: str, hashed_password: str, **kwargs
     return user
 
 
-async def update(db: AsyncSession, user: User, **kwargs) -> User:
+async def update(db: AsyncSession, user: User, **kwargs: Any) -> User:
     """Update user fields."""
     for key, value in kwargs.items():
         if value is not None:
