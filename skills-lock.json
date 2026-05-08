@@ -1,11 +1,11 @@
 {
   "version": 1,
   "skills": {
-    "android_ui_verification": {
-      "source": "sickn33/antigravity-awesome-skills",
+    "blacksmith-testbox": {
+      "source": "openclaw/clawhub",
       "sourceType": "github",
-      "skillPath": "skills/android_ui_verification/SKILL.md",
-      "computedHash": "29f30c181b2f7b62a424dac01aab36911e3e42eb0442a615e60005ccac319f98"
+      "skillPath": ".agents/skills/blacksmith-testbox/SKILL.md",
+      "computedHash": "0c8949e1004bd1b758de30a52a20b41bacc2c9e95bb90d940ce062ce2f0dbe3a"
     },
     "deployment-patterns": {
       "source": "affaan-m/everything-claude-code",
@@ -13,16 +13,46 @@
       "skillPath": "skills/deployment-patterns/SKILL.md",
       "computedHash": "99f83de44e287fa486828d87e0f2083e1aee7ea47b8df5768ee9786c6cda57c4"
     },
+    "flutter-dev": {
+      "source": "MiniMax-AI/skills",
+      "sourceType": "github",
+      "skillPath": "skills/flutter-dev/SKILL.md",
+      "computedHash": "40e1256c85dd230474ce69cacbc59fdcbf18c858a7615f73ddaf776d2e900b55"
+    },
     "impeccable": {
       "source": "pbakaus/impeccable",
       "sourceType": "github",
-      "skillPath": ".agents/skills/impeccable/SKILL.md",
-      "computedHash": "de38608ceb9573c3142306babd9057a240791c4e4d6647f874a4650c996cb37e"
+      "skillPath": "skill/SKILL.md",
+      "computedHash": "8cdf2e788eaca3af7d02026ef9cec55b506100a00d130f938e3fb1ad669c0ad0"
+    },
+    "install-openviking-memory": {
+      "source": "volcengine/OpenViking",
+      "sourceType": "github",
+      "skillPath": "examples/openclaw-plugin/skills/install-openviking-memory/SKILL.md",
+      "computedHash": "5a457eed1b0f308180d318a269e7b2b0e8cae0328f12f98b4b2331dfc4896b45"
+    },
+    "resend-cli": {
+      "source": "resend/resend-cli",
+      "sourceType": "github",
+      "skillPath": "skills/resend-cli/SKILL.md",
+      "computedHash": "8253f110ec3cbaac56153fc9051eeb7d3e8dbba03c31b49981aeb4d6f036d6d7"
+    },
+    "saas-mvp-launcher": {
+      "source": "sickn33/antigravity-awesome-skills",
+      "sourceType": "github",
+      "skillPath": "skills/saas-mvp-launcher/SKILL.md",
+      "computedHash": "367186d594e8690794aa36bc88cc60b8e4c4e5edf97cb5713bb91367738f4aa4"
     },
     "shadcn-ui-flutter": {
       "source": "nank1ro/flutter-shadcn-ui",
       "sourceType": "github",
       "computedHash": "7663f2fb51d11cde73a5f03253c0578db305c80ee7c33a6c03923491eba8980b"
+    },
+    "vitest-patterns": {
+      "source": "bluesky-social/atproto",
+      "sourceType": "github",
+      "skillPath": ".claude/skills/vitest-patterns/SKILL.md",
+      "computedHash": "e1bf084559663cc57483c108c9dc03936462130b7483a19281bb1532cda13f4a"
     }
   }
 }

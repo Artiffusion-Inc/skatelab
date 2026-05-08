@@ -466,6 +466,8 @@ async def detect_video_task(
 
         with tempfile.TemporaryDirectory() as tmpdir:
             video_path = Path(tmpdir) / "input.mp4"
+            # TODO: integrate IMU into ML pipeline — session.imu_left_key, session.imu_right_key, session.manifest_key
+            # Currently IMU data is uploaded to R2 but not consumed by the pipeline.
             await asyncio.to_thread(download_file, video_key, str(video_path))
 
             cfg = DeviceConfig.default()
