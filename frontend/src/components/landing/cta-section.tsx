@@ -2,9 +2,11 @@
 
 import { Button } from "@/components/ui/button"
 import { useTranslations } from "@/i18n"
+import { useAuth } from "@/components/auth-provider"
 
 export function CTASection() {
   const t = useTranslations("landing")
+  const { isAuthenticated } = useAuth()
 
   return (
     <section className="relative mx-auto max-w-[1400px] px-4 py-20 sm:px-6 md:py-32">
@@ -47,16 +49,20 @@ export function CTASection() {
               style={{ background: "var(--ice-deep)", color: "white" }}
               asChild
             >
-              <a href="/register">{t("ctaAction")}</a>
+              <a href={isAuthenticated ? "/feed" : "/register"}>
+                {isAuthenticated ? t("ctaDashboard") : t("ctaAction")}
+              </a>
             </Button>
-            <Button
-              variant="ghost"
-              size="lg"
-              className="h-14 rounded-full border border-white/30 bg-white/15 px-8 text-base font-medium text-white backdrop-blur-sm hover:bg-white/25 hover:text-white"
-              asChild
-            >
-              <a href="/login">{t("ctaLogin")}</a>
-            </Button>
+            {!isAuthenticated && (
+              <Button
+                variant="ghost"
+                size="lg"
+                className="h-14 rounded-full border border-white/30 bg-white/15 px-8 text-base font-medium text-white backdrop-blur-sm hover:bg-white/25 hover:text-white"
+                asChild
+              >
+                <a href="/login">{t("ctaLogin")}</a>
+              </Button>
+            )}
           </div>
         </div>
       </div>

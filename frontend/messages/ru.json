@@ -105,7 +105,8 @@
     "metric3D": "коррекция",
     "metric3DDesc": "MotionAGFormer lift",
     "metricSeconds": "секунд",
-    "metricSecondsDesc": "На анализ видео"
+    "metricSecondsDesc": "На анализ видео",
+    "ctaDashboard": "Перейти в приложение"
   },
   "home": {
     "dropVideo": "Перетащите видео сюда или нажмите для выбора",
