@@ -27,9 +27,6 @@ MANIFEST
 # Bun (root only — frontend/bun.lock tracked)
 /bun.lock
 
-# Claude agents
-.agents/
-
 # Virtual environments
 venv/
 env/
