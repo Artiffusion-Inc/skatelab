@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Annotated
+from typing import TYPE_CHECKING, Annotated, Any
 
 from litestar.exceptions import NotAuthorizedException
 from litestar.params import Dependency
@@ -16,9 +16,10 @@ from app.models.workspace import WorkspaceMember, WorkspaceRole
 
 if TYPE_CHECKING:
     from litestar import Request
+    from litestar.connection import ASGIConnection
 
 
-async def retrieve_user_handler(token, connection) -> User | None:
+async def retrieve_user_handler(token: Any, connection: ASGIConnection) -> User | None:
     """Litestar JWTAuth callback: decode token and fetch user from DB."""
     user_id = getattr(token, "sub", None)
     if user_id is None and callable(getattr(token, "get", None)):

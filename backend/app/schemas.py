@@ -477,7 +477,7 @@ class ConnectionResponse(BaseModel):
 
     @field_validator("created_at", "ended_at", mode="before")
     @classmethod
-    def validate_datetime(cls, v):
+    def validate_datetime(cls, v: Any) -> str:
         if isinstance(v, datetime):
             return v.isoformat()
         return str(v)

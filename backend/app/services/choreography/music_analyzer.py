@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import logging
 from concurrent.futures import ThreadPoolExecutor
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -31,12 +32,12 @@ def _run_analysis(audio_path: str) -> dict:
     duration_sec = float(len(y) / sr)
 
     # Define parallel analysis functions
-    def _compute_bpm(y, sr):
+    def _compute_bpm(y: Any, sr: Any) -> float:
         """Compute BPM using librosa."""
         tempo, _ = librosa.beat.beat_track(y=y, sr=sr)
         return round(float(np.squeeze(tempo)), 1)
 
-    def _compute_energy_peaks(y, sr):
+    def _compute_energy_peaks(y: Any, sr: Any) -> tuple[list[float], dict[str, Any]]:
         """Compute RMS energy curve and detect peaks."""
         hop_length = int(sr * 0.5)
         rms = librosa.feature.rms(y=y, frame_length=hop_length * 2, hop_length=hop_length)[0]
@@ -56,7 +57,7 @@ def _run_analysis(audio_path: str) -> dict:
 
         return peaks, energy_curve
 
-    def _compute_structure(audio_path):
+    def _compute_structure(audio_path: Any) -> list[dict[str, Any]]:
         """Compute structure boundaries using MSAF."""
         structure: list[dict] = []
         try:

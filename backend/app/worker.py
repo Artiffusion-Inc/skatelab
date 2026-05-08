@@ -35,7 +35,7 @@ from app.task_manager import (
     store_result,
     update_progress,
 )
-from src.types import H36Key
+from src.types import H36Key  # pyright: ignore[reportMissingImports]
 
 logger = logging.getLogger(__name__)
 
@@ -419,14 +419,16 @@ async def detect_video_task(
         import tempfile
         from pathlib import Path
 
-        import cv2
+        import cv2  # pyright: ignore[reportMissingImports]
 
         from app.storage import download_file
-        from src.device import DeviceConfig
-        from src.pose_estimation.pose_extractor import PoseExtractor
-        from src.utils.video import get_video_meta
+        from src.device import DeviceConfig  # pyright: ignore[reportMissingImports]
+        from src.pose_estimation.pose_extractor import (  # pyright: ignore[reportMissingImports]
+            PoseExtractor,
+        )
+        from src.utils.video import get_video_meta  # pyright: ignore[reportMissingImports]
 
-        def render_person_preview(frame, persons, selected_idx=None):
+        def render_person_preview(frame: Any, persons: Any, selected_idx: Any = None) -> Any:
             annotated = frame.copy()
             h, w = frame.shape[:2]
             colors = [(255, 165, 0), (0, 200, 200), (200, 100, 0), (200, 0, 200), (0, 180, 255)]

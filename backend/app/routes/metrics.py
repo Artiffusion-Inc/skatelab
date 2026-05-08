@@ -122,9 +122,9 @@ class MetricsController(Controller):
         values = [dp.value for dp in data_points]
         trend = "stable"
         if len(values) >= 3:
-            from app.services.diagnostics import _linear_regression
+            from app.services.diagnostics import linear_regression
 
-            slope, r_sq = _linear_regression(values)
+            slope, r_sq = linear_regression(values)
             if slope > 0 and r_sq > 0.3:
                 trend = "improving"
             elif slope < 0 and r_sq > 0.3:

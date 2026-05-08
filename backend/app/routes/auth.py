@@ -11,7 +11,6 @@ from typing import ClassVar
 from litestar import Controller, Request, post
 from litestar.exceptions import ClientException
 from litestar.status_codes import HTTP_200_OK, HTTP_201_CREATED, HTTP_204_NO_CONTENT
-from sqlalchemy.ext.asyncio import AsyncSession  # noqa: F401
 
 from app.auth.deps import DbDep
 from app.auth.security import (

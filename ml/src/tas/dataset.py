@@ -125,14 +125,13 @@ class MCFSCoarseDataset(Dataset):
         # Load poses: (T, 25, 3) OP25
         poses_op25 = np.load(self.feature_paths[stem])  # (T, 25, 3)
         # Load labels
-        with open(self.label_paths[stem]) as f:
-            fine_labels = [line.strip() for line in f]
+        fine_labels = [line.strip() for line in self.label_paths[stem].read_text().splitlines()]
         # Convert OP25 -> COCO17
         poses_coco17 = op25_to_coco17(poses_op25)  # (T, 17, 2)
         # Convert COCO17 -> H3.6M
         poses_h36m = np.stack([coco_to_h36m(p) for p in poses_coco17])  # (T, 17, 2)
         # Coarse labels
-        coarse = np.array([coarse_label(l) for l in fine_labels], dtype=np.int64)
+        coarse = np.array([coarse_label(label) for label in fine_labels], dtype=np.int64)
         # Normalize
         if self.normalize:
             poses_h36m = normalize_poses(poses_h36m)
@@ -141,8 +140,7 @@ class MCFSCoarseDataset(Dataset):
     def get_fine_labels(self, idx: int) -> list[str]:
         """Get raw fine labels for a sample (for RF classifier training)."""
         stem = self.samples[idx]
-        with open(self.label_paths[stem]) as f:
-            return [line.strip() for line in f]
+        return [line.strip() for line in self.label_paths[stem].read_text().splitlines()]
 
 
 def pad_collate(batch: list[tuple]) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
@@ -153,14 +151,14 @@ def pad_collate(batch: list[tuple]) -> tuple[torch.Tensor, torch.Tensor, torch.T
         labels: (B, T_max) padded with -1 (ignore index)
         lengths: (B,) original lengths
     """
-    poses_list, labels_list, lengths = zip(*batch)
+    poses_list, labels_list, lengths = zip(*batch, strict=True)
     max_len = max(lengths)
     B = len(batch)
     poses_padded = torch.zeros(B, max_len, 17, 2, dtype=torch.float32)
     labels_padded = torch.full((B, max_len), -1, dtype=torch.long)
-    for i, (p, l, le) in enumerate(zip(poses_list, labels_list, lengths)):
+    for i, (p, lbl, le) in enumerate(zip(poses_list, labels_list, lengths, strict=True)):
         poses_padded[i, :le] = torch.from_numpy(p)
-        labels_padded[i, :le] = torch.from_numpy(l)
+        labels_padded[i, :le] = torch.from_numpy(lbl)
     lengths_tensor = torch.tensor(lengths, dtype=torch.long)
     return poses_padded, labels_padded, lengths_tensor
 

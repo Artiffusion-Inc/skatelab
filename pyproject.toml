@@ -104,8 +104,8 @@ skip-magic-trailing-comma = false
 line-ending = "auto"
 
 [tool.basedpyright]
-typeCheckingMode = "standard"
-reportMissingImports = "warning"
+typeCheckingMode = "strict"
+reportMissingImports = "error"
 reportMissingTypeStubs = false
 reportUnknownMemberType = "warning"
 reportUnknownVariableType = "warning"
@@ -117,6 +117,8 @@ reportAny = "warning"
 reportUnusedCallResult = "warning"
 reportUnusedVariable = "warning"
 reportIncompatibleVariableOverride = "none"
+reportMissingTypeArgument = "warning"
+reportUnknownLambdaType = "warning"
 pythonVersion = "3.11"
 exclude = [
     "Sports2D/",

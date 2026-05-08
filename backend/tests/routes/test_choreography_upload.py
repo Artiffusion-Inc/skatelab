@@ -459,7 +459,7 @@ async def test_list_programs_empty(mock_db):
         patch("app.routes.choreography.list_programs_by_user", return_value=[]),
         patch("app.routes.choreography.count_programs_by_user", return_value=0),
     ):
-        result = await _bound("list_programs")(user, mock_db)
+        result = await _bound("list_programs")(user, mock_db, limit=20, offset=0)
 
     assert isinstance(result, ProgramListResponse)
     assert result.total == 0

@@ -29,6 +29,10 @@ def _client():
     )
 
 
+# Public alias for use in route handlers
+get_r2_client = _client
+
+
 def upload_file(local_path: str | Path, key: str) -> str:
     """Upload file to R2. Returns the key."""
     bucket = get_settings().r2.bucket

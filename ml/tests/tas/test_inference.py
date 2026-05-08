@@ -12,6 +12,7 @@ try:
 except ImportError:
     import sys
     from pathlib import Path as Path2
+
     sys.path.insert(0, str(Path2(__file__).parent.parent.parent / "src"))
     from tas.inference import TASElementSegmenter
     from tas.model import BiGRUTAS
@@ -20,7 +21,10 @@ except ImportError:
 def test_tas_inference():
     # Create a small model for testing
     model = BiGRUTAS(hidden_dim=32, num_layers=1)
-    checkpoint = {"model_state_dict": model.state_dict(), "config": {"hidden_dim": 32, "num_layers": 1, "dropout": 0.0}}
+    checkpoint = {
+        "model_state_dict": model.state_dict(),
+        "config": {"hidden_dim": 32, "num_layers": 1, "dropout": 0.0},
+    }
     torch.save(checkpoint, "/tmp/test_tas.pt")
 
     segmenter = TASElementSegmenter(

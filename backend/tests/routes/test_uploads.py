@@ -34,7 +34,7 @@ def _mock_settings():
 async def test_init_upload(client, auth_headers):
     """POST /uploads/init returns upload_id, key, chunk_size, part_count, parts."""
     with (
-        patch("app.routes.uploads._client") as mock_s3_client,
+        patch("app.routes.uploads.get_r2_client") as mock_s3_client,
         patch("app.routes.uploads.get_settings") as mock_settings,
     ):
         mock_s3_client.return_value = _mock_r2()
@@ -61,7 +61,7 @@ async def test_init_upload(client, auth_headers):
 async def test_init_upload_part_count(client, auth_headers):
     """15MB file / 5MB chunk = 3 parts."""
     with (
-        patch("app.routes.uploads._client") as mock_s3_client,
+        patch("app.routes.uploads.get_r2_client") as mock_s3_client,
         patch("app.routes.uploads.get_settings") as mock_settings,
     ):
         mock_s3_client.return_value = _mock_r2()
@@ -84,7 +84,7 @@ async def test_init_upload_part_count(client, auth_headers):
 async def test_init_upload_single_part(client, auth_headers):
     """3MB file = 1 part."""
     with (
-        patch("app.routes.uploads._client") as mock_s3_client,
+        patch("app.routes.uploads.get_r2_client") as mock_s3_client,
         patch("app.routes.uploads.get_settings") as mock_settings,
     ):
         mock_s3_client.return_value = _mock_r2()
@@ -107,7 +107,7 @@ async def test_init_upload_single_part(client, auth_headers):
 async def test_complete_upload(client, auth_headers):
     """POST /uploads/complete calls complete_multipart_upload with sorted parts."""
     with (
-        patch("app.routes.uploads._client") as mock_s3_client,
+        patch("app.routes.uploads.get_r2_client") as mock_s3_client,
         patch("app.routes.uploads.get_settings") as mock_settings,
     ):
         r2 = _mock_r2()
@@ -145,7 +145,7 @@ async def test_complete_upload(client, auth_headers):
 async def test_complete_upload_empty_parts(client, auth_headers):
     """POST /uploads/complete with no parts returns 400."""
     with (
-        patch("app.routes.uploads._client") as mock_s3_client,
+        patch("app.routes.uploads.get_r2_client") as mock_s3_client,
         patch("app.routes.uploads.get_settings") as mock_settings,
     ):
         mock_s3_client.return_value = _mock_r2()
@@ -170,7 +170,7 @@ async def test_complete_upload_empty_parts(client, auth_headers):
 async def test_complete_upload_parts_sorted(client, auth_headers):
     """Parts are sorted by part_number regardless of input order."""
     with (
-        patch("app.routes.uploads._client") as mock_s3_client,
+        patch("app.routes.uploads.get_r2_client") as mock_s3_client,
         patch("app.routes.uploads.get_settings") as mock_settings,
     ):
         r2 = _mock_r2()
@@ -206,7 +206,7 @@ async def test_complete_upload_parts_sorted(client, auth_headers):
 async def test_init_upload_auth_required(client):
     """POST /uploads/init without auth returns 401."""
     with (
-        patch("app.routes.uploads._client") as mock_s3_client,
+        patch("app.routes.uploads.get_r2_client") as mock_s3_client,
         patch("app.routes.uploads.get_settings") as mock_settings,
     ):
         mock_s3_client.return_value = _mock_r2()
