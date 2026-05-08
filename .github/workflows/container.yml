@@ -28,15 +28,26 @@ jobs:
         with:
           fetch-depth: 1
 
-      - name: Download models from R2
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.CF_R2_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.CF_R2_SECRET_ACCESS_KEY }}
-          AWS_ENDPOINT_URL: ${{ secrets.CF_R2_ENDPOINT_URL }}
-          AWS_REGION: auto
+      - name: Cache ML models
+        uses: actions/cache@v4
+        with:
+          path: data/models
+          key: ml-models-${{ hashFiles('ml/scripts/download_ml_models.py') }}
+
+      - uses: astral-sh/setup-uv@v6
+
+      - name: Download ML models from HuggingFace
         run: |
-          aws s3 sync "s3://${{ secrets.CF_R2_BUCKET }}/models/" data/models/ \
-            --exclude "*.pth.tr" --exclude "*.pt" --exclude ".cache/*"
+          uv run --with huggingface_hub \
+            python ml/scripts/download_ml_models.py --all
+
+      - name: Verify required models exist
+        run: |
+          for f in depth_anything_v2_small.onnx neuflowv2_mixed.onnx \
+                   rvm_mobilenetv3.onnx lama_fp32.onnx; do
+            test -f "data/models/$f" || { echo "MISSING: data/models/$f"; exit 1; }
+          done
+          test -d "data/models/sam2" || { echo "MISSING: data/models/sam2/"; exit 1; }
 
       - name: Lowercase GHCR owner
         id: ghcr
