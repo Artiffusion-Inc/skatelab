@@ -54,9 +54,8 @@ export function LandingClient() {
 
         gsap.fromTo(
           steps,
-          { opacity: 0, y: 40 },
+          { y: 40 },
           {
-            opacity: 1,
             y: 0,
             duration: 0.5,
             stagger: 0.12,
@@ -76,9 +75,8 @@ export function LandingClient() {
 
         gsap.fromTo(
           cards,
-          { opacity: 0, y: 30 },
+          { y: 30 },
           {
-            opacity: 1,
             y: 0,
             duration: 0.5,
             stagger: 0.12,
@@ -98,9 +96,8 @@ export function LandingClient() {
 
         gsap.fromTo(
           faqHeader,
-          { opacity: 0, y: 30 },
+          { y: 30 },
           {
-            opacity: 1,
             y: 0,
             duration: 0.6,
             ease: "power2.out",
@@ -119,9 +116,8 @@ export function LandingClient() {
 
         gsap.fromTo(
           cta,
-          { opacity: 0, y: 30 },
+          { y: 30 },
           {
-            opacity: 1,
             y: 0,
             duration: 0.6,
             ease: "power2.out",
