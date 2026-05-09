@@ -8,7 +8,8 @@ if (dsn) {
     tracesSampleRate: 0.1,
     profilesSampleRate: 0.1,
     sendDefaultPii: false,
+    // Replay disabled — requires 'unsafe-eval' in CSP which we don't allow in production
     replaysSessionSampleRate: 0,
-    replaysOnErrorSampleRate: 1.0,
+    replaysOnErrorSampleRate: 0,
   })
 }
