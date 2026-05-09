@@ -11,20 +11,20 @@ export function HeroSection() {
   return (
     <section className="hero-section relative flex min-h-[100dvh] items-center overflow-hidden bg-primary" aria-label={t("eyebrow")}>
       {/* Violet-sky atmospheric backdrop */}
-      <div className="sh-violet-backdrop absolute inset-0" />
+      <div className="absolute inset-0 bg-primary" />
 
       <div className="relative z-10 mx-auto w-full max-w-5xl px-6 py-16 sm:py-20 lg:py-24">
         <div className="grid items-center gap-10 lg:grid-cols-[1fr_1.1fr] lg:gap-16">
           {/* Left: text */}
           <div className="text-left">
-            <p className="hero-eyebrow mb-5 text-xs font-medium uppercase tracking-[0.3em] text-on-dark-mute">
+            <p className="hero-eyebrow mb-5 sh-micro uppercase tracking-[0.3em] text-on-dark-mute">
               {t("eyebrow")}
             </p>
 
             <h1 className="hero-headline sh-display-xxl text-primary-foreground">
               {t("headline")}
               <br />
-              <span className="text-surface-violet-soft">{t("headlineLine2")}</span>
+              <span className="text-primary">{t("headlineLine2")}</span>
             </h1>
 
             <p className="hero-subtitle mt-5 max-w-lg sh-body-lg text-on-dark-mute">
@@ -33,7 +33,7 @@ export function HeroSection() {
 
             {/* Coaching-outcome stat */}
             <div className="hero-cta mt-3 flex items-baseline gap-2">
-              <span className="sh-display-lg font-bold text-surface-violet-soft">
+              <span className="sh-display-lg text-primary">
                 {t("heroStatValue")}
               </span>
               <span className="sh-caption text-on-dark-mute">
@@ -81,7 +81,7 @@ export function HeroSection() {
               />
               {/* Inline metric badge */}
               <div className="sh-badge-opaque absolute top-[15%] right-[8%] rounded-md px-4 py-3">
-                <p className="sh-micro uppercase tracking-wider text-on-dark-faint">
+                <p className="sh-micro uppercase tracking-wider text-on-dark-dim">
                   {t("heroOverlayLabel")}
                 </p>
                 <p className="sh-caption text-primary-foreground">
