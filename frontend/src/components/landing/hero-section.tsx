@@ -1,77 +1,53 @@
 "use client"
 
-import { useState } from "react"
-import { useMountEffect } from "@/lib/useMountEffect"
+import Image from "next/image"
 import { Button } from "@/components/ui/button"
-import { ChevronDown } from "lucide-react"
 import { useTranslations } from "@/i18n"
 import { useAuth } from "@/components/auth-provider"
+import { SkeletonPose } from "./skeleton-pose"
 
 export function HeroSection() {
-  const [mounted, setMounted] = useState(false)
   const t = useTranslations("landing")
   const { isAuthenticated } = useAuth()
 
-  useMountEffect(() => {
-    setMounted(true)
-  })
-
   return (
-    <section className="hero-section relative flex min-h-[100dvh] items-center overflow-hidden ice-gradient">
-      {/* Diagonal ice streak */}
-      <div className="diagonal-streak" />
+    <section className="hero-section relative flex min-h-[100dvh] items-center overflow-hidden bg-primary" aria-label={t("eyebrow")}>
+      {/* Violet-sky atmospheric backdrop */}
+      <div className="sh-violet-backdrop absolute inset-0" />
 
-      {/* Subtle noise texture overlay */}
-      <div
-        className="pointer-events-none absolute inset-0 z-[1] opacity-[0.4]"
-        style={{
-          backgroundImage:
-            "url(\"data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E\")",
-          backgroundSize: "128px 128px",
-        }}
-      />
-
-      {/* Grid lines — ice rink markings suggestion */}
-      <div
-        className="pointer-events-none absolute inset-0 z-[1] opacity-[0.03]"
-        style={{
-          backgroundImage:
-            "linear-gradient(rgba(0,0,0,0.3) 1px, transparent 1px), linear-gradient(90deg, rgba(0,0,0,0.3) 1px, transparent 1px)",
-          backgroundSize: "80px 80px",
-        }}
-      />
-
-      <div className="relative z-10 mx-auto w-full max-w-[1400px] px-4 py-16 sm:px-6 sm:py-20">
-        <div className="grid items-center gap-8 md:gap-12 lg:grid-cols-2">
+      <div className="relative z-10 mx-auto w-full max-w-5xl px-6 py-16 sm:py-20 lg:py-24">
+        <div className="grid items-center gap-10 lg:grid-cols-[1fr_1.1fr] lg:gap-16">
           {/* Left: text */}
           <div className="text-left">
-            <p
-              className={`hero-eyebrow mb-4 md:mb-6 text-xs font-medium uppercase tracking-[0.3em] text-muted-foreground ${mounted ? "hero-visible" : ""}`}
-            >
+            <p className="hero-eyebrow mb-5 text-xs font-medium uppercase tracking-[0.3em] text-on-dark-mute">
               {t("eyebrow")}
             </p>
 
-            <h1
-              className={`hero-headline max-w-2xl text-[clamp(2.5rem,5.5vw,4.5rem)] font-medium leading-[1.05] tracking-[-0.03em] text-foreground ${mounted ? "hero-visible" : ""}`}
-            >
+            <h1 className="hero-headline sh-display-xxl text-primary-foreground">
               {t("headline")}
               <br />
-              <span style={{ color: "var(--ice-deep)" }}>{t("headlineLine2")}</span>
+              <span className="text-surface-violet-soft">{t("headlineLine2")}</span>
             </h1>
 
-            <p
-              className={`hero-subtitle mt-4 md:mt-6 max-w-md text-lg leading-relaxed text-muted-foreground ${mounted ? "hero-visible" : ""}`}
-            >
+            <p className="hero-subtitle mt-5 max-w-lg sh-body-lg text-on-dark-mute">
               {t("subtitle")}
             </p>
 
-            <div
-              className={`hero-cta mt-8 md:mt-10 flex flex-col items-start gap-4 sm:flex-row ${mounted ? "hero-visible" : ""}`}
-            >
+            {/* Coaching-outcome stat */}
+            <div className="hero-cta mt-3 flex items-baseline gap-2">
+              <span className="sh-display-lg font-bold text-surface-violet-soft">
+                {t("heroStatValue")}
+              </span>
+              <span className="sh-caption text-on-dark-mute">
+                {t("heroStatLabel")}
+              </span>
+            </div>
+
+            <div className="hero-cta mt-8 flex flex-col items-start gap-4 sm:flex-row">
               <Button
+                variant="on-dark-pill"
                 size="lg"
-                className="h-14 rounded-full px-10 text-base font-medium"
-                style={{ background: "var(--ice-deep)", color: "white" }}
+                className="h-14 px-10 text-base"
                 asChild
               >
                 <a href={isAuthenticated ? "/feed" : "/register"}>{t("ctaPrimary")}</a>
@@ -79,7 +55,7 @@ export function HeroSection() {
               <Button
                 variant="ghost"
                 size="lg"
-                className="h-14 rounded-full px-8 text-base font-medium text-muted-foreground hover:text-foreground"
+                className="h-14 rounded-full px-8 text-base text-on-dark-mute hover:text-primary-foreground"
                 asChild
               >
                 <a href={isAuthenticated ? "/progress" : "#features"}>
@@ -89,61 +65,28 @@ export function HeroSection() {
             </div>
           </div>
 
-          {/* Right: abstract ice composition */}
-          <div className={`relative hidden lg:block ${mounted ? "hero-visible hero-eyebrow" : ""}`}>
-            <div className="relative aspect-square max-w-lg">
-              {/* Ice glow orb */}
-              <div
-                className="absolute inset-0 rounded-full opacity-20 blur-3xl"
-                style={{ background: "var(--ice-glow)" }}
+          {/* Right: skating image with skeleton overlay */}
+          <div className="hero-image relative">
+            <div className="relative aspect-[16/9] overflow-hidden rounded-lg lg:aspect-[4/5]">
+              <Image
+                src="/images/hero-skater.webp"
+                alt="Figure skater performing a jump on ice"
+                fill
+                className="object-cover"
+                priority
               />
-              {/* Floating cards — matte ice */}
-              <div
-                className="absolute top-[10%] left-[10%] rounded-2xl p-5"
-                style={{
-                  background: "rgba(255, 255, 255, 0.22)",
-                  backdropFilter: "blur(20px)",
-                  WebkitBackdropFilter: "blur(20px)",
-                  border: "1px solid rgba(255, 255, 255, 0.3)",
-                }}
-              >
-                <p className="text-xs font-mono" style={{ color: "oklch(0.5 0.05 240)" }}>
-                  CoM
+              <div className="absolute inset-0 bg-primary/40" />
+              <SkeletonPose
+                role="img"
+                aria-label="AI отслеживает 17 ключевых точек тела"
+              />
+              {/* Inline metric badge */}
+              <div className="sh-badge-opaque absolute top-[15%] right-[8%] rounded-md px-4 py-3">
+                <p className="sh-micro uppercase tracking-wider text-on-dark-faint">
+                  {t("heroOverlayLabel")}
                 </p>
-                <p className="text-2xl font-medium" style={{ color: "oklch(0.2 0 0)" }}>
-                  1.24 m
-                </p>
-              </div>
-              <div
-                className="absolute right-[15%] bottom-[20%] rounded-2xl p-5"
-                style={{
-                  background: "rgba(255, 255, 255, 0.22)",
-                  backdropFilter: "blur(20px)",
-                  WebkitBackdropFilter: "blur(20px)",
-                  border: "1px solid rgba(255, 255, 255, 0.3)",
-                }}
-              >
-                <p className="text-xs font-mono" style={{ color: "oklch(0.5 0.05 240)" }}>
-                  Rotation
-                </p>
-                <p className="text-2xl font-medium" style={{ color: "oklch(0.2 0 0)" }}>
-                  540°
-                </p>
-              </div>
-              <div
-                className="absolute top-[40%] right-[5%] rounded-2xl p-4"
-                style={{
-                  background: "rgba(255, 255, 255, 0.22)",
-                  backdropFilter: "blur(20px)",
-                  WebkitBackdropFilter: "blur(20px)",
-                  border: "1px solid rgba(255, 255, 255, 0.3)",
-                }}
-              >
-                <p className="text-xs font-mono" style={{ color: "oklch(0.5 0.05 240)" }}>
-                  Airtime
-                </p>
-                <p className="text-xl font-medium" style={{ color: "oklch(0.2 0 0)" }}>
-                  0.72 s
+                <p className="sh-caption text-primary-foreground">
+                  {t("heroOverlayValue")}
                 </p>
               </div>
             </div>
@@ -151,12 +94,16 @@ export function HeroSection() {
         </div>
       </div>
 
+      {/* Gradient bridge to next section */}
+      <div className="h-20 md:h-28 bg-gradient-to-b from-primary-deep via-primary-deep/50 to-transparent" aria-hidden="true" />
+
       <div
-        className={`hero-scroll absolute bottom-8 left-1/2 -translate-x-1/2 ${mounted ? "hero-visible" : ""}`}
+        className="hero-scroll absolute bottom-8 left-1/2 -translate-x-1/2"
+        aria-hidden="true"
       >
-        <div className="hero-bounce">
-          <ChevronDown className="h-5 w-5" style={{ color: "var(--ice-deep)" }} />
-        </div>
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M10 4v12m0 0l-4-4m4 4l4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-on-dark-mute" />
+        </svg>
       </div>
     </section>
   )
