@@ -102,7 +102,6 @@ jobs:
           context: .
           file: ml/gpu_server/Containerfile
           push: true
-          no-cache: true
           tags: |
             ghcr.io/${{ steps.ghcr.outputs.owner }}/skatelab-worker:latest
             ghcr.io/${{ steps.ghcr.outputs.owner }}/skatelab-worker:${{ github.sha }}
