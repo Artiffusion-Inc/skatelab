@@ -51,8 +51,7 @@ RUN find /opt/venv -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null; \
     find /opt/venv -type d -name "tests" -exec rm -rf {} + 2>/dev/null; \
     find /opt/venv -type d -name "test" -exec rm -rf {} + 2>/dev/null; \
     rm -rf /opt/venv/lib/python3.11/site-packages/pip \
-    /opt/venv/lib/python3.11/site-packages/setuptools \
-    /opt/venv/lib/python3.11/site-packages/sympy; \
+    /opt/venv/lib/python3.11/site-packages/setuptools; \
     # Strip debug symbols from all .so files
     find /opt/venv -type f -name "*.so*" -exec strip --strip-debug {} + 2>/dev/null; \
     true
