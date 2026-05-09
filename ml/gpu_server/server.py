@@ -158,6 +158,20 @@ def _s3(creds: ProcessRequest | DetectRequest):
     )
 
 
+async def _s3_download(s3, bucket: str, key: str, path: str) -> None:
+    """Download object from S3 to local file (aiobotocore has no download_file)."""
+    resp = await s3.get_object(Bucket=bucket, Key=key)
+    body = await resp["Body"].read()
+    Path(path).parent.mkdir(parents=True, exist_ok=True)
+    Path(path).write_bytes(body)
+
+
+async def _s3_upload(s3, bucket: str, key: str, path: str) -> None:
+    """Upload local file to S3 (aiobotocore has no upload_file)."""
+    data = Path(path).read_bytes()
+    await s3.put_object(Bucket=bucket, Key=key, Body=data)
+
+
 DETECT_DURATION = Histogram(
     "detect_duration_seconds",
     "Time spent detecting persons in a video",
@@ -188,7 +202,7 @@ async def detect(req: DetectRequest):
                 video_local = Path(tmpdir) / "input.mp4"
 
                 logger.info("Downloading video for detection from R2: %s", req.video_r2_key)
-                await s3.download_file(req.r2_bucket, req.video_r2_key, str(video_local))
+                await _s3_download(s3, req.r2_bucket, req.video_r2_key, str(video_local))
 
                 cfg = DeviceConfig.default()
                 extractor = PoseExtractor(
@@ -315,7 +329,7 @@ async def process(req: ProcessRequest):
                 output_local = Path(tmpdir) / "output.mp4"
 
                 logger.info("Downloading video from R2: %s", req.video_r2_key)
-                await s3.download_file(req.r2_bucket, req.video_r2_key, str(video_local))
+                await _s3_download(s3, req.r2_bucket, req.video_r2_key, str(video_local))
 
                 click = (
                     PersonClick(x=req.person_click["x"], y=req.person_click["y"])
@@ -376,7 +390,7 @@ async def process(req: ProcessRequest):
                 out_key = req.video_r2_key.replace("input/", "output/")
                 logger.info("Uploading result to R2: %s", out_key)
 
-                upload_tasks = [s3.upload_file(str(output_local), req.r2_bucket, out_key)]
+                upload_tasks = [_s3_upload(s3, req.r2_bucket, out_key, str(output_local))]
 
                 poses_key = None
                 csv_key = None
