@@ -183,7 +183,7 @@ async def detect(req: DetectRequest):
     ACTIVE_REQUESTS.inc()
     start = time.perf_counter()
     try:
-        async with await _s3(req) as s3:
+        async with _s3(req) as s3:
             with tempfile.TemporaryDirectory() as tmpdir:
                 video_local = Path(tmpdir) / "input.mp4"
 
@@ -309,7 +309,7 @@ async def process(req: ProcessRequest):
     ACTIVE_REQUESTS.inc()
     start = time.perf_counter()
     try:
-        async with await _s3(req) as s3:
+        async with _s3(req) as s3:
             with tempfile.TemporaryDirectory() as tmpdir:
                 video_local = Path(tmpdir) / "input.mp4"
                 output_local = Path(tmpdir) / "output.mp4"
