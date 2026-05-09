@@ -14,6 +14,14 @@ vi.mock("next/navigation", () => ({
   usePathname: vi.fn(() => "/"),
 }))
 
+// Mock @sentry/nextjs (optional dep, may not be installed in CI)
+vi.mock("@sentry/nextjs", () => ({
+  captureException: vi.fn(),
+  captureMessage: vi.fn(),
+  withScope: vi.fn((_, fn) => fn({ setExtra: vi.fn(), setTag: vi.fn() })),
+  init: vi.fn(),
+}))
+
 import "@testing-library/jest-dom"
 import { cleanup } from "@testing-library/react"
 import { setupMSW } from "./server"
