@@ -332,13 +332,19 @@ Add gradient bridges between sections with sharp color contrast (hero→body: ~8
 
 Changes to the `sh-*` type scale in globals.css:
 
-1. **sh-display-xxl min raised**: `clamp(2.75rem, 7vw, 4.5rem)` — was `clamp(2.25rem, 5.5vw, 4rem)`. Ensures H1/H2 ratio ≥1.25x on mobile.
-2. **Display line-height responsive**: `line-height: 1.05` at `< 768px`, `0.96` at `≥ 768px`. Prevents glyph collision on mobile wrap.
-3. **Weight scale shift**: Body/secondary → 400 (Regular), Headings → 600 (SemiBold), Display accents → 700 (Bold). Current 460/540 is imperceptible hierarchy on landing pages.
-4. **sh-body-strong removed**: Orphan size (1.172rem). Use `sh-body-lg` + `font-bold` utility instead.
-5. **sh-price added**: `clamp(2.25rem, 4vw, 3rem), font-weight: 700, line-height: 1, letter-spacing: -0.03em`. Dedicated type for pricing numbers.
-6. **sh-legal added**: `0.6875rem (11px), weight 460, line-height 1.5`. For footer copyright, legal disclaimers.
-7. **Body font-variation-settings removed**: Prevents inheritance conflicts with Tailwind `font-weight` utilities. Set only on `sh-*` classes.
+1. **sh-display-xxl**: `clamp(2.75rem, 7vw, 4.5rem)`, `font-variation-settings: "wght" 540`, `font-weight: 540`. `line-height: 1.05` default, `0.96` at `≥ 768px` (via media query). Ensures H1/H2 ratio ≥1.57x on mobile.
+2. **sh-display-xl**: Keep `clamp(2rem, 4vw, 3rem)`. `line-height: 1.05` default, `0.96` at `≥ 768px`.
+3. **Weight scale shift (landing-page scoped only)**: Add `.landing-page` wrapper class. Within it, override: body → 400, headings → 600, display accents → 700. Do NOT change global weight scale (would affect existing app components). Implementation:
+   ```css
+   .landing-page body { font-variation-settings: "wght" 400; font-weight: 400; }
+   .landing-page .sh-display-xxl { font-variation-settings: "wght" 700; font-weight: 700; }
+   .landing-page .sh-display-xl { font-variation-settings: "wght" 600; font-weight: 600; }
+   .landing-page .sh-heading-lg { font-variation-settings: "wght" 600; font-weight: 600; }
+   ```
+4. **sh-body-strong removed**: Orphan size (1.172rem). Use `sh-body-lg` + `font-bold` utility instead. Search codebase for usages first.
+5. **sh-price added**: `font-size: clamp(2.25rem, 4vw, 3rem); font-weight: 700; font-variation-settings: "wght" 700; line-height: 1; letter-spacing: -0.03em;`
+6. **sh-legal added**: `font-size: 0.6875rem; font-weight: 460; font-variation-settings: "wght" 460; line-height: 1.5;`
+7. **Body font-variation-settings**: Remove `font-variation-settings: "wght" 460` from `body` rule in globals.css. Audit all components that depend on inherited `font-variation-settings` — search for `font-weight` usage without corresponding `font-variation-settings`. Add `font-variation-settings` overrides where needed.
 
 ## Color Token Amendments
 
@@ -443,7 +449,163 @@ Remove all CSS classes that set initial hidden states (`.hero-eyebrow { opacity:
 | `font-variation-settings` | All modern | No fallback needed — Inter Variable falls back to weight axis |
 | GSAP ScrollTrigger | All modern | No-JS fallback above |
 
-**oklch strategy:** The existing CSS uses oklch for all tokens. If the target audience includes older Safari (< 15.4), add an `@supports not (color: oklch(0 0 0))` block at the end of globals.css mapping all tokens to hex equivalents. If targeting only modern browsers (Chrome 111+, Safari 15.4+), no fallback needed.
+**oklch strategy:** Target modern browsers only (Chrome 111+, Safari 15.4+, Firefox 113+). All target devices support oklch. No `@supports not` fallback block needed. If a legacy browser is later required, add hex equivalents at that time.
+
+## GSAP Architecture Detail
+
+### Client Boundary
+
+Landing page uses Next.js App Router. `LandingPage` is a server component (`page.tsx`). GSAP requires `'use client'`.
+
+**Pattern:** Create `LandingClient.tsx` as the single client boundary. It imports GSAP, registers ScrollTrigger, and orchestrates all animations via one `useLayoutEffect`. Server component (`page.tsx`) renders `<LandingClient />` and passes i18n strings as props.
+
+```
+app/page.tsx (server) → LandingClient.tsx ('use client') → all sections as children
+```
+
+`LandingClient.tsx` holds:
+- `gsap.registerPlugin(ScrollTrigger)` (called once)
+- Single `useLayoutEffect` that creates a GSAP context, runs `gsap.matchMedia()`, and returns cleanup
+- `ScrollTrigger.killAll()` in cleanup on unmount
+
+Individual section components (`HeroSection`, `DemoSection`, etc.) remain `'use client'` but do NOT register their own ScrollTriggers. They expose `useRef` containers that `LandingClient` queries for animation targets.
+
+### No-JS Implementation Pattern
+
+All section components render in their **final visible state** by default. No CSS classes that set `opacity: 0` or `transform: translateY(20px)`. GSAP `from()` creates the hidden initial state at runtime:
+
+```tsx
+// In LandingClient useLayoutEffect
+const ctx = gsap.context(() => {
+  gsap.from('.hero-eyebrow', { opacity: 0, y: 20, duration: 0.8, stagger: 0.12 })
+  gsap.from('.hero-headline', { opacity: 0, y: 30, duration: 0.8 }, 0.12)
+  // ...
+})
+return () => ctx.revert() // restores elements to their original (visible) state
+```
+
+If JS fails, `from()` never runs, elements stay visible. No progressive enhancement needed.
+
+### Route and Layout
+
+Landing page lives at `/` (root). Current `app/page.tsx` does cookie-based redirect. New structure:
+
+```
+app/
+├── page.tsx              # Server component, checks sb_auth cookie
+│                         # Authenticated → redirect('/feed')
+│                         # Not authenticated → <LandingClient />
+├── layout.tsx            # Root layout (existing, with ThemeProvider)
+├── (auth)/               # Auth pages (existing)
+└── (app)/                # App pages (existing)
+```
+
+Force light theme on landing: wrap `<LandingClient />` in `<ThemeProvider forcedTheme="light">` (next-themes supports `forcedTheme` prop). Alternatively, set `<html className="light" suppressHydrationWarning>` from the landing page layout only.
+
+Add `<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">` to the landing page head (required for `env(safe-area-inset-*)` to work on iOS).
+
+## Detailed Component Specs
+
+### Hero Mobile Image
+
+On mobile/tablet (`< lg`), the right column image is not hidden. Instead:
+
+- Show the same `hero-skater.webp` with `aspect-[16/9]` (shorter crop, more horizontal)
+- SkeletonPose overlay and metric badge scale down: badge uses `sh-caption` instead of `sh-heading-lg`
+- Image uses `loading="lazy"` on mobile (not `priority` — hero text is the LCP element on mobile, not the image)
+- Order: text column first, image second (`order-1` / `order-2`)
+
+### Demo 3 Static Mobile Cards
+
+On `< 1024px`, the pinned demo is replaced by 3 stacked cards:
+
+```
+Card 1: <Image src={heroSkater} />  — "Исходное видео"
+Card 2: <Image src={heroSkater} /> + <SkeletonPose /> + dark overlay  — "Скелетон тела"
+Card 3: <Image src={heroSkater} /> + <SkeletonPose /> + dark overlay + 3 metric badges  — "Биомеханические метрики"
+```
+
+Each card: `rounded-lg border border-hairline overflow-hidden`, with a label below the image. All 3 use the **same** source image (`demo-skater.webp`). The skeleton overlay is achieved by rendering the `SkeletonPose` SVG absolutely positioned over the image (existing component). Phase 3 adds the metric badges absolutely positioned on top.
+
+### Scroll Offset for Sticky Header
+
+All anchor targets (`#how-it-works`, `#demo`, `#pricing`, `#faq`, `#cta`) need `scroll-margin-top: 80px` (or `scroll-mt-20` in Tailwind) to account for the 64px sticky header + 16px breathing room.
+
+```css
+section[id] {
+  scroll-margin-top: 5rem; /* 80px = 64px header + 16px gap */
+}
+```
+
+### Upload Consent Modal
+
+When user first uploads a video on `/upload`:
+
+- **Trigger:** User clicks "Upload" or drops a file, before the upload request is sent
+- **Modal:** Full-screen overlay (`fixed inset-0 z-50 bg-black/50`), centered card (`max-w-md`)
+- **Content:** Title «Согласие на обработку данных» + explanation text + single checkbox «Я согласен на обработку анонимизированных данных (биометрия скелетона)» + link to `/privacy#anonymized`
+- **Actions:** «Подтвердить и продолжить» (primary, disabled until checked) + «Отмена» (ghost)
+- **Storage:** On confirm, PATCH `/api/users/me` with `{ biometric_consent: true, biometric_consent_at: ISO8601 }`. Store consent in User table columns `biometric_consent` (boolean) and `biometric_consent_at` (timestamp).
+- **One-time:** After first consent, check `user.biometric_consent` before showing. If already true, skip modal entirely.
+
+### Cookie Banner Focus Trap
+
+Use `react-focus-lock` (add to dependencies: `bun add react-focus-lock`). Pattern:
+
+```tsx
+import FocusLock from 'react-focus-lock'
+
+{showBanner && (
+  <FocusLock returnFocus>
+    <div role="dialog" aria-modal="true" aria-labelledby="cookie-heading">
+      <h2 id="cookie-heading" className="sr-only">Cookie consent</h2>
+      <p>Мы используем cookies для работы сервиса...</p>
+      <button onClick={acceptCookies}>Принять</button>
+    </div>
+  </FocusLock>
+)}
+```
+
+### Pro Card «Популярный» Badge
+
+Positioned at top center of the pricing card, above the tier name:
+
+```tsx
+<div className="relative">
+  <span className="absolute -top-3 left-1/2 -translate-x-1/2 sh-badge-opaque px-3 py-1 rounded-full text-xs text-primary-foreground">
+    Популярный
+  </span>
+  {/* tier name, price, features... */}
+</div>
+```
+
+Uses `sh-badge-opaque` style (dark navy background, violet-soft border) — consistent with demo metric badges.
+
+### Footer CTA
+
+Small text link in the brand column, below the tagline:
+
+```tsx
+<div> {/* Brand column */}
+  <p className="sh-display-md text-ink">SkateLab</p>
+  <p className="sh-caption text-ink-mute">Твой прыжок в цифрах</p>
+  <a href="/register" className="sh-button-cap text-link hover:underline mt-2 inline-block">
+    Начать бесплатно →
+  </a>
+</div>
+```
+
+Size: `sh-button-cap` (0.875rem, weight 600). Color: `text-link` (oklch blue). Underline on hover. No button styling — text link only, minimal visual weight.
+
+### Gradient Bridge (Hero → Body)
+
+Applied as a `<div>` at the bottom of the hero section, after the grid content:
+
+```tsx
+<div className="h-20 md:h-28 bg-gradient-to-b from-primary-deep via-primary-deep/50 to-transparent" aria-hidden="true" />
+```
+
+Height: `h-20` (80px) on mobile, `md:h-28` (112px) on desktop. Creates a smooth fade from the dark navy hero to the white canvas body section below.
 
 ## Out of Scope
 
@@ -456,5 +618,3 @@ Remove all CSS classes that set initial hidden states (`.hero-eyebrow { opacity:
 - Unicorn Studio / WebGL shader backgrounds
 - Payment integration (ЮKassa) — Pro/Coach CTAs link to contact channels
 - SkeletonPose CSS-only animation (current setInterval approach works; CSS rewrite is low priority)
-- Annual pricing toggle
-- Mobile app download links
