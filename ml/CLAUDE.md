@@ -13,18 +13,22 @@ ml/
 │   ├── types.py                      # Core types: H36Key, FrameKeypoints, PersonClick, etc.
 │   ├── device.py                     # DeviceConfig — GPU/CPU auto-detection
 │   ├── pipeline.py                   # AnalysisPipeline orchestrator
-│   ├── web_helpers.py                # DELETED — render_person_preview inlined in worker
 │   ├── pose_estimation/              # 2D pose extraction
 │   │   ├── pose_extractor.py       # PersonDetector + MogaNetBatch (COCO 17kp) — PRIMARY
+│   │   ├── moganet_batch.py         # MogaNet-B ONNX batched inference (384x288)
+│   │   ├── rtmo_batch.py            # Legacy RTMO batched inference (kept, not primary)
+│   │   ├── batch_extractor.py       # BatchPoseExtractor wrapper
+│   │   ├── multi_gpu_extractor.py   # Multi-GPU batched extraction
+│   │   ├── _frame_processor.py      # Frame-level processing (detection + pose)
+│   │   ├── _target_selector.py      # Target person selection logic
+│   │   ├── _track_state.py          # Track state management & auto-resolution
+│   │   ├── _track_validator.py      # Anti-steal: centroid jump + skeletal anomaly
 │   │   ├── h36m.py                   # H3.6M 17kp format handling
-│   │   ├── halpe26.py                # DELETED - no longer used (MogaNet-B uses COCO 17kp)
 │   │   ├── normalizer.py             # Root-centering + scale normalization
 │   │   └── person_selector.py        # Interactive person selection
-│   ├── pose_3d/                      # 3D pose lifting
-│   │   ├── corrective_pipeline.py    # CorrectiveLens: 3D lift → constraints → project
-│   │   ├── kinematic_constraints.py  # Bone length + joint angle enforcement
-│   │   ├── anchor_projection.py      # 3D→2D projection with confidence blending
-│   │   ├── athletepose_extractor.py  # MotionAGFormer / TCPFormer integration
+│   ├── pose_3d/                      # 3D pose lifting (optional, not in main pipeline)
+│   │   ├── onnx_extractor.py         # ONNXPoseExtractor (MotionAGFormer/TCPFormer ONNX)
+│   │   ├── tcpformer_extractor.py    # TCPFormer thin wrapper
 │   │   └── normalizer_3d.py          # 3D pose normalization
 │   ├── analysis/                     # Biomechanics analysis
 │   │   ├── metrics.py                # Airtime, height, knee angles, rotation, etc.
@@ -34,16 +38,15 @@ ml/
 │   │   ├── element_defs.py           # Figure skating element definitions
 │   │   ├── element_segmenter.py      # Automatic element segmentation
 │   │   └── rules/                    # Per-element recommendation rules
-│   ├── detection/                    # Person detection & tracking
-│   │   ├── person_detector.py        # YOLO-based person detection
-│   │   ├── pose_tracker.py           # Kalman filter + biometric Re-ID
-│   │   ├── spatial_reference.py      # Per-frame camera pose estimation
-│   │   └── blade_edge_detector_3d.py # BDA algorithm (not wired into pipeline)
+│   ├── detection/                    # Person detection & spatial reference
+│   │   ├── person_detector.py        # YOLOv8n person detection (via Ultralytics)
+│   │   ├── pose_tracker.py           # OC-SORT tracker (legacy, for tracking_backend="custom")
+│   │   └── spatial_reference.py      # Per-frame camera pose estimation
 │   ├── tracking/                     # Multi-person tracking
-│   │   ├── sports2d.py               # Sports2D centroid association
-│   │   ├── tracklet_merger.py        # NaN gap filling with biometric re-association
-│   │   ├── deepsort_tracker.py       # DeepSORT integration
-│   │   └── skeletal_identity.py      # Anatomical ratio Re-ID
+│   │   ├── deepsort_tracker.py       # DeepSORT (preferred, appearance-based ReID)
+│   │   ├── sports2d.py               # Sports2D centroid association (fallback)
+│   │   ├── tracklet_merger.py        # NaN gap filling + biometric re-association
+│   │   └── skeletal_identity.py      # Anatomical ratio Re-ID (MotionAGFormer-S 3D lift)
 │   ├── alignment/                    # Motion comparison
 │   │   ├── aligner.py                # MotionAligner class
 │   │   └── motion_dtw.py             # DTW with Sakoe-Chiba window
@@ -56,6 +59,7 @@ ml/
 │   │   └── layers/                   # Individual overlay layers
 │   ├── utils/                        # Shared utilities
 │   │   ├── video.py                  # extract_frames, get_video_meta
+│   │   ├── video_writer.py           # Video output (NVENC when available)
 │   │   ├── geometry.py               # Angles, distances
 │   │   ├── smoothing.py              # One-Euro filter
 │   │   ├── gap_filling.py            # 3-tier gap filling
@@ -66,13 +70,13 @@ ml/
 │   ├── datasets/                     # Dataset handling
 │   │   ├── coco_builder.py           # COCO format builder
 │   │   └── projector.py              # 3D projection utilities
-│   └── extras/                       # Optional ML models (not in pipeline)
-│       ├── model_registry.py         # Model download/management
-│       ├── depth_anything.py         # Depth estimation
-│       ├── optical_flow.py           # Optical flow
-│       ├── segment_anything.py       # SAM segmentation
-│       ├── inpainting.py             # Video inpainting
-│       └── foot_tracker.py           # Foot tracking
+│   └── extras/                       # Removed (pycache artifacts only, source deleted)
+│   └── tas/                          # TAS element segmentation
+│       ├── model.py                  # BiGRU coarse segmenter
+│       ├── dataset.py                # TAS dataset
+│       ├── classifier.py            # RF fine classifier
+│       ├── metrics.py                # TAS metrics
+│       └── inference.py              # TAS inference
 ├── gpu_server/                       # Vast.ai GPU server
 │   ├── server.py                     # FastAPI server for GPU worker
 │   └── Containerfile                 # Multi-stage build (4.9GB)
@@ -85,15 +89,22 @@ ml/
 │   ├── compare_videos.py             # Side-by-side analysis comparison
 │   ├── build_references.py           # Build reference database
 │   └── deploy.sh                     # Deploy to Vast.ai
-├── tests/                            # 93+ tests
+├── tests/                            # 74+ test files
 │   ├── conftest.py                   # Shared fixtures
-│   ├── analysis/                     # Metrics, phase detector, recommender
-│   ├── detection/                    # Person detector, pose tracker
-│   ├── tracking/                     # DeepSORT, skeletal identity
-│   ├── visualization/                # HUD, skeleton, layers
+│   ├── test_pipeline.py              # Pipeline integration tests
+│   ├── test_pipeline_parallel.py     # Parallel extraction tests
+│   ├── pose_estimation/              # MogaNet-B, batch, track validator, frame processor
+│   ├── analysis/                     # Metrics, phase detector, recommender, physics
+│   ├── detection/                    # Person detector, pose tracker, spatial reference
+│   ├── tracking/                     # DeepSORT, Sports2D, skeletal identity, tracklet merger
+│   ├── visualization/                # HUD, skeleton, layers, comparison, 3D export
 │   ├── alignment/                    # DTW, aligner
-│   ├── pose_3d/                      # Corrective lens, anchor projection
-│   └── utils/                        # Geometry, smoothing
+│   ├── pose_3d/                      # ONNX extractor, TCPFormer
+│   ├── utils/                        # Geometry, smoothing, gap filling, profiling
+│   ├── tas/                          # TAS model, dataset, classifier, inference
+│   ├── segmentation/                 # Element segmenter
+│   ├── references/                   # Reference builder, store
+│   └── smoke/                        # Inference smoke tests
 └── pyproject.toml                    # ML deps (pure library, no backend deps)
 ```
 
