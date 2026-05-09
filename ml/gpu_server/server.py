@@ -43,13 +43,24 @@ ACTIVE_REQUESTS = Gauge(
 # Models are at /app/data/models/ inside the container
 os.environ.setdefault("PROJECT_ROOT", "/app")
 
-# Async session for R2
+MOGANET_MODEL_PATH = Path("data/models/moganet/moganet_b_ap2d_384x288.onnx")
+
+# Async session for R2 (video I/O only)
 _async_session = aiobotocore.session.get_session()
 
 
 @app.on_event("startup")
 async def warmup_gpu():
     """Pre-warm CUDA/cuDNN to eliminate cold-start latency."""
+    if not MOGANET_MODEL_PATH.exists():
+        logger.warning("MogaNet ONNX not found: %s", MOGANET_MODEL_PATH)
+    else:
+        logger.info(
+            "MogaNet ONNX found: %s (%.1f MB)",
+            MOGANET_MODEL_PATH,
+            MOGANET_MODEL_PATH.stat().st_size / 1e6,
+        )
+
     from src.device import DeviceConfig
 
     cfg = DeviceConfig.default()
@@ -60,7 +71,6 @@ async def warmup_gpu():
     opts = ort.SessionOptions()
     opts.intra_op_num_threads = 1
     opts.inter_op_num_threads = 2
-    # Just importing ort and accessing CUDA provider triggers init
     logging.getLogger(__name__).info("GPU warmup: CUDA initialized")
 
 
