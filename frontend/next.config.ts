@@ -19,10 +19,7 @@ let config = withBundleAnalyzer({
 })(withNextIntl(nextConfig))
 
 if (process.env.NEXT_PUBLIC_SENTRY_DSN) {
-  config = withSentryConfig(config, {
-    silent: true,
-    hideSourceMaps: true,
-  })
+  config = withSentryConfig(config, { silent: true })
 }
 
 export default config

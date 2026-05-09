@@ -35,84 +35,103 @@ export function LandingClient() {
         )
         if (!heroEls?.length) return
 
-        gsap.set(heroEls, { opacity: 0, y: 20 })
-        gsap.from(heroEls, {
-          opacity: 0,
-          y: 20,
-          duration: 0.8,
-          stagger: 0.12,
-          ease: "power2.out",
-        })
+        gsap.fromTo(
+          heroEls,
+          { opacity: 0, y: 20 },
+          {
+            opacity: 1,
+            y: 0,
+            duration: 0.8,
+            stagger: 0.12,
+            ease: "power2.out",
+          }
+        )
       })
 
       mm.add("(prefers-reduced-motion: no-preference)", () => {
         const steps = containerRef.current?.querySelectorAll(".hiw-step")
         if (!steps?.length) return
 
-        gsap.from(steps, {
-          scrollTrigger: {
-            trigger: steps[0],
-            start: "top 80%",
-            toggleActions: "play none none none",
-          },
-          opacity: 0,
-          y: 40,
-          duration: 0.5,
-          stagger: 0.12,
-          ease: "power2.out",
-        })
+        gsap.fromTo(
+          steps,
+          { opacity: 0, y: 40 },
+          {
+            opacity: 1,
+            y: 0,
+            duration: 0.5,
+            stagger: 0.12,
+            ease: "power2.out",
+            scrollTrigger: {
+              trigger: steps[0],
+              start: "top 80%",
+              toggleActions: "play none none none",
+            },
+          }
+        )
       })
 
       mm.add("(prefers-reduced-motion: no-preference)", () => {
         const cards = containerRef.current?.querySelectorAll(".pricing-card")
         if (!cards?.length) return
 
-        gsap.from(cards, {
-          scrollTrigger: {
-            trigger: cards[0],
-            start: "top 85%",
-            toggleActions: "play none none none",
-          },
-          opacity: 0,
-          y: 30,
-          duration: 0.5,
-          stagger: 0.12,
-          ease: "power2.out",
-        })
+        gsap.fromTo(
+          cards,
+          { opacity: 0, y: 30 },
+          {
+            opacity: 1,
+            y: 0,
+            duration: 0.5,
+            stagger: 0.12,
+            ease: "power2.out",
+            scrollTrigger: {
+              trigger: cards[0],
+              start: "top 85%",
+              toggleActions: "play none none none",
+            },
+          }
+        )
       })
 
       mm.add("(prefers-reduced-motion: no-preference)", () => {
         const faqHeader = containerRef.current?.querySelector(".faq-header")
         if (!faqHeader) return
 
-        gsap.from(faqHeader, {
-          scrollTrigger: {
-            trigger: faqHeader,
-            start: "top 90%",
-            toggleActions: "play none none none",
-          },
-          opacity: 0,
-          y: 30,
-          duration: 0.6,
-          ease: "power2.out",
-        })
+        gsap.fromTo(
+          faqHeader,
+          { opacity: 0, y: 30 },
+          {
+            opacity: 1,
+            y: 0,
+            duration: 0.6,
+            ease: "power2.out",
+            scrollTrigger: {
+              trigger: faqHeader,
+              start: "top 90%",
+              toggleActions: "play none none none",
+            },
+          }
+        )
       })
 
       mm.add("(prefers-reduced-motion: no-preference)", () => {
         const cta = containerRef.current?.querySelector(".cta-section")
         if (!cta) return
 
-        gsap.from(cta, {
-          scrollTrigger: {
-            trigger: cta,
-            start: "top 85%",
-            toggleActions: "play none none none",
-          },
-          opacity: 0,
-          y: 30,
-          duration: 0.6,
-          ease: "power2.out",
-        })
+        gsap.fromTo(
+          cta,
+          { opacity: 0, y: 30 },
+          {
+            opacity: 1,
+            y: 0,
+            duration: 0.6,
+            ease: "power2.out",
+            scrollTrigger: {
+              trigger: cta,
+              start: "top 85%",
+              toggleActions: "play none none none",
+            },
+          }
+        )
       })
 
       const headerBg = containerRef.current?.querySelector(".header-bg")
