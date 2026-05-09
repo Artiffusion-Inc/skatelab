@@ -2,6 +2,7 @@ package ru.skatelab.capture.presentation.ble
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import android.util.Log
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -19,6 +20,8 @@ class BleScanViewModel @Inject constructor(
     private val connectSensorUseCase: ConnectSensorUseCase,
 ) : ViewModel() {
 
+    private val tag = "BleScanVM"
+
     val scanResults: StateFlow<List<ScanDevice>> = bleRepository.scanResults
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
@@ -31,6 +34,7 @@ class BleScanViewModel @Inject constructor(
     fun startScan() {
         if (_isScanning) return
         _isScanning = true
+        Log.d(tag, "startScan() called")
         bleRepository.startScan()
     }
 
@@ -41,7 +45,13 @@ class BleScanViewModel @Inject constructor(
 
     fun connectSensor(sensorId: SensorId, address: String) {
         viewModelScope.launch {
-            connectSensorUseCase.invoke(sensorId, address)
+            Log.d(tag, "connectSensor: $sensorId -> $address")
+            val result = connectSensorUseCase.invoke(sensorId, address)
+            if (result.isFailure) {
+                Log.e(tag, "connectSensor failed: ${result.exceptionOrNull()?.message}")
+            } else {
+                Log.i(tag, "connectSensor success: $sensorId")
+            }
         }
     }
 

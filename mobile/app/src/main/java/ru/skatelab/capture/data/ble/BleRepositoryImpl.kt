@@ -41,9 +41,9 @@ class BleRepositoryImpl @Inject constructor(
     override fun stopScan() = bleManager.stopScan()
 
     override suspend fun connect(sensorId: SensorId, address: String): Result<Unit> {
-        return bleManager.connect(sensorId, address).also {
-            if (it.isSuccess) _addressMap[sensorId] = address
-        }
+        val result = bleManager.connect(sensorId, address)
+        if (result.isSuccess) _addressMap[sensorId] = address
+        return result
     }
 
     override suspend fun disconnect(sensorId: SensorId): Result<Unit> = runCatching {

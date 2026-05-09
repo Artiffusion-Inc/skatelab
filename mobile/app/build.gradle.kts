@@ -45,6 +45,10 @@ android {
         compose = true
     }
 
+    testOptions {
+        unitTests.isReturnDefaultValues = true
+    }
+
     protobuf {
         protoc {
             artifact = "com.google.protobuf:protoc:4.30.2"
@@ -99,7 +103,11 @@ dependencies {
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.10.2")
     testImplementation("io.mockk:mockk:1.14.0")
+    testImplementation("app.cash.turbine:turbine:1.2.0")
     testImplementation("org.json:json:20231013")
+    testImplementation("androidx.compose.ui:ui-test-junit4")
+    debugImplementation("androidx.compose.ui:ui-test-manifest")
     androidTestImplementation("androidx.test.ext:junit:1.2.1")
     androidTestImplementation("androidx.test.espresso:espresso-core:3.6.1")
+    androidTestImplementation("androidx.compose.ui:ui-test-junit4")
 }

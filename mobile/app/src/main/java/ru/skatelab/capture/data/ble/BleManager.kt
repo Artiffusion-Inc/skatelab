@@ -2,6 +2,7 @@ package ru.skatelab.capture.data.ble
 
 import android.annotation.SuppressLint
 import android.bluetooth.BluetoothAdapter
+import android.util.Log
 import android.bluetooth.BluetoothDevice
 import android.bluetooth.BluetoothGatt
 import android.bluetooth.BluetoothGattCallback
@@ -10,7 +11,9 @@ import android.bluetooth.BluetoothGattDescriptor
 import android.bluetooth.BluetoothProfile
 import android.content.Context
 import android.os.SystemClock
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asSharedFlow
@@ -34,6 +37,7 @@ import java.util.concurrent.TimeUnit
 class BleManager(private val context: Context) {
 
     companion object {
+        private const val TAG = "BleManager"
         // WT901 BLE UUIDs
         val SERVICE_UUID: UUID = UUID.fromString("0000FFE5-0000-1000-8000-00805F9A34FB")
         val NOTIFY_UUID: UUID = UUID.fromString("0000FFE4-0000-1000-8000-00805F9A34FB")
@@ -74,8 +78,9 @@ class BleManager(private val context: Context) {
 
     @SuppressLint("MissingPermission")
     fun startScan() {
-        val adapter = bluetoothAdapter ?: return
-        val scanner = adapter.bluetoothLeScanner ?: return
+        val adapter = bluetoothAdapter ?: run { Log.e(TAG, "No BluetoothAdapter"); return }
+        val scanner = adapter.bluetoothLeScanner ?: run { Log.e(TAG, "No BLE scanner"); return }
+        Log.d(TAG, "Starting BLE scan with filter ${SERVICE_UUID}")
 
         val filter = android.bluetooth.le.ScanFilter.Builder()
             .setServiceUuid(android.os.ParcelUuid.fromString(SERVICE_UUID.toString()))
@@ -90,6 +95,7 @@ class BleManager(private val context: Context) {
         scanner.startScan(listOf(filter), settings, object : android.bluetooth.le.ScanCallback() {
             override fun onScanResult(callbackType: Int, result: android.bluetooth.le.ScanResult) {
                 val device = result.device
+                Log.d(TAG, "Scan result: ${device.name} @ ${device.address} RSSI=${result.rssi}")
                 val name = device.name ?: "WT901"
                 val address = device.address
                 foundDevices[address] = ScanResult(name, address, result.rssi)
@@ -97,7 +103,7 @@ class BleManager(private val context: Context) {
             }
 
             override fun onScanFailed(errorCode: Int) {
-                // Fall back to name-prefix scan on some devices
+                Log.e(TAG, "BLE scan failed: errorCode=$errorCode")
             }
         })
     }
@@ -112,7 +118,7 @@ class BleManager(private val context: Context) {
     // --- Connection ---
 
     @SuppressLint("MissingPermission")
-    fun connect(sensorId: SensorId, address: String): Result<Unit> {
+    suspend fun connect(sensorId: SensorId, address: String): Result<Unit> {
         val adapter = bluetoothAdapter ?: return Result.failure(IllegalStateException("No BluetoothAdapter"))
         val device = adapter.getRemoteDevice(address) ?: return Result.failure(IllegalArgumentException("Device not found: $address"))
 
@@ -126,7 +132,19 @@ class BleManager(private val context: Context) {
 
         device.connectGatt(context, false, createGattCallback(sensorId, address))
 
-        return Result.success(Unit)
+        // Wait for CONNECTED state (onServicesDiscovered completes)
+        val connected = withTimeoutOrNull(10_000L) {
+            _connectionState.first { it[sensorId] == ConnectionState.CONNECTED || it[sensorId] == ConnectionState.DISCONNECTED }
+        }
+
+        val state = _connectionState.value[sensorId]
+        return if (state == ConnectionState.CONNECTED) {
+            Log.i(TAG, "Sensor $sensorId connected and ready")
+            Result.success(Unit)
+        } else {
+            Log.e(TAG, "Sensor $sensorId connection failed or timeout, state=$state")
+            Result.failure(IllegalStateException("Connection failed for $sensorId, state=$state"))
+        }
     }
 
     @SuppressLint("MissingPermission")
@@ -148,6 +166,7 @@ class BleManager(private val context: Context) {
     private fun createGattCallback(sensorId: SensorId, address: String) = object : BluetoothGattCallback() {
 
         override fun onConnectionStateChange(gatt: BluetoothGatt, status: Int, newState: Int) {
+            Log.d(TAG, "GATT state change: address=$address status=$status newState=$newState")
             if (newState == BluetoothProfile.STATE_CONNECTED) {
                 gattConnections[address] = gatt
                 gatt.requestConnectionPriority(BluetoothGatt.CONNECTION_PRIORITY_HIGH)
@@ -159,25 +178,48 @@ class BleManager(private val context: Context) {
         }
 
         override fun onServicesDiscovered(gatt: BluetoothGatt, status: Int) {
+            Log.d(TAG, "Services discovered: address=$address status=$status")
             if (status != BluetoothGatt.GATT_SUCCESS) return
 
-            val service = gatt.getService(SERVICE_UUID) ?: return
+            val service = gatt.getService(SERVICE_UUID)
+            if (service == null) {
+                Log.e(TAG, "Service $SERVICE_UUID not found for $address")
+                gatt.disconnect()
+                return
+            }
 
             // Subscribe to IMU notifications (FFE4)
-            val notifyChar = service.getCharacteristic(NOTIFY_UUID) ?: return
+            val notifyChar = service.getCharacteristic(NOTIFY_UUID)
+            if (notifyChar == null) {
+                Log.e(TAG, "Notify char $NOTIFY_UUID not found for $address")
+                gatt.disconnect()
+                return
+            }
             notifyCharacteristics[address] = notifyChar
             gatt.setCharacteristicNotification(notifyChar, true)
 
+            // Write CCCD descriptor to enable notifications
             val descriptor = notifyChar.getDescriptor(CCCD_UUID)
-            descriptor.value = BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE
-            gatt.writeDescriptor(descriptor)
+            if (descriptor != null) {
+                descriptor.value = BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE
+                gatt.writeDescriptor(descriptor)
+                Log.d(TAG, "CCCD descriptor written for $address")
+            } else {
+                Log.w(TAG, "No CCCD descriptor for $NOTIFY_UUID — notifications may need manual enable")
+            }
 
             // Get write characteristic (FFE9)
-            val writeChar = service.getCharacteristic(WRITE_UUID) ?: return
+            val writeChar = service.getCharacteristic(WRITE_UUID)
+            if (writeChar == null) {
+                Log.e(TAG, "Write char $WRITE_UUID not found for $address")
+                gatt.disconnect()
+                return
+            }
             writeChar.writeType = BluetoothGattCharacteristic.WRITE_TYPE_NO_RESPONSE
             writeCharacteristics[address] = writeChar
 
             updateConnectionState(sensorId, ConnectionState.CONNECTED)
+            Log.i(TAG, "Sensor $sensorId CONNECTED, notify+write chars ready")
         }
 
         override fun onCharacteristicChanged(gatt: BluetoothGatt, characteristic: BluetoothGattCharacteristic) {
