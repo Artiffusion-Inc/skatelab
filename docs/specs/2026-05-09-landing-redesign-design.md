@@ -174,6 +174,8 @@ useEffect(() => {
 
 **Reduced motion:** Show final value immediately, no counting animation.
 
+**Counter screen reader accessibility:** Each counter element uses `aria-label` with the final value (e.g., `aria-label="1,200 сессий проанализировано"`) and `aria-hidden="true"` on the animated number element. Screen readers announce the final value, not the counting animation.
+
 ### 6. Pricing
 
 **3 tiers** from unit-economics.md:
@@ -184,7 +186,7 @@ useEffect(() => {
 | **Pro** | 990 ₽/мес | Фигуристы | Безлимит анализов, рекомендации, прогресс, сравнение с эталоном |
 | **Coach** | 3,500 ₽/мес | Тренеры | Dashboard учеников, диагностика, отчёты, до 20 учеников |
 
-**Layout:** `lg:grid-cols-3`, centered (changed from md: — 3 columns too tight on tablet for Russian text). Pro card multi-signal highlight: `ring-2 ring-surface-violet-soft` + `shadow-sm shadow-surface-violet-soft/20` + «Популярный» text badge at top. Not just ring-2 ring-primary (too thin, indistinguishable). Each card: tier name, price, description, feature list (✓ check icons in `<ul>/<li>`), CTA button. Price uses `sh-price` class (`clamp(2.25rem, 4vw, 3rem), font-weight: 700, line-height: 1, letter-spacing: -0.03em`).
+**Layout:** `lg:grid-cols-3`, centered (changed from md: — 3 columns too tight on tablet for Russian text). Pro card multi-signal highlight: `ring-2 ring-primary` (dark indigo, visible on white) + `shadow-sm shadow-surface-violet-soft/20` + «Популярный» text badge at top. Each card: tier name, price, description, feature list (✓ check icons in `<ul>/<li>`), CTA button. Price uses `sh-price` class (`clamp(2.25rem, 4vw, 3rem), font-weight: 700, line-height: 1, letter-spacing: -0.03em`).
 
 **CTA copy (unified):** Free → «Начать бесплатно» (same label everywhere — not «Создать аккаунт»), Pro → «Попробовать Pro» (Telegram `https://t.me/SkateLabPro`), Coach → «Связаться с нами» (Telegram `https://t.me/SkateLabBot`). Both Pro and Coach use Telegram for consistency — Russian users are Telegram-native. Note: `mailto:` avoided because it forces users out of the browser into an email app they may not have configured.
 
@@ -222,7 +224,7 @@ useEffect(() => {
 - Eyebrow: «Начните сегодня»
 - H2: «Тренируй по данным, а не на ощущениях»
 - Subtitle: «Первый анализ — бесплатно. Без подписки, без обязательств.»
-- CTA: «Начать бесплатно» (on-teal button, unified label), «Уже есть аккаунт?» (ghost link in `on-dark-mute` color with `underline`, not pure white — to create visual hierarchy)
+- CTA: «Начать бесплатно» (on-teal button, unified label), «Уже есть аккаунт?» (ghost link in `on-dark-mute` color with `underline`, not pure white — to create visual hierarchy). **Contrast verification:** Verify `on-dark-mute` (oklch(0.8 0.01 280)) meets 4.5:1 against `surface-teal-deep` (oklch(0.25 0.05 190)). If insufficient, use `text-primary-foreground` with `opacity: 0.7`.
 
 **GSAP:** Fade-up entrance.
 
@@ -244,12 +246,24 @@ useEffect(() => {
 
 **Structure:** Fixed bottom bar, `z-[70]` (above hamburger panel at z-[60] and header at z-50). Shown only on first visit (localStorage flag). `role="dialog" aria-modal="true" aria-labelledby="cookie-heading"`.
 
-**Focus management:** On appear, move focus to «Принять» button. Trap Tab/Shift+Tab within banner. Escape key dismisses. Restore focus to previously active element on close.
+**Focus management:** On appear, move focus to «Принять» button (`autoFocus`). Trap Tab/Shift+Tab within banner (handled by `react-focus-lock`). Escape key dismisses. Restore focus to previously active element on close (`returnFocus`). Add `aria-live="polite"` wrapper on the banner container that announces "Открывается диалог согласия на использование файлов cookie" when the banner appears.
+
+**Hamburger + cookie banner interaction:** If the cookie banner appears while the hamburger menu is open, close the hamburger menu first (with animation), then show the cookie banner and trap focus in it. The banner takes z-index priority (z-[70] > z-[60]).
 
 **Visual:** Background `canvas-soft`, `border-t border-hairline`, `shadow-lg shadow-primary/5`. Button `bg-primary text-primary-foreground`. Link in `text-link` color. `max-w-5xl` internal container. Safe area: `bottom: env(safe-area-inset-bottom)` or `pb-[env(safe-area-inset-bottom)]`.
 
 **Content:** «Мы используем cookies для работы сервиса. Продолжая, вы соглашаетесь с Cookie Policy.» + sr-only H2 heading for `aria-labelledby`.
-**Action:** Button «Принять» (min-h-[44px]) → sets localStorage flag, hides banner. **Backend:** store consent in User table (`consent_accepted_at: timestamp`, `consent_categories: ["analytics"]`) at registration time (not at cookie-accept — anonymous users have no User row). localStorage is client-side display logic; DB record is 152-ФЗ audit trail. For anonymous visitors, cookie consent via localStorage is accepted market practice. Analytics cookies must use anonymized identifiers. If analytics providers require verifiable consent records, implement a server-side endpoint (`POST /api/cookie-consent` with anonymous session ID).
+**Action:** Button «Принять» (`min-h-[44px] min-w-[120px]`) → sets localStorage flag, hides banner. **Backend:** store consent in User table (`consent_accepted_at: timestamp`, `consent_categories: ["analytics"]`) at registration time (not at cookie-accept — anonymous users have no User row). localStorage is client-side display logic; DB record is 152-ФЗ audit trail. For anonymous visitors, cookie consent via localStorage is accepted market practice. Analytics cookies must use anonymized identifiers. If analytics providers require verifiable consent records, implement a server-side endpoint (`POST /api/cookie-consent` with anonymous session ID).
+
+**Cookie classification (152-ФЗ):**
+
+| Cookie | Category | Requires Consent | Retention |
+|--------|----------|-----------------|-----------|
+| `sb_auth` | Necessary | No | Session |
+| `consent_accepted` | Necessary | No | 1 year |
+| PostHog session (post-MVP) | Analytics | Yes | 13 months |
+
+**SSR handling:** Cookie banner defaults to hidden during server-side rendering (localStorage unavailable). Show banner only after client-side mount check. Use `useState(false)` + `useEffect` to check localStorage, avoiding hydration mismatch.
 
 ### 11. Legal Pages
 
@@ -258,7 +272,7 @@ useEffect(() => {
 | `/privacy` | Политика конфиденциальности | **Real content** (template from 152-ФЗ generator). Must exist before any user registration. |
 | `/terms` | Пользовательское соглашение | Stub: «Документ готовится» + link to homepage |
 | `/offer` | Оферта | Stub: «Документ готовится» + link to homepage |
-| `/cookies` | Cookie Policy | Stub: «Документ готовится» + link to homepage |
+| `/cookies` | Cookie Policy | **Real content** (152-ФЗ requires listing all cookies, purposes, retention periods) |
 
 All legal pages share a minimal layout with SkateLab wordmark + «На главную» link in the header. Include breadcrumbs (`Главная > Правовая информация > Политика конфиденциальности`). Each page has a proper `<h1>` matching the title. Do NOT use `history.back()` — it can take users off-site. The `/cookies` page must list all cookies set, their purposes, and retention periods (152-ФЗ requirement).
 
@@ -377,7 +391,7 @@ Changes to the `sh-*` type scale in globals.css:
 4. **sh-body-strong removed**: Orphan size (1.172rem). Use `sh-body-lg` + `font-bold` utility instead. Search codebase for usages first.
 5. **sh-price added**: `font-size: clamp(2.25rem, 4vw, 3rem); font-weight: 700; font-variation-settings: "wght" 700; line-height: 1; letter-spacing: -0.03em;`
 6. **sh-legal added**: `font-size: 0.6875rem; font-weight: 460; font-variation-settings: "wght" 460; line-height: 1.5;`
-7. **Body font-variation-settings**: Remove `font-variation-settings: "wght" 460` from `body` rule in globals.css. Audit all components that depend on inherited `font-variation-settings` — search for `font-weight` usage without corresponding `font-variation-settings`. Add `font-variation-settings` overrides where needed.
+7. **Body font-variation-settings**: Do NOT remove `font-variation-settings: "wght" 460` from the global `body` rule — it is used by app pages. The `.landing-page` override uses `body:has(.landing-page)` to reset to weight 400, which takes precedence on landing pages without affecting app pages. Place the `body:has(.landing-page)` and `.landing-page .sh-*` overrides AFTER the `@layer base` block in globals.css, outside any layer, to guarantee specificity wins.
 
 ## Color Token Amendments
 
@@ -385,10 +399,10 @@ Changes to CSS variables in globals.css:
 
 1. **on-dark-faint raised**: `oklch(0.6 0.03 280)` — was `oklch(0.42 0.03 280)`. Old value = 2.26:1 CR (FAIL). New = 4.52:1 (PASS AA on primary).
 2. **sh-badge-opaque opacity**: 0.92-0.95 — was 0.85. Prevents borderline contrast on bright ice backgrounds.
-3. **Dark mode on landing**: Force light theme. Add `forcedTheme="light"` to ThemeProvider or `<html class="light" suppressHydrationWarning>` on landing route.
+3. **Dark mode on landing**: Force light theme via route group layout `app/(landing)/layout.tsx` with `forcedTheme="light"`. This gives the landing page its own `<html>` element, eliminating dark-mode flash.
 4. **violet-soft on white**: NOT allowed as text color (1.64:1 FAIL). Use `--primary` (dark indigo) for text on white backgrounds. violet-soft only on dark backgrounds.
 5. **Trust counters**: Use `text-primary` on white, not `text-surface-violet-soft`.
-6. **Pro pricing highlight**: `ring-2 ring-surface-violet-soft` + shadow + «Популярный» badge. Multi-signal, not color-only.
+6. **Pro pricing highlight**: `ring-2 ring-primary` (dark indigo, not violet-soft which fails WCAG on white) + `shadow-sm shadow-surface-violet-soft/20` + «Популярный» text badge. Multi-signal emphasis, not color-only. Violet-soft ring on white is 1.64:1 (FAIL) — invisible to low-vision users.
 7. **step-watermark**: Raise opacity to 0.25 with `oklch(0.7 0.006 80 / 0.25)` for visibility.
 
 ## Image Strategy
@@ -450,7 +464,13 @@ All new copy goes into `frontend/messages/ru.json` and `en.json` under existing 
 - Color contrast: all text meets WCAG AA (4.5:1 for body, 3:1 for large text)
 - `prefers-contrast: more`: override `--ink-faint` to `--ink-mute`, override `--on-dark-faint` to `--on-dark-mute`
 - Font: preload Inter Variable. Verify `font-display: swap` in fontsource package.
-- Remove `font-variation-settings: "wght" 460` from `body` rule — causes inheritance conflicts with Tailwind `font-bold`
+- Counter animation screen reader: `aria-label` with final value (e.g., `aria-label="1,200 сессий проанализировано"`) on each counter wrapper, `aria-hidden="true"` on the animated number element
+- Mobile CTA bar: `role="complementary"` with `aria-label="Начать бесплатно"`. Hidden via `hidden` attribute (not CSS display:none) when cookie banner is visible
+- Heading level hierarchy: H1 (hero headline) → H2 (Как это работает, Нам доверяют, Тарифы, FAQ, CTA) → H3 (step titles within How It Works, tier names within Pricing). Cookie banner: sr-only H2. No heading level skipping.
+- Anchor scroll focus: After smooth-scroll completes, call `element.focus({ preventScroll: true })` to set focus without re-scrolling (GSAP ScrollTrigger is already managing scroll position)
+- Pricing CTA buttons: `min-h-[44px]` with `mt-6` (24px) above, `gap-3` (12px) between stacked buttons on mobile
+- FAQ accordion triggers: `min-h-[44px]` with `py-3` padding on each trigger row
+- Mobile CTA bar sizing: `min-h-[56px]` (44px button + 12px vertical padding) with `pb-[env(safe-area-inset-bottom)]`
 
 ## SEO & Meta Tags
 
@@ -475,28 +495,34 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 ```
 
-Create an OG image (1200×630px) at `/public/images/og-image.png` with the SkateLab wordmark, tagline, and visual proof (skeleton overlay). The JSON-LD FAQ schema must be rendered in a **server component** (not inside `LandingClient.tsx`) so Googlebot can parse it. Use `getTranslations` from `next-intl/server` to read FAQ content server-side.
+Create an OG image (1200×630px) at `/public/images/og-image.png` with the SkateLab wordmark, tagline, and visual proof (skeleton overlay). The JSON-LD schemas must be rendered in a **server component** (not inside `LandingClient.tsx`) so Googlebot can parse it. Use `getTranslations` from `next-intl/server` to read FAQ content server-side.
+
+**JSON-LD schemas (all server-side rendered):**
+
+1. **FAQPage** — FAQ content from i18n keys, already specified
+2. **Organization** — SkateLab brand info:
+   ```json
+   { "@type": "Organization", "name": "SkateLab", "url": "https://skatelab.ru", "logo": "https://skatelab.ru/images/og-image.png" }
+   ```
+3. **WebSite** — Site-level schema:
+   ```json
+   { "@type": "WebSite", "name": "SkateLab", "url": "https://skatelab.ru" }
+   ```
+
+**hreflang:** If an English version exists, add `alternates.languages` to metadata:
+```tsx
+alternates: { canonical: "https://skatelab.ru", languages: { "ru": "https://skatelab.ru", "en": "https://skatelab.ru/en" } }
+```
+
+**Meta description HTML entity:** The `<` character in `< 15 с` must be encoded as `&lt;` in the HTML meta tag. Verify the rendered `<meta name="description">` contains the correct entity.
 
 ## Font Strategy
 
-The current `@import "@fontsource-variable/inter"` in globals.css creates a CSS waterfall that delays font discovery. For the landing page (LCP-critical), migrate to `next/font/local`:
+**Decision: Keep `@fontsource-variable/inter` CSS import for the landing page.** Do NOT migrate to `next/font/local` for the landing page only — this creates a dual-font-loading conflict where both the CSS import and next/font download Inter on the same page, causing duplicate requests and potential FOUT/FOIT issues. Additionally, the Tailwind font-family references (`"Inter Variable"`, `"Inter"`) in globals.css would not automatically use the `--font-inter` CSS variable from `next/font/local`.
 
-1. Copy `inter-latin-wght-normal.woff2` and `inter-cyrillic-wght-normal.woff2` from the fontsource package to `/public/fonts/`
-2. In the landing page server component, use `next/font/local`:
-   ```tsx
-   import localFont from 'next/font/local'
-   const inter = localFont({
-     src: [
-       { path: '../../public/fonts/inter-latin-wght-normal.woff2', style: 'normal' },
-       { path: '../../public/fonts/inter-cyrillic-wght-normal.woff2', style: 'normal' },
-     ],
-     variable: '--font-inter',
-     display: 'swap',
-   })
-   ```
-3. This gives automatic font preloading, `font-display: swap`, and eliminates the CSS import waterfall.
+The CSS import approach works well enough for LCP. The `@import "@fontsource-variable/inter"` with `font-display: swap` provides acceptable loading performance. LCP optimization focuses on hero image `priority` and avoiding layout shifts rather than font loading micro-optimization.
 
-The root layout can continue using `@fontsource-variable/inter` for app pages. Only the landing page needs the optimized font loading.
+**If font optimization becomes critical post-MVP**, migrate the entire app to `next/font/local` (not just the landing page), updating Tailwind config to use the CSS variable `--font-inter`. This is a separate project.
 
 ## Analytics Events (PostHog Self-Hosted — Future)
 
@@ -548,7 +574,7 @@ gsap.from(element, { opacity: 0, y: 30, duration: 0.5 })
 gsap.to(element, { opacity: 1, y: 0 }) // element must start at opacity:0 in CSS
 ```
 
-Remove all CSS classes that set initial hidden states (`.hero-eyebrow { opacity: 0 }`, `.hero-headline { opacity: 0 }`, etc.). GSAP `from()` handles this at runtime.
+Remove all CSS classes that set initial hidden states (`.hero-eyebrow { opacity: 0 }`, `.hero-headline { opacity: 0 }`, `.hero-subtitle { opacity: 0 }`, `.hero-cta { opacity: 0 }`, `.hero-scroll { opacity: 0 }`, `.hero-visible` with animation definitions) from globals.css. Also remove the `mounted` state and `${mounted ? "hero-visible" : ""}` pattern from HeroSection — GSAP handles all animation, CSS classes and React state are no longer needed for entrance animations.
 
 **Pinned demo without JS:** Show the final phase (metrics HUD) as a static image. Use `<noscript>` to render a fallback if needed, or simply let the demo section render its final state.
 
@@ -578,7 +604,7 @@ app/page.tsx (server) → LandingClient.tsx ('use client') → all sections as c
 `LandingClient.tsx` holds:
 - `gsap.registerPlugin(ScrollTrigger)` (called once)
 - Single `useLayoutEffect` that creates a GSAP context, runs `gsap.matchMedia()`, and returns cleanup
-- `ScrollTrigger.killAll()` in cleanup on unmount
+- Only `ctx.revert()` in cleanup — never `ScrollTrigger.killAll()` (global, kills triggers from other pages)
 
 Individual section components (`HeroSection`, `DemoSection`, etc.) remain `'use client'` but do NOT register their own ScrollTriggers. They expose `useRef` containers that `LandingClient` queries for animation targets.
 
@@ -603,19 +629,34 @@ return () => ctx.revert() // restores elements to their original (visible) state
 
 ### Route and Layout
 
-Landing page lives at `/` (root). Current `app/page.tsx` does cookie-based redirect. New structure:
+Landing page lives at `/` (root) in a dedicated route group. New structure:
 
 ```
 app/
-├── page.tsx              # Server component, checks sb_auth cookie
+├── (landing)/
+│   ├── layout.tsx        # Light-only layout, forcedTheme="light"
+│   └── page.tsx          # Server component, checks sb_auth cookie
 │                         # Authenticated → redirect('/feed')
 │                         # Not authenticated → <LandingClient />
-├── layout.tsx            # Root layout (existing, with ThemeProvider)
 ├── (auth)/               # Auth pages (existing)
-└── (app)/                # App pages (existing)
+└── (app)/                # App pages (existing, with ThemeProvider)
 ```
 
-Force light theme on landing: Set `<html class="light" suppressHydrationWarning>` in the server-rendered output for the landing route. This guarantees no dark-mode flash — the class is set in the initial HTML before paint. `suppressHydrationWarning` is needed because next-themes may try to set a different class during hydration. Using `forcedTheme="light"` on ThemeProvider is a fallback but may cause a 1-frame flash since it runs client-side.
+The `(landing)` route group has its own `layout.tsx` that forces light theme, preventing dark-mode flash. Root layout remains for `(auth)` and `(app)` route groups.
+
+Force light theme on landing: The landing page needs its own route group layout to prevent dark-mode flash. Create `app/(landing)/layout.tsx` that wraps content with `ThemeProvider forcedTheme="light"`. This gives the landing page its own `<html>` element with `class="light"` set server-side, eliminating the flash. The root `layout.tsx` with ThemeProvider remains for app pages. The `suppressHydrationWarning` on `<html>` is only needed where next-themes modifies the class (root layout), not on the landing layout.
+
+Route structure:
+```
+app/
+├── (landing)/
+│   ├── layout.tsx    # forcedTheme="light", no next-themes toggle
+│   └── page.tsx      # server component, cookie redirect + LandingClient
+├── (auth)/
+│   └── layout.tsx    # existing auth layout
+└── (app)/
+    └── layout.tsx    # existing app layout with theme toggle
+```
 
 Add `<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">` to the landing page head (required for `env(safe-area-inset-*)` to work on iOS). In Next.js, use the `viewport` export:
 ```tsx
@@ -673,21 +714,35 @@ When user first uploads a video on `/upload`:
 
 ### Cookie Banner Focus Trap
 
-Use `react-focus-lock` (add to dependencies: `bun add react-focus-lock`). Dynamically import the cookie banner component with `next/dynamic` (`ssr: false`) so `react-focus-lock` (~7KB gzip) is only loaded when the banner is visible, not on every page load. Pattern:
+Use `react-focus-lock` (add to dependencies: `bun add react-focus-lock`). Dynamically import the **entire cookie banner component** (not just FocusLock) with `next/dynamic` (`ssr: false`) so `react-focus-lock` (~7KB gzip) is only loaded when the banner is visible, not on every page load. Pattern:
+
+```tsx
+// In LandingClient.tsx:
+const CookieBanner = dynamic(() => import('./cookie-banner'), { ssr: false })
+
+// Render:
+{showBanner && <CookieBanner onAccept={acceptCookies} />}
+```
+
+Inside `cookie-banner.tsx`, `react-focus-lock` is a regular import (not dynamic) since the whole component is dynamically loaded:
 
 ```tsx
 import FocusLock from 'react-focus-lock'
 
-{showBanner && (
-  <FocusLock returnFocus>
-    <div role="dialog" aria-modal="true" aria-labelledby="cookie-heading">
-      <h2 id="cookie-heading" className="sr-only">Cookie consent</h2>
-      <p>Мы используем cookies для работы сервиса...</p>
-      <button onClick={acceptCookies} autoFocus>Принять</button>
-    </div>
-  </FocusLock>
-)}
+export function CookieBanner({ onAccept }: { onAccept: () => void }) {
+  return (
+    <FocusLock returnFocus>
+      <div role="dialog" aria-modal="true" aria-labelledby="cookie-heading">
+        <h2 id="cookie-heading" className="sr-only">Cookie consent</h2>
+        <p>Мы используем cookies для работы сервиса...</p>
+        <button onClick={onAccept} autoFocus>Принять</button>
+      </div>
+    </FocusLock>
+  )
+}
 ```
+
+**SSR handling:** `showBanner` defaults to `false` during server-side rendering (localStorage unavailable). Use `useState(false)` + `useEffect` to check localStorage after mount, preventing hydration mismatch.
 
 ### Pro Card «Популярный» Badge
 
@@ -732,7 +787,7 @@ Height: `h-20` (80px) on mobile, `md:h-28` (112px) on desktop. Creates a smooth 
 
 ## Out of Scope
 
-- Legal document texts for Terms, Offer, Cookies (stubs only — Privacy Policy must be real)
+- Legal document texts for Terms and Offer (stubs only — Privacy Policy and Cookie Policy must be real per 152-ФЗ)
 - Real testimonial quotes (removed entirely until post-pilot)
 - Real partner logos (use animated counters instead)
 - Annual pricing toggle
