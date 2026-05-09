@@ -49,25 +49,27 @@ jobs:
           R2_BUCKET: ${{ secrets.CF_R2_BUCKET }}
         run: |
           mkdir -p data/models/moganet
-          if [ -f data/models/moganet/moganet_b_ap2d_384x288.onnx ]; then
-            echo "MogaNet ONNX already cached, skipping download"
-          else
-            pip install boto3
-            python3 -c "
+          pip install boto3
+          python3 -c "
           import boto3, os
           s3 = boto3.client('s3',
               endpoint_url=os.environ['R2_ENDPOINT_URL'],
               aws_access_key_id=os.environ['R2_ACCESS_KEY_ID'],
               aws_secret_access_key=os.environ['R2_SECRET_ACCESS_KEY'],
               region_name='auto')
-          s3.download_file(os.environ['R2_BUCKET'], 'models/moganet/moganet_b_ap2d_384x288.onnx',
-                            'data/models/moganet/moganet_b_ap2d_384x288.onnx')
-          print('Downloaded MogaNet ONNX from R2')
-          s3.download_file(os.environ['R2_BUCKET'], 'models/yolov8n.onnx',
-                            'data/models/yolov8n.onnx')
-          print('Downloaded YOLOv8n ONNX from R2')
-            "
-          fi
+          if not os.path.exists('data/models/moganet/moganet_b_ap2d_384x288.onnx'):
+              s3.download_file(os.environ['R2_BUCKET'], 'models/moganet/moganet_b_ap2d_384x288.onnx',
+                                'data/models/moganet/moganet_b_ap2d_384x288.onnx')
+              print('Downloaded MogaNet ONNX from R2')
+          else:
+              print('MogaNet ONNX already cached, skipping download')
+          if not os.path.exists('data/models/yolov8n.onnx'):
+              s3.download_file(os.environ['R2_BUCKET'], 'models/yolov8n.onnx',
+                                'data/models/yolov8n.onnx')
+              print('Downloaded YOLOv8n ONNX from R2')
+          else:
+              print('YOLOv8n ONNX already cached, skipping download')
+          "
 
       - name: Verify required models exist
         run: |
