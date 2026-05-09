@@ -55,6 +55,17 @@ class VastResult:
     recommendations: list | None
 
 
+@dataclass
+class VastDetectResult:
+    persons: list[dict]
+    preview_image: str
+    video_key: str
+    auto_click: dict[str, int] | None
+    width: int
+    height: int
+    status: str
+
+
 def _get_worker_url(endpoint_name: str, api_key: str) -> str:
     """Route request to get a ready worker URL."""
     global _worker_url_cache, _worker_url_cache_time  # noqa: PLW0603
@@ -137,6 +148,48 @@ def process_video_remote(
         metrics=result.get("metrics"),
         phases=result.get("phases"),
         recommendations=result.get("recommendations"),
+    )
+
+
+async def detect_video_remote_async(
+    video_key: str,
+    tracking: str = "auto",
+) -> VastDetectResult:
+    """Send person detection to Vast.ai Serverless GPU."""
+    settings = get_settings()
+
+    api_key = settings.vastai.api_key.get_secret_value()
+    endpoint_name = settings.vastai.endpoint_name
+
+    logger.info("Routing detection to Vast.ai endpoint: %s", endpoint_name)
+    worker_url = await _asyncio_get_worker_url(endpoint_name, api_key)
+    logger.info("Worker URL: %s", worker_url)
+
+    payload = {
+        "video_r2_key": video_key,
+        "tracking": tracking,
+        "r2_endpoint_url": settings.r2.endpoint_url,
+        "r2_access_key_id": settings.r2.access_key_id.get_secret_value(),
+        "r2_secret_access_key": settings.r2.secret_access_key.get_secret_value(),
+        "r2_bucket": settings.r2.bucket,
+    }
+    client = _get_async_client()
+    resp = await client.post(
+        f"{worker_url}/detect",
+        json=payload,
+        timeout=REQUEST_TIMEOUT,
+    )
+    resp.raise_for_status()
+    result = resp.json()
+
+    return VastDetectResult(
+        persons=result["persons"],
+        preview_image=result["preview_image"],
+        video_key=result["video_key"],
+        auto_click=result.get("auto_click"),
+        width=result.get("width", 0),
+        height=result.get("height", 0),
+        status=result.get("status", ""),
     )
 
 
