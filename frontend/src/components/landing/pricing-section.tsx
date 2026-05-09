@@ -46,7 +46,7 @@ export function PricingSection() {
       aria-labelledby="pricing-heading"
     >
       <div className="mb-14 md:mb-20 text-center">
-        <p className="mb-4 text-xs font-medium uppercase tracking-[0.3em] text-ink-mute">
+        <p className="mb-4 sh-micro uppercase tracking-[0.3em] text-ink-mute">
           {t("pricingTitle")}
         </p>
         <h2 id="pricing-heading" className="sh-display-xl text-ink">
@@ -58,32 +58,32 @@ export function PricingSection() {
         {tiers.map((tier) => (
           <li
             key={tier.name}
-            className={`pricing-card relative rounded-lg border p-8 ${
+            className={`pricing-card relative rounded-lg p-8 ${
               tier.highlighted
-                ? "ring-2 ring-primary shadow-sm shadow-surface-violet-soft/20"
-                : "border-hairline bg-background"
+                ? "bg-primary text-primary-foreground border border-primary"
+                : "border border-hairline bg-background text-ink"
             }`}
           >
             {tier.badge && (
-              <span className="absolute -top-3 left-1/2 -translate-x-1/2 sh-badge-opaque px-3 py-1 rounded-full text-xs text-primary-foreground">
+              <span className="absolute -top-3 left-1/2 -translate-x-1/2 bg-surface-violet-soft px-3 py-1 rounded-full sh-micro text-primary-foreground tracking-wider">
                 {tier.badge}
               </span>
             )}
-            <h3 className="sh-heading-lg text-ink">{tier.name}</h3>
-            <p className="sh-price mt-4 text-ink">
+            <h3 className="sh-heading-lg">{tier.name}</h3>
+            <p className="sh-price mt-4">
               <data value={tier.price.replace(/[^\d]/g, "")}>{tier.price}</data>
             </p>
-            <p className="mt-2 sh-caption text-ink-mute">{tier.desc}</p>
+            <p className={`mt-2 sh-caption ${tier.highlighted ? "text-on-dark-mute" : "text-ink-mute"}`}>{tier.desc}</p>
             <ul className="mt-6 space-y-3">
               {tier.features.map((f) => (
-                <li key={f} className="flex items-start gap-2 sh-caption text-ink-mute">
-                  <Check className="h-4 w-4 mt-0.5 shrink-0 text-score-good" />
+                <li key={f} className={`flex items-start gap-2 sh-caption ${tier.highlighted ? "text-on-dark-mute" : "text-ink-mute"}`}>
+                  <Check className={`h-4 w-4 mt-0.5 shrink-0 ${tier.highlighted ? "text-surface-violet-soft" : "text-score-good"}`} />
                   {f}
                 </li>
               ))}
             </ul>
             <Button
-              variant={tier.highlighted ? "default" : "outline"}
+              variant={tier.highlighted ? "on-dark-pill" : "outline"}
               className="mt-6 min-h-[44px] w-full"
               asChild
             >
