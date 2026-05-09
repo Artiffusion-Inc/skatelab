@@ -2,19 +2,21 @@
 
 Run with: uv run python -m app.worker
 
-Dispatches all processing to Vast.ai Serverless GPU.
-No local GPU fallback.
+When VASTAI_API_KEY is set, dispatches to Vast.ai Serverless GPU.
+Otherwise runs locally on GPU (requires CUDA).
 """
 
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import logging
 import os
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, ClassVar
 
+import httpx
 import numpy as np
 import sentry_sdk
 from arq import Retry
@@ -399,7 +401,11 @@ async def detect_video_task(
     video_key: str,
     tracking: str = "auto",
 ) -> dict[str, Any]:
-    """arq task: detect persons in uploaded video."""
+    """arq task: detect persons in uploaded video.
+
+    Dispatches to Vast.ai Serverless GPU when VASTAI_API_KEY is set,
+    otherwise runs locally on GPU (requires CUDA).
+    """
     settings = get_settings()
     valkey = await get_valkey_client()
 
@@ -416,12 +422,56 @@ async def detect_video_task(
             valkey=valkey,
         )
 
+        # ── Vast.ai Serverless GPU path ──
+        if settings.vastai.api_key.get_secret_value():
+            from app.vastai.client import detect_video_remote_async
+
+            logger.info("Dispatching detect task %s to Vast.ai (video_key=%s)", task_id, video_key)
+            await update_progress(task_id, 0.1, "Dispatching to GPU...", valkey=valkey)
+            await publish_task_event(
+                task_id,
+                {"status": "running", "progress": 0.1, "message": "Dispatching to GPU..."},
+                valkey=valkey,
+            )
+
+            if await is_cancelled(task_id, valkey=valkey):
+                await mark_cancelled(task_id, valkey=valkey)
+                return {"status": "cancelled"}
+
+            async with _VASTAI_SEMAPHORE:
+                vast_detect = await detect_video_remote_async(
+                    video_key=video_key,
+                    tracking=tracking,
+                )
+
+            result_data = {
+                "persons": [
+                    {
+                        "track_id": p["track_id"],
+                        "hits": p["hits"],
+                        "bbox": p["bbox"],
+                        "mid_hip": p["mid_hip"],
+                    }
+                    for p in vast_detect.persons
+                ],
+                "preview_image": vast_detect.preview_image,
+                "video_key": vast_detect.video_key,
+                "auto_click": vast_detect.auto_click,
+                "status": vast_detect.status,
+            }
+            await store_result(task_id, result_data, valkey=valkey)
+            await update_progress(task_id, 1.0, "Done", valkey=valkey)
+            await publish_task_event(
+                task_id, {"status": "completed", "progress": 1.0, "message": "Done"}, valkey=valkey
+            )
+            return result_data
+
+        # ── Local GPU path ──
         import tempfile
         from pathlib import Path
 
         import cv2  # pyright: ignore[reportMissingImports]
 
-        from app.storage import download_file
         from src.device import DeviceConfig  # pyright: ignore[reportMissingImports]
         from src.pose_estimation.pose_extractor import (  # pyright: ignore[reportMissingImports]
             PoseExtractor,
@@ -468,8 +518,6 @@ async def detect_video_task(
 
         with tempfile.TemporaryDirectory() as tmpdir:
             video_path = Path(tmpdir) / "input.mp4"
-            # TODO: integrate IMU into ML pipeline — session.imu_left_key, session.imu_right_key, session.manifest_key
-            # Currently IMU data is uploaded to R2 but not consumed by the pipeline.
             await asyncio.to_thread(download_file, video_key, str(video_path))
 
             cfg = DeviceConfig.default()
@@ -558,7 +606,15 @@ async def detect_video_task(
             )
             return result_data
 
-    except (OSError, ValueError, RuntimeError, ConnectionError, TimeoutError) as e:
+    except (httpx.TimeoutException, httpx.ConnectError, ConnectionError, TimeoutError) as e:
+        logger.warning("Vast.ai connection error for detect task %s: %s", task_id, e)
+        await store_error(task_id, str(e), valkey=valkey)
+        with contextlib.suppress(OSError, RuntimeError):
+            await publish_task_event(
+                task_id, {"status": "failed", "progress": 0.0, "message": str(e)}, valkey=valkey
+            )
+        raise Retry(defer=ctx.get("job_try", 1) * 10) from e
+    except (OSError, ValueError, RuntimeError) as e:
         logger.exception("Detection task %s failed", task_id)
         await store_error(task_id, str(e), valkey=valkey)
         try:
