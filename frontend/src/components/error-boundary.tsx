@@ -1,10 +1,11 @@
 "use client"
 
-import * as Sentry from "@sentry/nextjs"
 import { Button } from "@/components/ui/button"
 import { AlertCircle } from "lucide-react"
 import type { ReactNode } from "react"
 import React from "react"
+
+const getSentry = () => import("@sentry/nextjs").then(m => m)
 
 interface Props {
   children: ReactNode
@@ -28,9 +29,11 @@ export class ErrorBoundary extends React.Component<Props, State> {
   }
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
-    Sentry.captureException(error, {
-      contexts: { react: { componentStack: errorInfo.componentStack } },
-    })
+    getSentry().then(Sentry =>
+      Sentry.captureException(error, {
+        contexts: { react: { componentStack: errorInfo.componentStack } },
+      })
+    )
   }
 
   handleReset = () => {
@@ -53,8 +56,8 @@ export class ErrorBoundary extends React.Component<Props, State> {
             <div className="mb-4 flex justify-center">
               <AlertCircle className="text-destructive size-12" />
             </div>
-            <h2 className="nike-h2 mb-2 text-destructive">Something went wrong</h2>
-            <p className="text-muted-foreground mb-6 text-sm">
+            <h2 className="sh-heading-lg mb-2 text-destructive">Something went wrong</h2>
+            <p className="text-ink-mute mb-6 text-sm">
               {this.state.error?.message ?? "An unexpected error occurred."}
             </p>
             <Button onClick={this.handleReset} variant="default" className="bg-primary">

@@ -3,12 +3,10 @@
 import Image from "next/image"
 import { Button } from "@/components/ui/button"
 import { useTranslations } from "@/i18n"
-import { useAuth } from "@/components/auth-provider"
 import { SkeletonPose } from "./skeleton-pose"
 
 export function HeroSection() {
   const t = useTranslations("landing")
-  const { isAuthenticated } = useAuth()
 
   return (
     <section className="hero-section relative flex min-h-[100dvh] items-center overflow-hidden bg-primary" aria-label={t("eyebrow")}>
@@ -50,7 +48,7 @@ export function HeroSection() {
                 className="h-14 px-10 text-base"
                 asChild
               >
-                <a href={isAuthenticated ? "/feed" : "/register"}>{t("ctaPrimary")}</a>
+                <a href="/register">{t("ctaPrimary")}</a>
               </Button>
               <Button
                 variant="ghost"
@@ -58,8 +56,8 @@ export function HeroSection() {
                 className="h-14 rounded-full px-8 text-base text-on-dark-mute hover:text-primary-foreground"
                 asChild
               >
-                <a href={isAuthenticated ? "/progress" : "#features"}>
-                  {isAuthenticated ? t("ctaDashboard") : t("ctaSecondary")}
+                <a href="#demo">
+                  {t("ctaSecondary")}
                 </a>
               </Button>
             </div>
@@ -72,6 +70,7 @@ export function HeroSection() {
                 src="/images/hero-skater.webp"
                 alt="Figure skater performing a jump on ice"
                 fill
+                sizes="(max-width: 1024px) 100vw, 52vw"
                 className="object-cover"
                 priority
               />

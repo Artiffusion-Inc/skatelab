@@ -1,7 +1,6 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
-@import "@fontsource-variable/inter";
 
 @custom-variant dark (&:is(.dark *));
 
@@ -42,14 +41,14 @@
 
 body {
   margin: 0;
-  font-family: "Inter Variable", "Inter", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  font-family: var(--font-sans);
   background: var(--color-background);
   color: var(--color-foreground);
 }
 
 @theme inline {
   --font-heading: var(--font-sans);
-  --font-sans: "Inter Variable", "Inter", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --font-sans: var(--font-inter), system-ui, sans-serif;
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -130,6 +129,10 @@ body {
   --sidebar-accent-foreground: oklch(0.145 0 0);
   --sidebar-border: oklch(0.815 0 0);
   --sidebar-ring: oklch(0.48 0.19 264);
+  --ice-glow: oklch(0.72 0.12 240);
+  --ice-deep: oklch(0.42 0.12 240);
+  --ice-surface: oklch(0.97 0.01 240);
+  --ice-dark: oklch(0.18 0.03 240);
 }
 
 .dark {
@@ -170,16 +173,6 @@ body {
   --sidebar-accent-foreground: oklch(0.98 0 0);
   --sidebar-border: oklch(0.145 0 0 / 15%);
   --sidebar-ring: oklch(0.588 0.19 254);
-}
-
-:root {
-  --ice-glow: oklch(0.72 0.12 240);
-  --ice-deep: oklch(0.42 0.12 240);
-  --ice-surface: oklch(0.97 0.01 240);
-  --ice-dark: oklch(0.18 0.03 240);
-}
-
-.dark {
   --ice-glow: oklch(0.62 0.14 240);
   --ice-deep: oklch(0.32 0.1 240);
   --ice-surface: oklch(0.22 0.03 240);
