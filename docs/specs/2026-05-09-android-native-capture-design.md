@@ -1,7 +1,7 @@
 # Android Native Capture App — Design Spec
 
 **Date**: 2026-05-09
-**Status**: Draft (rev 4 — fourth review complete, P0/P1 fixes applied)
+**Status**: Draft (rev 5 — fourth scientific review complete, H25-H28 resolved)
 **Replaces**: Flutter `mobile/` (deleted)
 
 ## Overview
@@ -221,18 +221,26 @@ Pre-configuration unlock: `[0xFF, 0xAA, 0x69, 0x88, 0xB5]`
 7. **Save configuration** → `[0xFF, 0xAA, 0x00, 0x00, 0x00]`
 8. *(wait 500ms for EEPROM write + output mode switch)*
 
-**Start streaming** (send when recording begins, after configuration):
-9. **Set output content to active** (register 0x02, re-send 0x0046):
-   → `[0xFF, 0xAA, 0x02, 0x46, 0x00]`
-10. *(wait 500ms)* — sensor switches from 0x61 combined to individual frames, 100Hz output starts
-
-**Stop streaming** (send when recording ends):
-11. **Disable all output** (register 0x02, value 0x0000):
-    → `[0xFF, 0xAA, 0x02, 0x00, 0x00]`
+**Start streaming** (send when recording begins, requires Unlock):
+9. **Unlock** → `[0xFF, 0xAA, 0x69, 0x88, 0xB5]`
+10. *(wait 50ms)*
+11. **Set output content to active** (register 0x02, re-send 0x0046):
+    → `[0xFF, 0xAA, 0x02, 0x46, 0x00]`
 12. *(wait 100ms)*
 13. **Save configuration** → `[0xFF, 0xAA, 0x00, 0x00, 0x00]`
+14. *(wait 500ms)* — sensor switches from 0x61 combined to individual frames, 100Hz output starts
 
-> **Note:** The WT901 has no explicit "start/stop streaming" command. Streaming is controlled by the OutputContent register: non-zero value = stream enabled, zero = stream disabled. After Save, the sensor begins transmitting at the configured rate. The "start" step re-sends the same OutputContent value to ensure the sensor is in individual-frame mode (not default 0x61 combined mode).
+**Stop streaming** (send when recording ends, requires Unlock):
+15. **Unlock** → `[0xFF, 0xAA, 0x69, 0x88, 0xB5]`
+16. *(wait 50ms)*
+17. **Disable all output** (register 0x02, value 0x0000):
+    → `[0xFF, 0xAA, 0x02, 0x00, 0x00]`
+18. *(wait 100ms)*
+19. **Save configuration** → `[0xFF, 0xAA, 0x00, 0x00, 0x00]`
+
+> **Rev 5 (H25 CONFIRMED):** Unlock must be sent before EVERY configuration write — including start/stop streaming. The 10-second configuration window expires after Save, and all official WitMotion SDKs (C, Android, C#) call Unlock before each register modification. Start streaming is 4 commands (~750ms total). Stop streaming is 4 commands (~750ms total). Register reads (0x27) do NOT need Unlock — they are not configuration writes.
+
+> **Note:** Streaming is controlled by the OutputContent register: non-zero value = stream enabled, zero = stream disabled. After Save, the sensor begins transmitting at the configured rate. The "start" sequence re-sends OutputContent 0x0046 to ensure individual-frame mode (not default 0x61 combined mode).
 
 **0x50 (time) NOT enabled for streaming** — queried on-demand via register read (`[0xFF, 0xAA, 0x27, 0x30, 0x00]`) for periodic clock sync. This avoids adding 1100 bytes/sec of time data that's only needed every 30 seconds.
 
@@ -268,9 +276,9 @@ Used for post-configuration verification and clock sync register reads.
 8. **Rev 4 (H21):** All GATT operations serialized via write queue — `BluetoothGatt.writeCharacteristic()` silently fails if another operation is in progress. Use `WRITE_TYPE_NO_RESPONSE` for FFE9 characteristic. Write commands can be sent during active streaming (FFE9 write and FFE4 notify are independent characteristics).
 9. **Do NOT request MTU negotiation** — default MTU 23 is sufficient (WT901 always sends 20-byte notifications)
 
-**Start streaming** (at recording start): Send OutputContent 0x0046 → Save (steps 9-10 in command protocol). Data arrives on FFE4.
+**Start streaming** (at recording start): Send Unlock → OutputContent 0x0046 → Save (steps 9-14 in command protocol, ~750ms). Data arrives on FFE4.
 
-**Stop streaming** (at recording end): Send OutputContent 0x0000 → Save (steps 11-13 in command protocol). Data stops on FFE4.
+**Stop streaming** (at recording end): Send Unlock → OutputContent 0x0000 → Save (steps 15-19 in command protocol, ~750ms). Data stops on FFE4.
 
 ### BLE Processing Pipeline
 
@@ -314,11 +322,13 @@ onCharacteristicChanged():
 ```
 For first 20 BLE packets from each sensor:
   arrivalNs = SystemClock.elapsedRealtimeNanos()
-  chipTimeMs = WT901 time output (0x50) or accumulated sample timestamps
+  chipTimeMs = read from WT901 time registers (0x30-0x33) via on-demand register read
   offsets.add(arrivalNs - (chipTimeMs * 1_000_000L))
 
 offset = median(offsets)  // reduces jitter from ~10ms to ~2-3ms
 ```
+
+**Rev 5 (H26 CONFIRMED):** WT901 individual frame mode (0x51/0x52/0x59) provides NO per-sample timestamp. The 11-byte frames contain only sensor data + checksum. All reference SDKs (Android, C#, Python) use arrival time only — no chip time extraction. The phrase "accumulated sample timestamps" is removed as misleading; the sensor has no sample counter. Per-sample timestamps are assigned using `elapsedRealtimeNanos()` at BLE notification arrival. Periodic 0x50 register reads (every 30s) provide drift correction against sensor crystal oscillator drift (20-50 ppm).
 
 ### Step 2: Periodic Resync (Every 30 seconds)
 
@@ -354,20 +364,63 @@ All share same clock domain. No post-hoc alignment.
 
 ## Recording Flow
 
-### Start
+### Startup Ordering Research (H28)
+
+**Rev 5 (H28 CONFIRMED):** Research of 3 reference apps + 2 papers confirms: **start IMU first, then camera.** Record the delay in the manifest.
+
+**Evidence from reference apps:**
+
+1. **OpenCamera-Sensors** (MobileRoboticsSkoltech/Skoltech): Sensors are enabled (`enableSensors()`) and `SensorManager.registerListener()` is called **before** `MediaRecorder.start()`. The `RawSensorInfo.startRecording()` opens sensor CSV writers and sets `mIsRecording = true`. IMU data flows immediately. Camera starts after, with its inherent 50-500ms latency. No explicit delay field in manifest — the timestamp CSV files implicitly contain the gap (first frame timestamp may be hundreds of ms after first sensor event).
+
+2. **VideoIMUCapture-Android** (DavidGillsjo): The `CameraCaptureFragment.startRecording()` method orders: (1) `recordingWriter.startRecording(metaFile)` — open metadata writer, (2) `imuManager.startRecording(recordingWriter)` — set `mRecordingInertialData = true`, (3) `camera2Proxy.startRecordingCaptureResult(recordingWriter)` — start camera capture result recording, (4) `mRenderer.changeRecordingState(true)` — start video encoder. Crucially, the IMU `SensorEventCallback` is **always registered** (`imuManager.register()` is called at session start, not recording start). The `startRecording()` method just flips the `mRecordingInertialData` boolean — so IMU data is already flowing when video starts. This is the cleanest approach: sensors always active, recording flag gates data to disk.
+
+3. **RecSync** (Skoltech, arXiv:2107.00987): Focuses on multi-phone phase alignment, not single-phone startup order. Confirms that switching from preview to video mode does NOT shift camera phase on most devices (drift < 1.2 ms/min on 47 tested phones). This means camera timestamps are stable across mode transitions.
+
+**Evidence from papers:**
+
+- **VersaVIS** (Tschopp et al., 2019, arXiv:1912.02469): Hardware-triggered approach — MCU triggers IMU readout and camera exposure simultaneously. Initialization requires finding corresponding sequence numbers between camera and trigger board "since a simultaneous start of the cameras and the trigger board cannot be guaranteed." Even with hardware triggers, startup synchronization is non-trivial and requires post-start alignment.
+
+- **Aerts & Demeester (2019, ICINCO)**: Motion-based sync via particle filter. Explicitly notes "software generated timestamp is based on the internal clock of the computer and the arrival time of the recorded image" — acknowledges camera timestamp uncertainty. Does not address startup ordering.
+
+**Startup latency analysis for our architecture:**
+
+| Component | Action | Latency | Detectable |
+|-----------|--------|---------|------------|
+| Camera | `MediaRecorder.start()` → first `onCaptureStarted()` | 50-500ms | Yes: `callback.timestamp` gives exact t0 |
+| BLE IMU | OutputContent 0x0046 + Save → first 0x51/0x52/0x59 notification | ~500ms (EEPROM settle) | Yes: first `onCharacteristicChanged()` arrival timestamp |
+| On-device IMU | `SensorManager.registerListener()` → first `onSensorChanged()` | ~1-10ms (immediate) | Yes: `event.timestamp` |
+
+**WT901 BLE IMU has the longest startup latency** (~500ms for EEPROM write + output mode switch), making it the bottleneck. However, unlike the camera, the BLE sensor data does NOT have a reliable timestamp from its own clock until we compute the offset (median of first 20 packets). This means:
+
+- If we start IMU first and camera second: camera starts 500ms after IMU. We get video starting with IMU already flowing. The gap is `t_first_frame - first_imu_arrival_ns`. Camera provides precise t0. Backend trims initial IMU-only portion.
+
+- If we start camera first and IMU second: IMU starts 500ms after camera. We get video-only frames for 500ms. IMU timestamps during the offset computation phase (first 20 packets) are unreliable — they use arrival timestamps which have ±5-15ms jitter. Worse: we have video without IMU at the start, which is more harmful for the ML pipeline (pose estimation needs IMU for CorrectiveLens 3D lifting from the first frame).
+
+**Conclusion (H28 CONFIRMED): Start IMU streaming first (500ms settle), then camera.** Video without IMU at start is more harmful to the ML pipeline than IMU without video. The backend's CorrectiveLens (2D→3D lift→kinematic constraints→project back) needs IMU data aligned with video from the earliest possible frame.
+
+**VideoIMUCapture pattern — recording flag vs. sensor registration:** VideoIMUCapture's `IMUManager` separates sensor *registration* from *recording*: `register()` is called at session start (sensors always active), while `startRecording()` just flips `mRecordingInertialData = true`. This is ideal for our BLE architecture too: BLE GATT notifications are already subscribed from connection time. The `Wt901Commander.startStreaming()` command (OutputContent 0x0046) makes the sensor start emitting data — there is no separate "recording" flag needed at the BLE layer. Data flows when streaming is enabled, and `ImuStreamWriter` gates disk writes. This matches VideoIMUCapture's pattern where the sensor listener is always active and the recording boolean controls disk output.
+
+### Start (Revised Rev 5)
 
 1. `StartRecordingUseCase`:
-   - Start Camera2 `CameraCaptureSession` with MediaRecorder + ImageReader → MP4 file + frame_timestamps.csv
-   - **Rev 3 (H9):** Record `t_start_called = SystemClock.elapsedRealtimeNanos()` at `MediaRecorder.start()` call
-   - **Rev 3 (H9):** Wait for first `CaptureCallback.onCaptureStarted()` → `t_first_frame = callback.timestamp` = exact video start
+   - Start Foreground Service (wake lock + notification, type `connectedDevice|camera`)
+   - Open `ImuStreamWriter` for each sensor's `.binpb` file (`BufferedOutputStream`)
+   - **Start BLE streaming** via `Wt901Commander.startStreaming()` on both sensors (OutputContent 0x0046 + Save)
+   - Record `t_imu_start_sent_ns = SystemClock.elapsedRealtimeNanos()` (when BLE start command was sent)
+   - **Wait for first BLE notification** on each sensor → record `t_first_imu_left_ns`, `t_first_imu_right_ns`
+   - Compute initial clock offset for each sensor (begin accumulating, don't wait for all 20 packets)
+   - **Start Camera2** `CameraCaptureSession` with MediaRecorder + ImageReader → MP4 file + frame_timestamps.csv
+   - Record `t_start_called = SystemClock.elapsedRealtimeNanos()` at `MediaRecorder.start()` call
+   - Wait for first `CaptureCallback.onCaptureStarted()` → `t_first_frame = callback.timestamp` = exact video start
    - Check `SENSOR_INFO_TIMESTAMP_SOURCE`:
      - `REALTIME` (1): camera timestamps already in CLOCK_BOOTTIME → direct alignment
      - `UNKNOWN` (0): measure offset once, store in manifest
-   - Start `ImuStreamWriter` (open `BufferedOutputStream` for each sensor's .binpb file)
-   - Start BLE streaming via `Wt901Commander.startStreaming()` on both sensors (OutputContent 0x0046 + Save)
    - Record `sessionStartNs = t_first_frame` (NOT `elapsedRealtimeNanos()` at start call)
-   - Start Foreground Service (wake lock + notification, type `connectedDevice|camera`)
    - Start periodic resync timer (30s interval)
+   - **Compute and store delays** (see manifest section):
+     - `video_start_delay_ms = (t_first_frame - t_start_called) / 1_000_000`
+     - `imu_start_delay_ms = (t_first_frame - t_first_imu_arrival_ns) / 1_000_000` (positive = IMU started before camera; negative = camera started before IMU)
+   - Complete initial clock offset computation (wait for 20 BLE packets total per sensor)
 
 ### During Recording
 
@@ -425,8 +478,8 @@ fileOut.close()
    - Stop ImageReader (close frame_timestamps.csv)
    - Stop BLE streaming on both sensors via `Wt901Commander.stopStreaming()` (OutputContent 0x0000 + Save)
    - Flush/close .binpb files
-   - Build `manifest.json` (include `t_first_frame_ns`, `timestamp_source`, `video_start_delay_ms`)
-   - **Manifest field semantics:** `t0_ns` = `first_frame_ns` = session start time (the first video frame timestamp from `onCaptureStarted()`). `video_start_delay_ms` = `first_frame_ns - t_start_called_ns` (latency between `MediaRecorder.start()` call and actual first frame)
+   - Build `manifest.json` (include `t_first_frame_ns`, `timestamp_source`, `video_start_delay_ms`, `imu_start_delay_ms` per sensor)
+   - **Manifest field semantics:** `t0_ns` = `first_frame_ns` = session start time (the first video frame timestamp from `onCaptureStarted()`). `video_start_delay_ms` = `(first_frame_ns - t_start_called_ns) / 1_000_000` (latency between `MediaRecorder.start()` call and actual first frame). `imu_start_delay_ms` (per sensor) = `(first_frame_ns - t_first_imu_arrival_ns) / 1_000_000` (positive = IMU before camera, expected; negative = camera before IMU, abnormal)
    - Verify video FPS via `MediaExtractor`
    - Create `CaptureSession` with all file references
    - Stop Foreground Service
@@ -499,6 +552,7 @@ capture_20260509_143000.zip
       "sample_rate_hz": 100,
       "sensor_id": "WT901-XXXX",
       "clock_offset_ns": 12345,
+      "imu_start_delay_ms": 480,
       "resync_intervals_s": 30,
       "reconnect_count": 0,
       "dropped_partial_count": 0
@@ -509,6 +563,7 @@ capture_20260509_143000.zip
       "sample_rate_hz": 100,
       "sensor_id": "WT901-YYYY",
       "clock_offset_ns": 67890,
+      "imu_start_delay_ms": 490,
       "resync_intervals_s": 30,
       "reconnect_count": 1,
       "dropped_partial_count": 2
@@ -523,8 +578,14 @@ capture_20260509_143000.zip
 
 **Manifest field semantics:**
 - `t0_ns` / `first_frame_ns` = CLOCK_BOOTTIME nanoseconds of the first video frame from `onCaptureStarted()` — the session start reference
-- `video_start_delay_ms` = `first_frame_ns - t_start_called_ns` (latency between `MediaRecorder.start()` call and actual first frame)
+- `video_start_delay_ms` = `(first_frame_ns - t_start_called_ns) / 1_000_000` (latency between `MediaRecorder.start()` call and actual first frame). Always positive. Typically 50-500ms.
+- `imu_start_delay_ms` (per sensor) = `(first_frame_ns - t_first_imu_arrival_ns) / 1_000_000`. **Positive** = IMU started before camera (expected with H28 startup order). **Negative** = camera started before IMU (abnormal, indicates excessive BLE settle time). This tells the backend exactly how much IMU data precedes the first video frame. Example: `480` means the first IMU sample arrived 480ms before the first video frame.
 - `clock_offset_ns` (per sensor) = `android_arrival_ns - (chip_time_ms × 1_000_000)` — the median offset from initial sync. Updated by periodic resync. Each sensor has an independent offset because crystal oscillators differ between physical devices.
+
+**Backend alignment with `imu_start_delay_ms`:**
+- If `imu_start_delay_ms > 0`: IMU data starts before video. Backend discards IMU samples with `timestamp_ns < first_frame_ns`. The `imu_start_delay_ms` value is the expected duration of this initial IMU-only data.
+- If `imu_start_delay_ms ≤ 0`: Video started before IMU. Backend discards video frames before the first IMU sample. This should be rare (only if BLE settle takes >500ms + camera start latency).
+- Either way, the backend aligns to `t0_ns = first_frame_ns` as the session reference point. All timestamps in the session are relative to `t0_ns`.
 
 ### Upload
 
@@ -624,6 +685,8 @@ The Foreground Service holds the recording state (MediaRecorder, BLE connections
 
 **Gap markers in protobuf stream:** When reconnect occurs during recording, insert an `IMUGap` message to mark the discontinuity. This prevents the backend from interpolating across a gap (which would corrupt DTW alignment, CoM integration, and biomechanical metrics).
 
+**Rev 5 (H27 CONFIRMED):** WT901 retains EEPROM-saved configuration across BLE disconnect/reconnect (sensor stays powered). No re-configuration needed on reconnect — only re-subscribe to FFE4 + CCCD. Defensive: verify OutputContent register via 0x71 response after reconnect. If OutputContent ≠ 0x0046, send full Unlock → OutputContent → Save sequence.
+
 ```protobuf
 message IMUGap {
   uint64 last_sample_ns = 1;     // timestamp of last sample before disconnect
@@ -721,7 +784,7 @@ message IMURecord {
 | Display buffer | 60K samples (10s, 3.6MB) ring buffer | Safe on all devices; supports real-time UI |
 | IMU file format | Delimited `IMURecord` stream (`oneof` sample/gap) | Tag-based dispatch on inner fields was broken (both produce `0x08`). `IMURecord` wrapper with `oneof` is the standard protobuf pattern for mixed-type streams |
 | BLE processing | Dedicated HandlerThread + immediate byte copy | Binder thread batching; characteristic value reuse race condition |
-| BLE reconnect | Re-subscribe to FFE4 + CCCD, insert IMUGap | Must re-subscribe on reconnect. Duplicates/out-of-order possible |
+| BLE reconnect | Re-subscribe to FFE4 + CCCD, verify OutputContent, insert IMUGap | H27: EEPROM config persists across BLE reconnect (sensor stays powered). Verify OutputContent register after reconnect. Only re-configure if register ≠ 0x0046 |
 | Screen rotation | `configChanges` prevents Activity recreation | Surface destroyed on rotation. All ref apps use configChanges. Service holds recording state |
 | FGS type | connectedDevice\|camera | Android 14+ requirement for BLE + camera in foreground |
 | FPS config | Camera2 AE_TARGET_FPS_RANGE | QualitySelector only controls resolution; FPS is separate Camera2 setting |
@@ -735,7 +798,9 @@ message IMURecord {
 | IMU disk flush | 16 KB buffer + 1s periodic flush + fd.sync() on stop | Bounds data-at-risk to ~1 second. fsync guarantees durability on clean stop |
 | BLE permissions | neverForLocation on BLUETOOTH_SCAN + BLUETOOTH_CONNECT | API 31+: "Nearby devices" prompt. API 24-30: ACCESS_FINE_LOCATION. Samsung One UI 5.1+ fixed neverForLocation bug |
 | Partial IMU samples | Drop incomplete cycles, count in manifest | Proto3 float defaults to 0.0 not NaN. Emitting partial samples would produce bogus zero values. Skip + count is minimal and correct |
-| Streaming control | OutputContent register (0x0046=on, 0x0000=off) + Save | No explicit start/stop command. Non-zero OutputContent = stream, zero = stop. Save triggers EEPROM write + mode switch |
+| Streaming control | Unlock + OutputContent register + Save | H25: Unlock required before EVERY register write. 10-second window expires after Save. Official C SDK always calls Unlock before WitSetContent(). Start: Unlock→0x0046→Save (~750ms). Stop: Unlock→0x0000→Save (~750ms) |
+| IMU timestamps | Android arrival time + periodic 0x50 register reads | H26: No per-sample timestamp in individual frames. All SDKs use arrival time. Periodic register reads for drift correction |
+| Startup order | IMU first, camera second | H28 confirmed. WT901 BLE settle ~500ms is longest startup latency. OpenCamera-Sensors + VideoIMUCapture both start sensors before camera. Video without IMU is more harmful (CorrectiveLens needs IMU from first frame). `imu_start_delay_ms` in manifest records the gap |
 
 ## Out of Scope (MVP)
 
@@ -777,3 +842,7 @@ message IMURecord {
 | H22 | protobuf writeDelimitedTo at 200 Hz has performance concerns | CONFIRMED SAFE | 12,200 bytes/sec through 16 KB BufferedOutputStream is negligible. protobuf-javalite recommended. Periodic flush + fd.sync() on stop. Crash data-at-risk: ~1 second |
 | H23 | BLE permissions are the same across all Android versions | FALSIFIED | Android 12+ completely new model: BLUETOOTH_SCAN + BLUETOOTH_CONNECT replace BLUETOOTH + ACCESS_FINE_LOCATION. neverForLocation removes location requirement. Must handle both models |
 | H24 | Proto3 can represent partial IMU samples via NaN | FALSIFIED | Proto3 float defaults to 0.0 not NaN. Partial samples with missing fields would produce bogus zero values. Solution: skip incomplete cycles, count in manifest `dropped_partial_count` |
+| H28 | Start IMU streaming first (500ms settle), then camera. Record imu_start_delay_ms in manifest | CONFIRMED | OpenCamera-Sensors: registerListener() before MediaRecorder.start(). VideoIMUCapture: IMU always registered, startRecording() just flips boolean. WT901 BLE startup ~500ms (EEPROM settle). Camera 50-500ms. IMU-first ensures video has aligned IMU from first frame. Backend trims initial IMU-only data using imu_start_delay_ms. CorrectiveLens needs IMU from earliest video frame. |
+| H25 | Unlock window persists across operations | FALSIFIED | 10-second window expires after Save. Official C SDK: WitSetContent() always calls Unlock first. Official Android SDK: unlockReg() before every config action. Must Unlock before start/stop streaming |
+| H26 | WT901 individual frames provide per-sample timestamps | FALSIFIED | 11-byte frames contain only sensor data + checksum. No sample counter. All 3 reference SDKs use Android arrival time. Timestamps assigned via elapsedRealtimeNanos() at BLE notification arrival + periodic 0x50 register reads for drift correction |
+| H27 | WT901 retains EEPROM-saved config across BLE reconnect | CONFIRMED | BLE disconnect ≠ power cycle. Sensor MCU stays running with saved register values. SDKs only re-subscribe to FFE4 notifications on reconnect. Defensive: verify OutputContent register after reconnect |
