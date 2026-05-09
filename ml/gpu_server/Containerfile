@@ -19,10 +19,13 @@ COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 RUN python -m venv /opt/venv
 
 # Core inference deps
-# Note: CUDA runtime libs come from host via nvidia-container-toolkit on Vast.ai
+# CUDA 12 runtime libs required by onnxruntime-gpu (host provides driver only)
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv pip install --python /opt/venv/bin/python --no-cache-dir \
     onnxruntime-gpu==1.24.4 \
+    nvidia-cublas-cu12 \
+    nvidia-cuda-runtime-cu12 \
+    nvidia-cudnn-cu12 \
     opencv-python-headless==4.10.0.84 \
     "numpy>=1.24,<2.3" \
     scipy==1.17.1 \
@@ -74,7 +77,8 @@ RUN groupadd -r appuser -g 1000 && \
 COPY --from=builder --chown=appuser:appuser /opt/venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH" \
     PROJECT_ROOT=/app \
-    VIRTUAL_ENV=/opt/venv
+    VIRTUAL_ENV=/opt/venv \
+    LD_LIBRARY_PATH="/opt/venv/lib/python3.11/site-packages/nvidia/cublas/lib:/opt/venv/lib/python3.11/site-packages/nvidia/cuda_runtime/lib:/opt/venv/lib/python3.11/site-packages/nvidia/cudnn/lib:${LD_LIBRARY_PATH:-}"
 
 # ONNX models (~500MB) — rarely changes, separate layer for cache hits
 COPY --chown=appuser:appuser data/models/moganet/ data/models/moganet/
