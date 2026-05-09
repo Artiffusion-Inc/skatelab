@@ -149,21 +149,34 @@ class ProcessResponse(BaseModel):
 
 def _s3(creds: ProcessRequest | DetectRequest):
     """Async S3 client factory (returns context manager)."""
+    from botocore.config import Config
+
+    cfg = Config(
+        connect_timeout=10,
+        read_timeout=120,
+        retries={"max_attempts": 3, "mode": "adaptive"},
+    )
     return _async_session.create_client(
         "s3",
         endpoint_url=creds.r2_endpoint_url,
         aws_access_key_id=creds.r2_access_key_id,
         aws_secret_access_key=creds.r2_secret_access_key,
         region_name="auto",
+        config=cfg,
     )
 
 
 async def _s3_download(s3, bucket: str, key: str, path: str) -> None:
     """Download object from S3 to local file (aiobotocore has no download_file)."""
     resp = await s3.get_object(Bucket=bucket, Key=key)
-    body = await resp["Body"].read()
+    body = resp["Body"]
     Path(path).parent.mkdir(parents=True, exist_ok=True)
-    Path(path).write_bytes(body)
+    with Path(path).open("wb") as f:
+        while True:
+            chunk = await body.read(8 * 1024 * 1024)  # 8 MB chunks
+            if not chunk:
+                break
+            f.write(chunk)
 
 
 async def _s3_upload(s3, bucket: str, key: str, path: str) -> None:
@@ -418,3 +431,23 @@ async def process(req: ProcessRequest):
 @app.get("/health")
 async def health():
     return {"status": "ok"}
+
+
+@app.get("/debug/net")
+async def debug_net():
+    """Check outbound HTTPS connectivity."""
+    import httpx
+
+    r2_ep = os.environ.get(
+        "CF_R2_ENDPOINT_URL",
+        "https://28d6f87dc336e12d133b3886d711348d.r2.cloudflarestorage.com",
+    )
+    results = {}
+    async with httpx.AsyncClient(timeout=5) as client:
+        for url in ["https://1.1.1.1", "https://httpbin.org/get", r2_ep]:
+            try:
+                await client.head(url)
+                results[url] = "ok"
+            except Exception as e:
+                results[url] = f"FAIL: {e}"
+    return results
