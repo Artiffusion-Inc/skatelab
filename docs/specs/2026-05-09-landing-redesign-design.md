@@ -64,11 +64,11 @@ Product positioning (from CustDev): coaches buy time savings + fewer disputes. S
 - Mobile/tablet: visible at `sm:` with shorter `aspect-[16/9]`. Not hidden entirely — mobile users need visual proof.
 - `priority` prop (next/image), explicit `width`/`height` for CLS
 
-**Mobile CTA visibility:** Reduce hero padding on mobile (`py-8 sm:py-16 lg:py-0`). Ensure CTA buttons visible above fold on 375x667 iPhone SE. Consider sticky mobile CTA bar (fixed bottom, `z-40`, `md:hidden`) with single «Начать бесплатно» button.
+**Mobile CTA visibility:** Reduce hero padding on mobile (`py-8 sm:py-16 lg:py-0`). Ensure CTA buttons visible above fold on 375x667 iPhone SE. Consider sticky mobile CTA bar (fixed bottom, `z-40`, `md:hidden`) with single «Начать бесплатно» button. **Important:** Hide the mobile CTA bar while the cookie banner is visible (use `className={showCookieBanner ? 'hidden md:flex' : 'flex'}`) to avoid overlapping interactive elements. After cookie acceptance, the CTA bar appears.
 
 **Hero-to-body transition:** Add gradient fade zone (~80-120px) at hero bottom: `bg-gradient-to-b from-primary-deep via-primary-deep/50 to-transparent`. Prevents hard edge where dark hero meets white body.
 
-**GSAP:** Staggered fade-up entrance with consistent 0.12s stagger (not irregular 0.2/0.3s gaps). Remove CSS hero animation classes — use GSAP for all motion.
+**GSAP:** Staggered fade-up entrance with consistent 0.12s stagger (not irregular 0.2/0.3s gaps). Remove CSS hero animation classes — use GSAP for all motion. **Flash prevention:** In `useLayoutEffect`, call `gsap.set()` on all animated elements before starting timelines. This hides elements synchronously before paint, preventing the flash-of-content that would occur if elements render visible during hydration then get hidden by `gsap.from()`. Pattern: `gsap.set('.hero-eyebrow, .hero-headline, .hero-subtitle, .hero-cta', { opacity: 0, y: 30 })` then `gsap.from()` with same values animates them in.
 
 ### 3. How It Works (replaces Features)
 
@@ -87,13 +87,13 @@ Product positioning (from CustDev): coaches buy time savings + fewer disputes. S
 
 **GSAP:** `ScrollTrigger` with `toggleActions: 'play none none none'`. Each step: `opacity: 0, y: 40 → opacity: 1, y: 0` with stagger 0.12s.
 
-### 4. Demo Section (GSAP pinned scroll)
+### 4. Trust Wall (Animated Counters)
 
 **KILLER FEATURE.** This is the product demo shown through scroll.
 
 **Structure:**
 - Container: `max-w-5xl`, `aspect-video`, centered. `id="demo" tabindex="-1"` for anchor navigation.
-- Pin: `scrollTrigger: { pin: true, scrub: 1, end: '+=100%', anticipatePin: 1 }` (reduced from +=200% — 3 viewports pinned is too long).
+- Pin: `scrollTrigger: { pin: true, scrub: 1, end: '+=150%', anticipatePin: 0.1 }` (+=150% gives ~400px per phase on desktop — enough for smooth transitions without 3-viewport fatigue).
 - 3 phases scrubbed by scroll position (0-33%, 33-66%, 66-100%) — evenly distributed:
   1. **Raw video** — stock skating image, no overlay
   2. **Skeleton overlay** — same image + SkeletonPose + dark overlay
@@ -101,7 +101,7 @@ Product positioning (from CustDev): coaches buy time savings + fewer disputes. S
 
 **Below pinned area:** Text «Видео → Скелетон → Метрики за 12 секунд» as a pipeline explanation.
 
-**Keyboard accessibility:** Add phase navigation controls (3 radio-style dots or a stepper). Keyboard users cannot scrub — provide `ArrowRight`/`ArrowLeft` to advance/retreat phases, or clickable phase indicators that programmatically scroll to the phase position.
+**Keyboard accessibility:** Add phase navigation controls using the WAI-ARIA Radio Group Pattern: `role="radiogroup" aria-label="Фазы демо"` containing 3 `role="radio"` elements with `aria-checked`, `tabindex="0"` on active radio and `tabindex="-1"` on inactive radios (roving tabindex). ArrowRight/ArrowLeft moves between radios and updates the demo phase. Each radio also has a visible text label (not just a colored dot): «1. Исходное видео», «2. Скелетон тела», «3. Биомеханические метрики».
 
 **Mobile/tablet (< 1024px):** No pin. Simple `whileInView` entrance animation via `gsap.matchMedia()`. 3 static phase cards stacked vertically (before/after style), each with the image at that phase. Pin breakpoint changed from 768px to 1024px — tablets should not get pinned scroll (poor UX with touch).
 
@@ -114,7 +114,7 @@ const mm = gsap.matchMedia()
 mm.add("(min-width: 1024px) and (prefers-reduced-motion: no-preference)", () => {
   // Desktop: pinned 3-phase scroll, evenly distributed
   gsap.timeline({
-    scrollTrigger: { trigger, pin: true, scrub: 1, end: '+=100%', anticipatePin: 1 }
+    scrollTrigger: { trigger, pin: true, scrub: 1, end: '+=150%', anticipatePin: 0.1 }
   })
     .to(phase1Overlay, { opacity: 0, duration: 1 })       // 0 → 1
     .to(phase2Elements, { opacity: 1, duration: 1 }, 1)     // 1 → 2 (after phase 1)
@@ -131,11 +131,18 @@ mm.add("(max-width: 1023px), (prefers-reduced-motion: reduce)", () => {
 
 Use `dvh` units for viewport height (`min-h-[100dvh]`) to avoid mobile address bar issues.
 
-**Back-navigation:** Add `ScrollTrigger.refresh()` on `pageshow` event to fix scroll restoration after browser back.
+**Back-navigation:** Add `ScrollTrigger.refresh()` on `pageshow` event (with `event.persisted` check) to fix scroll restoration after bfcache navigation. Clean up the listener on unmount:
+```js
+useEffect(() => {
+  const onPageShow = (e) => { if (e.persisted) ScrollTrigger.refresh() }
+  window.addEventListener('pageshow', onPageShow)
+  return () => window.removeEventListener('pageshow', onPageShow)
+}, [])
+```
 
 **Badge contrast:** Raise `sh-badge-opaque` opacity from 0.85 to 0.92-0.95 to guarantee text readability on bright ice backgrounds.
 
-### 5. Trust Wall (Animated Counters)
+### 5. Demo Section (GSAP pinned scroll)
 
 **No placeholder testimonials.** Fake quotes damage credibility. Trust wall uses only animated counters until real testimonials available post-pilot.
 
@@ -146,9 +153,11 @@ Use `dvh` units for viewport height (`min-h-[100dvh]`) to avoid mobile address b
 
 **Section heading:** H2 `sh-display-xl text-ink` — «Нам доверяют» or sr-only heading if visually minimal design preferred.
 
-**Layout:** `lg:grid-cols-3`, centered (changed from md: — 3 columns too tight on tablet). Each counter: large number (`sh-display-lg font-bold text-primary` — NOT violet-soft which fails WCAG on white at 1.64:1) + label (`sh-caption text-ink-mute`).
+**Layout:** `lg:grid-cols-3`, centered (changed from md: — 3 columns too tight on tablet). White canvas background (`bg-background`). Each counter: large number (`sh-display-lg font-bold text-primary` — NOT violet-soft which fails WCAG on white at 1.64:1) + label (`sh-caption text-ink-mute`).
 
-**GSAP:** Counter animation with proportional durations and easing: 1200 → 1.0s, 340 → 0.8s, 15 → 0.6s. All use `ease: "power2.out"`. Not a flat 2s for all values.
+**GSAP:** Counter animation with proportional durations (minimum 0.8s for perceptibility): 1200 → 1.0s, 340 → 0.9s, 15 → 0.8s. All use `ease: "power2.out"`.
+
+**Data source:** Counter values are placeholder numbers. Before public launch, replace with real metrics from a `/api/stats` endpoint (or make configurable via i18n keys for easy updates). Displaying inflated numbers violates ФЗ «О рекламе» — values must reflect real data at launch.
 
 **Reduced motion:** Show final value immediately, no counting animation.
 
@@ -164,7 +173,7 @@ Use `dvh` units for viewport height (`min-h-[100dvh]`) to avoid mobile address b
 
 **Layout:** `lg:grid-cols-3`, centered (changed from md: — 3 columns too tight on tablet for Russian text). Pro card multi-signal highlight: `ring-2 ring-surface-violet-soft` + `shadow-sm shadow-surface-violet-soft/20` + «Популярный» text badge at top. Not just ring-2 ring-primary (too thin, indistinguishable). Each card: tier name, price, description, feature list (✓ check icons in `<ul>/<li>`), CTA button. Price uses `sh-price` class (`clamp(2.25rem, 4vw, 3rem), font-weight: 700, line-height: 1, letter-spacing: -0.03em`).
 
-**CTA copy (unified):** Free → «Начать бесплатно» (same label everywhere — not «Создать аккаунт»), Pro → «Попробовать Pro» (`mailto:pro@skatelab.ru`), Coach → «Связаться с нами» (Telegram bot link `https://t.me/SkateLabBot`).
+**CTA copy (unified):** Free → «Начать бесплатно» (same label everywhere — not «Создать аккаунт»), Pro → «Попробовать Pro» (Telegram `https://t.me/SkateLabPro`), Coach → «Связаться с нами» (Telegram `https://t.me/SkateLabBot`). Both Pro and Coach use Telegram for consistency — Russian users are Telegram-native. Note: `mailto:` avoided because it forces users out of the browser into an email app they may not have configured.
 
 **Payment integration** (ЮKassa) is out of scope for this sprint. Pro and Coach CTAs link to contact channels until payment flow is implemented.
 
@@ -186,7 +195,7 @@ Use `dvh` units for viewport height (`min-h-[100dvh]`) to avoid mobile address b
 
 **Structure:** shadcn `Accordion`, `type="single" collapsible`. Max-width: `max-w-3xl`, centered. `id="faq" tabindex="-1"` for anchor navigation.
 
-**SEO:** JSON-LD `FAQPage` schema injected via `<script type="application/ld+json">`. Schema content MUST be derived from the same i18n translation keys as the visible accordion to prevent content mismatches.
+**SEO:** JSON-LD `FAQPage` schema injected via `<script type="application/ld+json">`. Schema content MUST be derived from the same i18n translation keys as the visible accordion to prevent content mismatches. **The JSON-LD must be rendered in a server component** (not inside `LandingClient.tsx`) so Googlebot can parse it. Use `getTranslations` from `next-intl/server` to read FAQ content server-side.
 
 **FAQ Q5 reframed:** Instead of restating prices, link to pricing section: «Да, есть бесплатный тариф — 3 анализа в месяц без подписки. Для регулярных тренировок — Pro от 990 ₽/мес. См. [Тарифы](#pricing) для подробностей.»
 
@@ -227,16 +236,18 @@ Use `dvh` units for viewport height (`min-h-[100dvh]`) to avoid mobile address b
 **Visual:** Background `canvas-soft`, `border-t border-hairline`, `shadow-lg shadow-primary/5`. Button `bg-primary text-primary-foreground`. Link in `text-link` color. `max-w-5xl` internal container. Safe area: `bottom: env(safe-area-inset-bottom)` or `pb-[env(safe-area-inset-bottom)]`.
 
 **Content:** «Мы используем cookies для работы сервиса. Продолжая, вы соглашаетесь с Cookie Policy.» + sr-only H2 heading for `aria-labelledby`.
-**Action:** Button «Принять» (min-h-[44px]) → sets localStorage flag, hides banner. **Backend:** store consent in User table (`consent_accepted_at: timestamp`, `consent_categories: ["analytics"]`) at registration time (not at cookie-accept — anonymous users have no User row). localStorage is client-side display logic; DB record is 152-ФЗ audit trail.
+**Action:** Button «Принять» (min-h-[44px]) → sets localStorage flag, hides banner. **Backend:** store consent in User table (`consent_accepted_at: timestamp`, `consent_categories: ["analytics"]`) at registration time (not at cookie-accept — anonymous users have no User row). localStorage is client-side display logic; DB record is 152-ФЗ audit trail. For anonymous visitors, cookie consent via localStorage is accepted market practice. Analytics cookies must use anonymized identifiers. If analytics providers require verifiable consent records, implement a server-side endpoint (`POST /api/cookie-consent` with anonymous session ID).
 
 ### 11. Legal Pages
 
 | Route | Title | Content |
 |-------|-------|---------|
 | `/privacy` | Политика конфиденциальности | **Real content** (template from 152-ФЗ generator). Must exist before any user registration. |
-| `/terms` | Пользовательское соглашение | Stub: «Документ готовится» + link back |
-| `/offer` | Оферта | Stub: «Документ готовится» + link back |
-| `/cookies` | Cookie Policy | Stub: «Документ готовится» + link back |
+| `/terms` | Пользовательское соглашение | Stub: «Документ готовится» + link to homepage |
+| `/offer` | Оферта | Stub: «Документ готовится» + link to homepage |
+| `/cookies` | Cookie Policy | Stub: «Документ готовится» + link to homepage |
+
+All legal pages share a minimal layout with SkateLab wordmark + «На главную» link in the header. Include breadcrumbs (`Главная > Правовая информация > Политика конфиденциальности`). Each page has a proper `<h1>` matching the title. Do NOT use `history.back()` — it can take users off-site. The `/cookies` page must list all cookies set, their purposes, and retention periods (152-ФЗ requirement).
 
 **Privacy Policy is mandatory** before collecting any personal data (152-ФЗ). Use a template service (e.g., document.ru, iubenda) or legal counsel. Other pages can remain stubs until payment integration.
 
@@ -249,6 +260,14 @@ On `/register` page, add 1 required checkbox (personal data processing only, per
 **Biometric consent deferred to first video upload** (reduces registration friction). When user first uploads a video on `/upload`, show one-time consent modal: «Я согласен на обработку анонимизированных данных (биометрия скелетона)» → links to `/privacy#anonymized`. Store consent in User table.
 
 Implementation: native `<input type="checkbox" required>` with `<label>` wrapping the text including the link. Not a custom component. Add `aria-describedby` pointing to a description of what consent means.
+
+**Biometric consent modal accessibility:**
+- `role="dialog" aria-modal="true" aria-labelledby="biometric-consent-title"` on the overlay container
+- Focus trap using `react-focus-lock` (same as cookie banner) with `returnFocus`
+- On open, move focus to the modal container or the checkbox
+- Escape key closes the modal and restores focus to the triggering element
+- Prevent background page scroll while modal is open (`overflow: hidden` on `<body>`)
+- The «Подтвердить и продолжить» button uses native `disabled` attribute — screen readers announce it as "unavailable" until the checkbox is checked
 
 ## GSAP Integration
 
@@ -266,13 +285,13 @@ Note: `@gsap/react` removed. Use a single `useLayoutEffect` + cleanup for the en
 - Register `ScrollTrigger` inside `useLayoutEffect`, never at module scope
 - Use `gsap.matchMedia()` for all responsive behavior — never `window.matchMedia` directly
 - Include `prefers-reduced-motion` in all matchMedia conditions
-- `anticipatePin: 1` on all pinned ScrollTriggers for smoother pin transition
+- `anticipatePin: 0.1` on pinned ScrollTriggers (0.1s anticipation, not 1s which is too aggressive)
 - Scope all animations to `useRef` containers
 - `invalidateOnRefresh: true` on all ScrollTriggers for responsive
 - `scrub: 1` (number) for smooth scroll-linked animations
 - `ease: 'none'` for all scrub animations; `ease: "power2.out"` for all entrance animations
-- Kill all ScrollTriggers on page transition via `ScrollTrigger.killAll()`
-- Add `ScrollTrigger.refresh()` on `pageshow` event for back-navigation restoration
+- Never use `ScrollTrigger.killAll()` — it is global and kills ScrollTriggers from other pages/components. Use only `ctx.revert()` which is scoped to the GSAP context.
+- Add `ScrollTrigger.refresh()` on `pageshow` event (with `event.persisted` check) for bfcache restoration. Clean up the listener on unmount.
 - Tree-shake: import `gsap/ScrollTrigger` only, not full bundle
 
 ### Motion Design Tokens
@@ -295,7 +314,7 @@ All animations use a consistent timing system:
 | Header | bg opacity transition | scroll past hero | scrub |
 | Hero | staggered fade-up (0.12s) | page load | 0.8s each |
 | How It Works | staggered fade-up cards (0.12s) | top 80% viewport | 0.5s each |
-| Demo | pinned 3-phase timeline | scroll | scrub, end +=100% |
+| Demo | pinned 3-phase timeline | scroll | scrub, end +=150% |
 | Trust stats | counter animation (proportional) | top 80% viewport | 0.6-1.0s |
 | Pricing | staggered fade-up (0.12s) | top 85% viewport | 0.5s each |
 | FAQ | header fade-up only | top 90% viewport | 0.6s |
@@ -326,7 +345,7 @@ GSAP: set all animated elements to final state immediately. Disable all ScrollTr
 
 ### Section Connective Tissue
 
-Add gradient bridges between sections with sharp color contrast (hero→body: ~80-120px gradient fade from primary-deep to transparent). Use consistent `py-20 md:py-28` for content sections, `py-24 md:py-32` for hero/CTA. Add `border-t border-hairline` between all white-canvas sections for visual rhythm. Group sections by background: hero (dark), How It Works + Trust Wall (white), Demo (canvas-soft), Pricing + FAQ (white), CTA (teal).
+Add gradient bridges between sections with sharp color contrast (hero→body: ~80-120px gradient fade from primary-deep to transparent). Use consistent `py-20 md:py-28` for content sections, `py-24 md:py-32` for hero/CTA. Add `border-t border-hairline` between all white-canvas sections for visual rhythm. Group sections by background: hero (dark) → How It Works (white) → Trust Wall (white) → Demo (canvas-soft) → Pricing (white) → FAQ (white) → CTA (teal).
 
 ## Typography Amendments
 
@@ -334,13 +353,14 @@ Changes to the `sh-*` type scale in globals.css:
 
 1. **sh-display-xxl**: `clamp(2.75rem, 7vw, 4.5rem)`, `font-variation-settings: "wght" 540`, `font-weight: 540`. `line-height: 1.05` default, `0.96` at `≥ 768px` (via media query). Ensures H1/H2 ratio ≥1.57x on mobile.
 2. **sh-display-xl**: Keep `clamp(2rem, 4vw, 3rem)`. `line-height: 1.05` default, `0.96` at `≥ 768px`.
-3. **Weight scale shift (landing-page scoped only)**: Add `.landing-page` wrapper class. Within it, override: body → 400, headings → 600, display accents → 700. Do NOT change global weight scale (would affect existing app components). Implementation:
+3. **Weight scale shift (landing-page scoped only)**: Add `.landing-page` wrapper class. Within it, override: body → 400, headings → 600, display accents → 700. Do NOT change global weight scale (would affect existing app components). Note: `.landing-page body` selector won't work if `.landing-page` is on a `<div>` (body is an ancestor, not descendant). Use `body:has(.landing-page)` or put the class directly on `<body>`. Implementation:
    ```css
-   .landing-page body { font-variation-settings: "wght" 400; font-weight: 400; }
+   body:has(.landing-page) { font-variation-settings: "wght" 400; font-weight: 400; }
    .landing-page .sh-display-xxl { font-variation-settings: "wght" 700; font-weight: 700; }
    .landing-page .sh-display-xl { font-variation-settings: "wght" 600; font-weight: 600; }
    .landing-page .sh-heading-lg { font-variation-settings: "wght" 600; font-weight: 600; }
    ```
+   **shadcn components** retain their own font-weight via Tailwind utilities (e.g., `font-medium` = 500). The `.landing-page` overrides only affect elements using `sh-*` type classes. FAQ Accordion triggers explicitly set `font-semibold` to avoid inheritance.
 4. **sh-body-strong removed**: Orphan size (1.172rem). Use `sh-body-lg` + `font-bold` utility instead. Search codebase for usages first.
 5. **sh-price added**: `font-size: clamp(2.25rem, 4vw, 3rem); font-weight: 700; font-variation-settings: "wght" 700; line-height: 1; letter-spacing: -0.03em;`
 6. **sh-legal added**: `font-size: 0.6875rem; font-weight: 460; font-variation-settings: "wght" 460; line-height: 1.5;`
@@ -383,35 +403,87 @@ Replace Unsplash photos with actual product screenshots when available. Same dim
 
 ## i18n
 
-All new copy goes into `frontend/messages/ru.json` and `en.json` under existing `landing.*` keys. New keys needed:
+All new copy goes into `frontend/messages/ru.json` and `en.json` under existing `landing.*` keys. **Use flat keys consistent with existing pattern** — no nested objects. Existing keys like `landing.featuresTitle`, `landing.featuresHeadline` use flat keys, not nested namespaces.
 
-- `landing.howItWorksTitle`, `landing.howItWorksHeadline`
-- `landing.trust.*` (title, sessionsCount, skatersCount, clubsCount)
-- `landing.pricing.*` (free/pro/coach tier names, prices, features, ctas)
-- `landing.faq.*` (questions, answers)
-- `landing.footer.*` (tagline, copyright, legal labels, nav labels)
-- `landing.cookie.*` (text, accept button)
-- `landing.consent.*` (personalData only — biometric deferred to upload)
-- `landing.demo.*` (phase labels, pipeline text)
-- `landing.hero.*` (secondary CTA «Смотреть демо»)
+**Key renames (existing → new):**
+- `landing.featuresTitle` → `landing.howItWorksTitle`
+- `landing.featuresHeadline` → `landing.howItWorksHeadline`
+- `landing.ctaSecondary` value changes from «Как это работает» → «Смотреть демо»
+- `landing.ctaAction` is deprecated — use `landing.ctaPrimary` («Начать бесплатно») everywhere
+
+**New flat keys:**
+- `landing.howItWorksTitle`, `landing.howItWorksHeadline`, `landing.howItWorksStep1Title`, `landing.howItWorksStep1Accent`, etc.
+- `landing.trustTitle`, `landing.trustSessionsLabel`, `landing.trustSkatersLabel`, `landing.trustClubsLabel`
+- `landing.pricingFreeName`, `landing.pricingFreePrice`, `landing.pricingFreeFeatures`, etc.
+- `landing.faqQ1`, `landing.faqA1`, etc.
+- `landing.footerTagline`, `landing.footerCopyright`, etc.
+- `landing.cookieText`, `landing.cookieAccept`
+- `landing.consentPersonalDataLabel`, `landing.consentBiometricLabel`
+- `landing.demoPhase1Label`, `landing.demoPhase2Label`, `landing.demoPhase3Label`, `landing.demoPipelineText`
 
 ## Accessibility
 
 - All sections use semantic HTML: `<header role="banner">`, `<nav aria-label>`, `<main id="main-content">`, `<section>`, `<footer role="contentinfo">`
 - `aria-label` on all sections
-- Skip-to-content link: `<a href="#main-content" class="sr-only focus:not-sr-only">Перейти к основному содержимому</a>` as first focusable element
-- SkeletonPose: `role="img" aria-label="AI отслеживает 17 ключевых точек тела"` (not `aria-hidden="true"` — it conveys product meaning)
+- Skip-to-content link: `<a href="#main-content" class="sr-only focus-visible:not-sr-only focus-visible:absolute focus-visible:top-4 focus-visible:left-4 focus-visible:z-[100] focus-visible:bg-primary focus-visible:text-primary-foreground focus-visible:px-4 focus-visible:py-2 focus-visible:rounded">Перейти к основному содержимому</a>` as first focusable element. Target `<main id="main-content" tabindex="-1">` must exist — `tabindex="-1"` is required for Safari focus movement.
+- SkeletonPose: `role="img" aria-label="AI отслеживает 17 ключевых точек тела"` in the hero (always visible). In the demo section, SkeletonPose must be **conditionally rendered** — not rendered at all in phase 1 (raw video), rendered with `aria-label` in phases 2-3. Do NOT render SkeletonPose with `opacity: 0` in phase 1; invisible but accessible content contradicts what the user sees.
 - Decorative SVGs (scroll arrow): `aria-hidden="true"`
 - Focus-visible on all interactive elements
 - All interactive elements: min 44x44px touch target (`min-h-[44px] min-w-[44px]`)
 - Anchor targets: `id` + `tabindex="-1"` + programmatic focus after smooth scroll
-- Cookie banner: `role="dialog" aria-modal="true" aria-labelledby="cookie-heading"`, focus trap, Escape dismissal, focus restoration
+- Cookie banner: `role="dialog" aria-modal="true" aria-labelledby="cookie-heading"`, focus trap (react-focus-lock with `returnFocus`), Escape dismissal, focus restoration. Add `aria-live="polite"` wrapper for screen reader announcement on appear. Auto-focus the «Принять» button within the FocusLock.
 - FAQ: proper accordion ARIA (controls, expanded states). JSON-LD derived from same i18n keys as visible accordion.
-- Pricing: `<article>` per card, `<data value="990">990 ₽</data>` for price, `<ul>/<li>` for features, «Популярный» text badge on Pro (not color-only)
+- Pricing: `<section aria-labelledby="pricing-heading">` wrapper. Each card as `<li>` inside `<ul>` (list of pricing options, not `<article>` — pricing cards are not independently distributable content). `<data value="990">990 ₽</data>` for price, `<ul>/<li>` for features, «Популярный» text badge on Pro (not color-only).
 - Color contrast: all text meets WCAG AA (4.5:1 for body, 3:1 for large text)
 - `prefers-contrast: more`: override `--ink-faint` to `--ink-mute`, override `--on-dark-faint` to `--on-dark-mute`
 - Font: preload Inter Variable. Verify `font-display: swap` in fontsource package.
 - Remove `font-variation-settings: "wght" 460` from `body` rule — causes inheritance conflicts with Tailwind `font-bold`
+
+## SEO & Meta Tags
+
+The landing page requires its own `generateMetadata()` export (not inherited from root layout):
+
+```tsx
+export async function generateMetadata(): Promise<Metadata> {
+  return {
+    title: "SkateLab — AI Тренер по фигурному катанию",
+    description: "Запишите прыжок — увидьте миллиметры. AI-анализ техники: высота ЦМТ, доворот, время полёта. < 15 с на полный разбор видео.",
+    alternates: { canonical: "https://skatelab.ru" },
+    openGraph: {
+      title: "SkateLab — AI Тренер по фигурному катанию",
+      description: "Запишите прыжок — увидьте миллиметры. AI-анализ техники за < 15 секунд.",
+      url: "https://skatelab.ru",
+      siteName: "SkateLab",
+      locale: "ru_RU",
+      type: "website",
+      images: [{ url: "/images/og-image.png", width: 1200, height: 630, alt: "SkateLab — AI анализ фигурного катания" }],
+    },
+  }
+}
+```
+
+Create an OG image (1200×630px) at `/public/images/og-image.png` with the SkateLab wordmark, tagline, and visual proof (skeleton overlay). The JSON-LD FAQ schema must be rendered in a **server component** (not inside `LandingClient.tsx`) so Googlebot can parse it. Use `getTranslations` from `next-intl/server` to read FAQ content server-side.
+
+## Font Strategy
+
+The current `@import "@fontsource-variable/inter"` in globals.css creates a CSS waterfall that delays font discovery. For the landing page (LCP-critical), migrate to `next/font/local`:
+
+1. Copy `inter-latin-wght-normal.woff2` and `inter-cyrillic-wght-normal.woff2` from the fontsource package to `/public/fonts/`
+2. In the landing page server component, use `next/font/local`:
+   ```tsx
+   import localFont from 'next/font/local'
+   const inter = localFont({
+     src: [
+       { path: '../../public/fonts/inter-latin-wght-normal.woff2', style: 'normal' },
+       { path: '../../public/fonts/inter-cyrillic-wght-normal.woff2', style: 'normal' },
+     ],
+     variable: '--font-inter',
+     display: 'swap',
+   })
+   ```
+3. This gives automatic font preloading, `font-display: swap`, and eliminates the CSS import waterfall.
+
+The root layout can continue using `@fontsource-variable/inter` for app pages. Only the landing page needs the optimized font loading.
 
 ## Performance Targets
 
@@ -420,7 +492,8 @@ All new copy goes into `frontend/messages/ru.json` and `en.json` under existing 
 | LCP | < 2.5s | Preload hero image + Inter Variable font, `priority` on next/image |
 | CLS | < 0.1 | Explicit width/height on all images, font-display: swap |
 | INP | < 200ms | Defer GSAP init, use composited transforms only |
-| JS bundle | < 150KB | Tree-shake GSAP, code-split heavy sections |
+| JS bundle (page-specific) | < 100KB gzip | GSAP core + ScrollTrigger ≈ 46KB gzip, remaining budget for components |
+| Total page JS | ~220KB gzip | Includes Next.js framework (~130KB) — not controllable |
 
 ## No-JS / SSR Fallback
 
@@ -477,6 +550,9 @@ All section components render in their **final visible state** by default. No CS
 ```tsx
 // In LandingClient useLayoutEffect
 const ctx = gsap.context(() => {
+  // Set initial hidden state synchronously before paint (prevents flash of visible content during hydration)
+  gsap.set('.hero-eyebrow, .hero-headline, .hero-subtitle, .hero-cta, .hero-scroll', { opacity: 0, y: 20 })
+  // Then animate from hidden to visible (elements start at hidden, animate to their rendered visible state)
   gsap.from('.hero-eyebrow', { opacity: 0, y: 20, duration: 0.8, stagger: 0.12 })
   gsap.from('.hero-headline', { opacity: 0, y: 30, duration: 0.8 }, 0.12)
   // ...
@@ -484,7 +560,7 @@ const ctx = gsap.context(() => {
 return () => ctx.revert() // restores elements to their original (visible) state
 ```
 
-If JS fails, `from()` never runs, elements stay visible. No progressive enhancement needed.
+**Flash prevention:** `gsap.set()` runs synchronously in `useLayoutEffect` before the browser paints. This prevents the 1-frame flash where elements are visible during hydration, then hidden by `gsap.from()`. Without `gsap.set()`, there would be a visible flash (FOC). If JS fails entirely, neither `gsap.set()` nor `gsap.from()` runs, elements stay visible.
 
 ### Route and Layout
 
@@ -500,9 +576,17 @@ app/
 └── (app)/                # App pages (existing)
 ```
 
-Force light theme on landing: wrap `<LandingClient />` in `<ThemeProvider forcedTheme="light">` (next-themes supports `forcedTheme` prop). Alternatively, set `<html className="light" suppressHydrationWarning>` from the landing page layout only.
+Force light theme on landing: Set `<html class="light" suppressHydrationWarning>` in the server-rendered output for the landing route. This guarantees no dark-mode flash — the class is set in the initial HTML before paint. `suppressHydrationWarning` is needed because next-themes may try to set a different class during hydration. Using `forcedTheme="light"` on ThemeProvider is a fallback but may cause a 1-frame flash since it runs client-side.
 
-Add `<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">` to the landing page head (required for `env(safe-area-inset-*)` to work on iOS).
+Add `<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">` to the landing page head (required for `env(safe-area-inset-*)` to work on iOS). In Next.js, use the `viewport` export:
+```tsx
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  viewportFit: 'cover',
+}
+```
+This goes in `app/layout.tsx` (applies globally, safe for all pages).
 
 ## Detailed Component Specs
 
@@ -550,7 +634,7 @@ When user first uploads a video on `/upload`:
 
 ### Cookie Banner Focus Trap
 
-Use `react-focus-lock` (add to dependencies: `bun add react-focus-lock`). Pattern:
+Use `react-focus-lock` (add to dependencies: `bun add react-focus-lock`). Dynamically import the cookie banner component with `next/dynamic` (`ssr: false`) so `react-focus-lock` (~7KB gzip) is only loaded when the banner is visible, not on every page load. Pattern:
 
 ```tsx
 import FocusLock from 'react-focus-lock'
@@ -560,7 +644,7 @@ import FocusLock from 'react-focus-lock'
     <div role="dialog" aria-modal="true" aria-labelledby="cookie-heading">
       <h2 id="cookie-heading" className="sr-only">Cookie consent</h2>
       <p>Мы используем cookies для работы сервиса...</p>
-      <button onClick={acceptCookies}>Принять</button>
+      <button onClick={acceptCookies} autoFocus>Принять</button>
     </div>
   </FocusLock>
 )}
