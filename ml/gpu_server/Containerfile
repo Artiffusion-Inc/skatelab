@@ -24,10 +24,12 @@ RUN --mount=type=cache,target=/root/.cache/uv \
     uv pip install --python /opt/venv/bin/python --no-cache-dir \
     onnxruntime-gpu==1.24.4 \
     opencv-python-headless==4.10.0.84 \
-    numpy==2.4.3 \
+    "numpy>=1.24,<2.3" \
     scipy==1.17.1 \
     pillow==12.1.1 \
-    av==17.0.0
+    av==17.0.0 \
+    numba==0.61.2 \
+    ultralytics>=8.0.0
 
 # Server deps
 RUN --mount=type=cache,target=/root/.cache/uv \
