@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useRef, useCallback } from "react"
 import { useTranslations } from "@/i18n"
-import { useAuth } from "@/components/auth-provider"
 import { Menu, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import FocusLock from "react-focus-lock"
@@ -15,7 +14,6 @@ const NAV_ITEMS = [
 
 export function StickyHeader() {
   const t = useTranslations("landing")
-  const { isAuthenticated } = useAuth()
   const [menuOpen, setMenuOpen] = useState(false)
   const hamburgerRef = useRef<HTMLButtonElement>(null)
 
@@ -82,7 +80,7 @@ export function StickyHeader() {
             className="hidden md:inline-flex min-h-[44px]"
             asChild
           >
-            <a href={isAuthenticated ? "/feed" : "/register"}>
+            <a href="/register">
               {t("headerCta")}
             </a>
           </Button>

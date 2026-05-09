@@ -6,9 +6,10 @@ import FocusLock from "react-focus-lock"
 
 interface CookieBannerProps {
   onAccept: () => void
+  onDecline: () => void
 }
 
-export default function CookieBanner({ onAccept }: CookieBannerProps) {
+export default function CookieBanner({ onAccept, onDecline }: CookieBannerProps) {
 /** CookieBanner uses default export for dynamic import compatibility */
   const t = useTranslations("landing")
 
@@ -31,13 +32,22 @@ export default function CookieBanner({ onAccept }: CookieBannerProps) {
                 </a>
               </p>
             </div>
-            <Button
-              onClick={onAccept}
-              autoFocus
-              className="min-h-[44px] min-w-[120px] shrink-0"
-            >
-              {t("cookieAccept")}
-            </Button>
+            <div className="flex items-center gap-3">
+              <Button
+                variant="ghost"
+                onClick={onDecline}
+                className="min-h-[44px] min-w-[120px] shrink-0"
+              >
+                {t("cookieDecline")}
+              </Button>
+              <Button
+                onClick={onAccept}
+                autoFocus
+                className="min-h-[44px] min-w-[120px] shrink-0"
+              >
+                {t("cookieAccept")}
+              </Button>
+            </div>
           </div>
         </div>
       </div>

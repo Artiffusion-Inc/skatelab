@@ -162,6 +162,11 @@ export function LandingClient() {
     setShowCookieBanner(false)
   }
 
+  const declineCookies = () => {
+    localStorage.setItem("consent_accepted", "declined")
+    setShowCookieBanner(false)
+  }
+
   return (
     <>
       <div className="landing-page overflow-x-hidden" ref={containerRef}>
@@ -184,7 +189,7 @@ export function LandingClient() {
         <FooterSection />
         <MobileCTABar hidden={showCookieBanner} />
       </div>
-      {showCookieBanner && <CookieBanner onAccept={acceptCookies} />}
+      {showCookieBanner && <CookieBanner onAccept={acceptCookies} onDecline={declineCookies} />}
     </>
   )
 }
