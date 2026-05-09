@@ -26,6 +26,11 @@ RUN --mount=type=cache,target=/root/.cache/uv \
     nvidia-cublas-cu12 \
     nvidia-cuda-runtime-cu12 \
     nvidia-cudnn-cu12 \
+    nvidia-curand-cu12 \
+    nvidia-cufft-cu12 \
+    nvidia-cusolver-cu12 \
+    nvidia-cusparse-cu12 \
+    nvidia-cuda-nvcc-cu12 \
     opencv-python-headless==4.10.0.84 \
     "numpy>=1.24,<2.3" \
     scipy==1.17.1 \
@@ -78,7 +83,7 @@ COPY --from=builder --chown=appuser:appuser /opt/venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH" \
     PROJECT_ROOT=/app \
     VIRTUAL_ENV=/opt/venv \
-    LD_LIBRARY_PATH="/opt/venv/lib/python3.11/site-packages/nvidia/cublas/lib:/opt/venv/lib/python3.11/site-packages/nvidia/cuda_runtime/lib:/opt/venv/lib/python3.11/site-packages/nvidia/cudnn/lib"
+    LD_LIBRARY_PATH="/opt/venv/lib/python3.11/site-packages/nvidia/cublas/lib:/opt/venv/lib/python3.11/site-packages/nvidia/cuda_runtime/lib:/opt/venv/lib/python3.11/site-packages/nvidia/cudnn/lib:/opt/venv/lib/python3.11/site-packages/nvidia/curand/lib:/opt/venv/lib/python3.11/site-packages/nvidia/cufft/lib:/opt/venv/lib/python3.11/site-packages/nvidia/cusolver/lib:/opt/venv/lib/python3.11/site-packages/nvidia/cusparse/lib:/opt/venv/lib/python3.11/site-packages/nvidia/cuda_nvcc/lib"
 
 # ONNX models (~500MB) — rarely changes, separate layer for cache hits
 COPY --chown=appuser:appuser data/models/moganet/ data/models/moganet/
