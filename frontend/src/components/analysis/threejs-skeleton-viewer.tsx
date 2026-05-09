@@ -144,27 +144,21 @@ function RenderModeToggle() {
 }
 
 function PlaybackControls() {
-  const {
-    isPlaying,
-    setIsPlaying,
-    currentFrame,
-    setCurrentFrame,
-    playbackSpeed,
-    setPlaybackSpeed,
-  } = useAnalysisStore()
+  const { isPlaying, setIsPlaying, setCurrentFrame, playbackSpeed, setPlaybackSpeed } =
+    useAnalysisStore()
 
   return (
     <div
       className="absolute bottom-2 left-1/2 flex -translate-x-1/2 items-center gap-2 rounded-full px-3 py-1.5 text-xs"
       style={{ backgroundColor: "oklch(var(--background) / 0.7)" }}
     >
-      <button type="button" onClick={() => setCurrentFrame(Math.max(0, currentFrame - 10))}>
+      <button type="button" onClick={() => setCurrentFrame((f: number) => Math.max(0, f - 10))}>
         <ChevronLeft className="h-4 w-4" />
       </button>
       <button type="button" onClick={() => setIsPlaying(!isPlaying)}>
         {isPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
       </button>
-      <button type="button" onClick={() => setCurrentFrame(currentFrame + 10)}>
+      <button type="button" onClick={() => setCurrentFrame((f: number) => f + 10)}>
         <ChevronRight className="h-4 w-4" />
       </button>
       <select

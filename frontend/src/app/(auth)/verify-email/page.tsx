@@ -1,15 +1,17 @@
 "use client"
 
+import { Suspense } from "react"
 import Link from "next/link"
 import { useSearchParams } from "next/navigation"
 import { type FormEvent, useState } from "react"
 import { toast } from "sonner"
 import { FormField } from "@/components/form-field"
 import { Button } from "@/components/ui/button"
+import { Skeleton } from "@/components/ui/skeleton"
 import { useTranslations } from "@/i18n"
 import { verifyEmail } from "@/lib/auth"
 
-export default function VerifyEmailPage() {
+function VerifyEmailForm() {
   const searchParams = useSearchParams()
   const tokenFromUrl = searchParams.get("token") ?? ""
   const t = useTranslations("auth")
@@ -76,5 +78,22 @@ export default function VerifyEmailPage() {
         </Link>
       </p>
     </div>
+  )
+}
+
+export default function VerifyEmailPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="space-y-6">
+          <Skeleton className="mx-auto h-8 w-48" />
+          <Skeleton className="mx-auto h-4 w-64" />
+          <Skeleton className="h-10 w-full" />
+          <Skeleton className="mx-auto h-10 w-full" />
+        </div>
+      }
+    >
+      <VerifyEmailForm />
+    </Suspense>
   )
 }

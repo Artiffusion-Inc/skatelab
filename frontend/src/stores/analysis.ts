@@ -10,7 +10,7 @@ export interface AnalysisState {
   renderMode: "wireframe" | "solid"
 
   // Actions
-  setCurrentFrame: (frame: number) => void
+  setCurrentFrame: (frame: number | ((prev: number) => number)) => void
   setIsPlaying: (playing: boolean) => void
   setPlaybackSpeed: (speed: number) => void
   setSelectedJoint: (joint: number | null) => void
@@ -29,7 +29,10 @@ export const useAnalysisStore = create<AnalysisState>(set => ({
   cameraPreset: "front",
   renderMode: "wireframe",
 
-  setCurrentFrame: frame => set({ currentFrame: frame }),
+  setCurrentFrame: (frame: number | ((prev: number) => number)) =>
+    set((state: AnalysisState) => ({
+      currentFrame: typeof frame === "function" ? frame(state.currentFrame) : frame,
+    })),
   setIsPlaying: playing => set({ isPlaying: playing }),
   setPlaybackSpeed: speed => set({ playbackSpeed: speed }),
   setSelectedJoint: joint => set({ selectedJoint: joint }),

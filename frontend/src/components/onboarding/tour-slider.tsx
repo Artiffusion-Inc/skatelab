@@ -452,7 +452,7 @@ export function TourSlider({ role, onComplete, onSkip }: TourSliderProps) {
 
   const next = () => {
     if (current < slides.length - 1) {
-      setCurrent(current + 1)
+      setCurrent((c: number) => c + 1)
     } else {
       onComplete()
     }
@@ -509,7 +509,7 @@ export function TourSlider({ role, onComplete, onSkip }: TourSliderProps) {
         <div className="flex items-center justify-between px-2 sm:px-0">
           <button
             type="button"
-            onClick={() => setCurrent(Math.max(0, current - 1))}
+            onClick={() => setCurrent((c: number) => Math.max(0, c - 1))}
             disabled={current === 0}
             className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors disabled:opacity-30"
           >
