@@ -28,7 +28,8 @@ export function StickyHeader() {
     const el = document.querySelector(href)
     if (el) {
       el.scrollIntoView({ behavior: "smooth" })
-      el.focus({ preventScroll: true })
+      const target = el as HTMLElement
+      target.focus({ preventScroll: true })
     }
   }, [closeMenu])
 

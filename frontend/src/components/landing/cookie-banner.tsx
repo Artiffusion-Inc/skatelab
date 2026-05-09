@@ -9,6 +9,7 @@ interface CookieBannerProps {
 }
 
 export default function CookieBanner({ onAccept }: CookieBannerProps) {
+/** CookieBanner uses default export for dynamic import compatibility */
   const t = useTranslations("landing")
 
   return (
