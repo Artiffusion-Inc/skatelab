@@ -212,7 +212,7 @@ body {
   font-size: clamp(6rem, 12vw, 10rem);
   font-weight: 600;
   line-height: 1;
-  color: oklch(0.85 0.02 240 / 0.15);
+  color: oklch(0.7 0.006 80 / 0.25);
   position: absolute;
   top: -0.5rem;
   left: -0.5rem;
@@ -272,6 +272,19 @@ body {
     font-weight: 400;
     line-height: 1.75;
   }
+  .sh-price {
+    font-size: clamp(2.25rem, 4vw, 3rem);
+    font-weight: 700;
+    font-variation-settings: "wght" 700;
+    line-height: 1;
+    letter-spacing: -0.03em;
+  }
+  .sh-legal {
+    font-size: 0.6875rem;
+    font-weight: 460;
+    font-variation-settings: "wght" 460;
+    line-height: 1.5;
+  }
   .scrollbar-hide {
     -ms-overflow-style: none;
     scrollbar-width: none;
@@ -284,57 +297,6 @@ body {
     bottom: calc(env(safe-area-inset-bottom, 0px) + 72px) !important;
   }
 
-  /* Landing page animations */
-  .hero-eyebrow {
-    opacity: 0;
-    transform: translateY(20px);
-  }
-  .hero-headline {
-    opacity: 0;
-    transform: translateY(30px);
-  }
-  .hero-subtitle {
-    opacity: 0;
-    transform: translateY(20px);
-  }
-  .hero-cta {
-    opacity: 0;
-    transform: translateY(20px);
-  }
-  .hero-scroll {
-    opacity: 0;
-  }
-
-  .hero-visible {
-    animation-fill-mode: forwards;
-  }
-  .hero-visible.hero-eyebrow {
-    animation: fadeUp 0.8s 0.2s ease forwards;
-  }
-  .hero-visible.hero-headline {
-    animation: fadeUp 1s 0.4s ease forwards;
-  }
-  .hero-visible.hero-subtitle {
-    animation: fadeUp 0.8s 0.7s ease forwards;
-  }
-  .hero-visible.hero-cta {
-    animation: fadeUp 0.8s 1s ease forwards;
-  }
-  .hero-visible.hero-scroll {
-    animation: fadeIn 0.6s 1.5s ease forwards;
-  }
-
-  @keyframes fadeUp {
-    to {
-      opacity: 1;
-      transform: translateY(0);
-    }
-  }
-  @keyframes fadeIn {
-    to {
-      opacity: 1;
-    }
-  }
 
   @media print {
     .app-nav,
@@ -360,16 +322,20 @@ body {
     }
   }
 
-  .hero-bounce {
-    animation: bounceY 2s ease-in-out infinite;
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      transition-duration: 0.01ms !important;
+    }
   }
-  @keyframes bounceY {
-    0%,
-    100% {
-      transform: translateY(0);
-    }
-    50% {
-      transform: translateY(8px);
-    }
+
+  section[id] {
+    scroll-margin-top: 5rem;
   }
 }
+
+/* Landing page typography weight overrides — placed after @layer base for specificity */
+body:has(.landing-page) { font-variation-settings: "wght" 400; font-weight: 400; }
+.landing-page .sh-display-xxl { font-variation-settings: "wght" 700; font-weight: 700; }
+.landing-page .sh-display-xl { font-variation-settings: "wght" 600; font-weight: 600; }
+.landing-page .sh-heading-lg { font-variation-settings: "wght" 600; font-weight: 600; }
