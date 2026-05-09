@@ -1,6 +1,7 @@
 """Multi-person detection and tracking module."""
 
-from .person_detector import BoundingBox, PersonDetector
+from ..types import BoundingBox
+from .person_detector import PersonDetector
 from .pose_tracker import PoseTracker, Track
 from .spatial_reference import CameraPose, SpatialReferenceDetector
 

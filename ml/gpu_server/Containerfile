@@ -28,8 +28,7 @@ RUN --mount=type=cache,target=/root/.cache/uv \
     scipy==1.17.1 \
     pillow==12.1.1 \
     av==17.0.0 \
-    numba==0.61.2 \
-    ultralytics>=8.0.0
+    numba==0.61.2
 
 # Server deps
 RUN --mount=type=cache,target=/root/.cache/uv \
@@ -79,6 +78,7 @@ ENV PATH="/opt/venv/bin:$PATH" \
 
 # ONNX models (~500MB) — rarely changes, separate layer for cache hits
 COPY --chown=appuser:appuser data/models/moganet/ data/models/moganet/
+COPY --chown=appuser:appuser data/models/yolov8n.onnx data/models/
 COPY --chown=appuser:appuser data/models/depth_anything_v2_small.onnx data/models/
 COPY --chown=appuser:appuser data/models/neuflowv2_mixed.onnx data/models/
 COPY --chown=appuser:appuser data/models/rvm_mobilenetv3.onnx data/models/

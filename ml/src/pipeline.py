@@ -358,7 +358,7 @@ class AnalysisPipeline:
 
             PersonDetector = person_detector.PersonDetector
 
-            self._detector = PersonDetector(model_size="n", confidence=0.5)
+            self._detector = PersonDetector(confidence=0.5)
         return self._detector
 
     def _get_pose_2d_extractor(self) -> PoseExtractor:  # type: ignore[valid-type]

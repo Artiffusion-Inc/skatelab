@@ -19,3 +19,4 @@ ignores:
   - "ml/scripts/**"
   - "scripts/**"
   - "ml/gpu_server/**"
+  - "experiments/**"
