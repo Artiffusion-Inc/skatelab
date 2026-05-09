@@ -36,7 +36,20 @@ Product positioning (from CustDev): coaches buy time savings + fewer disputes. S
 
 **GSAP:** Static backdrop-blur (always applied, not animated). Animate only `opacity` of a white background overlay: 0 on hero → 1 after scroll past hero. Animate `border-bottom` opacity (0 → 1). Do NOT animate `backdrop-filter` (performance hazard).
 
-**Mobile:** Hamburger menu. Slide-in panel from right. CTA stays visible. Touch targets min 44x44px.
+**Mobile:** Hamburger menu with full specification:
+- Hamburger icon button (Lucide `Menu`), 44×44px touch target, `aria-label="Открыть меню"`, `aria-expanded` toggled on open/close
+- Slide-in panel from right: `transform translateX(100%) → translateX(0)`, `0.3s ease-out` (matches `dur-sm` motion token)
+- Backdrop: `fixed inset-0`, `bg-black/50`, opacity `0 → 1` over `0.2s ease-out`
+- Z-index hierarchy: mobile CTA bar `z-40`, sticky header `z-50`, panel backdrop `z-[55]`, panel `z-[60]`, cookie banner `z-[70]`
+- Panel width: `min(80vw, 280px)`, full height, `bg-background`
+- Body scroll lock when panel open (`overflow: hidden` on `<body>`)
+- Focus trap: `react-focus-lock` with `returnFocus`. Focus moves to panel on open, returns to hamburger button on close
+- `prefers-reduced-motion`: instant show/hide, no transitions
+- Panel dismiss: close button (X icon, top-right, 44×44px, `aria-label="Закрыть меню"`) + backdrop click + Escape key. NO swipe-to-dismiss
+- Panel content: exactly 3 nav links matching desktop (Как это работает, Тарифы, FAQ) as full-width tap targets (`py-4`, `text-lg`, `border-b border-hairline`). CTA stays outside panel in sticky header. No footer links or social links in panel
+- Link behavior: tap closes panel first, then smooth-scrolls to anchor target
+- Sticky header on mobile: logo (left) + hamburger icon (right). CTA button visible in header when space allows, otherwise hidden behind hamburger
+- Cookie banner conflict: hide mobile CTA bar while cookie banner visible
 
 **Safe area:** `top: env(safe-area-inset-top)` for iPhone notch/Dynamic Island.
 
@@ -157,7 +170,7 @@ useEffect(() => {
 
 **GSAP:** Counter animation with proportional durations (minimum 0.8s for perceptibility): 1200 → 1.0s, 340 → 0.9s, 15 → 0.8s. All use `ease: "power2.out"`.
 
-**Data source:** Counter values are placeholder numbers. Before public launch, replace with real metrics from a `/api/stats` endpoint (or make configurable via i18n keys for easy updates). Displaying inflated numbers violates ФЗ «О рекламе» — values must reflect real data at launch.
+**Data source:** Counter values are i18n strings in `messages/ru.json` under keys `landing.trustSessionsValue`, `landing.trustSkatersValue`, `landing.trustClubsValue`. Values must reflect verified real data (152-ФЗ compliance). Update via PR with a comment noting the data source and date (e.g., `// As of 2026-05-09: 1,247 sessions from production DB`). No API endpoint needed — these numbers change at most weekly. Format: `1,200+` with `+` suffix for rounded values, exact number only when current to the day. Displaying inflated numbers violates ФЗ «О рекламе» — values must reflect real data at launch.
 
 **Reduced motion:** Show final value immediately, no counting animation.
 
@@ -229,7 +242,7 @@ useEffect(() => {
 
 ### 10. Cookie Banner
 
-**Structure:** Fixed bottom bar, `z-50`. Shown only on first visit (localStorage flag). `role="dialog" aria-modal="true" aria-labelledby="cookie-heading"`.
+**Structure:** Fixed bottom bar, `z-[70]` (above hamburger panel at z-[60] and header at z-50). Shown only on first visit (localStorage flag). `role="dialog" aria-modal="true" aria-labelledby="cookie-heading"`.
 
 **Focus management:** On appear, move focus to «Принять» button. Trap Tab/Shift+Tab within banner. Escape key dismisses. Restore focus to previously active element on close.
 
@@ -485,6 +498,26 @@ The current `@import "@fontsource-variable/inter"` in globals.css creates a CSS 
 
 The root layout can continue using `@fontsource-variable/inter` for app pages. Only the landing page needs the optimized font loading.
 
+## Analytics Events (PostHog Self-Hosted — Future)
+
+Analytics are **out of scope for MVP landing page**. The implementation will use **PostHog self-hosted** when deployed, not Yandex.Metrika or any third-party SaaS analytics.
+
+**When analytics is added (post-MVP):**
+- PostHog self-hosted instance, initialized after cookie consent
+- Event taxonomy for the landing page:
+
+| Event Name | Trigger | Purpose |
+|------------|---------|---------|
+| `landing_cta_primary` | Click "Начать бесплатно" (any instance) | Primary conversion |
+| `landing_cta_demo` | Click "Смотреть демо" | Engagement |
+| `landing_pricing_pro` | Click "Попробовать Pro" | Monetization intent |
+| `landing_pricing_coach` | Click "Связаться с нами" (Coach) | B2B intent |
+| `landing_scroll_demo` | Demo section enters viewport | Engagement depth |
+| `landing_faq_expand` | Open FAQ accordion item | Content interest |
+
+- Cookie consent gates all analytics initialization (152-ФЗ compliance)
+- No analytics scripts loaded before consent banner acceptance
+
 ## Performance Targets
 
 | Metric | Target | Technique |
@@ -494,6 +527,12 @@ The root layout can continue using `@fontsource-variable/inter` for app pages. O
 | INP | < 200ms | Defer GSAP init, use composited transforms only |
 | JS bundle (page-specific) | < 100KB gzip | GSAP core + ScrollTrigger ≈ 46KB gzip, remaining budget for components |
 | Total page JS | ~220KB gzip | Includes Next.js framework (~130KB) — not controllable |
+
+## Favicon & OG Image
+
+- **Favicon:** Use existing `/public/favicon.svg` (48×46 violet figure skate icon). Next.js 16 serves it automatically. No `.ico` or multi-size PNG needed for MVP.
+- **OG image:** Static `/public/images/og-image.png` (1200×630px) with SkateLab wordmark, tagline, and skeleton overlay visual. Created as a design asset, not auto-generated. PostHog or `@vercel/og` for dynamic OG can be added post-MVP if needed.
+- **robots.txt:** Not a launch blocker. Add post-MVP: allow `/` and `/register`, disallow authenticated routes (`/feed`, `/upload`, `/profile`, `/settings`). Sitemap unnecessary for single-page landing.
 
 ## No-JS / SSR Fallback
 
