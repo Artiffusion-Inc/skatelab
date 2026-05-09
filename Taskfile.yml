@@ -107,8 +107,8 @@ tasks:
 
   dev-backend:
     desc: Start Python backend dev server
-    dir: .
-    cmd: "{{.UV_RUN}} uvicorn backend.app.main:app --reload --port 8000"
+    dir: backend
+    cmd: "{{.UV_RUN}} litestar run --port 8000 --reload"
 
   dev-frontend:
     desc: Start frontend dev server
