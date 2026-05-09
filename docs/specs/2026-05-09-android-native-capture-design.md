@@ -1,7 +1,7 @@
 # Android Native Capture App — Design Spec
 
 **Date**: 2026-05-09
-**Status**: Draft (rev 3 — peer review complete, pending user approval)
+**Status**: Draft (rev 4 — fourth review complete, P0/P1 fixes applied)
 **Replaces**: Flutter `mobile/` (deleted)
 
 ## Overview
@@ -209,26 +209,68 @@ All commands are 5 bytes: `[0xFF, 0xAA, <command_or_register>, <param1>, <param2
 
 Pre-configuration unlock: `[0xFF, 0xAA, 0x69, 0x88, 0xB5]`
 
+**Configuration sequence** (run once after connect, before recording):
 1. **Unlock** → `[0xFF, 0xAA, 0x69, 0x88, 0xB5]`
-2. **Enable output content** (register 0x02): 0x51+0x52+0x59 = bitmask 0x0046 (Acc=0x02, Gyro=0x04, Quat=0x40)
+2. *(wait 100ms)*
+3. **Enable output content** (register 0x02): 0x51+0x52+0x59 = bitmask 0x0046 (Acc=0x02, Gyro=0x04, Quat=0x40)
    → `[0xFF, 0xAA, 0x02, 0x46, 0x00]`
-3. **Set output rate** 100Hz (register 0x03, value 0x09):
+4. *(wait 100ms)*
+5. **Set output rate** 100Hz (register 0x03, value 0x09):
    → `[0xFF, 0xAA, 0x03, 0x09, 0x00]`
-4. **Save configuration** → `[0xFF, 0xAA, 0x00, 0x00, 0x00]`
+6. *(wait 100ms)*
+7. **Save configuration** → `[0xFF, 0xAA, 0x00, 0x00, 0x00]`
+8. *(wait 500ms for EEPROM write + output mode switch)*
+
+**Start streaming** (send when recording begins, after configuration):
+9. **Set output content to active** (register 0x02, re-send 0x0046):
+   → `[0xFF, 0xAA, 0x02, 0x46, 0x00]`
+10. *(wait 500ms)* — sensor switches from 0x61 combined to individual frames, 100Hz output starts
+
+**Stop streaming** (send when recording ends):
+11. **Disable all output** (register 0x02, value 0x0000):
+    → `[0xFF, 0xAA, 0x02, 0x00, 0x00]`
+12. *(wait 100ms)*
+13. **Save configuration** → `[0xFF, 0xAA, 0x00, 0x00, 0x00]`
+
+> **Note:** The WT901 has no explicit "start/stop streaming" command. Streaming is controlled by the OutputContent register: non-zero value = stream enabled, zero = stream disabled. After Save, the sensor begins transmitting at the configured rate. The "start" step re-sends the same OutputContent value to ensure the sensor is in individual-frame mode (not default 0x61 combined mode).
 
 **0x50 (time) NOT enabled for streaming** — queried on-demand via register read (`[0xFF, 0xAA, 0x27, 0x30, 0x00]`) for periodic clock sync. This avoids adding 1100 bytes/sec of time data that's only needed every 30 seconds.
 
+**Rev 4 addition (H20 CONFIRMED):** Inter-command delays are required. The sensor's Unlock opens a **10-second configuration window** — all subsequent commands must complete within this window. Based on XAMLCORP C# SDK (100ms serial delays, 50ms BLE delays) and ElettraSciComp C++ SDK (5s after calibrate):
+- 100ms delay between configuration commands (safe margin)
+- 500ms delay after Save command (EEPROM write + output mode switch)
+- GATT operations must be serialized — `BluetoothGatt.writeCharacteristic()` silently fails if another GATT operation is in progress. Use a write queue with mutual exclusion (SemaphoreSlim pattern from C# SDK)
+- Use `WRITE_TYPE_NO_RESPONSE` (write without response) for FFE9 characteristic — avoids blocking GATT thread
+- **P1 resolution:** `WRITE_TYPE_NO_RESPONSE` is acceptable even for configuration commands. Rationale: (1) The sensor's 10-second unlock window provides implicit confirmation — if the write fails silently, the next command in the sequence will also fail, and the sensor won't enter the expected mode (detectable via register read). (2) `WRITE_TYPE_DEFAULT` (with ACK) adds per-command latency (4-6ms BLE round-trip × 5 commands = 20-30ms extra), which eats into the 10-second window. (3) Post-configuration verification via register read (`[0xFF, 0xAA, 0x27, 0x02, 0x00]`) confirms OutputContent was set correctly. If verification fails → retry entire sequence.
+
 No ACK — fire-and-forget. Can verify via register read (`[0xFF, 0xAA, 0x27, <reg>, 0x00]`, response via 0x71 notification).
+
+**0x71 response format** (query-response, P1 resolution):
+```
+[0x55][0x71][reg][dataL][dataH][chk]  (7 bytes)
+- byte[0] = 0x55 (header)
+- byte[1] = 0x71 (type: register read response)
+- byte[2] = register address that was queried
+- bytes[3-4] = register value (int16 LE)
+- byte[5] = checksum (sum of bytes[0-4] & 0xFF)
+```
+Used for post-configuration verification and clock sync register reads.
 
 ### Connection Flow
 
-1. `BleScanScreen` → scan for WT901 devices
+1. `BleScanScreen` → scan for WT901 devices (filter by ServiceUUID `0000FFE5-0000-1000-8000-00805F9A34FB` to reduce scan noise; fall back to name-prefix "WT901" if ServiceUUID filter not supported on device)
 2. User selects LEFT sensor → connect → `requestConnectionPriority(HIGH)` → service discovery → subscribe to IMU characteristic notify (FFE4)
 3. User selects RIGHT sensor → same steps
-4. `Wt901Parser`: raw BLE bytes → parse individual frames by type byte → `ImuSample(acc, gyro, quat, chipTimeMs)`
-5. Connected state persisted in `BleRepository`
-6. Re-request `CONNECTION_PRIORITY_HIGH` every 30 seconds
-7. **Do NOT request MTU negotiation** — default MTU 23 is sufficient (WT901 always sends 20-byte notifications)
+4. **Configure sensors** (once per connect): send Unlock → Enable OutputContent → Set Rate → Save via `Wt901Commander` (see command protocol above). This prepares the sensor for streaming but does NOT start data output yet.
+5. `Wt901Parser`: raw BLE bytes → parse individual frames by type byte → bitmask sample grouping → `ImuSample(acc, gyro, quat, chipTimeMs)`
+6. Connected state persisted in `BleRepository`
+7. Re-request `CONNECTION_PRIORITY_HIGH` every 30 seconds
+8. **Rev 4 (H21):** All GATT operations serialized via write queue — `BluetoothGatt.writeCharacteristic()` silently fails if another operation is in progress. Use `WRITE_TYPE_NO_RESPONSE` for FFE9 characteristic. Write commands can be sent during active streaming (FFE9 write and FFE4 notify are independent characteristics).
+9. **Do NOT request MTU negotiation** — default MTU 23 is sufficient (WT901 always sends 20-byte notifications)
+
+**Start streaming** (at recording start): Send OutputContent 0x0046 → Save (steps 9-10 in command protocol). Data arrives on FFE4.
+
+**Stop streaming** (at recording end): Send OutputContent 0x0000 → Save (steps 11-13 in command protocol). Data stops on FFE4.
 
 ### BLE Processing Pipeline
 
@@ -244,10 +286,20 @@ onCharacteristicChanged():
 
 **Dedicated HandlerThread** (`BleHandlerThread`) for all BLE processing:
 - **Partial frame buffering**: 11-byte frames may span two BLE notifications (20 bytes). Parser accumulates bytes, detects frame boundaries by 0x55 header byte, validates checksum before processing
+- **Rev 4 (H18):** The 0x55 header byte can appear in data payload. For individual frames (0x51/0x52/0x59), checksum validation rejects false 0x55 headers. Algorithm: scan for 0x55 → check if enough bytes remain for a frame → validate checksum → if invalid, advance past this 0x55 and continue scanning. The 0x61 combined frame has NO checksum — only relevant if combined mode is used (not in our architecture). Pattern from XAMLCORP `PacketParser.cs` with buffer accumulation + lock.
 - Parses individual WT901 frames by type byte (0x51, 0x52, 0x59)
 - **No strict ordering assumed** — each frame processed independently
 - Groups into complete IMU samples: when acc(0x51) + gyro(0x52) + quat(0x59) all received for same sample cycle → emit ImuSample
-- Uses per-sensor sample state machine (expecting 0x51 first after output cycle, then 0x52, then 0x59, with timeout fallback if order differs)
+- **Rev 4 (H17, revised per P0 #9):** No reference SDK implements sample grouping — all process frames independently. Our sample grouping uses a **bitmask accumulator** (NOT a sequential state machine), since H8 confirmed no ordering guarantee for individual frames:
+  - **Bitmask:** Track received frame types with a bitmask: `ACC=0x01, GYRO=0x02, QUAT=0x04`. When `received_mask == 0x07` → all three present → emit `ImuSample`, reset mask and timer.
+  - **Any frame type first:** No assumption about which frame type (0x51, 0x52, or 0x59) arrives first in a cycle. First frame of any type starts the 15ms timer.
+  - **Duplicate handling:** If a frame type already received in current cycle (e.g., second 0x51 before 0x52 arrives), the previous incomplete cycle is dropped — increment `dropped_partial_count`, reset mask, start new cycle with current frame.
+  - **Timeout:** If 15ms elapses (1.5× the 10ms expected interval at 100Hz) without completing the bitmask → incomplete cycle. Increment `dropped_partial_count`, reset mask. **Do NOT emit a partial ImuSample** (proto3 float defaults to 0.0, not NaN — partial samples would produce bogus zero values).
+  - **Frame loss detection:** The bitmask directly reveals which frame types are missing at timeout. Log to manifest if desired.
+  - **Rev 4 (P0 #23 resolved):** Proto3 float fields default to 0.0, not NaN. Partial IMU samples with missing fields would silently produce bogus zero values (e.g., acc_x=0 when no 0x51 received). Three approaches considered:
+    1. ~~FloatValue wrappers~~ — doubles message size (wrapper per field), over-engineering for edge case
+    2. ~~Separate PartialIMUSample message~~ — adds schema complexity, backend must handle yet another message type
+    3. **Skip incomplete cycles + counter in manifest** (CHOSEN) — simply drop incomplete cycles, increment `dropped_partial_count` per sensor in manifest. Backend sees a gap in timestamps (detectable), not bogus zero values. Clean, minimal, no schema changes.
 - Computes Android-aligned timestamp
 - Writes to display buffer + disk stream
 
@@ -312,7 +364,7 @@ All share same clock domain. No post-hoc alignment.
      - `REALTIME` (1): camera timestamps already in CLOCK_BOOTTIME → direct alignment
      - `UNKNOWN` (0): measure offset once, store in manifest
    - Start `ImuStreamWriter` (open `BufferedOutputStream` for each sensor's .binpb file)
-   - Start BLE streaming via `Wt901Commander.start()` on both sensors
+   - Start BLE streaming via `Wt901Commander.startStreaming()` on both sensors (OutputContent 0x0046 + Save)
    - Record `sessionStartNs = t_first_frame` (NOT `elapsedRealtimeNanos()` at start call)
    - Start Foreground Service (wake lock + notification, type `connectedDevice|camera`)
    - Start periodic resync timer (30s interval)
@@ -322,7 +374,7 @@ All share same clock domain. No post-hoc alignment.
 - Camera2 → MP4 on disk (hardware encoder)
 - FrameTimestampTracker → `frame_timestamps.csv` on disk (SingleThreadExecutor)
 - BLE (L+R) → `BleHandlerThread` → `ImuStreamWriter.writeDelimitedTo(sample)` → `.binpb` on disk
-- Display buffer: `ArrayRingBuffer<ImuSample>(60_000)` (~3.6MB) for UI (10 minutes at 100Hz per sensor, or 5 minutes both sensors)
+- Display buffer: `ArrayRingBuffer<ImuSample>(60_000)` per sensor (~3.6MB for one sensor at 100Hz for 10 minutes; two sensors = ~7.2MB total, 5 min each)
 - RecordingScreen HUD: duration, FPS, IMU sample rate, sensor battery, storage remaining
 
 ### IMU Disk Writing (Incremental Streaming)
@@ -331,15 +383,34 @@ All share same clock domain. No post-hoc alignment.
 
 ```kotlin
 // Per-sample protobuf streaming to disk during recording
-val fileOut = BufferedOutputStream(FileOutputStream(file))
+// Rev 4 (H22): Explicit 16KB buffer, periodic flush, protobuf-javalite
+val fileOut = BufferedOutputStream(FileOutputStream(file), 16_384) // 16 KB buffer
 // On each IMU sample:
-sample.toProto().writeDelimitedTo(fileOut)  // ~60 bytes per write
+sample.toRecord().writeDelimitedTo(fileOut)  // ~61 bytes per write
+
+// Periodic flush every 1 second (timer-based coroutine)
+private val flushJob = scope.launch {
+    while (isActive) {
+        delay(1_000)
+        fileOut.flush()
+    }
+}
 
 // On stop:
 fileOut.flush()
+fileOut.fd.sync()  // fsync — guarantee durability
 fileOut.close()
 // File is immediately upload-ready — no serialization step
 ```
+
+**Rev 4 (H22) performance notes:**
+- 200 writes/sec × 61 bytes = 12,200 bytes/sec — negligible I/O
+- 16 KB buffer auto-flushes every ~1.3 seconds
+- Explicit 1-second flush bounds data-at-risk to ~1 second of IMU data (~1200 bytes)
+- `fd.sync()` on stop guarantees durability — no data loss on clean shutdown
+- On crash: ~1 second of data at risk (acceptable — session marked incomplete)
+- Use `protobuf-javalite` runtime (~1.5 MB vs ~5 MB for full protobuf)
+- protobuf #4177 (small internal buffer) does NOT affect `BufferedOutputStream`-wrapped file output
 
 **Benefits:**
 - In-memory footprint: ~3.6MB (display buffer only) vs ~67MB (old design)
@@ -352,7 +423,7 @@ fileOut.close()
 1. `StopRecordingUseCase`:
    - Stop Camera2 recording (flush MP4)
    - Stop ImageReader (close frame_timestamps.csv)
-   - Stop BLE streaming on both sensors
+   - Stop BLE streaming on both sensors via `Wt901Commander.stopStreaming()` (OutputContent 0x0000 + Save)
    - Flush/close .binpb files
    - Build `manifest.json` (include `t_first_frame_ns`, `timestamp_source`, `video_start_delay_ms`)
    - **Manifest field semantics:** `t0_ns` = `first_frame_ns` = session start time (the first video frame timestamp from `onCaptureStarted()`). `video_start_delay_ms` = `first_frame_ns - t_start_called_ns` (latency between `MediaRecorder.start()` call and actual first frame)
@@ -369,7 +440,11 @@ Sensors are **on the athlete's feet**, athlete stands still.
 1. `CalibrationScreen`: "Встаньте ровно, не двигайтесь. Датчики на ногах."
 2. Collect 10 seconds of quaternion data (~1000 samples at 100Hz) from each sensor
 3. Filter: discard samples where `|angular_velocity| > 5°/s` (movement detected — threshold from WT901 datasheet static accuracy spec)
-4. Average remaining quaternions → `quat_ref` per sensor
+4. **Normalized arithmetic mean** of remaining quaternions → `quat_ref` per sensor:
+   - Ensure hemisphere consistency: if `dot(q_i, q_ref) < 0`, flip sign of `q_i`
+   - Compute component-wise sum, normalize to unit length
+   - Mathematically justified for static calibration (Gramkow 2001: error < 0.00001° when spread < 0.05° — WT901 static accuracy is 0.05° RMS)
+   - For functional calibration with movement: would need Markley eigenvector method (H19 — not required for MVP)
 5. UI: progress bar (10s countdown), feedback on movement detection
 6. Save `CalibrationData(quat_ref, calibratedAt)` per sensor
 7. During recording: each quaternion normalized via `quat_ref⁻¹` → relative orientation
@@ -425,7 +500,8 @@ capture_20260509_143000.zip
       "sensor_id": "WT901-XXXX",
       "clock_offset_ns": 12345,
       "resync_intervals_s": 30,
-      "reconnect_count": 0
+      "reconnect_count": 0,
+      "dropped_partial_count": 0
     },
     "right": {
       "filename": "capture_20260509_143000_right.binpb",
@@ -434,7 +510,8 @@ capture_20260509_143000.zip
       "sensor_id": "WT901-YYYY",
       "clock_offset_ns": 67890,
       "resync_intervals_s": 30,
-      "reconnect_count": 1
+      "reconnect_count": 1,
+      "dropped_partial_count": 2
     }
   },
   "calibration": {
@@ -443,6 +520,11 @@ capture_20260509_143000.zip
   }
 }
 ```
+
+**Manifest field semantics:**
+- `t0_ns` / `first_frame_ns` = CLOCK_BOOTTIME nanoseconds of the first video frame from `onCaptureStarted()` — the session start reference
+- `video_start_delay_ms` = `first_frame_ns - t_start_called_ns` (latency between `MediaRecorder.start()` call and actual first frame)
+- `clock_offset_ns` (per sensor) = `android_arrival_ns - (chip_time_ms × 1_000_000)` — the median offset from initial sync. Updated by periodic resync. Each sensor has an independent offset because crystal oscillators differ between physical devices.
 
 ### Upload
 
@@ -460,7 +542,47 @@ The ZIP is a local export format. Upload sends individual files to match the bac
 
 ## Foreground Service
 
-### Android 14+ Requirements
+### Android Permissions (Rev 4, H23)
+
+**BLE permissions across all API levels (24-35):**
+
+```xml
+<!-- Legacy permissions for API 24-30 (Android 7-11) -->
+<uses-permission android:name="android.permission.BLUETOOTH"
+    android:maxSdkVersion="30" />
+<uses-permission android:name="android.permission.BLUETOOTH_ADMIN"
+    android:maxSdkVersion="30" />
+<uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"
+    android:maxSdkVersion="30" />
+
+<!-- Android 12+ (API 31+) BLE permissions -->
+<uses-permission android:name="android.permission.BLUETOOTH_SCAN"
+    android:usesPermissionFlags="neverForLocation" />
+<uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+
+<!-- Foreground Service -->
+<uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+<uses-permission android:name="android.permission.FOREGROUND_SERVICE_CONNECTED_DEVICE" />
+<uses-permission android:name="android.permission.FOREGROUND_SERVICE_CAMERA" />
+```
+
+**Runtime permission flow:**
+```kotlin
+fun hasRequiredBlePermissions(): Boolean =
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+        hasPermission(BLUETOOTH_SCAN) && hasPermission(BLUETOOTH_CONNECT)
+    } else {
+        hasPermission(ACCESS_FINE_LOCATION)
+    }
+```
+
+**Key points:**
+- `neverForLocation` on `BLUETOOTH_SCAN`: app derives no physical location from BLE. User sees "Nearby devices" prompt, NOT location prompt.
+- `BLUETOOTH_CONNECT` must be granted before `startForeground()` on Android 14+ (runtime prerequisite for `connectedDevice` FGS type).
+- Background BLE scan not needed during recording — GATT notifications arrive without scanning.
+- Samsung Android 12-13 bug with `neverForLocation` was fixed in One UI 5.1+.
+
+### Android 14+ FGS Requirements
 
 ```xml
 <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
@@ -531,7 +653,7 @@ The `.binpb` file becomes a mixed stream of `IMUSample` and `IMUGap` messages. R
 
 ## UI Screens
 
-1. **BleScanScreen**: Scan for WT901 devices, assign LEFT/RIGHT, show connection status + battery
+1. **BleScanScreen**: Scan for WT901 devices, assign LEFT/RIGHT, show connection status + battery (read battery via register 0x0A → 0x71 response with percentage value)
 2. **CalibrationScreen**: 10s countdown, movement detection feedback, quaternion visualization
 3. **CameraPreviewScreen**: Live camera preview with record button, settings (resolution, FPS), hardware level indicator
 4. **RecordingScreen**: Active recording HUD — duration, FPS, IMU rate, battery indicators, sync accuracy, stop button
@@ -604,6 +726,16 @@ message IMURecord {
 | FGS type | connectedDevice\|camera | Android 14+ requirement for BLE + camera in foreground |
 | FPS config | Camera2 AE_TARGET_FPS_RANGE | QualitySelector only controls resolution; FPS is separate Camera2 setting |
 | FPS verification | Post-recording MediaExtractor | No CameraX/RecordingStats API for actual FPS |
+| Command timing | 100ms inter-command, 500ms post-Save | XAMLCORP SDK uses 100ms serial delays. 10-second auto-lock window. EEPROM write needs settle time |
+| GATT serialization | Write queue with mutual exclusion | `writeCharacteristic()` silently fails on concurrent ops. Use `WRITE_TYPE_NO_RESPONSE`. FFE9 write and FFE4 notify are independent |
+| Sample grouping | Bitmask accumulator with 15ms timeout | No ordering guarantee (H8). Bitmask tracks {ACC, GYRO, QUAT}, emit when all three present. Duplicate frame type → drop previous incomplete cycle. Timeout → drop incomplete cycle, do NOT emit partial sample (proto3 float defaults to 0.0) |
+| 0x55 collision | Checksum validation rejects false headers | 0x55 in payload fails checksum on individual frames. Buffer accumulation pattern from XAMLCORP PacketParser |
+| Quaternion calibration | Normalized arithmetic mean with hemisphere check | Gramkow 2001: error < 0.00001° for static. Markley eigenvector needed only for functional calibration with movement |
+| Protobuf runtime | protobuf-javalite | ~1.5 MB vs ~5 MB full. Supports writeDelimitedTo identically |
+| IMU disk flush | 16 KB buffer + 1s periodic flush + fd.sync() on stop | Bounds data-at-risk to ~1 second. fsync guarantees durability on clean stop |
+| BLE permissions | neverForLocation on BLUETOOTH_SCAN + BLUETOOTH_CONNECT | API 31+: "Nearby devices" prompt. API 24-30: ACCESS_FINE_LOCATION. Samsung One UI 5.1+ fixed neverForLocation bug |
+| Partial IMU samples | Drop incomplete cycles, count in manifest | Proto3 float defaults to 0.0 not NaN. Emitting partial samples would produce bogus zero values. Skip + count is minimal and correct |
+| Streaming control | OutputContent register (0x0046=on, 0x0000=off) + Save | No explicit start/stop command. Non-zero OutputContent = stream, zero = stop. Save triggers EEPROM write + mode switch |
 
 ## Out of Scope (MVP)
 
@@ -637,3 +769,11 @@ message IMURecord {
 | H14 | Foreground Service holds camera through rotation | FALSIFIED | Surface destroyed on Activity recreation. All ref apps use `configChanges`. Service holds recording, not preview |
 | H15 | No gap markers needed for BLE disconnect | REVISED | Must re-subscribe on reconnect. Duplicates/out-of-order possible. `IMUGap` protobuf message required |
 | H16 | Enabling OutputContent 0x59 makes 0x61 and individual frames coexist | CONFIRMED FALSE | Writing register 0x02 SWITCHES from 0x61 combined to individual frames. No combined frame with quaternion exists. 0x71 is query-response only |
+| H17 | Reference SDKs implement sample grouping state machine | FALSIFIED | None of 3 SDKs (Android, C#, TypeScript) groups 0x51+0x52+0x59 into samples. All process frames independently. Must implement our own state machine with 15ms timeout |
+| H18 | 0x55 header byte collision causes misparse | REVISED | Can occur but checksum validation on individual frames rejects false 0x55. C# SDK's buffer accumulation + checksum pattern is correct. 0x61 combined frame has NO checksum — not used in our architecture |
+| H19 | Simple quaternion averaging is mathematically incorrect for calibration | REVISED | Normalized arithmetic mean is acceptable for STATIC calibration (Gramkow 2001: error < 0.00001° when spread < 0.05°). Markley eigenvector method only needed for functional calibration with movement |
+| H20 | WT901 config commands can be sent rapidly with no delay | FALSIFIED | 10-second auto-lock window for Unlock. XAMLCORP SDK: 100ms serial inter-command, 500ms post-Save. BLE: 50ms between Unlock and next command. EEPROM write needs settle time |
+| H21 | GATT operations are automatically serialized by Android | FALSIFIED | `writeCharacteristic()` silently fails on concurrent operations. C# SDK uses SemaphoreSlim. Must implement write queue. Write commands work during active streaming (FFE9 write + FFE4 notify are independent) |
+| H22 | protobuf writeDelimitedTo at 200 Hz has performance concerns | CONFIRMED SAFE | 12,200 bytes/sec through 16 KB BufferedOutputStream is negligible. protobuf-javalite recommended. Periodic flush + fd.sync() on stop. Crash data-at-risk: ~1 second |
+| H23 | BLE permissions are the same across all Android versions | FALSIFIED | Android 12+ completely new model: BLUETOOTH_SCAN + BLUETOOTH_CONNECT replace BLUETOOTH + ACCESS_FINE_LOCATION. neverForLocation removes location requirement. Must handle both models |
+| H24 | Proto3 can represent partial IMU samples via NaN | FALSIFIED | Proto3 float defaults to 0.0 not NaN. Partial samples with missing fields would produce bogus zero values. Solution: skip incomplete cycles, count in manifest `dropped_partial_count` |
