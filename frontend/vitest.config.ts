@@ -17,6 +17,7 @@ export default defineConfig({
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
+      "@sentry/nextjs": path.resolve(__dirname, "src/test/__mocks__/sentry.ts"),
     },
   },
   esbuild: {

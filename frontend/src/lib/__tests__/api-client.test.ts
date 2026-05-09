@@ -1,14 +1,22 @@
 import { assert, describe, expect, it, vi, beforeEach } from "vitest"
 import { z } from "zod"
 
-// Mock next/navigation before importing api-client
+// Mock window.location.href redirect
 const mockRedirect = vi.fn()
-vi.mock("next/navigation", () => ({
-  redirect: (...args: unknown[]) => {
-    mockRedirect(...args)
-    throw new Error("NEXT_REDIRECT")
+const originalLocation = window.location
+Object.defineProperty(globalThis.window, "location", {
+  value: { ...originalLocation, href: "" },
+  writable: true,
+  configurable: true,
+})
+// Override href setter to track redirects
+Object.defineProperty(globalThis.window.location, "href", {
+  set: (v: string) => {
+    mockRedirect(v)
   },
-}))
+  get: () => "",
+  configurable: true,
+})
 
 // Mock localStorage
 const localStorageStore: Record<string, string> = {}
@@ -217,7 +225,12 @@ describe("silent refresh on 401", () => {
     // Refresh call: fails
     mockFetch.mockResolvedValueOnce(mockResponse({ ok: false, status: 401 }))
 
-    await expect(apiFetch("/protected", TestSchema)).rejects.toThrow("NEXT_REDIRECT")
+    // handleAuthFailure sets window.location.href and returns never (pending promise)
+    const result = apiFetch("/protected", TestSchema)
+    // Prevent unhandled rejection
+    result.catch(() => {})
+    // Wait a tick for the async flow to complete redirect
+    await new Promise(r => setTimeout(r, 10))
     expect(mockRedirect).toHaveBeenCalledWith("/login")
   })
 
@@ -232,7 +245,9 @@ describe("silent refresh on 401", () => {
       }),
     )
 
-    await expect(apiFetch("/protected", TestSchema)).rejects.toThrow("NEXT_REDIRECT")
+    const result = apiFetch("/protected", TestSchema)
+    result.catch(() => {})
+    await new Promise(r => setTimeout(r, 10))
     expect(mockRedirect).toHaveBeenCalledWith("/login")
   })
 })
