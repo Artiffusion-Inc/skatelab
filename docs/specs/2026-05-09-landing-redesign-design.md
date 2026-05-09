@@ -416,6 +416,35 @@ All new copy goes into `frontend/messages/ru.json` and `en.json` under existing 
 | INP | < 200ms | Defer GSAP init, use composited transforms only |
 | JS bundle | < 150KB | Tree-shake GSAP, code-split heavy sections |
 
+## No-JS / SSR Fallback
+
+All animated elements must be visible without JavaScript. GSAP sets initial `opacity:0` via inline styles or classes — if JS fails, the page is blank.
+
+**Rule:** GSAP `from()` states (initial hidden position) must be set by GSAP, not by CSS. Elements render in their final visible state by default. GSAP `from()` sets them to `opacity:0, y:30` and animates to the already-rendered final state. This way, if GSAP never runs, elements stay visible.
+
+```js
+// CORRECT: from() starts at hidden, animates to visible (already rendered)
+gsap.from(element, { opacity: 0, y: 30, duration: 0.5 })
+
+// WRONG: to() requires initial hidden state in CSS — breaks without JS
+gsap.to(element, { opacity: 1, y: 0 }) // element must start at opacity:0 in CSS
+```
+
+Remove all CSS classes that set initial hidden states (`.hero-eyebrow { opacity: 0 }`, `.hero-headline { opacity: 0 }`, etc.). GSAP `from()` handles this at runtime.
+
+**Pinned demo without JS:** Show the final phase (metrics HUD) as a static image. Use `<noscript>` to render a fallback if needed, or simply let the demo section render its final state.
+
+## Browser Compatibility
+
+| Feature | Support | Fallback |
+|---------|---------|----------|
+| `oklch()` | Safari 15.4+, Chrome 111+, Firefox 113+ | Add `@supports (color: oklch(0 0 0))` guard. For unsupported browsers, provide sRGB fallback via `@supports not` block using hex values. |
+| `dvh` | Safari 15.4+, Chrome 108+ | `height: 100vh` fallback before `height: 100dvh` |
+| `font-variation-settings` | All modern | No fallback needed — Inter Variable falls back to weight axis |
+| GSAP ScrollTrigger | All modern | No-JS fallback above |
+
+**oklch strategy:** The existing CSS uses oklch for all tokens. If the target audience includes older Safari (< 15.4), add an `@supports not (color: oklch(0 0 0))` block at the end of globals.css mapping all tokens to hex equivalents. If targeting only modern browsers (Chrome 111+, Safari 15.4+), no fallback needed.
+
 ## Out of Scope
 
 - Legal document texts for Terms, Offer, Cookies (stubs only — Privacy Policy must be real)
