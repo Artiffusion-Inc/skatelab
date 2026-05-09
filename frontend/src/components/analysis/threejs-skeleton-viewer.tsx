@@ -144,14 +144,8 @@ function RenderModeToggle() {
 }
 
 function PlaybackControls() {
-  const {
-    isPlaying,
-    setIsPlaying,
-    currentFrame,
-    setCurrentFrame,
-    playbackSpeed,
-    setPlaybackSpeed,
-  } = useAnalysisStore()
+  const { isPlaying, setIsPlaying, setCurrentFrame, playbackSpeed, setPlaybackSpeed } =
+    useAnalysisStore()
 
   return (
     <div
