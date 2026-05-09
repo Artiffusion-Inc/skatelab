@@ -38,7 +38,9 @@ RUN --mount=type=cache,target=/root/.cache/uv \
     structlog==25.5.0 \
     pydantic-settings==2.13.1 \
     boto3==1.42.80 \
-    httpx==0.28.1
+    aiobotocore==3.4.0 \
+    httpx==0.28.1 \
+    prometheus-client==0.22.1
 
 # Strip unnecessary files from venv
 RUN find /opt/venv -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null; \
@@ -76,6 +78,7 @@ ENV PATH="/opt/venv/bin:$PATH" \
     VIRTUAL_ENV=/opt/venv
 
 # ONNX models (~500MB) — rarely changes, separate layer for cache hits
+COPY --chown=appuser:appuser data/models/moganet/ data/models/moganet/
 COPY --chown=appuser:appuser data/models/depth_anything_v2_small.onnx data/models/
 COPY --chown=appuser:appuser data/models/neuflowv2_mixed.onnx data/models/
 COPY --chown=appuser:appuser data/models/rvm_mobilenetv3.onnx data/models/
