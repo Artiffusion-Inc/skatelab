@@ -1,0 +1,21 @@
+package ru.skatelab.capture.domain.model
+
+import java.io.File
+
+data class CaptureSession(
+    val id: String,
+    val videoFile: File,
+    val imuLeftFile: File,
+    val imuRightFile: File,
+    val frameTimestampsFile: File,
+    val manifestFile: File,
+    val t0Ns: Long,
+    val durationMs: Long,
+    val videoFps: Int,
+    val timestampSource: String,
+    val videoStartDelayMs: Long,
+    val imuStartDelayMs: Map<SensorId, Long>,
+    val calibration: Map<SensorId, CalibrationData>,
+    val createdAt: Long,
+    val isComplete: Boolean,
+)

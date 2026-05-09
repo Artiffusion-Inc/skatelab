@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">SkateLab Capture</string>
+    <string name="recording_notification_channel">Sensor Recording</string>
+    <string name="recording_notification_title">Recording in progress</string>
+</resources>
