@@ -88,7 +88,7 @@ export function DemoSection() {
     >
       <div className="relative mx-auto max-w-5xl px-6 py-16 md:py-24">
         <div className="mb-12 md:mb-20 md:pr-32">
-          <p className="mb-4 text-xs font-medium uppercase tracking-[0.3em] text-ink-mute">
+          <p className="mb-4 sh-micro uppercase tracking-[0.3em] text-ink-mute">
             {t("demoEyebrow")}
           </p>
           <h2 className="sh-display-xl text-ink">{t("demoHeadline")}</h2>
@@ -97,7 +97,7 @@ export function DemoSection() {
         <div ref={containerRef} className="hidden lg:block relative mx-auto max-w-4xl overflow-hidden rounded-lg border border-hairline">
           <div className="relative aspect-video">
             <Image
-              src="/images/demo-skater.webp"
+              src="/images/hero-skater.webp"
               alt="Figure skater during a jump, with AI skeleton overlay tracking body position"
               width={1200}
               height={675}
@@ -112,25 +112,25 @@ export function DemoSection() {
             <div ref={badgesRef}>
               <div className="absolute top-[12%] left-[8%]">
                 <div className="sh-badge-opaque rounded-md px-4 py-3 sh-metric-pulse">
-                  <p className="sh-micro uppercase tracking-wider text-on-dark-faint">{t("demoMetricCoM")}</p>
+                  <p className="sh-micro uppercase tracking-wider text-on-dark-dim">{t("demoMetricCoM")}</p>
                   <p className="sh-heading-lg text-primary-foreground tabular-nums">1.24 м</p>
                 </div>
               </div>
               <div className="absolute right-[10%] bottom-[18%]">
                 <div className="sh-badge-opaque rounded-md px-4 py-3 sh-metric-pulse">
-                  <p className="sh-micro uppercase tracking-wider text-on-dark-faint">{t("demoMetricRotation")}</p>
+                  <p className="sh-micro uppercase tracking-wider text-on-dark-dim">{t("demoMetricRotation")}</p>
                   <p className="sh-heading-lg text-primary-foreground tabular-nums">540°</p>
                 </div>
               </div>
               <div className="absolute top-[45%] right-[6%]">
                 <div className="sh-badge-opaque rounded-md px-4 py-3 sh-metric-pulse">
-                  <p className="sh-micro uppercase tracking-wider text-on-dark-faint">{t("demoMetricAirtime")}</p>
+                  <p className="sh-micro uppercase tracking-wider text-on-dark-dim">{t("demoMetricAirtime")}</p>
                   <p className="sh-heading-lg text-primary-foreground tabular-nums">0.72 с</p>
                 </div>
               </div>
               <div className="sh-badge-opaque absolute bottom-4 left-4 right-4 flex items-center justify-between rounded-sm px-4 py-2">
                 <p className="sh-micro text-on-dark-mute">{t("demoSpecPoints")}</p>
-                <p className="sh-micro text-on-dark-faint">{t("demoSpecFps")}</p>
+                <p className="sh-micro text-on-dark-dim">{t("demoSpecFps")}</p>
               </div>
             </div>
           </div>
@@ -165,7 +165,7 @@ export function DemoSection() {
             <div key={key} className="rounded-lg border border-hairline overflow-hidden">
               <div className="relative aspect-video">
                 <Image
-                  src="/images/demo-skater.webp"
+                  src="/images/hero-skater.webp"
                   alt=""
                   width={1200}
                   height={675}
@@ -182,26 +182,26 @@ export function DemoSection() {
                   <>
                     <div className="absolute top-[12%] left-[8%]">
                       <div className="sh-badge-opaque rounded-md px-3 py-2">
-                        <p className="sh-micro uppercase tracking-wider text-on-dark-faint">{t("demoMetricCoM")}</p>
-                        <p className="text-sm font-semibold text-white">1.24 м</p>
+                        <p className="sh-micro uppercase tracking-wider text-on-dark-dim">{t("demoMetricCoM")}</p>
+                        <p className="sh-heading-lg text-primary-foreground">1.24 м</p>
                       </div>
                     </div>
                     <div className="absolute right-[10%] bottom-[18%]">
                       <div className="sh-badge-opaque rounded-md px-3 py-2">
-                        <p className="sh-micro uppercase tracking-wider text-on-dark-faint">{t("demoMetricRotation")}</p>
-                        <p className="text-sm font-semibold text-white">540°</p>
+                        <p className="sh-micro uppercase tracking-wider text-on-dark-dim">{t("demoMetricRotation")}</p>
+                        <p className="sh-heading-lg text-primary-foreground">540°</p>
                       </div>
                     </div>
                     <div className="absolute top-[45%] right-[6%]">
                       <div className="sh-badge-opaque rounded-md px-3 py-2">
-                        <p className="sh-micro uppercase tracking-wider text-on-dark-faint">{t("demoMetricAirtime")}</p>
-                        <p className="text-sm font-semibold text-white">0.72 с</p>
+                        <p className="sh-micro uppercase tracking-wider text-on-dark-dim">{t("demoMetricAirtime")}</p>
+                        <p className="sh-heading-lg text-primary-foreground">0.72 с</p>
                       </div>
                     </div>
                   </>
                 )}
               </div>
-              <p className="px-4 py-3 sh-caption font-medium text-ink">{t(key)}</p>
+              <p className="px-4 py-3 sh-caption text-ink">{t(key)}</p>
             </div>
           ))}
         </div>

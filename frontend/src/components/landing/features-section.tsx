@@ -32,7 +32,7 @@ export function HowItWorksSection() {
     <section id="how-it-works" tabIndex={-1} aria-label={t("howItWorksTitle")} className="relative mx-auto max-w-5xl px-6 py-20 md:py-28">
       {/* Section opener — left-aligned, asymmetric */}
       <div className="mb-14 md:mb-20">
-        <p className="mb-4 text-xs font-medium uppercase tracking-[0.3em] text-ink-mute">
+        <p className="mb-4 sh-micro uppercase tracking-[0.3em] text-ink-mute">
           {t("howItWorksTitle")}
         </p>
         <h2 className="sh-display-xl text-ink max-w-xl">
@@ -50,7 +50,7 @@ export function HowItWorksSection() {
           <div>
             <h3 className="sh-display-md mb-3 text-ink">{steps[0].title}</h3>
             <p className="sh-body-md max-w-lg text-ink-mute">{steps[0].description}</p>
-            <p className="mt-4 sh-caption font-medium text-primary">{steps[0].accent}</p>
+            <p className="mt-4 sh-caption text-primary">{steps[0].accent}</p>
           </div>
         </div>
       </div>
@@ -71,7 +71,7 @@ export function HowItWorksSection() {
                 </div>
                 <h3 className="sh-heading-lg mb-2 text-ink">{step.title}</h3>
                 <p className="sh-caption text-ink-mute">{step.description}</p>
-                <p className="mt-3 sh-caption font-medium text-primary">{step.accent}</p>
+                <p className="mt-3 sh-caption text-primary">{step.accent}</p>
               </div>
             </div>
           )

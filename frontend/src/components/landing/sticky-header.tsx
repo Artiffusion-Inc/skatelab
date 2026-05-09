@@ -57,7 +57,7 @@ export function StickyHeader() {
       <div className="header-bg absolute inset-0 bg-background opacity-0" />
       <div className="header-border absolute bottom-0 left-0 right-0 h-px border-b border-hairline opacity-0" />
       <div className="relative mx-auto flex h-16 max-w-5xl items-center justify-between px-6">
-        <a href="/" className="sh-display-md text-ink">
+        <a href="/" className="sh-body-md text-ink" style={{ fontVariationSettings: '"wght" 600' }}>
           SkateLab
         </a>
 
@@ -112,7 +112,7 @@ export function StickyHeader() {
               aria-label="Меню навигации"
             >
               <div className="flex items-center justify-between p-4">
-                <span className="sh-display-md text-ink">SkateLab</span>
+                <span className="sh-body-md text-ink" style={{ fontVariationSettings: '"wght" 600' }}>SkateLab</span>
                 <button
                   onClick={closeMenu}
                   className="min-h-[44px] min-w-[44px] flex items-center justify-center"

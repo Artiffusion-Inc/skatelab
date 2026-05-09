@@ -21,7 +21,7 @@ export function FAQSection() {
       aria-labelledby="faq-heading"
     >
       <div className="faq-header mb-10">
-        <p className="mb-4 text-xs font-medium uppercase tracking-[0.3em] text-ink-mute">
+        <p className="mb-4 sh-micro uppercase tracking-[0.3em] text-ink-mute">
           {t("faqTitle")}
         </p>
         <h2 id="faq-heading" className="sh-display-xl text-ink">

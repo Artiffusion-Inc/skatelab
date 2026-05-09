@@ -10,11 +10,11 @@ export function FooterSection() {
       <div className="mx-auto max-w-5xl px-6 py-12 md:py-16">
         <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-4">
           <div>
-            <p className="sh-display-md text-ink">SkateLab</p>
+            <p className="sh-heading-lg text-ink">SkateLab</p>
             <p className="sh-caption text-ink-mute mt-1">{t("footerTagline")}</p>
             <a
               href="/register"
-              className="sh-button-cap text-link hover:underline mt-2 inline-block min-h-[44px] flex items-center"
+              className="sh-button-cap text-ink underline hover:text-ink-mute mt-2 inline-block min-h-[44px] leading-[44px]"
             >
               {t("ctaPrimary")} →
             </a>

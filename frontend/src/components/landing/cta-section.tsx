@@ -21,7 +21,7 @@ export function CTASection() {
           </p>
           <div className="mt-10 flex flex-col items-start gap-4 sm:flex-row">
             <Button
-              variant="on-teal"
+              variant="on-dark-pill"
               size="lg"
               className="min-h-[44px] px-10 text-base"
               asChild

@@ -57,7 +57,7 @@ export function TrustSection() {
         {counters.map((counter, i) => (
           <div key={counter.valueKey}>
             <p
-              className="sh-display-lg font-bold text-primary"
+              className="sh-display-lg text-primary"
               aria-label={t(counter.valueKey).replace("+", "") + " " + t(counter.labelKey)}
             >
               <span
