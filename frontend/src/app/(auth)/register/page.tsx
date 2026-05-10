@@ -8,18 +8,25 @@ import { useAuth } from "@/components/auth-provider"
 import { FormField } from "@/components/form-field"
 import { Button } from "@/components/ui/button"
 import { useTranslations } from "@/i18n"
+import { useMountEffect } from "@/lib/useMountEffect"
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
 export default function RegisterPage() {
   const router = useRouter()
-  const { register } = useAuth()
+  const { register, isAuthenticated, isLoading } = useAuth()
   const t = useTranslations("auth")
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [confirmPassword, setConfirmPassword] = useState("")
   const [displayName, setDisplayName] = useState("")
   const [loading, setLoading] = useState(false)
+
+  useMountEffect(() => {
+    if (isAuthenticated) router.push("/feed")
+  })
+
+  if (isLoading) return null
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault()

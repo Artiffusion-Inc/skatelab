@@ -6,6 +6,7 @@ import { type ReactNode, useState } from "react"
 import { AuthProvider } from "@/components/auth-provider"
 import { ErrorBoundary } from "@/components/error-boundary"
 import { ApiError } from "@/lib/api-client"
+import { isPublicPage } from "@/lib/is-public-page"
 
 export function Providers({ children, nonce }: { children: ReactNode; nonce?: string }) {
   const [queryClient] = useState(
@@ -19,9 +20,7 @@ export function Providers({ children, nonce }: { children: ReactNode; nonce?: st
               typeof window !== "undefined"
             ) {
               const path = globalThis.location.pathname
-              const isPublic =
-                path === "/" || path.startsWith("/login") || path.startsWith("/register")
-              if (!isPublic) globalThis.location.href = "/login"
+              if (!isPublicPage(path)) globalThis.location.href = "/login"
             }
           },
         }),

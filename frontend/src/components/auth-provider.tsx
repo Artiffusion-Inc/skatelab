@@ -6,6 +6,7 @@ import { devMockAuth, isDevelopment } from "@/lib/env"
 import type { UserResponse } from "@/lib/auth"
 import * as auth from "@/lib/auth"
 import { clearTokens, getAccessToken, getRefreshToken } from "@/lib/api-client"
+import { isPublicPage } from "@/lib/is-public-page"
 import { useMountEffect } from "@/lib/useMountEffect"
 
 interface AuthContextValue {
@@ -59,13 +60,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return
     }
 
-    const isPublicPage =
-      typeof window !== "undefined" &&
-      (window.location.pathname === "/" ||
-        window.location.pathname.startsWith("/privacy") ||
-        window.location.pathname.startsWith("/terms") ||
-        window.location.pathname.startsWith("/offer") ||
-        window.location.pathname.startsWith("/cookies"))
+    const publicPage = typeof window !== "undefined" && isPublicPage(window.location.pathname)
 
     auth
       .fetchMe()
@@ -77,7 +72,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       })
       .catch(() => {
         clearTokens()
-        if (!isPublicPage) router.push("/login")
+        if (!publicPage) router.push("/login")
       })
       .finally(() => setIsLoading(false))
   })
