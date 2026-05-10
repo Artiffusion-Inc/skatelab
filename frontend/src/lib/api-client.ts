@@ -79,10 +79,6 @@ async function silentRefresh(): Promise<boolean> {
 
 function handleAuthFailure(): never {
   clearTokens()
-  if (typeof window !== "undefined") {
-    window.location.href = "/login"
-    return new Promise(() => {}) as never
-  }
   throw new ApiError("Authentication required", 401)
 }
 
