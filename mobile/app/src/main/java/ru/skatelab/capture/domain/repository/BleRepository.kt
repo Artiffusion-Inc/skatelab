@@ -10,6 +10,7 @@ interface BleRepository {
     val scanResults: Flow<List<ScanDevice>>
     val connectionState: Flow<Map<SensorId, ConnectionState>>
     val imuSamples: Flow<Pair<SensorId, ImuSample>>
+    val reconnectEvents: Flow<SensorId>
 
     fun startScan()
     fun stopScan()

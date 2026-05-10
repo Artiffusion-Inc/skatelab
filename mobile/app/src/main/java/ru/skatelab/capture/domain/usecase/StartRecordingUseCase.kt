@@ -3,6 +3,7 @@ package ru.skatelab.capture.domain.usecase
 import android.content.Context
 import android.content.Intent
 import android.os.SystemClock
+import dagger.hilt.android.qualifiers.ApplicationContext
 import ru.skatelab.capture.domain.model.SensorId
 import ru.skatelab.capture.domain.repository.BleRepository
 import ru.skatelab.capture.domain.repository.CameraRepository
@@ -13,23 +14,32 @@ import javax.inject.Inject
 class StartRecordingUseCase @Inject constructor(
     private val bleRepository: BleRepository,
     private val cameraRepository: CameraRepository,
-    private val context: Context,
+    @ApplicationContext private val context: Context,
 ) {
-    suspend operator fun invoke(outputDir: File): Result<RecordingStartInfo> = runCatching {
+    /**
+     * Starts a recording session. Camera must already be prepared via
+     * [CameraRepository.prepare] before calling this.
+     *
+     * @param outputDir Directory for output files.
+     * @param videoFile Video output file (already passed to [CameraRepository.prepare]).
+     * @param framesFile Frame timestamps CSV (already passed to [CameraRepository.prepare]).
+     * @param imuLeftFile IMU left sensor output file.
+     * @param imuRightFile IMU right sensor output file.
+     */
+    suspend operator fun invoke(
+        outputDir: File,
+        videoFile: File,
+        framesFile: File,
+        imuLeftFile: File,
+        imuRightFile: File,
+    ): Result<RecordingStartInfo> = runCatching {
         // 1. Start Foreground Service
         val serviceIntent = Intent(context, SensorRecordingService::class.java).apply {
             action = SensorRecordingService.ACTION_START
         }
         context.startForegroundService(serviceIntent)
 
-        // 2. Prepare output files
-        val timestamp = System.currentTimeMillis()
-        val videoFile = File(outputDir, "${timestamp}.mp4")
-        val framesFile = File(outputDir, "${timestamp}_frames.csv")
-        val imuLeftFile = File(outputDir, "${timestamp}_left.binpb")
-        val imuRightFile = File(outputDir, "${timestamp}_right.binpb")
-
-        // 3. Start BLE streaming (IMU first per H28)
+        // 2. Start BLE streaming (IMU first per H28)
         val tImuStartSentNs = SystemClock.elapsedRealtimeNanos()
         val leftResult = bleRepository.startStreaming(SensorId.LEFT)
         val rightResult = bleRepository.startStreaming(SensorId.RIGHT)
@@ -37,11 +47,10 @@ class StartRecordingUseCase @Inject constructor(
             throw Exception("BLE streaming start failed")
         }
 
-        // 4. Start camera (after IMU per H28)
-        cameraRepository.prepare(videoFile, framesFile).getOrThrow()
+        // 3. Start camera recording (prepare must have been called before)
         val cameraResult = cameraRepository.startRecording().getOrThrow()
 
-        // 5. Compute IMU start delay (simplified — actual first arrival tracked via Flow in real impl)
+        // 4. Compute IMU start delay
         val imuStartDelayMs = mapOf(
             SensorId.LEFT to ((cameraResult.tFirstFrameNs - tImuStartSentNs) / 1_000_000),
             SensorId.RIGHT to ((cameraResult.tFirstFrameNs - tImuStartSentNs) / 1_000_000),

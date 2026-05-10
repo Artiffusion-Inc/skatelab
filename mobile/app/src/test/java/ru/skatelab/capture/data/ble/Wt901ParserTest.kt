@@ -278,4 +278,79 @@ class Wt901ParserTest {
         val result = parser.feed(combined, t0 + 25_000_000L)
         assertNotNull("New cycle after timeout should complete normally", result)
     }
+
+    // --- Test 8: 0x71 register read response parsing ---
+
+    @Test
+    fun parseRegisterReadResponse() {
+        var callbackResult: RegisterReadResult? = null
+        parser.onRegisterRead = { callbackResult = it }
+
+        // Build a 0x71 frame for register 0x04 (battery)
+        // Data payload: byte[2]=register, bytes[3..8]=3x int16 LE
+        val data = ByteArray(8)
+        data[0] = 0x04 // register byte in position 2 of the frame
+        writeInt16LE(data, 1, 75)  // data[0] = 75 (battery 75%)
+        writeInt16LE(data, 3, 0)   // data[1] = 0
+        writeInt16LE(data, 5, 0)   // data[2] = 0
+
+        // For 0x71, byte[2] of frame is the register, bytes[3..8] are data
+        // buildFrame puts data starting at byte[2], so we need register at data[0]
+        val frame = buildFrame(0x71, data)
+
+        val result = parser.feed(frame, 1_000_000_000L)
+
+        // 0x71 frames don't produce ImuSample
+        assertNull("0x71 frame should not produce ImuSample", result)
+
+        // But the callback should have fired
+        assertNotNull("onRegisterRead callback should have been invoked", callbackResult)
+        callbackResult!!.let { rr ->
+            assertEquals("Register should be 0x04", 0x04, rr.register)
+            assertEquals("Data should have 3 shorts", 3, rr.data.size)
+            assertEquals("Battery value should be 75", 75, rr.data[0].toInt())
+            assertEquals(0, rr.data[1].toInt())
+            assertEquals(0, rr.data[2].toInt())
+        }
+    }
+
+    @Test
+    fun parseRegisterReadResponseDoesNotInterfereWithImuCycle() {
+        var callbackResult: RegisterReadResult? = null
+        parser.onRegisterRead = { callbackResult = it }
+
+        val t0 = 1_000_000_000L
+
+        // Feed ACC frame to start a cycle
+        val accData = ByteArray(8)
+        writeInt16LE(accData, 0, 2048)
+        val accFrame = buildFrame(0x51, accData)
+        parser.feed(accFrame, t0)
+
+        // Feed a 0x71 frame in the middle — should not break the cycle
+        val regData = ByteArray(8)
+        regData[0] = 0x50 // register 0x50
+        writeInt16LE(regData, 1, 1000)
+        writeInt16LE(regData, 3, 0)
+        writeInt16LE(regData, 5, 0)
+        val regFrame = buildFrame(0x71, regData)
+        parser.feed(regFrame, t0 + 1_000_000L)
+
+        assertNotNull("onRegisterRead should fire for 0x71", callbackResult)
+        assertEquals(0x50, callbackResult!!.register)
+
+        // Now feed GYRO + QUAT — cycle should still complete
+        val gyroData = ByteArray(8)
+        writeInt16LE(gyroData, 0, 1000)
+        val gyroFrame = buildFrame(0x52, gyroData)
+
+        val quatData = ByteArray(8)
+        writeInt16LE(quatData, 0, 16384)
+        val quatFrame = buildFrame(0x59, quatData)
+
+        val combined = gyroFrame + quatFrame
+        val result = parser.feed(combined, t0 + 5_000_000L)
+        assertNotNull("IMU cycle should complete after 0x71 interjection", result)
+        assertEquals(0, parser.droppedPartialCount)
+    }
 }

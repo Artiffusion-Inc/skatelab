@@ -6,12 +6,24 @@ import kotlin.math.atan2
 import kotlin.math.cos
 import kotlin.math.sin
 
+/** Result of a register read (0x71 frame). */
+data class RegisterReadResult(val register: Int, val data: ShortArray) {
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is RegisterReadResult) return false
+        return register == other.register && data.contentEquals(other.data)
+    }
+
+    override fun hashCode(): Int = 31 * register + data.contentHashCode()
+}
+
 /**
  * Parses WT901 BLE frames into [ImuSample].
  *
  * Handles two frame formats:
  * - Individual frames (0x51 ACC, 0x52 GYRO, 0x59 Quaternion): 11 bytes each
  * - Combined frame (0x61): 20 bytes — ACC+GYRO+Euler angles, no checksum
+ * - Register read response (0x71): 11 bytes — register address + 3x int16 data
  *
  * Also handles:
  * - Partial frames spanning BLE notifications (buffer accumulation)
@@ -30,6 +42,7 @@ class Wt901Parser {
         private const val TYPE_GYRO: Byte = 0x52
         private const val TYPE_QUAT: Byte = 0x59
         private const val TYPE_COMBINED: Byte = 0x61
+        private const val TYPE_REG_READ: Byte = 0x71
 
         // Frame sizes
         private const val INDIVIDUAL_FRAME_SIZE = 11
@@ -66,6 +79,9 @@ class Wt901Parser {
     /** Count of incomplete cycles dropped. */
     var droppedPartialCount = 0
         private set
+
+    /** Callback invoked when a 0x71 register read response is parsed. */
+    var onRegisterRead: ((RegisterReadResult) -> Unit)? = null
 
     /**
      * Feed incoming BLE notification bytes and attempt to parse.
@@ -115,6 +131,7 @@ class Wt901Parser {
             val sample = when (frameType) {
                 TYPE_COMBINED -> parseCombinedFrame(arrivalNs)
                 TYPE_ACC, TYPE_GYRO, TYPE_QUAT -> processFrame(frameType, arrivalNs)
+                TYPE_REG_READ -> { parseRegisterReadFrame(); null }
                 else -> {
                     shiftBuffer(1)
                     continue
@@ -281,6 +298,26 @@ class Wt901Parser {
         } else {
             null
         }
+    }
+
+    /**
+     * Parse 0x71 register read response frame (11 bytes).
+     * Layout: [0x55][0x71][reg][d0L][d0H][d1L][d1H][d2L][d2H][d3L][d3H]
+     * — but WT901 packs 8 data bytes after the register byte:
+     * [0x55][0x71][reg][d0L][d0H][d1L][d1H][d2L][d2H][checksum]
+     * Same 11-byte individual-frame format. Bytes[2]=register, bytes[3..8]=3x int16 LE.
+     */
+    private fun parseRegisterReadFrame() {
+        val reg = buffer[2].toInt() and 0xFF
+        val data = ShortArray(3) { i -> readInt16LEShort(3 + i * 2) }
+        onRegisterRead?.invoke(RegisterReadResult(reg, data))
+    }
+
+    /** Read a signed 16-bit little-endian value from buffer at offset, return as Short. */
+    private fun readInt16LEShort(offset: Int): Short {
+        val low = buffer[offset].toInt() and 0xFF
+        val high = buffer[offset + 1].toInt() and 0xFF
+        return ((high shl 8) or low).toShort()
     }
 
     /** Read a signed 16-bit little-endian value from buffer at offset, return as Float. */

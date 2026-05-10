@@ -23,6 +23,9 @@ class BleHandlerThread(name: String = "ble-parsing") : HandlerThread(name) {
     private val parsers = mutableMapOf<String, Wt901Parser>()
     private var parseCount = 0L
 
+    // Register read callback — set by BleManager, invoked on handler thread
+    private var registerReadCallback: ((String, RegisterReadResult) -> Unit)? = null
+
     /**
      * Call after [start()] to prepare the [Handler] for this looper.
      */
@@ -31,11 +34,27 @@ class BleHandlerThread(name: String = "ble-parsing") : HandlerThread(name) {
     }
 
     /**
+     * Set the callback for register read results.
+     * Called on the handler thread when a 0x71 frame is parsed.
+     * @param callback (sensorAddress, RegisterReadResult) -> Unit
+     */
+    fun setRegisterReadCallback(callback: (String, RegisterReadResult) -> Unit) {
+        registerReadCallback = callback
+    }
+
+    /**
      * Get an existing parser for the given sensor, or create a new one.
      * Thread-safe: called from the handler thread itself during parsing.
+     * Wires up the [onRegisterRead] callback when a new parser is created.
      */
     fun getOrCreateParser(sensorAddress: String): Wt901Parser {
-        return parsers.getOrPut(sensorAddress) { Wt901Parser() }
+        return parsers.getOrPut(sensorAddress) {
+            Wt901Parser().also { parser ->
+                parser.onRegisterRead = { result ->
+                    registerReadCallback?.invoke(sensorAddress, result)
+                }
+            }
+        }
     }
 
     /**

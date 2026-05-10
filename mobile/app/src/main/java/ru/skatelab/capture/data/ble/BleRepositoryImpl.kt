@@ -38,6 +38,8 @@ class BleRepositoryImpl @Inject constructor(
 
     override val imuSamples: Flow<Pair<SensorId, ImuSample>> = bleManager.imuSamples
 
+    override val reconnectEvents: Flow<SensorId> = bleManager.reconnectEvents
+
     override fun startScan() = bleManager.startScan()
     override fun stopScan() = bleManager.stopScan()
 
@@ -57,22 +59,31 @@ class BleRepositoryImpl @Inject constructor(
     }
 
     override suspend fun startStreaming(sensorId: SensorId): Result<Unit> = runCatching {
+        bleManager.isRecording = true
         bleManager.sendSequence(sensorId, Wt901Commander.startStreamingSequence())
     }
 
     override suspend fun stopStreaming(sensorId: SensorId): Result<Unit> = runCatching {
         bleManager.sendSequence(sensorId, Wt901Commander.stopStreamingSequence())
+        bleManager.isRecording = false
     }
 
-    override suspend fun readBattery(sensorId: SensorId): Result<Int> = runCatching {
-        bleManager.sendCommand(sensorId, Wt901Commander.readRegister(0x04))
-        // Battery response comes via 0x71 notification - for now return placeholder
-        100
+    override suspend fun readBattery(sensorId: SensorId): Result<Int> {
+        val result = bleManager.readRegisterResponse(sensorId, 0x04)
+        return result.map { data ->
+            // Battery register returns percentage as int16 in data[0]
+            data[0].toInt().coerceIn(0, 100)
+        }
     }
 
-    override suspend fun readChipTime(sensorId: SensorId): Result<Long> = runCatching {
-        bleManager.sendCommand(sensorId, Wt901Commander.readRegister(0x50))
-        // Chip time response comes via 0x71 notification - for now return system time
-        System.currentTimeMillis()
+    override suspend fun readChipTime(sensorId: SensorId): Result<Long> {
+        val result = bleManager.readRegisterResponse(sensorId, 0x50)
+        return result.map { data ->
+            // Chip time register returns 3x int16: low, mid, high → combine to uint32
+            val low = data[0].toLong() and 0xFFFF
+            val mid = data[1].toLong() and 0xFFFF
+            val high = data[2].toLong() and 0xFFFF
+            (high shl 32) or (mid shl 16) or low
+        }
     }
 }

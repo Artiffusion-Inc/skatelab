@@ -12,6 +12,7 @@ import android.bluetooth.BluetoothProfile
 import android.content.Context
 import android.os.SystemClock
 import kotlinx.coroutines.withTimeoutOrNull
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -71,6 +72,16 @@ class BleManager(private val context: Context, private val logger: ru.skatelab.c
 
     private val _imuSamples = MutableSharedFlow<Pair<SensorId, ImuSample>>(extraBufferCapacity = 64)
     val imuSamples: Flow<Pair<SensorId, ImuSample>> = _imuSamples.asSharedFlow()
+
+    // Register read responses: (sensorAddress, RegisterReadResult)
+    private val _registerReadResults = MutableSharedFlow<Pair<String, RegisterReadResult>>(extraBufferCapacity = 8)
+    val registerReadResults: Flow<Pair<String, RegisterReadResult>> = _registerReadResults.asSharedFlow()
+
+    private val _reconnectEvents = MutableSharedFlow<SensorId>(extraBufferCapacity = 8)
+    val reconnectEvents: Flow<SensorId> = _reconnectEvents.asSharedFlow()
+
+    @Volatile
+    var isRecording = false
 
     // Map sensor address to SensorId (assigned by user during scan)
     private val addressToSensorId = ConcurrentHashMap<String, SensorId>()
@@ -132,6 +143,9 @@ class BleManager(private val context: Context, private val logger: ru.skatelab.c
         if (!handlerThread.isAlive) {
             handlerThread.start()
             handlerThread.prepareHandler()
+            handlerThread.setRegisterReadCallback { address, result ->
+                _registerReadResults.tryEmit(address to result)
+            }
         }
 
         device.connectGatt(context, false, createGattCallback(sensorId, address))
@@ -167,7 +181,7 @@ class BleManager(private val context: Context, private val logger: ru.skatelab.c
     // --- GATT Callback ---
 
     @SuppressLint("MissingPermission")
-    private fun createGattCallback(sensorId: SensorId, address: String) = object : BluetoothGattCallback() {
+    private fun createGattCallback(sensorId: SensorId, address: String): BluetoothGattCallback = object : BluetoothGattCallback() {
 
         override fun onConnectionStateChange(gatt: BluetoothGatt, status: Int, newState: Int) {
             logi("GATT state change: address=$address status=$status newState=$newState")
@@ -176,8 +190,26 @@ class BleManager(private val context: Context, private val logger: ru.skatelab.c
                 gatt.requestConnectionPriority(BluetoothGatt.CONNECTION_PRIORITY_HIGH)
                 gatt.discoverServices()
             } else if (newState == BluetoothProfile.STATE_DISCONNECTED) {
-                gattConnections.remove(address)
-                updateConnectionState(sensorId, ConnectionState.DISCONNECTED)
+                // Auto-reconnect if sensor was previously connected (not explicit disconnect)
+                val wasConnected = gattConnections.remove(address) != null
+                if (wasConnected && isRecording) {
+                    logw("BLE disconnected during recording, attempting reconnect: $address")
+                    updateConnectionState(sensorId, ConnectionState.RECONNECTING)
+                    _reconnectEvents.tryEmit(sensorId)
+                    // Delayed reconnect on handler thread
+                    handlerThread.handler?.postDelayed({
+                        try {
+                            val device: BluetoothDevice = gatt.device
+                            val callback: BluetoothGattCallback = createGattCallback(sensorId, address)
+                            device.connectGatt(context, false, callback)
+                        } catch (e: Exception) {
+                            loge("Reconnect failed: ${e.message}")
+                            updateConnectionState(sensorId, ConnectionState.DISCONNECTED)
+                        }
+                    }, 2000L)
+                } else {
+                    updateConnectionState(sensorId, ConnectionState.DISCONNECTED)
+                }
             }
         }
 
@@ -269,6 +301,43 @@ class BleManager(private val context: Context, private val logger: ru.skatelab.c
     }
 
     // --- Command Sending ---
+
+    /**
+     * Send a register read command and wait for the 0x71 response.
+     *
+     * Sends [Wt901Commander.readRegister], then suspends until a 0x71 frame
+     * with the matching register address arrives or [timeoutMs] elapses.
+     */
+    suspend fun readRegisterResponse(
+        sensorId: SensorId,
+        register: Int,
+        timeoutMs: Long = 2000L,
+    ): Result<ShortArray> {
+        val address = addressToSensorId.entries.find { it.value == sensorId }?.key
+            ?: return Result.failure(IllegalArgumentException("No address for $sensorId"))
+
+        sendCommand(sensorId, Wt901Commander.readRegister(register))
+
+        return try {
+            val result = withTimeoutOrNull(timeoutMs) {
+                _registerReadResults.first { (addr, r) ->
+                    addr == address && r.register == register
+                }.second
+            }
+            if (result != null) {
+                logi("readRegisterResponse: reg=0x${register.toString(16)} data=${result.data.toList()}")
+                Result.success(result.data)
+            } else {
+                logw("readRegisterResponse: timeout waiting for reg=0x${register.toString(16)}")
+                Result.failure(java.util.concurrent.TimeoutException("No 0x71 response for register 0x${register.toString(16)} within ${timeoutMs}ms"))
+            }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            loge("readRegisterResponse: error waiting for reg=0x${register.toString(16)}: ${e.message}")
+            Result.failure(e)
+        }
+    }
 
     @SuppressLint("MissingPermission")
     fun sendCommand(sensorId: SensorId, bytes: ByteArray) {
