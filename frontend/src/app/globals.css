@@ -13,7 +13,7 @@
   --color-muted: oklch(0.967 0 0);
   --color-muted-foreground: oklch(0.55 0 0);
   --color-border: oklch(0.815 0 0);
-  --color-primary: oklch(0.22 0.06 280);
+  --color-primary: oklch(0.22 0.05 250);
   --color-primary-foreground: oklch(1 0 0);
   --color-destructive: oklch(0.541 0.22 25);
   --color-destructive-foreground: oklch(0.98 0 0);
@@ -37,7 +37,7 @@
   --color-on-dark-faint: oklch(0.47 0.087 317);
   --color-hairline: oklch(0.92 0.018 118);
   --color-hairline-dark: oklch(0.364 0.084 319);
-  --color-primary-deep: oklch(0.175 0.066 315);
+  --color-primary-deep: oklch(0.14 0.04 250);
   --color-on-dark-dim: oklch(0.63 0.04 317);
 }
 
@@ -266,9 +266,8 @@ body {
   }
   .sh-violet-backdrop {
     background:
-      radial-gradient(ellipse 80% 60% at 70% 40%, oklch(0.812 0.202 321 / 0.3) 0%, transparent 60%),
-      radial-gradient(ellipse 60% 80% at 30% 60%, oklch(0.234 0.119 318 / 0.2) 0%, transparent 50%),
-      linear-gradient(to bottom, var(--color-primary), var(--color-primary-deep));
+      radial-gradient(ellipse 80% 60% at 70% 40%, oklch(0.35 0.08 250 / 0.25) 0%, transparent 60%),
+      linear-gradient(to bottom, oklch(0.22 0.05 250), oklch(0.17 0.04 250));
   }
   .sh-demo-overlay {
     background: linear-gradient(

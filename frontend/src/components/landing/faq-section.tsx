@@ -17,11 +17,11 @@ export function FAQSection() {
     <section
       id="faq"
       tabIndex={-1}
-      className="border-t border-hairline mx-auto max-w-3xl px-6 py-20 md:py-28"
+      className="border-t border-hairline mx-auto max-w-3xl px-6 py-16 md:py-24"
       aria-labelledby="faq-heading"
     >
       <div className="faq-header mb-10">
-        <p className="mb-4 sh-micro uppercase tracking-[0.3em] text-ink-mute">{t("faqTitle")}</p>
+        <p className="mb-4 sh-micro uppercase tracking-[0.3em] text-ink-mute">{t("faqEyebrow")}</p>
         <h2 id="faq-heading" className="sh-display-xl text-ink">
           {t("faqTitle")}
         </h2>

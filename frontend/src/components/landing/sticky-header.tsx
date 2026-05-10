@@ -52,10 +52,7 @@ export function StickyHeader() {
   )
 
   return (
-    <header
-      className="fixed top-0 left-0 right-0 z-50 pt-[env(safe-area-inset-top)]"
-      style={{ backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)" }}
-    >
+    <header className="fixed top-0 left-0 right-0 z-50 pt-[env(safe-area-inset-top)]">
       <div className="header-bg absolute inset-0 bg-background opacity-0" />
       <div className="header-border absolute bottom-0 left-0 right-0 h-px border-b border-hairline opacity-0" />
       <div className="relative mx-auto flex h-16 max-w-5xl items-center justify-between px-6">
@@ -69,7 +66,7 @@ export function StickyHeader() {
               type="button"
               key={item.key}
               onClick={() => handleNavClick(item.href)}
-              className="sh-body-md text-ink-mute hover:text-ink transition-colors min-h-[44px] flex items-center"
+              className="header-nav-link sh-body-md text-on-dark-mute hover:text-surface-white transition-colors min-h-[44px] flex items-center"
             >
               {t(item.key)}
             </button>

@@ -60,8 +60,9 @@ export function SkeletonPose({ role, "aria-label": ariaLabel }: SkeletonPoseProp
     <svg
       viewBox="0 0 1 1"
       className="absolute inset-0 h-full w-full"
-      {...(role ? { role, "aria-label": ariaLabel } : { role: "img" as const, "aria-hidden": "true" as const })}
+      {...(role ? { role, "aria-label": ariaLabel } : { "aria-hidden": "true" as const })}
     >
+      <title>{ariaLabel ?? "Skeleton pose animation"}</title>
       {LINES.map(([a, b]) => (
         <line
           key={`${a}-${b}`}

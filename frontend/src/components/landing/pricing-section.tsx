@@ -42,7 +42,7 @@ export function PricingSection() {
     <section
       id="pricing"
       tabIndex={-1}
-      className="border-t border-hairline mx-auto max-w-5xl px-6 py-20 md:py-28"
+      className="border-t border-hairline mx-auto max-w-5xl px-6 py-16 md:py-24"
       aria-labelledby="pricing-heading"
     >
       <div className="mb-14 md:mb-20 text-center">
@@ -65,7 +65,7 @@ export function PricingSection() {
             }`}
           >
             {tier.badge && (
-              <span className="absolute -top-3 left-1/2 -translate-x-1/2 bg-surface-violet-soft px-3 py-1 rounded-full sh-micro text-primary-foreground tracking-wider">
+              <span className="absolute -top-3 left-1/2 -translate-x-1/2 bg-surface-violet-soft px-3 py-1 rounded-full sh-micro text-primary-deep tracking-wider">
                 {tier.badge}
               </span>
             )}

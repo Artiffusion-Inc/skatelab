@@ -19,7 +19,7 @@ export default function CookieBanner({ onAccept, onDecline }: CookieBannerProps)
         role="dialog"
         aria-modal="true"
         aria-labelledby="cookie-heading"
-        className="fixed bottom-0 left-0 right-0 z-[70] border-t border-hairline bg-canvas-soft shadow-lg shadow-primary/5 pb-[env(safe-area-inset-bottom)]"
+        className="fixed bottom-0 left-0 right-0 z-[70] border-t border-hairline bg-canvas-soft pb-[env(safe-area-inset-bottom)]"
       >
         <div className="mx-auto max-w-5xl px-6 py-4">
           <div className="flex flex-col items-start gap-4 sm:flex-row sm:items-center sm:justify-between">
