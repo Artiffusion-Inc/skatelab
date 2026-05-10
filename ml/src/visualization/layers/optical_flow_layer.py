@@ -42,7 +42,9 @@ class OpticalFlowLayer(Layer):
         hsv[:, :, 0] = (angle / 2).astype(np.uint8)  # Hue: direction
         hsv[:, :, 1] = 255  # Saturation: full
         # Value: normalized magnitude
-        mag_norm = cv2.normalize(magnitude, dst=magnitude, alpha=0, beta=255, norm_type=cv2.NORM_MINMAX)
+        mag_norm = cv2.normalize(
+            magnitude, dst=magnitude, alpha=0, beta=255, norm_type=cv2.NORM_MINMAX
+        )
         hsv[:, :, 2] = mag_norm.astype(np.uint8)
 
         # HSV -> BGR

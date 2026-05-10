@@ -6,10 +6,11 @@ Provides functions for drawing:
 - 3D skeleton in picture-in-picture mode
 """
 
+from typing import Any
+
 import cv2
 import numpy as np
 from numpy.typing import NDArray
-from typing import Any
 
 from src.types import H36M_SKELETON_EDGES
 from src.visualization.config import (
@@ -393,6 +394,7 @@ def draw_skeleton_3d_pip(
 # =============================================================================
 # UTILITY FUNCTIONS
 # =============================================================================
+
 
 def _is_valid_point(
     pt: tuple[int, int],
