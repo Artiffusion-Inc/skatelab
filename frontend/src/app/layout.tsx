@@ -1,3 +1,4 @@
+import { headers } from "next/headers"
 import type { Metadata, Viewport } from "next"
 import { Inter } from "next/font/google"
 import { NextIntlClientProvider } from "next-intl"
@@ -28,17 +29,18 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const [locale, messages] = await Promise.all([getLocale(), getMessages()])
+  const nonce = (await headers()).get("x-nonce") ?? ""
 
   return (
-    <html lang={locale} suppressHydrationWarning>
-      <body className={`${inter.variable} min-h-screen bg-background text-foreground`}>
+    <html lang={locale} suppressHydrationWarning className={inter.variable}>
+      <body className="min-h-screen bg-background text-foreground">
         <NextIntlClientProvider messages={messages}>
           <Providers>
             {children}
             <Toaster richColors position="bottom-center" toastOptions={{ duration: 3000 }} />
           </Providers>
         </NextIntlClientProvider>
-      </body>
+            </body>
     </html>
   )
 }

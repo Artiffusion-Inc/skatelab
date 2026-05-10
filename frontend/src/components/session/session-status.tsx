@@ -16,9 +16,9 @@ export function SessionStatus({ status: _status, progress, onCancel }: Props) {
   return (
     <div className="flex flex-col items-center justify-center gap-4 px-4 py-20">
       <Loader2 className="h-10 w-10 animate-spin text-primary" />
-      <p className="nike-h3">{t("analyzing")}</p>
+      <p className="sh-display-md">{t("analyzing")}</p>
       {progress !== undefined && progress > 0 && (
-        <p className="text-sm text-muted-foreground">{progress}%</p>
+        <p className="text-sm text-ink-mute">{progress}%</p>
       )}
       {onCancel && (
         <Button variant="outline" size="sm" onClick={onCancel}>

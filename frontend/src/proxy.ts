@@ -1,32 +1,28 @@
 import { NextResponse } from "next/server"
 import type { NextRequest } from "next/server"
 
-const cspDirectives: Record<string, string[]> = {
-  "default-src": ["'self'"],
-  "script-src": ["'self'", "'strict-dynamic'", "'unsafe-inline'", "https://cdn.jsdelivr.net"],
-  "style-src": ["'self'", "'unsafe-inline'"],
-  "img-src": ["'self'", "data:", "blob:"],
-  "media-src": ["'self'", "blob:"],
-  "connect-src": ["'self'", "blob:", "https://*.r2.cloudflarestorage.com", "http://localhost:8000"],
-  "font-src": ["'self'"],
-  "object-src": ["'none'"],
-  "frame-ancestors": ["'none'"],
-  "base-uri": ["'self'"],
-  "form-action": ["'self'"],
-  "worker-src": ["'self'", "blob:"],
-}
-
 function buildCsp(nonce: string, isDev: boolean): string {
-  const directives = { ...cspDirectives }
+  const scriptSrc = isDev
+    ? [`'nonce-${nonce}'`, "'self'", "'unsafe-inline'", "'unsafe-eval'", "https://cdn.jsdelivr.net", "http://localhost:8400"]
+    : [`'nonce-${nonce}'`, "'self'", "'strict-dynamic'", "'unsafe-inline'", "https://cdn.jsdelivr.net"]
 
-  // Add nonce to script-src
-  directives["script-src"] = [`'nonce-${nonce}'`, ...directives["script-src"]]
+  const connectSrc = isDev
+    ? ["'self'", "blob:", "https://*.r2.cloudflarestorage.com", "http://localhost:8000", "ws://localhost:*", "http://localhost:8400"]
+    : ["'self'", "blob:", "https://*.r2.cloudflarestorage.com", "http://localhost:8000"]
 
-  // Dev: allow eval for React HMR
-  if (isDev) {
-    directives["script-src"] = [...directives["script-src"], "'unsafe-eval'"]
-    // Dev: allow Vite HMR websocket
-    directives["connect-src"] = [...directives["connect-src"], "ws://localhost:*"]
+  const directives: Record<string, string[]> = {
+    "default-src": ["'self'"],
+    "script-src": scriptSrc,
+    "style-src": ["'self'", "'unsafe-inline'"],
+    "img-src": ["'self'", "data:", "blob:"],
+    "media-src": ["'self'", "blob:"],
+    "connect-src": connectSrc,
+    "font-src": ["'self'"],
+    "object-src": ["'none'"],
+    "frame-ancestors": ["'none'"],
+    "base-uri": ["'self'"],
+    "form-action": ["'self'"],
+    "worker-src": ["'self'", "blob:"],
   }
 
   return Object.entries(directives)
@@ -35,11 +31,14 @@ function buildCsp(nonce: string, isDev: boolean): string {
 }
 
 export function proxy(_request: NextRequest) {
-  const nonce = crypto.randomUUID().replace(/-/g, "")
-  const isDev = process.env.NODE_ENV === "development"
-  const csp = buildCsp(nonce, isDev)
-
   const response = NextResponse.next()
+
+  if (process.env.NODE_ENV === "development") {
+    return response
+  }
+
+  const nonce = crypto.randomUUID().replace(/-/g, "")
+  const csp = buildCsp(nonce, false)
 
   response.headers.set("Content-Security-Policy", csp)
   response.headers.set("X-Nonce", nonce)

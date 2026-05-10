@@ -72,7 +72,7 @@ export default function FeedPage() {
   if (!data?.sessions.length) {
     return (
       <EmptyState
-        icon={<Upload className="h-7 w-7" style={{ color: "var(--ice-deep)" }} />}
+        icon={<Upload className="h-7 w-7 text-primary" />}
         title={tEmpty("feedTitle")}
         description={tEmpty("feedDesc")}
         primaryAction={{ label: tEmpty("feedAction"), href: "/upload" }}
@@ -90,7 +90,7 @@ export default function FeedPage() {
             setSelectionMode(!selectionMode)
             setSelectedIds(new Set())
           }}
-          className="text-sm text-muted-foreground hover:text-foreground"
+          className="text-sm text-ink-mute hover:text-foreground"
         >
           {selectionMode ? tc("cancel") : tf("select")}
         </button>
@@ -112,7 +112,7 @@ export default function FeedPage() {
         <select
           value={elementFilter}
           onChange={e => setElementFilter(e.target.value)}
-          className="rounded-lg border border-border bg-transparent px-2 py-1 text-sm"
+          className="rounded-lg border border-hairline bg-transparent px-2 py-1 text-sm"
         >
           <option value="">{tf("allElements")}</option>
           {ELEMENT_TYPE_KEYS.map(key => (
@@ -127,7 +127,7 @@ export default function FeedPage() {
               key={d}
               type="button"
               onClick={() => setDateFilter(d)}
-              className={`rounded-lg px-2 py-1 text-xs ${dateFilter === d ? "bg-primary text-primary-foreground" : "border border-border hover:bg-muted"}`}
+              className={`rounded-lg px-2 py-1 text-xs ${dateFilter === d ? "bg-primary text-primary-foreground" : "border border-hairline hover:bg-muted"}`}
             >
               {tf(`period${d}`)}
             </button>

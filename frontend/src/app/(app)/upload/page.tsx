@@ -172,9 +172,9 @@ export default function UploadPage() {
     return (
       <div className="flex flex-col items-center justify-center gap-4 px-4 py-20">
         <CheckCircle2 className="h-12 w-12 text-primary" />
-        <p className="nike-h3">{t("videoUploaded")}</p>
-        <p className="text-sm text-muted-foreground">{t("analyzingHint")}</p>
-        <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+        <p className="sh-display-md">{t("videoUploaded")}</p>
+        <p className="text-sm text-ink-mute">{t("analyzingHint")}</p>
+        <Loader2 className="h-5 w-5 animate-spin text-ink-mute" />
       </div>
     )
   }
@@ -184,7 +184,7 @@ export default function UploadPage() {
       <div className="mx-auto max-w-lg space-y-5 px-4 py-20">
         <div className="text-center">
           <Loader2 className="mx-auto h-8 w-8 animate-spin text-primary" />
-          <p className="mt-3 nike-h3">{t("parsingZip")}</p>
+          <p className="mt-3 sh-display-md">{t("parsingZip")}</p>
         </div>
       </div>
     )
@@ -195,7 +195,7 @@ export default function UploadPage() {
       <div className="mx-auto max-w-lg space-y-5 px-4 py-20">
         <div className="text-center">
           <Loader2 className="mx-auto h-8 w-8 animate-spin text-primary" />
-          <p className="mt-3 nike-h3">{uploadPhase}</p>
+          <p className="mt-3 sh-display-md">{uploadPhase}</p>
         </div>
         <div className="space-y-2">
           <div className="h-2 overflow-hidden rounded-full bg-muted">
@@ -204,13 +204,13 @@ export default function UploadPage() {
               style={{ width: `${progress}%` }}
             />
           </div>
-          <p className="text-center text-xs text-muted-foreground">{progress}%</p>
+          <p className="text-center text-xs text-ink-mute">{progress}%</p>
         </div>
         <div className="flex justify-center">
           <button
             type="button"
             onClick={handleCancel}
-            className="flex items-center gap-2 rounded-2xl border border-border px-4 py-2 text-sm text-muted-foreground transition-colors hover:bg-accent"
+            className="flex items-center gap-2 rounded-2xl border border-hairline px-4 py-2 text-sm text-ink-mute transition-colors hover:bg-accent"
           >
             <X className="h-4 w-4" />
             {t("cancelUpload")}

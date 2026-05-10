@@ -17,12 +17,12 @@ export default function DashboardPage() {
   )
 
   if (isLoading)
-    return <div className="py-20 text-center text-muted-foreground">{tc("loading")}</div>
+    return <div className="py-20 text-center text-ink-mute">{tc("loading")}</div>
 
   if (!students.length) {
     return (
       <EmptyState
-        icon={<Users className="h-7 w-7" style={{ color: "var(--ice-deep)" }} />}
+        icon={<Users className="h-7 w-7 text-primary" />}
         title={ts("noStudents")}
         description={ts("noStudentsHint")}
         primaryAction={{ label: ts("inviteStudent"), href: "/connections" }}
@@ -32,7 +32,7 @@ export default function DashboardPage() {
 
   return (
     <div className="mx-auto max-w-2xl space-y-3 sm:max-w-3xl">
-      <h1 className="nike-h3">{ts("title")}</h1>
+      <h1 className="sh-display-md">{ts("title")}</h1>
       {students.map((conn, i) => (
         <StudentCard key={conn.id ?? `conn-${i}`} conn={conn} />
       ))}

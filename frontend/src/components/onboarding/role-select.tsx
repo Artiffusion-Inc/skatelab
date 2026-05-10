@@ -47,7 +47,7 @@ export function RoleSelect({ onSelect, onSkip }: RoleSelectProps) {
           <button
             type="button"
             onClick={onSkip}
-            className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+            className="text-sm text-ink-mute hover:text-foreground transition-colors"
           >
             {t("skip")}
           </button>
@@ -57,7 +57,7 @@ export function RoleSelect({ onSelect, onSkip }: RoleSelectProps) {
           <h1 className="mb-3 text-2xl font-medium tracking-tight text-foreground">
             {t("roleSelectTitle")}
           </h1>
-          <p className="text-sm text-muted-foreground">{t("roleSelectSubtitle")}</p>
+          <p className="text-sm text-ink-mute">{t("roleSelectSubtitle")}</p>
         </div>
 
         <div className="space-y-3">
@@ -69,20 +69,20 @@ export function RoleSelect({ onSelect, onSkip }: RoleSelectProps) {
               className={cn(
                 "w-full rounded-[1.25rem] border p-5 text-left transition-all duration-200",
                 selectedRole === role.id
-                  ? "border-ice-deep bg-ice-deep/5"
-                  : "border-border bg-card hover:bg-accent",
+                  ? "border-primary bg-primary/5"
+                  : "border-hairline bg-card hover:bg-accent",
               )}
             >
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-base font-medium text-foreground">{t(role.labelKey)}</p>
-                  <p className="mt-1 text-sm text-muted-foreground">{t(role.descKey)}</p>
+                  <p className="mt-1 text-sm text-ink-mute">{t(role.descKey)}</p>
                 </div>
                 <div
                   className={cn(
                     "ml-4 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2",
                     selectedRole === role.id
-                      ? "border-ice-deep bg-ice-deep"
+                      ? "border-primary bg-primary"
                       : "border-muted-foreground/30",
                   )}
                 >
@@ -106,13 +106,13 @@ export function RoleSelect({ onSelect, onSkip }: RoleSelectProps) {
         <div className="mt-8">
           <label htmlFor="source-select" className="mb-2 block text-sm font-medium text-foreground">
             {t("howDidYouHear")}
-            <span className="ml-1 text-muted-foreground font-normal">({t("optional")})</span>
+            <span className="ml-1 text-ink-mute font-normal">({t("optional")})</span>
           </label>
           <select
             id="source-select"
             value={source}
             onChange={e => setSource(e.target.value)}
-            className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm text-foreground outline-none transition-colors focus:border-foreground"
+            className="w-full rounded-lg border border-hairline bg-background px-3 py-2.5 text-sm text-foreground outline-none transition-colors focus:border-foreground"
           >
             <option value="">{t("sourceSelectPlaceholder")}</option>
             {SOURCE_KEYS.map(key => (
@@ -126,7 +126,7 @@ export function RoleSelect({ onSelect, onSkip }: RoleSelectProps) {
         <div className="mt-8">
           <Button
             size="lg"
-            className="h-12 w-full rounded-full bg-ice-deep text-base font-medium text-white hover:bg-ice-glow hover:text-foreground"
+            className="h-12 w-full rounded-full bg-primary text-base font-medium text-white hover:bg-surface-violet-soft hover:text-foreground"
             disabled={!selectedRole}
             onClick={handleContinue}
           >

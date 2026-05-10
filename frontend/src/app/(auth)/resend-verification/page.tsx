@@ -38,8 +38,8 @@ export default function ResendVerificationPage() {
     return (
       <div className="space-y-6">
         <div className="space-y-2 text-center">
-          <h1 className="nike-h1">{t("resendSuccessTitle")}</h1>
-          <p className="text-sm text-muted-foreground">{t("resendSuccessSubtitle")}</p>
+          <h1 className="sh-display-lg">{t("resendSuccessTitle")}</h1>
+          <p className="text-sm text-ink-mute">{t("resendSuccessSubtitle")}</p>
         </div>
         <Link href="/login">
           <Button className="w-full">{t("signInBtn")}</Button>
@@ -51,8 +51,8 @@ export default function ResendVerificationPage() {
   return (
     <div className="space-y-6">
       <div className="space-y-2 text-center">
-        <h1 className="nike-h1">{t("resendVerification")}</h1>
-        <p className="text-sm text-muted-foreground">{t("resendVerificationSubtitle")}</p>
+        <h1 className="sh-display-lg">{t("resendVerification")}</h1>
+        <p className="text-sm text-ink-mute">{t("resendVerificationSubtitle")}</p>
       </div>
       <form onSubmit={handleSubmit} className="space-y-4">
         <FormField
@@ -68,7 +68,7 @@ export default function ResendVerificationPage() {
           {loading ? t("sending") : t("resendBtn")}
         </Button>
       </form>
-      <p className="text-center text-sm text-muted-foreground">
+      <p className="text-center text-sm text-ink-mute">
         <Link href="/login" className="text-link hover:underline">
           {t("backToSignIn")}
         </Link>

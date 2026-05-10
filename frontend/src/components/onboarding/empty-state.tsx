@@ -31,19 +31,18 @@ export function EmptyState({
       className={cn("flex flex-col items-center justify-center py-20 px-4 text-center", className)}
     >
       {icon && (
-        <div className="mb-6 flex h-16 w-16 items-center justify-center rounded-[1.25rem] bg-ice-deep/5 text-ice-deep">
+        <div className="mb-6 flex h-16 w-16 items-center justify-center rounded-[1.25rem] bg-primary/5 text-primary">
           {icon}
         </div>
       )}
       <h3 className="mb-2 text-lg font-medium text-foreground">{title}</h3>
-      <p className="mb-8 max-w-sm text-sm text-muted-foreground leading-relaxed">{description}</p>
+      <p className="mb-8 max-w-sm text-sm text-ink-mute leading-relaxed">{description}</p>
 
       <div className="flex flex-col items-center gap-3 sm:flex-row">
         {primaryAction && (
           <Link
             href={primaryAction.href}
-            className="inline-flex h-11 items-center justify-center rounded-full px-8 text-sm font-medium text-white transition-all duration-200 hover:scale-[0.98] active:scale-[0.96]"
-            style={{ background: "var(--ice-deep)" }}
+            className="inline-flex h-11 items-center justify-center rounded-md px-8 text-sm font-bold text-primary-foreground transition-all duration-200 bg-primary hover:scale-[0.98] active:scale-[0.96]"
           >
             {primaryAction.label}
           </Link>
@@ -51,7 +50,7 @@ export function EmptyState({
         {secondaryAction && (
           <Link
             href={secondaryAction.href}
-            className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+            className="text-sm font-medium text-ink-mute hover:text-foreground transition-colors"
           >
             {secondaryAction.label}
           </Link>

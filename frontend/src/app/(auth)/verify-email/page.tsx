@@ -41,8 +41,8 @@ function VerifyEmailForm() {
     return (
       <div className="space-y-6">
         <div className="space-y-2 text-center">
-          <h1 className="nike-h1">{t("verifySuccessTitle")}</h1>
-          <p className="text-sm text-muted-foreground">{t("verifySuccessSubtitle")}</p>
+          <h1 className="sh-display-lg">{t("verifySuccessTitle")}</h1>
+          <p className="text-sm text-ink-mute">{t("verifySuccessSubtitle")}</p>
         </div>
         <Link href="/login">
           <Button className="w-full">{t("signInBtn")}</Button>
@@ -54,8 +54,8 @@ function VerifyEmailForm() {
   return (
     <div className="space-y-6">
       <div className="space-y-2 text-center">
-        <h1 className="nike-h1">{t("verifyEmail")}</h1>
-        <p className="text-sm text-muted-foreground">{t("verifyEmailSubtitle")}</p>
+        <h1 className="sh-display-lg">{t("verifyEmail")}</h1>
+        <p className="text-sm text-ink-mute">{t("verifyEmailSubtitle")}</p>
       </div>
       <form onSubmit={handleSubmit} className="space-y-4">
         <FormField
@@ -71,7 +71,7 @@ function VerifyEmailForm() {
           {loading ? t("verifying") : t("verifyBtn")}
         </Button>
       </form>
-      <p className="text-center text-sm text-muted-foreground">
+      <p className="text-center text-sm text-ink-mute">
         {t("noVerificationCode")}{" "}
         <Link href="/resend-verification" className="text-link hover:underline">
           {t("resendVerification")}

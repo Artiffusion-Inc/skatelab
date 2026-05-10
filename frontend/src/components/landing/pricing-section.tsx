@@ -65,7 +65,7 @@ export function PricingSection() {
             }`}
           >
             {tier.badge && (
-              <span className="absolute -top-3 left-1/2 -translate-x-1/2 bg-primary px-3 py-1 rounded-full sh-micro text-primary-foreground tracking-wider">
+              <span className="absolute -top-3 left-1/2 -translate-x-1/2 bg-surface-violet-soft px-3 py-1 rounded-full sh-micro text-primary-foreground tracking-wider">
                 {tier.badge}
               </span>
             )}
@@ -77,13 +77,13 @@ export function PricingSection() {
             <ul className="mt-6 space-y-3">
               {tier.features.map((f) => (
                 <li key={f} className={`flex items-start gap-2 sh-caption ${tier.highlighted ? "text-on-dark-mute" : "text-ink-mute"}`}>
-                  <Check className={`h-4 w-4 mt-0.5 shrink-0 ${tier.highlighted ? "text-primary-foreground" : "text-score-good"}`} />
+                  <Check className={`h-4 w-4 mt-0.5 shrink-0 ${tier.highlighted ? "text-surface-violet-soft" : "text-score-good"}`} />
                   {f}
                 </li>
               ))}
             </ul>
             <Button
-              variant={tier.highlighted ? "on-dark-pill" : "outline"}
+              variant={tier.highlighted ? "on-teal" : "outline"}
               className="mt-6 min-h-[44px] w-full"
               asChild
             >

@@ -39,7 +39,7 @@ export default function StudentProfilePage() {
   return (
     <div className="mx-auto max-w-2xl space-y-4 sm:max-w-3xl">
       <div className="flex gap-2">
-        <Link href="/dashboard" className="text-sm text-muted-foreground hover:underline">
+        <Link href="/dashboard" className="text-sm text-ink-mute hover:underline">
           &larr; {tc("back")}
         </Link>
       </div>
@@ -69,7 +69,7 @@ export default function StudentProfilePage() {
                 type="button"
                 key={elId}
                 onClick={() => setElement(elId)}
-                className={`truncate rounded-xl border p-1.5 text-center text-[11px] sm:p-2 sm:text-xs ${element === elId ? "border-primary bg-primary/10" : "border-border"}`}
+                className={`truncate rounded-xl border p-1.5 text-center text-[11px] sm:p-2 sm:text-xs ${element === elId ? "border-primary bg-primary/10" : "border-hairline"}`}
               >
                 {te(elId)}
               </button>
@@ -78,7 +78,7 @@ export default function StudentProfilePage() {
           <select
             value={metric}
             onChange={e => setMetric(e.target.value)}
-            className="w-full rounded-xl border border-border bg-background px-3 py-2.5 text-sm"
+            className="w-full rounded-xl border border-hairline bg-background px-3 py-2.5 text-sm"
           >
             <option value="max_height">{ts("metrics.max_height")}</option>
             <option value="airtime">{ts("metrics.airtime")}</option>
@@ -90,7 +90,7 @@ export default function StudentProfilePage() {
             <TrendChart data={trend} />
           ) : (
             <EmptyState
-              icon={<BarChart3 className="h-7 w-7" style={{ color: "var(--ice-deep)" }} />}
+              icon={<BarChart3 className="h-7 w-7 text-primary" />}
               title={tEmpty("noTrendTitle")}
               description={tEmpty("noTrendDesc")}
             />
@@ -103,7 +103,7 @@ export default function StudentProfilePage() {
           <DiagnosticsList findings={diag.findings} />
         ) : (
           <EmptyState
-            icon={<Activity className="h-7 w-7" style={{ color: "var(--ice-deep)" }} />}
+            icon={<Activity className="h-7 w-7 text-primary" />}
             title={tEmpty("noDiagnosticsTitle")}
             description={tEmpty("noDiagnosticsDesc")}
           />

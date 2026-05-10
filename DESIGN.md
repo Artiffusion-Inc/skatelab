@@ -1,246 +1,410 @@
 ---
-name: Skating Biomechanics ML
-description: AI-powered figure skating coach — video analysis, progress tracking, and coach-student platform
+name: Skatelab Superhuman
+description: AI-powered figure skating coach — Superhuman-inspired editorial precision with three-canvas color rhythm (indigo/white/teal), sub-default Inter Variable weights, and disciplined whitespace
 colors:
-  ice-deep: "oklch(0.42 0.12 240)"
-  ice-glow: "oklch(0.72 0.12 240)"
-  ice-surface: "oklch(0.97 0.01 240)"
-  ice-dark: "oklch(0.18 0.03 240)"
-  background: "oklch(1 0 0)"
-  foreground: "oklch(0.145 0 0)"
-  card: "oklch(1 0 0)"
-  card-foreground: "oklch(0.145 0 0)"
-  muted: "oklch(0.967 0 0)"
-  muted-foreground: "oklch(0.55 0 0)"
-  border: "oklch(0.815 0 0)"
-  primary: "oklch(0.145 0 0)"
-  primary-foreground: "oklch(1 0 0)"
-  accent: "oklch(0.905 0 0)"
-  accent-foreground: "oklch(0.145 0 0)"
-  destructive: "oklch(0.541 0.22 25)"
-  link: "oklch(0.541 0.23 264)"
-  score-good: "oklch(0.723 0.219 149)"
-  score-mid: "oklch(0.795 0.184 86)"
-  score-bad: "oklch(0.577 0.245 27)"
-  accent-gold: "oklch(0.795 0.184 86)"
+  primary: "#1b1938"
+  primary-deep: "#0e0c1f"
+  on-primary: "#ffffff"
+  ink: "#292827"
+  ink-mute: "#73706d"
+  ink-faint: "#9a9794"
+  canvas: "#ffffff"
+  canvas-soft: "#fafaf8"
+  surface-violet-soft: "#c9b4fa"
+  surface-teal-deep: "#0e3030"
+  surface-teal-mid: "#155555"
+  hairline: "#e8e4dd"
+  hairline-dark: "#3f3a52"
+  on-dark-mute: "#bcbac9"
+  on-dark-dim: "#8a87a1"
+  on-dark-faint: "#5a5772"
+  destructive: "#c0392b"
+  link: "#6c5ce7"
+  ring: "#7c5ce7"
+  score-good: "#27ae60"
+  score-mid: "#f39c12"
+  score-bad: "#e74c3c"
+  accent-gold: "#f39c12"
 typography:
-  display:
-    fontFamily: '"Inter Variable", "Inter", "Helvetica Neue", Helvetica, Arial, sans-serif'
-    fontSize: "clamp(3rem, 6vw, 6rem)"
-    fontWeight: 500
-    lineHeight: 0.9
-    letterSpacing: "-0.02em"
-  headline:
-    fontFamily: '"Inter Variable", "Inter", "Helvetica Neue", Helvetica, Arial, sans-serif'
-    fontSize: "2rem"
-    fontWeight: 500
+  display-xxl:
+    fontFamily: "'Inter Variable', 'Inter', 'Helvetica Neue', Helvetica, Arial, sans-serif"
+    fontSize: "clamp(2.25rem, 5.5vw, 4rem)"
+    fontWeight: 540
+    lineHeight: 0.96
+    letterSpacing: 0
+  display-xl:
+    fontFamily: "'Inter Variable', 'Inter', 'Helvetica Neue', Helvetica, Arial, sans-serif"
+    fontSize: "clamp(2rem, 4vw, 3rem)"
+    fontWeight: 460
+    lineHeight: 0.96
+    letterSpacing: "-1.32px"
+  display-lg:
+    fontFamily: "'Inter Variable', 'Inter', 'Helvetica Neue', Helvetica, Arial, sans-serif"
+    fontSize: "28px"
+    fontWeight: 540
+    lineHeight: 1.14
+    letterSpacing: "-0.63px"
+  display-md:
+    fontFamily: "'Inter Variable', 'Inter', 'Helvetica Neue', Helvetica, Arial, sans-serif"
+    fontSize: "22px"
+    fontWeight: 460
+    lineHeight: 1.1
+    letterSpacing: "-0.315px"
+  heading-lg:
+    fontFamily: "'Inter Variable', 'Inter', 'Helvetica Neue', Helvetica, Arial, sans-serif"
+    fontSize: "20px"
+    fontWeight: 460
     lineHeight: 1.2
-  title:
-    fontFamily: '"Inter Variable", "Inter", "Helvetica Neue", Helvetica, Arial, sans-serif'
-    fontSize: "1.125rem"
-    fontWeight: 600
-    lineHeight: 1.3
-  body:
-    fontFamily: '"Inter Variable", "Inter", "Helvetica Neue", Helvetica, Arial, sans-serif'
-    fontSize: "1rem"
-    fontWeight: 400
-    lineHeight: 1.75
-  label:
-    fontFamily: '"Inter Variable", "Inter", "Helvetica Neue", Helvetica, Arial, sans-serif'
-    fontSize: "0.875rem"
-    fontWeight: 500
+    letterSpacing: "-0.4px"
+  body-lg:
+    fontFamily: "'Inter Variable', 'Inter', 'Helvetica Neue', Helvetica, Arial, sans-serif"
+    fontSize: "18px"
+    fontWeight: 540
     lineHeight: 1.5
-    letterSpacing: "0.05em"
+    letterSpacing: "-0.135px"
+  body-md:
+    fontFamily: "'Inter Variable', 'Inter', 'Helvetica Neue', Helvetica, Arial, sans-serif"
+    fontSize: "16px"
+    fontWeight: 460
+    lineHeight: 1.5
+    letterSpacing: 0
+  body-strong:
+    fontFamily: "'Inter Variable', 'Inter', 'Helvetica Neue', Helvetica, Arial, sans-serif"
+    fontSize: "18.72px"
+    fontWeight: 700
+    lineHeight: 1.5
+    letterSpacing: 0
+  button-md:
+    fontFamily: "'Inter Variable', 'Inter', 'Helvetica Neue', Helvetica, Arial, sans-serif"
+    fontSize: "16px"
+    fontWeight: 700
+    lineHeight: 1.0
+    letterSpacing: 0
+  button-cap:
+    fontFamily: "'Inter Variable', 'Inter', 'Helvetica Neue', Helvetica, Arial, sans-serif"
+    fontSize: "14px"
+    fontWeight: 600
+    lineHeight: 1.0
+    letterSpacing: 0
+  caption:
+    fontFamily: "'Inter Variable', 'Inter', 'Helvetica Neue', Helvetica, Arial, sans-serif"
+    fontSize: "14px"
+    fontWeight: 460
+    lineHeight: 1.4
+    letterSpacing: 0
+  micro:
+    fontFamily: "'Inter Variable', 'Inter', 'Helvetica Neue', Helvetica, Arial, sans-serif"
+    fontSize: "12px"
+    fontWeight: 540
+    lineHeight: 1.4
+    letterSpacing: 0
+  legal:
+    fontFamily: "'Inter Variable', 'Inter', 'Helvetica Neue', Helvetica, Arial, sans-serif"
+    fontSize: "11px"
+    fontWeight: 460
+    lineHeight: 1.5
+    letterSpacing: 0
+  price:
+    fontFamily: "'Inter Variable', 'Inter', 'Helvetica Neue', Helvetica, Arial, sans-serif"
+    fontSize: "clamp(2.25rem, 4vw, 3rem)"
+    fontWeight: 700
+    lineHeight: 1
+    letterSpacing: "-0.03em"
 rounded:
-  sm: "0.5rem"
-  md: "1.25rem"
-  lg: "1.875rem"
-  xl: "1.875rem"
-  2xl: "2.25rem"
+  xs: "4px"
+  sm: "6px"
+  md: "8px"
+  lg: "12px"
+  xl: "16px"
+  full: "9999px"
 spacing:
-  1: "0.25rem"
-  2: "0.5rem"
-  3: "0.75rem"
-  4: "1rem"
-  5: "1.25rem"
-  6: "1.5rem"
-  8: "2rem"
-  10: "2.5rem"
-  12: "3rem"
-  16: "4rem"
-  20: "5rem"
-  24: "6rem"
+  xxs: "2px"
+  xs: "4px"
+  sm: "8px"
+  md: "12px"
+  lg: "16px"
+  xl: "24px"
+  xxl: "32px"
+  huge: "64px"
 components:
-  button-primary:
-    backgroundColor: "{colors.ice-deep}"
-    textColor: "{colors.background}"
-    rounded: "{rounded.lg}"
-    padding: "0.75rem 1.5rem"
-    typography: "{typography.label}"
-  button-primary-hover:
-    backgroundColor: "{colors.ice-glow}"
-    textColor: "{colors.foreground}"
-  button-outline:
-    backgroundColor: "transparent"
-    textColor: "{colors.foreground}"
-    rounded: "{rounded.lg}"
-    padding: "0.75rem 1.5rem"
-  card-default:
-    backgroundColor: "{colors.card}"
-    textColor: "{colors.card-foreground}"
+  button-primary-dark:
+    backgroundColor: "{colors.primary}"
+    textColor: "{colors.on-primary}"
+    typography: "{typography.button-md}"
     rounded: "{rounded.md}"
-    padding: "1rem"
+    padding: "12px 20px"
+  button-primary-dark-pressed:
+    backgroundColor: "{colors.primary-deep}"
+    textColor: "{colors.on-primary}"
+    typography: "{typography.button-md}"
+    rounded: "{rounded.md}"
+    padding: "12px 20px"
+  button-on-dark-pill:
+    backgroundColor: "{colors.surface-violet-soft}"
+    textColor: "{colors.primary}"
+    typography: "{typography.button-md}"
+    rounded: "{rounded.full}"
+    padding: "12px 20px"
+  button-secondary-outline:
+    backgroundColor: "{colors.canvas}"
+    textColor: "{colors.ink}"
+    typography: "{typography.button-md}"
+    rounded: "{rounded.md}"
+    padding: "12px 20px"
+  button-on-teal:
+    backgroundColor: "{colors.canvas}"
+    textColor: "{colors.surface-teal-deep}"
+    typography: "{typography.button-md}"
+    rounded: "{rounded.md}"
+    padding: "12px 20px"
+  button-ghost:
+    backgroundColor: "transparent"
+    textColor: "{colors.ink-mute}"
+    typography: "{typography.body-md}"
+    rounded: "{rounded.md}"
+    padding: "12px 20px"
+  text-input:
+    backgroundColor: "{colors.canvas}"
+    textColor: "{colors.ink}"
+    typography: "{typography.body-md}"
+    rounded: "{rounded.sm}"
+    padding: "10px 12px"
+  card-feature-light:
+    backgroundColor: "{colors.canvas}"
+    textColor: "{colors.ink}"
+    typography: "{typography.body-md}"
+    rounded: "{rounded.lg}"
+    padding: "32px"
+  card-teal-band:
+    backgroundColor: "{colors.surface-teal-deep}"
+    textColor: "{colors.on-primary}"
+    typography: "{typography.body-lg}"
+    rounded: "{rounded.lg}"
+    padding: "64px"
+  badge-opaque:
+    backgroundColor: "oklch(0.175 0.066 315 / 0.85)"
+    textColor: "{colors.on-primary}"
+    typography: "{typography.micro}"
+    rounded: "{rounded.md}"
+    padding: "12px 16px"
+  pill-tab-light:
+    backgroundColor: "{colors.canvas}"
+    textColor: "{colors.ink}"
+    typography: "{typography.button-cap}"
+    rounded: "{rounded.full}"
+    padding: "8px 16px"
+  nav-bar-dark:
+    backgroundColor: "{colors.primary}"
+    textColor: "{colors.on-primary}"
+    typography: "{typography.body-md}"
+    rounded: "{rounded.xs}"
+    padding: "16px 24px"
+  nav-bar-light:
+    backgroundColor: "{colors.canvas}"
+    textColor: "{colors.ink}"
+    typography: "{typography.body-md}"
+    rounded: "{rounded.xs}"
+    padding: "16px 24px"
+  footer-light:
+    backgroundColor: "{colors.canvas}"
+    textColor: "{colors.ink-mute}"
+    typography: "{typography.caption}"
+    rounded: "{rounded.xs}"
+    padding: "64px 24px"
 ---
 
-# Design System: Skating Biomechanics ML
+# Design System: Skatelab
 
 ## 1. Overview
 
-**Creative North Star: "The Ice Lab"**
+**Creative North Star: "The Precision Instrument"**
 
-A system that treats the interface as an analytical environment: cold, precise, and fast. The aesthetic draws from the physical reality of figure skating (ice, blade, speed) without falling into seasonal clichés. No snowflakes, no winter pastels, no soft romantic gradients. Instead: sharp blues, graphite neutrals, and data-forward layouts that let athletes and coaches see what matters in under two seconds.
+A system inspired by Superhuman's editorial discipline: three-canvas color rhythm, sub-default typographic weights, and generous whitespace that makes every element earn its place. The aesthetic draws from figure skating's cold precision without falling into seasonal cliches. No snowflakes, no frosted borders, no winter pastels. Instead: indigo navy for authority, white canvas for clarity, deep teal for resolution.
 
-The platform (dashboards, analytics, session reviews) dominates the register. The landing page is the laboratory's facade: it may use atmosphere and motion, but the product inside is restrained and functional. Every visual choice traces back to the principle that speed is a feature — both in performance and in cognitive parsing.
+The platform (dashboards, analytics, session reviews) dominates the register. The landing page opens with the indigo hero, resolves through white feature sections, and closes with the teal CTA band. The product inside is restrained, functional, and metric-forward.
 
 **Key Characteristics:**
-- Restrained product surfaces with a single cold accent (ice-deep) used sparingly
-- Tonal layering for elevation; shadows only on floating overlays
-- Pill-shaped interactive elements for touch targets, with sharp state feedback
-- Weight-500 typography for all interactive and data text; weight-400 for long prose only
-- Metric-forward layouts: scores, charts, and progress indicators are scannable at a glance
-- Flat cards with hairline borders; no lift shadows on static containers
+- Three-canvas system: indigo navy hero, white body, deep teal closing CTA
+- Sub-default font weights (460, 540, 600) for typographic warmth signature
+- Rounded-rectangle buttons (8px radius) everywhere except hero (pill-shaped)
+- Warm ink (#292827, never pure black) on white canvas
+- Hairline borders (1px, slightly warm grey) for separation
+- Flat-By-Default elevation; shadows only on floating overlays
+- Single CTA per section; nothing competing for attention
+- Light-only theme (dark mode disabled until properly implemented)
 
 ## 2. Colors
 
-The palette is built on a graphite-neutral foundation with a single cold blue accent family. The "ice" identity is expressed through hue, not decoration.
+Built on Superhuman's three-canvas polarity with figure skating's cold precision. All colors defined in OKLCH; hex values provided as sRGB approximations.
 
-### Primary
-- **Ice Deep** (oklch(0.42 0.12 240)): Primary actions, active navigation, filled buttons, links on light backgrounds. Used on ≤ 10% of any product screen.
-- **Ice Glow** (oklch(0.72 0.12 240)): Hover states, secondary highlights, landing gradients, primary on dark backgrounds.
+### Brand and Accent
+- **Primary Indigo Navy** (#1b1938 / oklch(0.22 0.06 280)): The brand's primary surface and CTA color. Hero canvas, filled buttons, featured pricing tier, auth header.
+- **Indigo Deep** (#0e0c1f / oklch(0.175 0.066 315)): Pressed-state lift, deeper navy for hero gradient stops.
+- **Surface Violet Soft** (#c9b4fa / oklch(0.812 0.202 321)): The hero pill-button fill. Pale violet over the indigo canvas. Also in atmospheric backdrops and featured-card badges.
+- **Surface Teal Deep** (#0e3030 / oklch(0.284 0.042 201)): The signature closing-CTA band color. Rich green-blue, almost black. Used only for the teal closing section.
+- **Surface Teal Mid** (#155555 / oklch(0.41 0.068 201)): Slightly lifted teal for nested chrome inside the teal band.
 
-### Neutral
-- **Background** (oklch(1 0 0)): Primary canvas on light mode. Never pure #fff; this is the perceptual white of the system.
-- **Foreground** (oklch(0.145 0 0)): Primary text, headings, icons. Near-black with neutral undertone.
-- **Card** (oklch(1 0 0)): Surface for grouped content. Matches background; differentiation via border, not color shift.
-- **Muted** (oklch(0.967 0 0)): Secondary backgrounds, hover states, skeleton fills.
-- **Muted Foreground** (oklch(0.55 0 0)): Descriptive copy, metadata, timestamps, placeholders.
-- **Border** (oklch(0.815 0 0)): Hairline dividers, input borders, card outlines.
+### Surface
+- **Canvas** (#ffffff / oklch(1 0 0)): Default body background. The white canvas between hero and teal closing.
+- **Canvas Soft** (#fafaf8 / oklch(0.985 0.005 133)): Barely-warm off-white. Used for internal card bands only, never as a section background (violates Three-Canvas Rule).
+- **Hairline** (#e8e4dd / oklch(0.92 0.018 118)): 1px borders, slightly warm grey.
+- **Hairline Dark** (#3f3a52 / oklch(0.364 0.084 319)): 1px borders on dark surfaces and outline buttons.
+
+### Text
+- **Ink** (#292827 / oklch(0.278 0.003 106)): Default body text. Warm dark grey, never pure black.
+- **Ink Mute** (#73706d / oklch(0.547 0.009 106)): Secondary text, captions, metadata.
+- **Ink Faint** (#9a9794 / oklch(0.678 0.008 106)): Tertiary, disabled, placeholder text. Also used for decorative watermarks at low opacity.
+- **On Primary** (#ffffff / oklch(1 0 0)): Text on dark navy / teal surfaces.
+- **On Dark Mute** (#bcbac9 / oklch(0.795 0.042 316)): Secondary text on dark surfaces. Badge labels, supporting copy.
+- **On Dark Dim** (#8a87a1 / oklch(0.63 0.04 317)): Intermediate dark-surface text. Used where On-Dark-Faint fails WCAG AA contrast on dark backgrounds (minimum 4.5:1 required). Badge labels that need more visibility than On-Dark-Mute provides less than.
+- **On Dark Faint** (#5a5772 / oklch(0.47 0.087 317)): Tertiary text on dark. **WCAG WARNING:** Fails 4.5:1 contrast on badge-opaque backgrounds. Use On-Dark-Mute or On-Dark-Dim for any text below 18px / 14px bold.
 
 ### Semantic
-- **Score Good** (oklch(0.723 0.219 149)): Positive metric indicators. Always paired with a checkmark or label; never color-only.
-- **Score Mid** (oklch(0.795 0.184 86)): Neutral / warning metric range.
-- **Score Bad** (oklch(0.577 0.245 27)): Critical metric indicators. Always paired with an icon or label.
-- **Destructive** (oklch(0.541 0.22 25)): Errors, destructive actions, deletion confirmations.
-- **Link** (oklch(0.541 0.23 264)): Inline text links. Distinct from Ice Deep.
-
-### Dark Mode
-- **Background** (oklch(0.185 0 0)): Graphite canvas. Not pure black.
-- **Foreground** (oklch(0.98 0 0)): Ice-white text.
-- **Card** (oklch(0.225 0 0)): Elevated dark surface.
-- **Muted** (oklch(0.285 0 0)): Secondary dark backgrounds.
-- **Ice Glow** becomes the primary accent on dark; **Ice Deep** becomes secondary.
+- **Score Good** (#27ae60 / oklch(0.723 0.219 149)): Positive metric indicators. Always paired with checkmark or label.
+- **Score Mid** (#f39c12 / oklch(0.795 0.184 86)): Warning metric range.
+- **Score Bad** (#e74c3c / oklch(0.577 0.245 27)): Critical metric indicators. Always paired with icon or label.
+- **Destructive** (#c0392b / oklch(0.541 0.22 25)): Errors, destructive actions.
+- **Link** (#6c5ce7 / oklch(0.541 0.23 264)): Inline text links.
+- **Ring** (#7c5ce7 / oklch(0.48 0.19 264)): Focus ring color.
+- **Accent Gold** (#f39c12 / oklch(0.795 0.184 86)): Special highlights, PR indicators.
 
 ### Named Rules
-**The One Ice Rule.** The ice-blue accent is the only non-neutral hue in the product UI. No secondary brand colors, no category colors, no avatar color cycles. Landing pages may use the extended ice family (surface, glow, deep) more liberally, but the platform stays disciplined.
+**The Three-Canvas Rule.** Landing pages follow indigo hero, white body, teal closing. The teal band is non-negotiable on every marketing page. Adding a fourth canvas color (including canvas-soft as a section background) breaks the system. Canvas-soft is for internal card bands only.
 
-**The No-Winter-Cliché Rule.** No snowflake icons, no frosted decorative borders, no "frozen glass" effects on product screens. The ice identity is expressed through the cold hue and sharp precision, not literal winter imagery.
+**The No-Winter-Cliche Rule.** No snowflake icons, no frosted decorative borders, no frozen glass effects, no backdrop-filter blur on product screens. The cold identity is expressed through indigo hue and editorial precision, not literal winter imagery.
+
+**The WCAG-Floor Rule.** On-Dark-Faint (oklch(0.47)) fails 4.5:1 contrast on dark surfaces. Any text below 18px / 14px bold on badge-opaque or primary backgrounds must use On-Dark-Mute or On-Dark-Dim instead. No exceptions.
 
 ## 3. Typography
 
-**Display / Body / Label Font:** Inter Variable (with "Inter", "Helvetica Neue", Helvetica, Arial, sans-serif fallback)
+**Font:** Inter Variable (with "Inter", "Helvetica Neue", Helvetica, Arial, sans-serif fallback).
 
-**Character:** A neutral-grotesque with technical precision. Inter's tight metrics and clear distinction between similar glyphs (1/l/I) make it ideal for data-dense athlete dashboards. No emotional serif contrast; the personality comes from weight and spacing, not typeface choice.
+**Character:** A neutral-grotesque with technical precision. The brand uses sub-default variable weights (460, 540, 600) instead of standard 400/500/700. This quiet warmth in the typography distinguishes it from default SaaS systems.
 
 ### Hierarchy
-- **Display** (500, clamp(3rem, 6vw, 6rem), line-height 0.9, letter-spacing -0.02em): Landing hero headlines only. Uppercase optional. Never used in product UI below 24px.
-- **Headline** (500, 2rem/32px, line-height 1.2): Page titles, section headers. Max 65–75ch width for multi-line.
-- **Title** (600, 1.125rem/18px, line-height 1.3): Card titles, list item headers, metric labels.
-- **Body** (400, 1rem/16px, line-height 1.75): Long-form descriptions, explanations. Max 75ch.
-- **Body Medium** (500, 1rem/16px, line-height 1.75): Emphasized body, buttons, navigation links, captions. The workhorse weight of the system.
-- **Label** (500, 0.875rem/14px, line-height 1.5, letter-spacing 0.05em): Tags, timestamps, small metadata. Uppercase for section labels only.
+| Token | Size | Weight | Line Height | Letter Spacing | Use |
+|---|---|---|---|---|---|
+| display-xxl | clamp(2.25rem, 5.5vw, 4rem) | 540 | 0.96 | 0 | Hero headline |
+| display-xl | clamp(2rem, 4vw, 3rem) | 460 | 0.96 | -1.32px | Section opener on light |
+| display-lg | 28px | 540 | 1.14 | -0.63px | Sub-section / closing CTA headline |
+| display-md | 22px | 460 | 1.1 | -0.315px | Card title |
+| heading-lg | 20px | 460 | 1.2 | -0.4px | Compact card title, FAQ question, auth heading |
+| body-lg | 18px | 540 | 1.5 | -0.135px | Marketing body lead |
+| body-md | 16px | 460 | 1.5 | 0 | Default UI body |
+| body-strong | 18.72px | 700 | 1.5 | 0 | Emphasized body (weight 700) |
+| button-md | 16px | 700 | 1.0 | 0 | Primary button label |
+| button-cap | 14px | 600 | 1.0 | 0 | Compact button label, badge text |
+| caption | 14px | 460 | 1.4 | 0 | Helper, footnote, metadata |
+| micro | 12px | 540 | 1.4 | 0 | Pill label, fine print, eyebrow |
+| legal | 11px | 460 | 1.5 | 0 | Copyright, terms |
+| price | clamp(2.25rem, 4vw, 3rem) | 700 | 1 | -0.03em | Pricing display |
 
 ### Named Rules
-**The 500-Dominance Rule.** Weight 500 (Medium) is the default for every interactive element, label, button, and data point. Weight 400 is reserved for multi-sentence prose only. This gives the interface a confident, assertive feel without shouting.
+**The Sub-Default Rule.** Use 460/540/600 instead of 400/500/700. The in-between weights are the brand's typographic warmth signature. Only body-strong (700) and button-md (700) exceed 600. No `font-semibold` (600) outside of button-cap and UI-interactive elements. No `font-medium` (500) anywhere; use 460 or 540.
+
+**The Tight Display Rule.** 0.96 line-height on 48-64px display. Negative tracking tightens variable letterforms into editorial density.
+
+**The 75ch Body Rule.** Body text lines must not exceed 75 characters. Use `max-w-[75ch]` on body containers, not arbitrary `max-w-lg` or `max-w-xl`. Scannability over density.
+
+**The Token-Only Weight Rule.** All font weights must come through a design-system token class (`sh-display-xl`, `sh-body-md`, etc.). Never use raw Tailwind weight utilities (`font-medium`, `font-semibold`, `font-bold`) directly on text. If a component needs a specific weight, create or use the matching token class.
 
 ## 4. Elevation
 
-The system uses tonal layering, not shadow-based elevation. Surfaces are flat at rest. Depth is communicated through background color shifts: background → card → popover. 
-
-Shadows appear only as a response to state: dropdown menus, popover panels, and active tab pills receive a subtle ambient shadow to separate them from the page. Static cards, lists, and containers never cast shadows.
+Flat-By-Default. Surfaces are flat at rest. Depth via background color shifts (canvas, canvas-soft, card). Shadows only on floating overlays responding to interaction.
 
 ### Shadow Vocabulary
-- **Ambient Low** (`box-shadow: 0 1px 3px rgba(0,0,0,0.08)`): Active tab pill, selected filter chip. Barely perceptible lift.
-- **Ambient Medium** (`box-shadow: 0 4px 12px rgba(0,0,0,0.10)`): Dropdown menus, select popovers, floating panels.
-- **Ambient High** (`box-shadow: 0 8px 24px rgba(0,0,0,0.12)`): Modals (rare), camera recorder overlay, choreography floating toolbars.
+- **Ambient Low** (`box-shadow: 0 1px 3px rgba(0,0,0,0.08)`): Active tab, selected chip.
+- **Ambient Medium** (`box-shadow: 0 4px 12px rgba(0,0,0,0.10)`): Dropdown menus, popovers.
+- **Ambient High** (`box-shadow: 0 8px 24px rgba(0,0,0,0.12)`): Modals, floating toolbars.
+
+### Atmospheric Depth
+The hero's depth is the violet-sky atmospheric backdrop: a soft indigo-to-violet-to-sky-blue radial wash behind the portrait/abstract composition. Implemented as CSS radial gradient (`sh-violet-backdrop`). Below the hero, depth is minimal; the white canvas is flat.
 
 ### Named Rules
-**The Flat-By-Default Rule.** Every container is flat at rest. If a card has a shadow, it's wrong. Elevation is earned through interaction or overlay context, not decoration.
+**The Flat-By-Default Rule.** No shadows on static cards, containers, or banners. Shadow appears only on floating overlays (dropdowns, modals, popovers) in response to interaction. Cookie banners, toast notifications anchored to the page: flat, not elevated.
+
+**The No-Frosted-Glass Rule.** `backdrop-filter: blur()` is prohibited on headers, navs, and product surfaces. It violates the No-Winter-Cliche rule and degrades scroll performance. Use solid `bg-background` with opacity transition instead.
 
 ## 5. Components
 
 ### Buttons
-- **Shape:** Pill-shaped (rounded-lg, 1.875rem / 30px). Minimum height 40px (default), 44px (lg), 36px (sm). Touch-target compliant.
-- **Primary:** Background Ice Deep (oklch(0.42 0.12 240)), text Background (white), padding 0.75rem 1.5rem. Weight 500.
-- **Hover:** Background shifts to Ice Glow (oklch(0.72 0.12 240)), text becomes Foreground (dark). Transition 200ms ease.
-- **Active:** Scale 0.98 transform, no shadow. Sharp tactile feedback.
-- **Outline:** Transparent background, 1px Border color, text Foreground. Hover: Muted background + Foreground text.
-- **Ghost:** Transparent background, no border. Hover: Muted background. For tertiary actions.
+- **Shape:** Rounded-rectangle (8px radius) everywhere except hero. The pill shape (9999px) only appears on the hero CTA.
+- **Primary Dark:** Background Primary (#1b1938), text On-Primary (white), padding 12px 20px. Weight 700.
+- **Primary Dark Pressed:** Background shifts to Primary-Deep (#0e0c1f). Active: scale(0.98).
+- **On-Dark Pill:** Background Violet-Soft (#c9b4fa), text Primary. Pill shape. Hero only.
+- **Secondary Outline:** Background Canvas, text Ink, 1px Hairline-Dark border.
+- **On-Teal:** Background Canvas, text Teal-Deep. Rounded-rectangle. Inside closing teal band.
+- **Ghost:** Transparent, no border. Hover: Canvas-Soft background.
 - **Destructive:** Background Destructive/10, text Destructive. Hover: Destructive/20.
+- **Active:** Scale 0.98 transform, no shadow. Sharp tactile feedback.
+- **Hover:** translateY(-1px) for primary buttons. Color shift for ghost/outline.
+- **Focus:** Border shifts to Ring, 2px ring in Ring/20. Transition 150ms.
 
 ### Cards / Containers
-- **Corner Style:** rounded-md (1.25rem / 20px) for standard cards. rounded-sm (0.5rem / 8px) for inline containers and chips.
-- **Background:** Card token (white in light, graphite in dark).
+- **Corner Style:** 12px (lg) for feature and pricing cards. 8px (md) for inline containers, buttons, badges.
+- **Background:** Canvas (white) or Canvas-Soft for alternating rows.
 - **Shadow Strategy:** None at rest. Flat-By-Default.
-- **Border:** 1px solid Border token. Hairline, not decorative.
-- **Internal Padding:** 1rem (16px) standard, 0.75rem (12px) for compact data cards.
+- **Border:** 1px solid Hairline. Warm grey, not decorative.
+- **Internal Padding:** 32px on pricing/feature cards, 24px on feature rows, 16px standard.
+
+### Badge (Opaque)
+- **Background:** oklch(0.175 0.066 315 / 0.85), 1px border oklch(0.812 0.202 321 / 0.4).
+- **Text:** Primary-Foreground for values, On-Dark-Mute for labels. **Never On-Dark-Faint** (fails WCAG AA).
+- **Radius:** 6px (md).
 
 ### Inputs / Fields
-- **Style:** Background Muted, 1px Border, rounded-md (1.25rem) for search; rounded-sm (0.5rem) for form inputs.
-- **Focus:** Border shifts to Foreground (dark), 2px ring in Ice Glow. No shadow.
-- **Error:** Border Destructive, text Destructive. Ring Destructive/20.
-- **Placeholder:** Muted Foreground.
-
-### Chips / Tags
-- **Style:** Background Muted, text Muted Foreground, rounded-sm (0.5rem). No border.
-- **Selected:** Background Ice Deep, text white. Transition 150ms.
-- **Filter variant:** Same as selected but with a dot indicator.
+- **Style:** Background Canvas, 1px Hairline border, 6px (sm) radius. Padding 10px 12px.
+- **Focus:** Border shifts to Primary, 2px ring in Ring/20.
+- **Error:** Border Destructive, text Destructive.
 
 ### Navigation
-- **App Nav (desktop):** Horizontal tabs, weight 500, 1rem size. Active tab: bottom border 2px Ice Deep. Hover: Muted background pill.
-- **Bottom Dock (mobile):** Fixed bottom bar, 48px touch targets, active icon filled in Ice Deep.
-- **Landing Nav:** Minimal horizontal, transparent over hero. White text on dark overlay.
+- **App Nav (desktop):** Horizontal tabs, weight 460, 1rem size. Active tab: Muted background + Ink text. Hover: Canvas-Soft background.
+- **Bottom Dock (mobile):** Fixed bottom bar, 1px Hairline border-top. 48px touch targets. Active: Ink text. Inactive: Ink-Mute.
+- **Auth Nav:** Indigo navy background (nav-bar-dark). Logo in Violet-Soft.
+- **Sticky Header (landing):** Solid bg-background, opacity 0-to-1 on scroll. No backdrop-blur. CTA button: variant="default" (primary dark).
 
-### Skeleton / Loading
-- **Style:** Background Muted, animate-pulse. No border-radius larger than rounded-md. No skeleton cards with shadows.
+### Signature Component: Teal Closing Band
+Every landing page closes with a deep-teal CTA band. Contains a single display-lg headline and a button-on-teal. The teal is the page's resolving chord. Non-negotiable.
 
 ### Signature Component: Metric Card
-A data-dense card used throughout the platform (session list, progress dashboard, profile).
-- **Layout:** Top row = metric label (Label style) + score badge (right-aligned). Bottom = giant metric value (Display scale at 3rem clamp) + sparkline or delta indicator.
-- **Background:** Card token, 1px Border.
-- **Score badge:** Small pill, background Score-Good/Mid/Bad, white text. Always includes the numeric score, never color-only.
+Data-dense card for session list, progress dashboard, profile.
+- Layout: metric label (caption) + score badge (right-aligned). Giant metric value (metric-giant scale) + sparkline or delta.
+- Background: Canvas, 1px Hairline border.
+- Score badge: Small pill, background Score-Good/Mid/Bad, white text. Always includes numeric score.
+
+### Signature Component: Violet-Backdrop Hero
+Hero section always uses `sh-violet-backdrop` (CSS radial gradient) over `bg-primary`. Single primary CTA (pill, on-dark-pill). No competing secondary CTA buttons; secondary actions are text links only.
 
 ## 6. Do's and Don'ts
 
 ### Do:
-- **Do** use Ice Deep for ≤ 10% of any product screen surface. Its rarity creates focus.
-- **Do** use weight 500 for every button, link, label, and data value. The interface should feel assertive.
-- **Do** use hairline borders (1px Border token) to separate cards and sections. No dividers wider than 1px.
-- **Do** respect prefers-reduced-motion. Replace animations with instant state changes.
-- **Do** pair score colors with icons or numeric labels for colorblind accessibility.
-- **Do** use pill-shaped buttons (30px radius) for all primary and secondary actions. Touch targets must be ≥ 44px.
-- **Do** keep body text lines under 75ch. Scannability over density.
+- Pair every hero with the violet-sky atmospheric backdrop.
+- Render display tiers at sub-default weights (460/540). The warmth is the typographic signature.
+- Use rounded-rectangle CTAs at 8px radius everywhere except hero (pill).
+- Close every marketing page with a deep-teal CTA band.
+- Use warm ink (#292827) for body text. Never pure black.
+- Apply tight 0.96 line-height on display sizes.
+- Pair score colors with icons or numeric labels for colorblind accessibility.
+- Respect prefers-reduced-motion. Instant state changes, no bounce.
+- Use `max-w-[75ch]` for body text containers.
+- Use On-Dark-Mute or On-Dark-Dim for badge labels (WCAG AA compliance).
+- Apply scale(0.98) on button active state for tactile feedback.
 
 ### Don't:
-- **Don't** use shadow on static cards or containers. The Flat-By-Default rule is absolute.
-- **Don't** use border-left or border-right greater than 1px as a colored accent stripe on cards, lists, or alerts. Use full borders or background tints instead.
-- **Don't** use gradient text (background-clip: text). Use a single solid color. Emphasis via weight or size.
-- **Don't** use glassmorphism (backdrop-filter blur) on product screens. Landing hero may use subtle frost; platform never does.
-- **Don't** use the hero-metric template (big number + small label + gradient). Metrics belong in context, not as isolated hero elements.
-- **Don't** create identical card grids with icon + heading + text repeated endlessly. Vary density and layout rhythm.
-- **Don't** use modals as a first solution. Exhaust inline progressive disclosure first.
-- **Don't** make the platform feel like a SaaS cream clone (Linear-style warm neutrals, soft shadows, beige accents).
-- **Don't** make it feel like a crypto interface (neon accents, dark mode with purple gradients, glass cards).
-- **Don't** make it feel like health-tech software (pastel colors, gentle curves, reassuring soft copy).
-- **Don't** make it feel like a toy or game (cartoonish icons, badge confetti, gamification with levels and unlocks).
-- **Don't** make it feel like a raw engineering dashboard (monospace dumps, terminal aesthetics, unstyled data tables).
-- **Don't** use em dashes in copy. Use commas, colons, semicolons, or periods.
+- Use pill-shaped buttons in the body of the page. The pill is hero-only.
+- Bump display weight above 540 (except body-strong at 700).
+- Render body text in pure black.
+- Omit the closing teal band on marketing pages.
+- Introduce accent colors beyond indigo, violet-soft, teal, and warm greys.
+- Use shadow on static cards, containers, or banners. Flat-By-Default is absolute.
+- Use border-left/right greater than 1px as a colored accent stripe.
+- Use gradient text (background-clip: text). Single solid color. Emphasis via weight or size.
+- Use glassmorphism, frosted glass, or backdrop-filter blur on product screens or navigation.
+- Use the hero-metric template (big number + small label + gradient).
+- Create identical card grids with icon + heading + text repeated endlessly.
+- Use modals as a first solution. Exhaust inline progressive disclosure first.
+- Use em dashes in copy. Use commas, colons, semicolons, or periods.
+- Use canvas-soft as a section background. It breaks the Three-Canvas Rule.
+- Use On-Dark-Faint for badge labels or any text below 18px on dark surfaces. It fails WCAG AA.
+- Use raw Tailwind font-weight utilities (font-medium, font-semibold, font-bold) on text. Always use a design token class.
+- Place two CTA buttons of equal visual weight in a single section. Secondary actions are text links.

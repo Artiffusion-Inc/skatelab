@@ -34,7 +34,7 @@ export function SettingsForm() {
 
   return (
     <form onSubmit={handleSubmit} className="mx-auto max-w-md space-y-4 p-6">
-      <h1 className="nike-h2">{t("title")}</h1>
+      <h1 className="sh-heading-lg">{t("title")}</h1>
 
       <div className="space-y-1.5">
         <label htmlFor="language" className="text-sm font-medium">
@@ -44,7 +44,7 @@ export function SettingsForm() {
           id="language"
           value={language}
           onChange={e => setLanguage(e.target.value)}
-          className="w-full rounded-xl border border-border bg-background px-3 py-2.5 text-sm"
+          className="w-full rounded-xl border border-hairline bg-background px-3 py-2.5 text-sm"
         >
           <option value="ru">Русский</option>
           <option value="en">English</option>
@@ -59,7 +59,7 @@ export function SettingsForm() {
           id="timezone"
           value={timezone}
           onChange={e => setTimezone(e.target.value)}
-          className="w-full rounded-xl border border-border bg-background px-3 py-2.5 text-sm"
+          className="w-full rounded-xl border border-hairline bg-background px-3 py-2.5 text-sm"
         >
           <option value="Europe/Moscow">Europe/Moscow</option>
           <option value="Europe/London">Europe/London</option>
@@ -75,7 +75,7 @@ export function SettingsForm() {
           id="theme"
           value={theme}
           onChange={e => setTheme(e.target.value)}
-          className="w-full rounded-xl border border-border bg-background px-3 py-2.5 text-sm"
+          className="w-full rounded-xl border border-hairline bg-background px-3 py-2.5 text-sm"
         >
           <option value="system">{t("system")}</option>
           <option value="light">{t("light")}</option>
@@ -87,9 +87,9 @@ export function SettingsForm() {
         {saving ? tc("saving") : t("save")}
       </Button>
 
-      <div className="border-t border-border pt-4">
+      <div className="border-t border-hairline pt-4">
         <h2 className="mb-3 text-sm font-medium">{t("onboardingTitle")}</h2>
-        <p className="mb-3 text-xs text-muted-foreground">{t("onboardingHint")}</p>
+        <p className="mb-3 text-xs text-ink-mute">{t("onboardingHint")}</p>
         <Button
           type="button"
           variant="outline"

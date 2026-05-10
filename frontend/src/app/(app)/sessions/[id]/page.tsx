@@ -49,7 +49,7 @@ export default function SessionDetailPage() {
 
   if (isLoading) return <SkeletonDetail />
   if (!session)
-    return <div className="py-20 text-center text-muted-foreground">{ts("notFound")}</div>
+    return <div className="py-20 text-center text-ink-mute">{ts("notFound")}</div>
 
   if (POLLING_STATUSES.has(session.status)) {
     return (
@@ -68,8 +68,8 @@ export default function SessionDetailPage() {
   if (session.status === "failed" || session.error_message) {
     return (
       <div className="mx-auto max-w-lg space-y-4 px-4 py-20 text-center">
-        <p className="nike-h3 text-destructive">{ts("analysisFailed")}</p>
-        <p className="text-sm text-muted-foreground">{session.error_message}</p>
+        <p className="sh-display-md text-destructive">{ts("analysisFailed")}</p>
+        <p className="text-sm text-ink-mute">{session.error_message}</p>
         {session.video_key && (
           <Button
             onClick={() =>
@@ -91,7 +91,7 @@ export default function SessionDetailPage() {
           <h1 className="text-xl font-semibold">
             {te(session.element_type) ?? session.element_type}
           </h1>
-          <p className="text-sm text-muted-foreground">
+          <p className="text-sm text-ink-mute">
             {new Date(session.created_at).toLocaleDateString("ru-RU")}
           </p>
           {session.overall_score !== null && (
@@ -153,7 +153,7 @@ export default function SessionDetailPage() {
         )}
 
         {session.metrics.length > 0 && (
-          <div className="rounded-2xl border border-border p-3 sm:p-4">
+          <div className="rounded-2xl border border-hairline p-3 sm:p-4">
             <h2 className="text-sm font-medium mb-2">{ts("metrics")}</h2>
             {session.metrics.map(m => {
               const def = registry?.[m.metric_name]
@@ -179,9 +179,9 @@ export default function SessionDetailPage() {
         )}
 
         {session.recommendations && session.recommendations.length > 0 && (
-          <div className="rounded-2xl border border-border p-3 sm:p-4">
+          <div className="rounded-2xl border border-hairline p-3 sm:p-4">
             <h2 className="text-sm font-medium mb-2">{ts("recommendations")}</h2>
-            <ul className="space-y-1 text-sm text-muted-foreground">
+            <ul className="space-y-1 text-sm text-ink-mute">
               {session.recommendations.map(r => (
                 <li key={r}>{r}</li>
               ))}
@@ -194,7 +194,7 @@ export default function SessionDetailPage() {
         <button
           type="button"
           onClick={() => window.print()}
-          className="flex items-center gap-2 rounded-xl border border-border px-3 py-2 text-sm hover:bg-muted print:hidden"
+          className="flex items-center gap-2 rounded-xl border border-hairline px-3 py-2 text-sm hover:bg-muted print:hidden"
         >
           <Printer className="h-4 w-4" />
           {tSession("printReport")}

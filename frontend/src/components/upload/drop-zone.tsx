@@ -73,13 +73,13 @@ export function DropZone({
       className={`mx-auto flex max-w-lg cursor-pointer flex-col items-center justify-center gap-3 rounded-2xl border-2 border-dashed px-8 py-16 transition-colors ${
         dragOver
           ? "border-primary bg-primary/5"
-          : "border-border hover:border-primary/50 hover:bg-accent/30"
+          : "border-hairline hover:border-primary/50 hover:bg-accent/30"
       }`}
     >
-      <Upload className="h-10 w-10 text-muted-foreground" />
-      <p className="nike-h3">{t("dropHint")}</p>
-      <p className="text-sm text-muted-foreground">{t("dropOrClick")}</p>
-      <p className="text-xs text-muted-foreground">{t("maxSize")}</p>
+      <Upload className="h-10 w-10 text-ink-mute" />
+      <p className="sh-display-md">{t("dropHint")}</p>
+      <p className="text-sm text-ink-mute">{t("dropOrClick")}</p>
+      <p className="text-xs text-ink-mute">{t("maxSize")}</p>
       <input
         ref={inputRef}
         type="file"

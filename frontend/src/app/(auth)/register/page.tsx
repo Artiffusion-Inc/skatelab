@@ -50,8 +50,8 @@ export default function RegisterPage() {
   return (
     <div className="space-y-6">
       <div className="space-y-2 text-center">
-        <h1 className="nike-h1">{t("signUp")}</h1>
-        <p className="text-sm text-muted-foreground">{t("signUpSubtitle")}</p>
+        <h1 className="sh-display-lg text-ink">{t("signUp")}</h1>
+        <p className="sh-caption text-ink-mute">{t("signUpSubtitle")}</p>
       </div>
       <form onSubmit={handleSubmit} className="space-y-4">
         <FormField
@@ -94,7 +94,7 @@ export default function RegisterPage() {
           {loading ? t("signingUp") : t("signUpBtn")}
         </Button>
       </form>
-      <p className="text-center text-sm text-muted-foreground">
+      <p className="text-center sh-caption text-ink-mute">
         {t("hasAccount")}{" "}
         <Link href="/login" className="text-link hover:underline">
           {t("signInBtn")}
