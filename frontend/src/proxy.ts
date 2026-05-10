@@ -16,6 +16,7 @@ function buildCsp(nonce: string, isDev: boolean): string {
         "'self'",
         "'strict-dynamic'",
         "'unsafe-inline'",
+        "'unsafe-eval'",
         "https://cdn.jsdelivr.net",
       ]
 
