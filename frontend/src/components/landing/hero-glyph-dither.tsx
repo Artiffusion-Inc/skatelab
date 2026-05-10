@@ -1,6 +1,7 @@
 "use client"
 
-import { useRef, useMemo, useCallback, useEffect } from "react"
+import { useRef, useMemo, useCallback } from "react"
+import { useMountEffect } from "@/lib/useMountEffect"
 import { Canvas, useFrame, useThree } from "@react-three/fiber"
 import * as THREE from "three"
 
@@ -169,10 +170,10 @@ function DitherPlane({ imageUrl, opacity }: { imageUrl: string; opacity: number 
     }
   })
 
-  useEffect(() => {
+  useMountEffect(() => {
     window.addEventListener("pointermove", handlePointerMove)
     return () => window.removeEventListener("pointermove", handlePointerMove)
-  }, [handlePointerMove])
+  })
 
   return (
     <mesh ref={meshRef} scale={[viewport.width, viewport.height, 1]}>

@@ -1,6 +1,7 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState } from "react"
+import { useMountEffect } from "@/lib/useMountEffect"
 import dynamic from "next/dynamic"
 import { Button } from "@/components/ui/button"
 import { useTranslations } from "@/i18n"
@@ -14,9 +15,9 @@ export function HeroSection() {
   const t = useTranslations("landing")
   const [reducedMotion, setReducedMotion] = useState(false)
 
-  useEffect(() => {
+  useMountEffect(() => {
     setReducedMotion(window.matchMedia("(prefers-reduced-motion: reduce)").matches)
-  }, [])
+  })
 
   return (
     <section
