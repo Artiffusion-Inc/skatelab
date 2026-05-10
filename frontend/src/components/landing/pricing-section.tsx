@@ -65,7 +65,7 @@ export function PricingSection() {
             }`}
           >
             {tier.badge && (
-              <span className="absolute -top-3 left-1/2 -translate-x-1/2 bg-surface-violet-soft px-3 py-1 rounded-full sh-micro text-primary-foreground tracking-wider">
+              <span className="absolute -top-3 left-1/2 -translate-x-1/2 bg-surface-violet-soft px-3 py-1 rounded-full sh-micro text-primary-deep tracking-wider">
                 {tier.badge}
               </span>
             )}
