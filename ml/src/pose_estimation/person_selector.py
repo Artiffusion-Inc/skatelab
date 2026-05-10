@@ -9,7 +9,7 @@ Provides:
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 
@@ -133,7 +133,7 @@ def select_persons_interactive(
             bbox={"boxstyle": "round,pad=0.2", "facecolor": "black", "alpha": 0.6},
         )
 
-    def on_click(event):
+    def on_click(event: Any) -> None:
         if event.inaxes != ax or event.xdata is None:
             return
         x, y = int(event.xdata), int(event.ydata)
@@ -150,7 +150,7 @@ def select_persons_interactive(
                 fig.canvas.draw_idle()
                 break
 
-    def on_key(event):
+    def on_key(event: Any) -> None:
         if event.key == "enter":
             plt.close(fig)
 

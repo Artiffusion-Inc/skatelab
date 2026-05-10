@@ -178,7 +178,7 @@ def coco_to_h36m(coco_pose: np.ndarray) -> np.ndarray:
 _coco_to_h36m_single = coco_to_h36m
 
 
-def _biometric_distance(pose_a: np.ndarray, pose_b: np.ndarray) -> float:
+def biometric_distance(pose_a: np.ndarray, pose_b: np.ndarray) -> float:
     """Compute biometric distance between two H3.6M poses.
 
     Uses anatomical ratios (scale-invariant) to match the same person

@@ -44,14 +44,14 @@ class TrackValidator:
         last_target_pose: NDArray[np.float32],
         elapsed: int,
     ) -> float:
-        from ..pose_estimation.h36m import _biometric_distance
+        from ..pose_estimation.h36m import biometric_distance
 
         cur_cx = float(np.nanmean(candidate_pose[:, 0]))
         cur_cy = float(np.nanmean(candidate_pose[:, 1]))
         prev_cx = float(np.nanmean(last_target_pose[:, 0]))
         prev_cy = float(np.nanmean(last_target_pose[:, 1]))
         pos_dist = np.sqrt((cur_cx - prev_cx) ** 2 + (cur_cy - prev_cy) ** 2)
-        bio_dist = _biometric_distance(candidate_pose, last_target_pose)
+        bio_dist = biometric_distance(candidate_pose, last_target_pose)
 
         w_pos = max(0.2, 1.0 - elapsed * 0.02)
         w_bio = 1.0 - w_pos

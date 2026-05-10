@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
+from types import TracebackType
 
 import cv2
 import numpy as np
@@ -239,6 +240,8 @@ class MogaNetBatch:
             self._score_thr,
         )
 
+    _MAX_GPU_BATCH = 32
+
     def infer_batch(
         self,
         crops: list[np.ndarray],
@@ -246,8 +249,9 @@ class MogaNetBatch:
     ) -> tuple[np.ndarray, np.ndarray]:
         """Run batch inference on cropped person images.
 
-        Preprocesses crops, runs ONNX inference, decodes heatmaps, rescales
-        keypoints to original frame coordinates, and applies score threshold.
+        Preprocesses crops, runs ONNX inference in chunks of _MAX_GPU_BATCH,
+        decodes heatmaps, rescales keypoints to original frame coordinates,
+        and applies score threshold.
 
         Args:
             crops: List of BGR crop images (H, W, 3) uint8.
@@ -269,22 +273,28 @@ class MogaNetBatch:
                 f"crops and bboxes must have same length, got {len(crops)} and {len(bboxes)}"
             )
 
-        # Preprocess
-        batch_tensor = preprocess_crops(crops)
+        # Chunked inference to avoid GPU OOM
+        all_keypoints = []
+        all_scores = []
+        chunk_size = self._MAX_GPU_BATCH
+        for start in range(0, len(crops), chunk_size):
+            end = min(start + chunk_size, len(crops))
+            chunk_crops = crops[start:end]
+            chunk_bboxes = bboxes[start:end]
 
-        # Run inference
-        outputs = self._session.run(
-            self._output_names,
-            {self._input_name: batch_tensor},
-        )
+            batch_tensor = preprocess_crops(chunk_crops)
+            outputs = self._session.run(
+                self._output_names,
+                {self._input_name: batch_tensor},
+            )
+            heatmaps = np.asarray(outputs[0])
+            keypoints, scores = decode_heatmaps(heatmaps)
+            keypoints = rescale_keypoints(keypoints, chunk_crops, chunk_bboxes)
+            all_keypoints.append(keypoints)
+            all_scores.append(scores)
 
-        heatmaps = np.asarray(outputs[0])
-
-        # Decode heatmaps
-        keypoints, scores = decode_heatmaps(heatmaps)
-
-        # Rescale to original frame coords
-        keypoints = rescale_keypoints(keypoints, crops, bboxes)
+        keypoints = np.concatenate(all_keypoints, axis=0)
+        scores = np.concatenate(all_scores, axis=0)
 
         # Apply score threshold without mutating raw scores
         thresholded_scores = scores.copy()
@@ -300,5 +310,10 @@ class MogaNetBatch:
     def __enter__(self):
         return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: TracebackType | None,
+    ) -> None:
         self.close()
