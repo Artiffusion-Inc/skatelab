@@ -42,7 +42,7 @@ export function PricingSection() {
     <section
       id="pricing"
       tabIndex={-1}
-      className="border-t border-hairline mx-auto max-w-5xl px-6 py-20 md:py-28"
+      className="border-t border-hairline mx-auto max-w-5xl px-6 py-16 md:py-24"
       aria-labelledby="pricing-heading"
     >
       <div className="mb-14 md:mb-20 text-center">
