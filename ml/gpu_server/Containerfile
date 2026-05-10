@@ -89,7 +89,7 @@ ENV PATH="/opt/venv/bin:$PATH" \
     LD_LIBRARY_PATH="/opt/venv/lib/python3.11/site-packages/nvidia/cublas/lib:/opt/venv/lib/python3.11/site-packages/nvidia/cuda_runtime/lib:/opt/venv/lib/python3.11/site-packages/nvidia/cudnn/lib:/opt/venv/lib/python3.11/site-packages/nvidia/curand/lib:/opt/venv/lib/python3.11/site-packages/nvidia/cufft/lib:/opt/venv/lib/python3.11/site-packages/nvidia/cusolver/lib:/opt/venv/lib/python3.11/site-packages/nvidia/cusparse/lib:/opt/venv/lib/python3.11/site-packages/nvidia/cuda_nvcc/lib"
 
 # ONNX models downloaded from R2 at startup — no COPY needed
-RUN mkdir -p /app/data/models && chown appuser:appuser /app/data /app/data/models
+RUN mkdir -p /app/data/models && chown appuser:appuser /app /app/data /app/data/models
 
 # Source code — changes most often, top layer
 COPY --chown=appuser:appuser ml/src/ src/
