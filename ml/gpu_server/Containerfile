@@ -5,7 +5,7 @@
 # CUDA runtime comes from pip packages (nvidia-cudnn-cu12 etc.).
 # The NVIDIA driver is provided by the host via nvidia-container-toolkit.
 
-# Stage 1: Install Python deps into venv
+# Stage 1: Install Python deps into venv (single layer for smaller image)
 FROM docker.io/python:3.11-slim AS builder
 
 ENV PYTHONDONTWRITEBYTECODE=1
@@ -18,8 +18,7 @@ COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 
 RUN python -m venv /opt/venv
 
-# Core inference deps
-# CUDA 12 runtime libs required by onnxruntime-gpu (host provides driver only)
+# All deps in single RUN for fewer layers + smaller image
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv pip install --python /opt/venv/bin/python --no-cache-dir \
     onnxruntime-gpu==1.24.4 \
@@ -36,11 +35,7 @@ RUN --mount=type=cache,target=/root/.cache/uv \
     scipy==1.17.1 \
     pillow==12.1.1 \
     av==17.0.0 \
-    numba==0.61.2
-
-# Server deps
-RUN --mount=type=cache,target=/root/.cache/uv \
-    uv pip install --python /opt/venv/bin/python --no-cache-dir \
+    numba==0.61.2 \
     fastapi==0.135.2 \
     "uvicorn[standard]==0.42.0" \
     python-multipart==0.0.22 \
@@ -50,20 +45,18 @@ RUN --mount=type=cache,target=/root/.cache/uv \
     httpx==0.28.1 \
     prometheus-client==0.22.1 \
     aiobotocore==3.4.0 \
-    vastai==1.0.8
-
-# Strip unnecessary files from venv (keep numpy/_core/tests — scipy needs it)
-RUN find /opt/venv -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null; \
+    vastai==1.0.8 \
+    # Strip: __pycache__, .pyc/.pyo, tests (keep numpy/_core/tests), pip, setuptools, debug symbols
+    && find /opt/venv -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null; \
     find /opt/venv -type f -name "*.pyc" -delete 2>/dev/null; \
     find /opt/venv -type f -name "*.pyo" -delete 2>/dev/null; \
     find /opt/venv -path "*/site-packages/*/tests" -not -path "*/numpy/*" -exec rm -rf {} + 2>/dev/null; \
     rm -rf /opt/venv/lib/python3.11/site-packages/pip \
     /opt/venv/lib/python3.11/site-packages/setuptools; \
-    # Strip debug symbols from all .so files
     find /opt/venv -type f -name "*.so*" -exec strip --strip-debug {} + 2>/dev/null; \
     true
 
-# Stage 2: Minimal runtime — python:3.11-slim, no CUDA base image
+# Stage 2: Minimal runtime
 FROM docker.io/python:3.11-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
