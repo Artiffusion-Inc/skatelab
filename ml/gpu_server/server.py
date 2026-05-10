@@ -20,8 +20,14 @@ from prometheus_client import CONTENT_TYPE_LATEST, Counter, Gauge, Histogram, ge
 from pydantic import BaseModel
 from starlette.responses import Response
 
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.INFO, force=True)
 logger = logging.getLogger(__name__)
+
+# File handler for PyWorker log monitoring (Vast.ai Serverless reads this)
+_log_file = os.environ.get("MODEL_LOG_FILE", "/tmp/skatelab-server.log")  # noqa: S108
+_fh = logging.FileHandler(_log_file)
+_fh.setFormatter(logging.Formatter("%(levelname)s:%(name)s:%(message)s"))
+logging.getLogger().addHandler(_fh)
 
 app = FastAPI(title="Skating ML GPU Worker")
 
@@ -555,4 +561,10 @@ async def process(req: ProcessRequest):
 
 @app.get("/health")
 async def health():
+    return {"status": "ok"}
+
+
+@app.post("/ping")
+async def ping():
+    """Lightweight liveness probe for Vast.ai PyWorker benchmarks."""
     return {"status": "ok"}
