@@ -83,19 +83,14 @@ class CalibrationViewModel @Inject constructor(
         }
     }
 
-    fun calibrate(sensorId: SensorId) {
+    fun calibrateBoth() {
         viewModelScope.launch {
             _isCalibrating.value = true
             _error.value = null
-            calibrateSensorUseCase.invoke(sensorId)
-                .onSuccess { data ->
-                    when (sensorId) {
-                        SensorId.LEFT -> _leftCalibration.value = data
-                        SensorId.RIGHT -> _rightCalibration.value = data
-                    }
-                    val calMap = mutableMapOf<SensorId, CalibrationData>()
-                    _leftCalibration.value?.let { calMap[SensorId.LEFT] = it }
-                    _rightCalibration.value?.let { calMap[SensorId.RIGHT] = it }
+            calibrateSensorUseCase.invokeBoth()
+                .onSuccess { calMap ->
+                    calMap[SensorId.LEFT]?.let { _leftCalibration.value = it }
+                    calMap[SensorId.RIGHT]?.let { _rightCalibration.value = it }
                     SessionState.calibration = calMap
                 }
                 .onFailure { _error.value = it.message }

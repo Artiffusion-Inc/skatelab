@@ -38,22 +38,16 @@ fun CalibrationScreen(
         Text(stringResource(R.string.calibration_instruction), style = MaterialTheme.typography.bodyMedium)
         Spacer(modifier = Modifier.height(24.dp))
 
-        SensorCalibCard(
+        SensorStatusCard(
             label = stringResource(R.string.calibration_left),
-            sensorId = SensorId.LEFT,
             calibration = leftCal,
             quaternion = leftQuat,
-            isCalibrating = isCalibrating,
-            onCalibrate = { viewModel.calibrate(SensorId.LEFT) },
         )
         Spacer(modifier = Modifier.height(12.dp))
-        SensorCalibCard(
+        SensorStatusCard(
             label = stringResource(R.string.calibration_right),
-            sensorId = SensorId.RIGHT,
             calibration = rightCal,
             quaternion = rightQuat,
-            isCalibrating = isCalibrating,
-            onCalibrate = { viewModel.calibrate(SensorId.RIGHT) },
         )
 
         error?.let {
@@ -61,10 +55,28 @@ fun CalibrationScreen(
             Text(it, color = MaterialTheme.colorScheme.error)
         }
 
+        Spacer(modifier = Modifier.height(24.dp))
+        Button(
+            onClick = { viewModel.calibrateBoth() },
+            enabled = !isCalibrating,
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            if (isCalibrating) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(20.dp),
+                    strokeWidth = 2.dp,
+                    color = MaterialTheme.colorScheme.onPrimary,
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+            }
+            Text(stringResource(R.string.calibration_calibrate_both))
+        }
+
         Spacer(modifier = Modifier.weight(1f))
         Button(
             onClick = onProceed,
-            enabled = leftCal != null || rightCal != null,
+            enabled = leftCal != null && rightCal != null,
+            modifier = Modifier.fillMaxWidth(),
         ) {
             Text(stringResource(R.string.calibration_proceed))
         }
@@ -72,19 +84,15 @@ fun CalibrationScreen(
 }
 
 @Composable
-private fun SensorCalibCard(
+private fun SensorStatusCard(
     label: String,
-    sensorId: SensorId,
     calibration: ru.skatelab.capture.domain.model.CalibrationData?,
     quaternion: QuaternionPreview,
-    isCalibrating: Boolean,
-    onCalibrate: () -> Unit,
 ) {
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text(label, style = MaterialTheme.typography.titleMedium)
 
-            // Live quaternion preview
             val hasNonZero = quaternion.w != 0f || quaternion.x != 0f ||
                 quaternion.y != 0f || quaternion.z != 0f
             if (hasNonZero) {
@@ -100,15 +108,6 @@ private fun SensorCalibCard(
             if (calibration != null) {
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(stringResource(R.string.calibration_done), color = MaterialTheme.colorScheme.primary)
-            } else {
-                Spacer(modifier = Modifier.height(8.dp))
-                Button(onClick = onCalibrate, enabled = !isCalibrating) {
-                    if (isCalibrating) {
-                        CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
-                        Spacer(modifier = Modifier.width(8.dp))
-                    }
-                    Text(stringResource(R.string.calibration_calibrate))
-                }
             }
         }
     }

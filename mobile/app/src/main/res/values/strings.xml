@@ -17,6 +17,7 @@
     <string name="calibration_left">Левый датчик</string>
     <string name="calibration_right">Правый датчик</string>
     <string name="calibration_calibrate">Калибровать</string>
+    <string name="calibration_calibrate_both">Калибровка</string>
     <string name="calibration_done">Откалиброван</string>
     <string name="calibration_proceed">Далее: Камера</string>
 

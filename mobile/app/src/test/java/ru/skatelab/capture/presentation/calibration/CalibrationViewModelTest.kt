@@ -4,13 +4,12 @@ import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
-import io.mockk.verify
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestScope
-import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.resetMain
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.After
@@ -54,59 +53,58 @@ class CalibrationViewModelTest {
     }
 
     @Test
-    fun calibrateLeft_setsLeftCalibration() = testScope.runTest {
-        val data = CalibrationData(floatArrayOf(1f, 0f, 0f, 0f), 1000L)
-        coEvery { calibrateUseCase.invoke(SensorId.LEFT) } returns Result.success(data)
+    fun calibrateBoth_setsBothCalibrations() = testScope.runTest {
+        val leftData = CalibrationData(floatArrayOf(1f, 0f, 0f, 0f), 1000L)
+        val rightData = CalibrationData(floatArrayOf(0f, 1f, 0f, 0f), 2000L)
+        coEvery { calibrateUseCase.invokeBoth() } returns Result.success(
+            mapOf(SensorId.LEFT to leftData, SensorId.RIGHT to rightData)
+        )
 
-        viewModel.calibrate(SensorId.LEFT)
+        viewModel.calibrateBoth()
         runCurrent()
 
-        assertEquals(data, viewModel.leftCalibration.value)
+        assertEquals(leftData, viewModel.leftCalibration.value)
+        assertEquals(rightData, viewModel.rightCalibration.value)
         assertNull(viewModel.error.value)
     }
 
     @Test
-    fun calibrateRight_setsRightCalibration() = testScope.runTest {
-        val data = CalibrationData(floatArrayOf(0f, 1f, 0f, 0f), 2000L)
-        coEvery { calibrateUseCase.invoke(SensorId.RIGHT) } returns Result.success(data)
-
-        viewModel.calibrate(SensorId.RIGHT)
-        runCurrent()
-
-        assertEquals(data, viewModel.rightCalibration.value)
-        assertNull(viewModel.error.value)
-    }
-
-    @Test
-    fun calibrateFailure_setsError() = testScope.runTest {
-        coEvery { calibrateUseCase.invoke(SensorId.LEFT) } returns
+    fun calibrateBoth_failure_setsError() = testScope.runTest {
+        coEvery { calibrateUseCase.invokeBoth() } returns
             Result.failure(IllegalStateException("No still samples"))
 
-        viewModel.calibrate(SensorId.LEFT)
+        viewModel.calibrateBoth()
         runCurrent()
 
         assertNull(viewModel.leftCalibration.value)
+        assertNull(viewModel.rightCalibration.value)
         assertTrue(viewModel.error.value!!.contains("No still samples"))
     }
 
     @Test
-    fun calibrate_updatesSessionState() = testScope.runTest {
-        val data = CalibrationData(floatArrayOf(1f, 0f, 0f, 0f), 1000L)
-        coEvery { calibrateUseCase.invoke(SensorId.LEFT) } returns Result.success(data)
+    fun calibrateBoth_updatesSessionState() = testScope.runTest {
+        val leftData = CalibrationData(floatArrayOf(1f, 0f, 0f, 0f), 1000L)
+        val rightData = CalibrationData(floatArrayOf(0f, 1f, 0f, 0f), 2000L)
+        coEvery { calibrateUseCase.invokeBoth() } returns Result.success(
+            mapOf(SensorId.LEFT to leftData, SensorId.RIGHT to rightData)
+        )
 
-        viewModel.calibrate(SensorId.LEFT)
+        viewModel.calibrateBoth()
         runCurrent()
 
-        assertTrue(ru.skatelab.capture.presentation.SessionState.calibration.containsKey(SensorId.LEFT))
+        val cal = ru.skatelab.capture.presentation.SessionState.calibration
+        assertEquals(leftData, cal[SensorId.LEFT])
+        assertEquals(rightData, cal[SensorId.RIGHT])
     }
 
     @Test
     fun isCalibrating_resetsAfterCompletion() = testScope.runTest {
-        coEvery { calibrateUseCase.invoke(SensorId.LEFT) } returns
-            Result.success(CalibrationData(floatArrayOf(1f, 0f, 0f, 0f), 1000L))
+        coEvery { calibrateUseCase.invokeBoth() } returns Result.success(
+            mapOf(SensorId.LEFT to CalibrationData(floatArrayOf(1f, 0f, 0f, 0f), 1000L))
+        )
 
-        viewModel.calibrate(SensorId.LEFT)
-        assertFalse(viewModel.isCalibrating.value) // not yet started in test dispatcher
+        viewModel.calibrateBoth()
+        assertFalse(viewModel.isCalibrating.value)
 
         runCurrent()
         assertFalse(viewModel.isCalibrating.value)
@@ -135,19 +133,16 @@ class CalibrationViewModelTest {
     }
 
     @Test
-    fun calibrateLeft_thenRight_bothStored() = testScope.runTest {
+    fun calibrateBoth_partialResult_setsAvailableCalibrations() = testScope.runTest {
         val leftData = CalibrationData(floatArrayOf(1f, 0f, 0f, 0f), 1000L)
-        val rightData = CalibrationData(floatArrayOf(0f, 1f, 0f, 0f), 2000L)
-        coEvery { calibrateUseCase.invoke(SensorId.LEFT) } returns Result.success(leftData)
-        coEvery { calibrateUseCase.invoke(SensorId.RIGHT) } returns Result.success(rightData)
+        coEvery { calibrateUseCase.invokeBoth() } returns Result.success(
+            mapOf(SensorId.LEFT to leftData)
+        )
 
-        viewModel.calibrate(SensorId.LEFT)
-        runCurrent()
-        viewModel.calibrate(SensorId.RIGHT)
+        viewModel.calibrateBoth()
         runCurrent()
 
         assertEquals(leftData, viewModel.leftCalibration.value)
-        assertEquals(rightData, viewModel.rightCalibration.value)
-        assertEquals(2, ru.skatelab.capture.presentation.SessionState.calibration.size)
+        assertNull(viewModel.rightCalibration.value)
     }
 }
