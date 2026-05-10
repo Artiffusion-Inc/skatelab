@@ -5,7 +5,6 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import ru.skatelab.capture.R
@@ -14,8 +13,8 @@ import ru.skatelab.capture.R
 fun ExportScreen(
     viewModel: ExportViewModel,
     sessionId: String,
+    onExportComplete: () -> Unit = {},
 ) {
-    val context = LocalContext.current
     val isExporting by viewModel.isExporting.collectAsState()
     val exportPath by viewModel.exportPath.collectAsState()
     val error by viewModel.error.collectAsState()
@@ -50,6 +49,10 @@ fun ExportScreen(
             Text(stringResource(R.string.export_done), color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.titleMedium)
             Spacer(modifier = Modifier.height(8.dp))
             Text(it, style = MaterialTheme.typography.bodySmall)
+            Spacer(modifier = Modifier.height(16.dp))
+            Button(onClick = onExportComplete) {
+                Text(stringResource(R.string.session_list_title))
+            }
         }
 
         error?.let {

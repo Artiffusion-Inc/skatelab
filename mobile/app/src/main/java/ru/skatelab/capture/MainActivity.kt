@@ -25,6 +25,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.core.content.ContextCompat
 import dagger.hilt.android.AndroidEntryPoint
 import ru.skatelab.capture.presentation.navigation.AppNavigation
@@ -106,7 +107,7 @@ private fun PermissionGate(content: @Composable () -> Unit) {
         content()
     } else {
         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            Text("Permissions required to continue")
+            Text(stringResource(R.string.permissions_required))
         }
     }
 }

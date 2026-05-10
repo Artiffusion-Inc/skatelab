@@ -15,6 +15,8 @@ import ru.skatelab.capture.presentation.export.ExportScreen
 import ru.skatelab.capture.presentation.export.ExportViewModel
 import ru.skatelab.capture.presentation.recording.RecordingScreen
 import ru.skatelab.capture.presentation.recording.RecordingViewModel
+import ru.skatelab.capture.presentation.session.SessionListScreen
+import ru.skatelab.capture.presentation.session.SessionListViewModel
 import ru.skatelab.capture.presentation.SessionState
 import java.io.File
 
@@ -23,6 +25,7 @@ object Routes {
     const val CALIBRATION = "calibration"
     const val RECORDING = "recording"
     const val EXPORT = "export/{sessionId}"
+    const val SESSIONS = "sessions"
 
     fun export(sessionId: String) = "export/$sessionId"
 }
@@ -63,7 +66,7 @@ fun AppNavigation() {
                 calibration = SessionState.calibration,
                 onRecordingComplete = { sessionId ->
                     navController.navigate(Routes.export(sessionId)) {
-                        popUpTo(Routes.CALIBRATION) { inclusive = false }
+                        popUpTo(Routes.SESSIONS) { inclusive = false }
                     }
                 },
             )
@@ -78,6 +81,21 @@ fun AppNavigation() {
             ExportScreen(
                 viewModel = viewModel,
                 sessionId = sessionId,
+                onExportComplete = {
+                    navController.navigate(Routes.SESSIONS) {
+                        popUpTo(Routes.SESSIONS) { inclusive = true }
+                    }
+                },
+            )
+        }
+
+        composable(Routes.SESSIONS) {
+            val viewModel: SessionListViewModel = hiltViewModel()
+            SessionListScreen(
+                viewModel = viewModel,
+                onSessionClick = { sessionId ->
+                    navController.navigate(Routes.export(sessionId))
+                },
             )
         }
     }

@@ -32,4 +32,16 @@
     <string name="export_session">Сессия: %s</string>
     <string name="exporting">Экспорт…</string>
     <string name="export_done">Экспорт завершён!</string>
+
+    <!-- Permissions -->
+    <string name="permissions_required">Разрешения необходимы для работы</string>
+
+    <!-- Session List -->
+    <string name="session_list_title">Сессии</string>
+    <string name="session_date_format">dd.MM.yyyy HH:mm</string>
+    <string name="session_duration">Длительность: %d сек</string>
+    <string name="session_complete">Завершена</string>
+    <string name="session_incomplete">Незавершена</string>
+    <string name="session_no_sessions">Нет сохранённых сессий</string>
+    <string name="session_export">Экспорт</string>
 </resources>

@@ -2,10 +2,14 @@ package ru.skatelab.capture.data.camera
 
 import android.content.Context
 import android.hardware.camera2.CameraCharacteristics
+import android.view.Surface
+import androidx.camera.core.Preview
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import ru.skatelab.capture.domain.repository.CameraRepository
 import java.io.File
 import javax.inject.Inject
@@ -20,6 +24,10 @@ class CameraRepositoryImpl @Inject constructor(
     private val _frameTimestamps = MutableSharedFlow<Long>()
     private val _currentFps = MutableStateFlow(0)
     private val _hardwareLevel = MutableStateFlow(-1)
+    private val _previewSurface = MutableStateFlow<Surface?>(null)
+
+    /** Surface provider for CameraX Preview use case. */
+    private var previewSurfaceProvider: Preview.SurfaceProvider? = null
 
     /** Selected recorder — Camera2 for FULL/LEVEL_3, CameraX for LEGACY/LIMITED. */
     private var camera2Recorder: Camera2Recorder? = null
@@ -30,6 +38,16 @@ class CameraRepositoryImpl @Inject constructor(
     override val frameTimestamps: Flow<Long> = _frameTimestamps
     override val currentFps: Flow<Int> = _currentFps
     override val hardwareLevel: Flow<Int> = _hardwareLevel
+    override val previewSurface: StateFlow<Surface?> = _previewSurface.asStateFlow()
+
+    override fun setPreviewSurface(surface: Surface?) {
+        _previewSurface.value = surface
+    }
+
+    override fun setPreviewSurfaceProvider(provider: Any?) {
+        @Suppress("UnsafeCast")
+        previewSurfaceProvider = provider as? Preview.SurfaceProvider
+    }
 
     override suspend fun prepare(outputFile: File, timestampsFile: File): Result<Unit> = runCatching {
         // Open camera via Camera2 to read hardware level, regardless of which
@@ -47,12 +65,17 @@ class CameraRepositoryImpl @Inject constructor(
         if (useCameraX) {
             val rec = CameraXRecorder(context)
             rec.openCamera()
-            rec.prepare(outputFile, timestampsFile, previewSurface = null)
+            rec.prepare(
+                outputFile,
+                timestampsFile,
+                previewSurface = _previewSurface.value,
+                previewSurfaceProvider = previewSurfaceProvider,
+            )
             cameraXRecorder = rec
         } else {
             val rec = Camera2Recorder(context)
             rec.openCamera()
-            rec.prepare(outputFile, timestampsFile, previewSurface = null)
+            rec.prepare(outputFile, timestampsFile, previewSurface = _previewSurface.value)
             camera2Recorder = rec
         }
     }
@@ -88,6 +111,7 @@ class CameraRepositoryImpl @Inject constructor(
         cameraXRecorder?.release()
         camera2Recorder = null
         cameraXRecorder = null
+        previewSurfaceProvider = null
     }
 
     /**

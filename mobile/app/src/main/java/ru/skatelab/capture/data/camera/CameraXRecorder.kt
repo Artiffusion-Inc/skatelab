@@ -5,7 +5,9 @@ import android.content.Context
 import android.hardware.camera2.CameraCharacteristics
 import android.hardware.camera2.CameraManager
 import android.os.SystemClock
+import android.view.Surface
 import androidx.camera.core.CameraSelector
+import androidx.camera.core.Preview
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.video.FileOutputOptions
 import androidx.camera.video.Quality
@@ -26,6 +28,7 @@ class CameraXRecorder(
     private var cameraProvider: ProcessCameraProvider? = null
     private var recorder: Recorder? = null
     private var videoCapture: VideoCapture<Recorder>? = null
+    private var preview: Preview? = null
     private var recording: androidx.camera.video.Recording? = null
 
     private var cameraManager: CameraManager? = null
@@ -63,10 +66,17 @@ class CameraXRecorder(
         return if (source == CameraCharacteristics.SENSOR_INFO_TIMESTAMP_SOURCE_REALTIME) "REALTIME" else "UNKNOWN"
     }
 
+    /**
+     * @param previewSurface Raw surface for Camera2-style preview (fallback).
+     * @param previewSurfaceProvider Preferred: [Preview.SurfaceProvider] from PreviewView,
+     *   which manages surface lifecycle (creation, destruction, resize).
+     *   When set, takes priority over [previewSurface].
+     */
     suspend fun prepare(
         outputFile: File,
         timestampsFile: File,
-        previewSurface: Any?,
+        previewSurface: Surface? = null,
+        previewSurfaceProvider: Preview.SurfaceProvider? = null,
         width: Int = 1920,
         height: Int = 1080,
         fps: Int = 60,
@@ -87,6 +97,24 @@ class CameraXRecorder(
             .setQualitySelector(QualitySelector.from(Quality.HIGHEST))
             .build()
         videoCapture = VideoCapture.withOutput(recorder!!)
+
+        // Create Preview use case when a surface provider or raw surface is available.
+        // PreviewView's surfaceProvider is preferred — it handles surface lifecycle.
+        if (previewSurfaceProvider != null) {
+            preview = Preview.Builder().build().also {
+                it.setSurfaceProvider(previewSurfaceProvider)
+            }
+        } else if (previewSurface != null) {
+            val surface = previewSurface
+            preview = Preview.Builder().build().also {
+                it.setSurfaceProvider { request ->
+                    request.provideSurface(
+                        surface,
+                        ContextCompat.getMainExecutor(context),
+                    ) { /* surface no longer needed */ }
+                }
+            }
+        }
     }
 
     @SuppressLint("MissingPermission", "RestrictedApi")
@@ -101,7 +129,12 @@ class CameraXRecorder(
             .build()
 
         provider.unbindAll()
-        provider.bindToLifecycle(StubLifecycleOwner, cameraSelector, capture)
+        // Bind Preview alongside VideoCapture when available
+        if (preview != null) {
+            provider.bindToLifecycle(StubLifecycleOwner, cameraSelector, capture, preview!!)
+        } else {
+            provider.bindToLifecycle(StubLifecycleOwner, cameraSelector, capture)
+        }
 
         tStartCalledNs = SystemClock.elapsedRealtimeNanos()
 
@@ -138,6 +171,7 @@ class CameraXRecorder(
         cameraProvider = null
         recorder = null
         videoCapture = null
+        preview = null
         cameraExecutor.shutdownNow()
     }
 

@@ -1,6 +1,7 @@
 package ru.skatelab.capture.presentation.recording
 
 import android.content.Context
+import android.view.Surface
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -191,6 +192,24 @@ class RecordingViewModel @Inject constructor(
             currentStartInfo = null
             appLogger.i(TAG, "Recording stopped: ${session.id} complete=${session.isComplete}")
         }
+    }
+
+    /**
+     * Set the preview surface for Camera2-based recorder.
+     * Must be called before [prepareCamera] for the preview to appear.
+     */
+    fun setPreviewSurface(surface: Surface?) {
+        cameraRepository.setPreviewSurface(surface)
+    }
+
+    /**
+     * Set the preview surface provider for CameraX-based recorder.
+     * Accepts [androidx.camera.core.Preview.SurfaceProvider] as [Any]
+     * to avoid CameraX dependency in the ViewModel.
+     * Must be called before [prepareCamera] for the preview to appear.
+     */
+    fun setPreviewSurfaceProvider(provider: Any?) {
+        cameraRepository.setPreviewSurfaceProvider(provider)
     }
 
     override fun onCleared() {
