@@ -7,7 +7,7 @@ ML backend: set `tas_model_path` to use BiGRU+RF instead of rules.
 """
 
 from pathlib import Path
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING, Any, cast
 
 import numpy as np
 from numpy.typing import NDArray
@@ -132,7 +132,7 @@ class ElementSegmenter:
 
     def _segment_with_tas(
         self,
-        tas_segmenter: object,
+        tas_segmenter: Any,
         poses: NormalizedPose,
         video_path: Path,
         video_meta: "VideoMeta",
@@ -436,7 +436,7 @@ class ElementSegmenter:
         # Check for jump (hip Y pattern + rotation)
         if features.get("has_jump_pattern", False):
             rotation_max = features.get("rotation_speed_max", 0)
-            if isinstance(rotation_max, (int, float)) and rotation_max > 200:
+            if not isinstance(rotation_max, bool) and rotation_max > 200:
                 # Classify jump type by rotation speed
                 if rotation_max > 500:
                     return "flip", 0.7
@@ -444,12 +444,12 @@ class ElementSegmenter:
                     return "toe_loop", 0.7
                 else:
                     return "waltz_jump", 0.65
-            elif isinstance(rotation_max, (int, float)) and rotation_max > 100:
+            elif not isinstance(rotation_max, bool) and rotation_max > 100:
                 return "waltz_jump", 0.6
 
         # Check for turn/step (edge changes)
         edge_changes = features.get("edge_change_count", 0)
-        if isinstance(edge_changes, (int, float)) and edge_changes > 0:
+        if not isinstance(edge_changes, bool) and edge_changes > 0:
             return "three_turn", 0.7
 
         return "unknown", 0.3

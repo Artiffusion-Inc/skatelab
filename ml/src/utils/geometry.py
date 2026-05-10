@@ -8,7 +8,7 @@ from ..types import FrameKeypoints, H36Key, NormalizedPose, TimeSeries
 
 
 # Numba-jitted core functions (for performance)
-@njit(cache=True, fastmath=True)
+@njit(cache=True, fastmath=True)  # type: ignore[reportUntypedFunctionDecorator]
 def _angle_3pt_rad(a: np.ndarray, b: np.ndarray, c: np.ndarray) -> float:
     """Calculate angle ABC in radians (jitted).
 
@@ -31,7 +31,7 @@ def _angle_3pt_rad(a: np.ndarray, b: np.ndarray, c: np.ndarray) -> float:
     return angle
 
 
-@njit(cache=True, fastmath=True)
+@njit(cache=True, fastmath=True)  # type: ignore[reportUntypedFunctionDecorator]
 def _distance_numba(a: np.ndarray, b: np.ndarray) -> float:
     """Calculate Euclidean distance (jitted).
 
@@ -81,7 +81,7 @@ def distance(a: NDArray[np.float64], b: NDArray[np.float64]) -> float:
     return _distance_numba(np.asarray(a, dtype=np.float64), np.asarray(b, dtype=np.float64))
 
 
-@njit(cache=True, fastmath=True)
+@njit(cache=True, fastmath=True)  # type: ignore[reportUntypedFunctionDecorator]
 def angle_3pt_batch(abc_triplets: np.ndarray) -> np.ndarray:
     """Calculate angles for multiple A-B-C triplets (jitted).
 
