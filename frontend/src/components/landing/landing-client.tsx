@@ -37,13 +37,13 @@ export function LandingClient() {
 
         gsap.fromTo(
           heroEls,
-          { opacity: 0, y: 20 },
+          { opacity: 0, y: 24 },
           {
             opacity: 1,
             y: 0,
-            duration: 0.8,
-            stagger: 0.12,
-            ease: "power2.out",
+            duration: 0.7,
+            stagger: 0.1,
+            ease: "power3.out",
           }
         )
       })
@@ -54,11 +54,11 @@ export function LandingClient() {
 
         gsap.fromTo(
           steps,
-          { y: 40 },
+          { y: 50 },
           {
             y: 0,
-            duration: 0.5,
-            stagger: 0.12,
+            duration: 0.6,
+            stagger: 0.08,
             ease: "power2.out",
             scrollTrigger: {
               trigger: steps[0],
@@ -75,11 +75,12 @@ export function LandingClient() {
 
         gsap.fromTo(
           cards,
-          { y: 30 },
+          { opacity: 0, y: 20 },
           {
+            opacity: 1,
             y: 0,
             duration: 0.5,
-            stagger: 0.12,
+            stagger: 0.1,
             ease: "power2.out",
             scrollTrigger: {
               trigger: cards[0],
@@ -96,10 +97,10 @@ export function LandingClient() {
 
         gsap.fromTo(
           faqHeader,
-          { y: 30 },
+          { opacity: 0 },
           {
-            y: 0,
-            duration: 0.6,
+            opacity: 1,
+            duration: 0.5,
             ease: "power2.out",
             scrollTrigger: {
               trigger: faqHeader,
@@ -116,11 +117,11 @@ export function LandingClient() {
 
         gsap.fromTo(
           cta,
-          { y: 30 },
+          { y: 40 },
           {
             y: 0,
-            duration: 0.6,
-            ease: "power2.out",
+            duration: 0.7,
+            ease: "power3.out",
             scrollTrigger: {
               trigger: cta,
               start: "top 85%",
