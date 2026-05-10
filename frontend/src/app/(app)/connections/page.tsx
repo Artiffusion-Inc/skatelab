@@ -43,7 +43,7 @@ export default function ConnectionsPage() {
   if (!hasPending && !hasActive) {
     return (
       <EmptyState
-        icon={<Users className="h-7 w-7" style={{ color: "var(--ice-deep)" }} />}
+        icon={<Users className="h-7 w-7 text-primary" />}
         title={tEmpty("connectionsTitle")}
         description={tEmpty("connectionsDesc")}
         primaryAction={{ label: tEmpty("connectionsAction"), href: "#" }}
@@ -63,7 +63,7 @@ export default function ConnectionsPage() {
             value={email}
             onChange={e => setEmail(e.target.value)}
             placeholder="email@example.com"
-            className="flex-1 rounded-xl border border-border bg-background px-3 py-2.5 text-sm"
+            className="flex-1 rounded-xl border border-hairline bg-background px-3 py-2.5 text-sm"
           />
           <button
             type="button"
@@ -81,7 +81,7 @@ export default function ConnectionsPage() {
           {pending.connections.map((r, i) => (
             <div
               key={r.id ?? `pending-${i}`}
-              className="flex items-center justify-between rounded-xl border border-border p-3"
+              className="flex items-center justify-between rounded-xl border border-hairline p-3"
             >
               <span className="text-sm truncate mr-2">{r.from_user_name ?? r.from_user_id}</span>
               <button
@@ -102,13 +102,13 @@ export default function ConnectionsPage() {
           {activeConns.map((r, i) => (
             <div
               key={r.id ?? `conn-${i}`}
-              className="flex items-center justify-between rounded-xl border border-border p-3"
+              className="flex items-center justify-between rounded-xl border border-hairline p-3"
             >
               <span className="text-sm truncate mr-2">{r.to_user_name ?? r.to_user_id}</span>
               <button
                 type="button"
                 onClick={() => endConn.mutateAsync(r.id)}
-                className="shrink-0 text-xs text-muted-foreground hover:text-destructive"
+                className="shrink-0 text-xs text-ink-mute hover:text-destructive"
               >
                 {tc("endConnection")}
               </button>

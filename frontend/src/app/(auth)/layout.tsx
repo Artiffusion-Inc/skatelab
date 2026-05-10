@@ -12,15 +12,15 @@ export default async function AuthLayout({ children }: { children: React.ReactNo
 
   return (
     <div className="flex min-h-[dvh] flex-col">
-      <header className="border-b border-border bg-background pt-[env(safe-area-inset-top)]">
-        <div className="flex h-[52px] items-center px-4">
-          <Link href="/" className="flex items-center gap-2 font-semibold">
-            <Activity className="h-5 w-5" />
+      <header className="bg-primary pt-[env(safe-area-inset-top)]">
+        <div className="flex h-[52px] items-center px-6">
+          <Link href="/" className="flex items-center gap-2 font-semibold text-primary-foreground">
+            <Activity className="h-5 w-5 text-surface-violet-soft" />
             <span>{t("title")}</span>
           </Link>
         </div>
       </header>
-      <div className="flex flex-1 items-center justify-center px-4 py-8">
+      <div className="flex flex-1 items-center justify-center bg-background px-6 py-8">
         <div className="w-full max-w-md">{children}</div>
       </div>
     </div>

@@ -36,7 +36,7 @@ export function BottomDock() {
   const isActive = (href: string) => pathname === href || pathname.startsWith(`${href}/`)
 
   return (
-    <nav className="fixed inset-x-0 bottom-0 z-50 border-t border-border bg-background pb-[env(safe-area-inset-bottom)] lg:hidden">
+    <nav className="fixed inset-x-0 bottom-0 z-50 border-t border-hairline bg-background pb-[env(safe-area-inset-bottom)] lg:hidden">
       <div className="flex h-16 items-center justify-around px-2">
         {tabs.map(tab => {
           const Icon = tab.icon
@@ -47,8 +47,8 @@ export function BottomDock() {
               href={tab.href}
               aria-current={active ? "page" : undefined}
               aria-label={tab.label}
-              className={`flex flex-col items-center gap-0.5 rounded-lg px-4 py-1.5 text-[10px] transition-colors ${
-                active ? "text-foreground" : "text-muted-foreground"
+              className={`flex flex-col items-center gap-0.5 rounded-md px-4 py-1.5 text-[10px] font-medium transition-colors ${
+                active ? "text-ink" : "text-ink-mute"
               }`}
             >
               <Icon className="h-5 w-5" />

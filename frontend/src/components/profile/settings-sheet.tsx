@@ -4,7 +4,6 @@ import { LogOut, Settings, X } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { useState } from "react"
 import { useAuth } from "@/components/auth-provider"
-import { ThemeToggle } from "@/components/theme-toggle"
 import { useTranslations } from "@/i18n"
 
 export function SettingsSheet() {
@@ -25,7 +24,7 @@ export function SettingsSheet() {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="flex w-full items-center justify-between rounded-xl border border-border px-4 py-3 text-sm text-muted-foreground transition-colors hover:bg-accent"
+        className="flex w-full items-center justify-between rounded-xl border border-hairline px-4 py-3 text-sm text-ink-mute transition-colors hover:bg-accent"
       >
         <span className="flex items-center gap-2">
           <Settings className="h-4 w-4" />
@@ -42,24 +41,19 @@ export function SettingsSheet() {
             onClick={() => setOpen(false)}
             aria-label="Close settings modal"
           />
-          <div className="relative w-full max-w-lg rounded-t-2xl border-t border-border bg-background p-5 pb-[calc(1.5rem+env(safe-area-inset-bottom))]">
+          <div className="relative w-full max-w-lg rounded-t-2xl border-t border-hairline bg-background p-5 pb-[calc(1.5rem+env(safe-area-inset-bottom))]">
             <div className="mb-4 flex items-center justify-between">
-              <h2 className="nike-h3">{ts("title")}</h2>
+              <h2 className="sh-display-md">{ts("title")}</h2>
               <button
                 type="button"
                 onClick={() => setOpen(false)}
-                className="p-1 text-muted-foreground hover:text-foreground"
+                className="p-1 text-ink-mute hover:text-foreground"
               >
                 <X className="h-5 w-5" />
               </button>
             </div>
 
             <div className="space-y-6">
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-medium">{ts("theme")}</span>
-                <ThemeToggle />
-              </div>
-
               <button
                 type="button"
                 onClick={handleLogout}

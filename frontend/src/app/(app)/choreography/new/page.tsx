@@ -113,12 +113,12 @@ export default function NewProgramPage() {
         <Link href="/choreography" className="rounded-lg p-1.5 hover:bg-accent/50">
           <ArrowLeft className="h-5 w-5" />
         </Link>
-        <h1 className="nike-h2">{t("newProgram")}</h1>
+        <h1 className="sh-heading-lg">{t("newProgram")}</h1>
       </div>
 
       {/* Step 1: Upload music */}
       <section>
-        <h2 className="mb-3 nike-h3">{t("music.title")}</h2>
+        <h2 className="mb-3 sh-display-md">{t("music.title")}</h2>
         <MusicUploader
           analysis={analysis ?? null}
           onUpload={handleUpload}
@@ -135,7 +135,7 @@ export default function NewProgramPage() {
                   className={`rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors ${
                     discipline === d
                       ? "border-primary bg-primary/10 text-primary"
-                      : "border-border hover:bg-accent/50"
+                      : "border-hairline hover:bg-accent/50"
                   }`}
                 >
                   {t(d)}
@@ -151,7 +151,7 @@ export default function NewProgramPage() {
                   className={`rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors ${
                     segment === s
                       ? "border-primary bg-primary/10 text-primary"
-                      : "border-border hover:bg-accent/50"
+                      : "border-hairline hover:bg-accent/50"
                   }`}
                 >
                   {t(s)}
@@ -164,7 +164,7 @@ export default function NewProgramPage() {
 
       {/* Step 2: Element inventory */}
       <section>
-        <h2 className="mb-3 nike-h3">{t("inventory.title")}</h2>
+        <h2 className="mb-3 sh-display-md">{t("inventory.title")}</h2>
         <InventoryEditor value={inventory} onChange={setInventory} />
       </section>
 
@@ -187,7 +187,7 @@ export default function NewProgramPage() {
         )}
 
         {!error && !generateLayouts.isPending && generateLayouts.data?.layouts.length === 0 && (
-          <p className="mt-3 rounded-xl bg-muted px-4 py-2 text-center text-sm text-muted-foreground">
+          <p className="mt-3 rounded-xl bg-muted px-4 py-2 text-center text-sm text-ink-mute">
             {t("noLayouts")}
           </p>
         )}
@@ -196,7 +196,7 @@ export default function NewProgramPage() {
       {/* Step 4: Pick layout + save */}
       {generateLayouts.data && step === "result" && (
         <section className="space-y-4">
-          <h2 className="nike-h3">{t("selectLayout")}</h2>
+          <h2 className="sh-display-md">{t("selectLayout")}</h2>
           <LayoutPicker
             layouts={generateLayouts.data.layouts}
             selectedIndex={

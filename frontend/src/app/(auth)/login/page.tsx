@@ -44,8 +44,8 @@ export default function LoginPage() {
   return (
     <div className="space-y-6">
       <div className="space-y-2 text-center">
-        <h1 className="nike-h1">{t("signIn")}</h1>
-        <p className="text-sm text-muted-foreground">{t("signInSubtitle")}</p>
+        <h1 className="sh-display-lg text-ink">{t("signIn")}</h1>
+        <p className="sh-caption text-ink-mute">{t("signInSubtitle")}</p>
       </div>
       <form onSubmit={handleSubmit} className="space-y-4">
         <FormField
@@ -70,7 +70,7 @@ export default function LoginPage() {
           {loading ? t("signingIn") : t("signInBtn")}
         </Button>
       </form>
-      <p className="text-center text-sm text-muted-foreground">
+      <p className="text-center sh-caption text-ink-mute">
         {t("noAccount")}{" "}
         <Link href="/register" className="text-link hover:underline">
           {t("register")}

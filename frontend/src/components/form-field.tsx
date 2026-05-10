@@ -1,7 +1,7 @@
 import type { ComponentProps } from "react"
 
 const inputClasses =
-  "w-full rounded-[0.5rem] border border-input bg-secondary px-3 py-2 text-sm transition-colors duration-200 placeholder:text-muted-foreground focus-visible:border-foreground disabled:opacity-50"
+  "w-full rounded-md border border-hairline bg-background px-3 py-2.5 text-sm transition-colors duration-200 placeholder:text-ink-faint focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-ring/20 disabled:opacity-50"
 
 export function FormField({
   label,
@@ -9,8 +9,8 @@ export function FormField({
   ...props
 }: { label: string; id: string } & ComponentProps<"input">) {
   return (
-    <div className="space-y-2">
-      <label htmlFor={id} className="text-sm font-medium text-foreground">
+    <div className="space-y-1.5">
+      <label htmlFor={id} className="sh-caption font-medium text-ink">
         {label}
       </label>
       <input id={id} {...props} className={`${inputClasses} ${props.className ?? ""}`} />
@@ -25,8 +25,8 @@ export function FormSelect({
   ...props
 }: { label: string; id: string; children: React.ReactNode } & ComponentProps<"select">) {
   return (
-    <div className="space-y-2">
-      <label htmlFor={id} className="text-sm font-medium text-foreground">
+    <div className="space-y-1.5">
+      <label htmlFor={id} className="sh-caption font-medium text-ink">
         {label}
       </label>
       <select id={id} {...props} className={`${inputClasses} ${props.className ?? ""}`}>
@@ -42,8 +42,8 @@ export function FormTextarea({
   ...props
 }: { label: string; id: string } & ComponentProps<"textarea">) {
   return (
-    <div className="space-y-2">
-      <label htmlFor={id} className="text-sm font-medium text-foreground">
+    <div className="space-y-1.5">
+      <label htmlFor={id} className="sh-caption font-medium text-ink">
         {label}
       </label>
       <textarea id={id} {...props} className={`${inputClasses} ${props.className ?? ""}`} />

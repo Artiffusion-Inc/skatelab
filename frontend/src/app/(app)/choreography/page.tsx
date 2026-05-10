@@ -13,7 +13,7 @@ export default function ChoreographyPage() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center py-20 text-muted-foreground">
+      <div className="flex items-center justify-center py-20 text-ink-mute">
         {tc("loading")}
       </div>
     )
@@ -23,7 +23,7 @@ export default function ChoreographyPage() {
     return (
       <div className="mx-auto max-w-2xl space-y-4 px-4 py-6 sm:max-w-3xl">
         <div className="flex items-center justify-between">
-          <h1 className="nike-h2">{t("title")}</h1>
+          <h1 className="sh-heading-lg">{t("title")}</h1>
           <Link
             href="/choreography/new"
             className="flex items-center gap-1.5 rounded-xl bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
@@ -33,7 +33,7 @@ export default function ChoreographyPage() {
           </Link>
         </div>
         <EmptyState
-          icon={<Music className="h-7 w-7" style={{ color: "var(--ice-deep)" }} />}
+          icon={<Music className="h-7 w-7 text-primary" />}
           title={t("noPrograms")}
           description={t("newProgram")}
           primaryAction={{ label: t("newProgram"), href: "/choreography/new" }}
@@ -45,7 +45,7 @@ export default function ChoreographyPage() {
   return (
     <div className="mx-auto max-w-2xl space-y-4 px-4 py-6 sm:max-w-3xl">
       <div className="flex items-center justify-between">
-        <h1 className="nike-h2">{t("title")}</h1>
+        <h1 className="sh-heading-lg">{t("title")}</h1>
         <Link
           href="/choreography/new"
           className="flex items-center gap-1.5 rounded-xl bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
@@ -59,12 +59,12 @@ export default function ChoreographyPage() {
           <Link
             key={p.id}
             href={`/choreography/programs/${p.id}`}
-            className="block rounded-2xl border border-border p-3 transition-colors hover:bg-accent/30"
+            className="block rounded-2xl border border-hairline p-3 transition-colors hover:bg-accent/30"
           >
             <div className="flex items-center justify-between">
               <div>
                 <p className="font-medium">{p.title || `${p.segment} — ${p.discipline}`}</p>
-                <p className="text-xs text-muted-foreground">{p.season.replace("_", "/")}</p>
+                <p className="text-xs text-ink-mute">{p.season.replace("_", "/")}</p>
               </div>
               {p.estimated_total !== null && (
                 <span className="text-sm font-bold">{p.estimated_total.toFixed(2)}</span>

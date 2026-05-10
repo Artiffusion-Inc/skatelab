@@ -35,7 +35,7 @@ export default function ProgressPage() {
   if (!trend || trend.data_points.length === 0) {
     return (
       <EmptyState
-        icon={<BarChart3 className="h-7 w-7" style={{ color: "var(--ice-deep)" }} />}
+        icon={<BarChart3 className="h-7 w-7 text-primary" />}
         title={tEmpty("progressTitle")}
         description={tEmpty("progressDesc")}
         primaryAction={{ label: tEmpty("progressAction"), href: "/upload" }}
@@ -51,7 +51,7 @@ export default function ProgressPage() {
             type="button"
             key={el.id}
             onClick={() => setElement(el.id)}
-            className={`truncate rounded-xl border p-1.5 text-center text-[11px] sm:p-2 sm:text-xs ${element === el.id ? "border-primary bg-primary/10" : "border-border"}`}
+            className={`truncate rounded-xl border p-1.5 text-center text-[11px] sm:p-2 sm:text-xs ${element === el.id ? "border-primary bg-primary/10" : "border-hairline"}`}
           >
             {el.label}
           </button>
@@ -62,7 +62,7 @@ export default function ProgressPage() {
         <select
           value={metric}
           onChange={e => setMetric(e.target.value)}
-          className="w-full rounded-xl border border-border bg-background px-3 py-2.5 text-sm"
+          className="w-full rounded-xl border border-hairline bg-background px-3 py-2.5 text-sm"
         >
           {availableMetrics.map(([name, def]) => (
             <option key={name} value={name}>
