@@ -87,6 +87,9 @@ class CalibrationViewModel @Inject constructor(
         viewModelScope.launch {
             _isCalibrating.value = true
             _error.value = null
+            // Pause preview collection — invokeBoth needs exclusive access to imuSamples
+            // and will stop/start streaming itself
+            pausePreview()
             try {
                 calibrateSensorUseCase.invokeBoth()
                     .onSuccess { calMap ->
@@ -95,19 +98,22 @@ class CalibrationViewModel @Inject constructor(
                         SessionState.calibration = calMap
                     }
                     .onFailure { _error.value = it.message }
-                // Restart preview after calibration (invokeBoth stops streaming)
-                restartPreview()
             } finally {
                 _isCalibrating.value = false
+                // Resume preview after calibration
+                resumePreview()
             }
         }
     }
 
-    private fun restartPreview() {
-        val toRestart = streamingSensors.toList()
-        streamingSensors.clear()
+    private fun pausePreview() {
         previewJob?.cancel()
         previewJob = null
+    }
+
+    private fun resumePreview() {
+        val toRestart = streamingSensors.toList()
+        streamingSensors.clear()
         for (id in toRestart) {
             startPreview(id)
         }

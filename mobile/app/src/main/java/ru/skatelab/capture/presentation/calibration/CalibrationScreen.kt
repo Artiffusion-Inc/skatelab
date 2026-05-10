@@ -76,10 +76,17 @@ fun CalibrationScreen(
         Spacer(modifier = Modifier.weight(1f))
         Button(
             onClick = onProceed,
-            enabled = leftCal != null && rightCal != null,
+            enabled = leftCal != null || rightCal != null,
             modifier = Modifier.fillMaxWidth(),
         ) {
             Text(stringResource(R.string.calibration_proceed))
+        }
+        Spacer(modifier = Modifier.height(8.dp))
+        TextButton(
+            onClick = onProceed,
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Text(stringResource(R.string.calibration_skip))
         }
     }
 }

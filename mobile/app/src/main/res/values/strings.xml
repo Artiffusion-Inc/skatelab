@@ -20,6 +20,7 @@
     <string name="calibration_calibrate_both">Калибровка</string>
     <string name="calibration_done">Откалиброван</string>
     <string name="calibration_proceed">Далее: Камера</string>
+    <string name="calibration_skip">Пропустить</string>
 
     <!-- Recording -->
     <string name="recording_preparing">Подготовка камеры…</string>
