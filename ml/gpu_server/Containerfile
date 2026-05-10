@@ -49,7 +49,8 @@ RUN --mount=type=cache,target=/root/.cache/uv \
     boto3==1.42.80 \
     httpx==0.28.1 \
     prometheus-client==0.22.1 \
-    aiobotocore==3.4.0
+    aiobotocore==3.4.0 \
+    vastai==1.0.8
 
 # Strip unnecessary files from venv (keep numpy/_core/tests — scipy needs it)
 RUN find /opt/venv -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null; \
@@ -83,6 +84,8 @@ COPY --from=builder --chown=appuser:appuser /opt/venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH" \
     PROJECT_ROOT=/app \
     VIRTUAL_ENV=/opt/venv \
+    WORKER_PORT=5000 \
+    MODEL_LOG_FILE=/tmp/skatelab-server.log \
     LD_LIBRARY_PATH="/opt/venv/lib/python3.11/site-packages/nvidia/cublas/lib:/opt/venv/lib/python3.11/site-packages/nvidia/cuda_runtime/lib:/opt/venv/lib/python3.11/site-packages/nvidia/cudnn/lib:/opt/venv/lib/python3.11/site-packages/nvidia/curand/lib:/opt/venv/lib/python3.11/site-packages/nvidia/cufft/lib:/opt/venv/lib/python3.11/site-packages/nvidia/cusolver/lib:/opt/venv/lib/python3.11/site-packages/nvidia/cusparse/lib:/opt/venv/lib/python3.11/site-packages/nvidia/cuda_nvcc/lib"
 
 # ONNX models downloaded from R2 at startup — no COPY needed
@@ -94,6 +97,6 @@ COPY --chown=appuser:appuser ml/gpu_server/ gpu_server/
 
 USER appuser
 
-EXPOSE 8000
+EXPOSE 5000 8000
 
-CMD ["python", "-m", "uvicorn", "gpu_server.server:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["bash", "gpu_server/start_server.sh"]
