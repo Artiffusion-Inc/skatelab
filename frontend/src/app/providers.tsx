@@ -7,7 +7,7 @@ import { AuthProvider } from "@/components/auth-provider"
 import { ErrorBoundary } from "@/components/error-boundary"
 import { ApiError } from "@/lib/api-client"
 
-export function Providers({ children }: { children: ReactNode }) {
+export function Providers({ children, nonce }: { children: ReactNode; nonce?: string }) {
   const [queryClient] = useState(
     () =>
       new QueryClient({
@@ -40,7 +40,7 @@ export function Providers({ children }: { children: ReactNode }) {
   )
 
   return (
-    <ThemeProvider attribute="class" forcedTheme="light" disableTransitionOnChange>
+    <ThemeProvider attribute="class" forcedTheme="light" disableTransitionOnChange nonce={nonce}>
       <ErrorBoundary>
         <QueryClientProvider client={queryClient}>
           <AuthProvider>{children}</AuthProvider>
