@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-set -euo pipefmt
+set -euo pipefail
 
 LOG_FILE="${MODEL_LOG_FILE:-/tmp/skatelab-server.log}"
 
