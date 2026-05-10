@@ -14,6 +14,7 @@ import time
 from pathlib import Path
 
 import aiobotocore.session
+import numpy as np
 from fastapi import FastAPI
 from prometheus_client import CONTENT_TYPE_LATEST, Counter, Gauge, Histogram, generate_latest
 from pydantic import BaseModel
@@ -370,9 +371,25 @@ def _render_person_preview(frame, persons, selected_idx=None):
     return annotated
 
 
+def _make_output_keys(video_r2_key: str) -> tuple[str, str, str]:
+    """Generate R2 output keys: (video_key, poses_key, csv_key).
+
+    'uploads/abc/input.mp4' → 'uploads/abc/output.mp4'
+    'uploads/test/waltz.mp4' → 'output/uploads/test/waltz.mp4'
+    """
+    p = Path(video_r2_key)
+    if p.stem == "input":
+        out_video = str(p.with_name("output" + p.suffix))
+    else:
+        out_video = f"output/{video_r2_key}"
+
+    base = out_video.rsplit(".", 1)[0]
+    return out_video, f"{base}_poses.npy", f"{base}_metrics.json"
+
+
 @app.post("/process", response_model=ProcessResponse)
 async def process(req: ProcessRequest):
-    from src.types import PersonClick
+    from src.types import ElementPhase, PersonClick
     from src.utils.frame_buffer import AsyncFrameReader
     from src.utils.video_writer import H264Writer
     from src.visualization.pipeline import VizPipeline, prepare_poses
@@ -394,7 +411,7 @@ async def process(req: ProcessRequest):
                     else None
                 )
 
-                logger.info("Running pipeline (ml_flags=%s)", req.ml_flags)
+                logger.info("Running pipeline (element=%s, ml_flags=%s)", req.element_type, req.ml_flags)
                 prepared = prepare_poses(
                     video_local,
                     person_click=click,
@@ -403,6 +420,34 @@ async def process(req: ProcessRequest):
                     progress_cb=None,
                 )
 
+                # --- Biomechanics analysis (after pose extraction, before render) ---
+                metrics: list = []
+                phases: ElementPhase | None = None
+                recommendations: list = []
+
+                if req.element_type:
+                    from src.analysis import element_defs
+                    from src.analysis.metrics import BiomechanicsAnalyzer
+                    from src.analysis.phase_detector import PhaseDetector
+                    from src.analysis.recommender import Recommender
+
+                    element_def = element_defs.get_element_def(req.element_type)
+                    if element_def is not None:
+                        phase_detector = PhaseDetector()
+                        phase_result = phase_detector.detect_phases(
+                            prepared.poses_norm, prepared.meta.fps, req.element_type
+                        )
+                        phases = phase_result.phases
+
+                        analyzer = BiomechanicsAnalyzer(element_def)
+                        metrics = analyzer.analyze(
+                            prepared.poses_norm, phases, prepared.meta.fps
+                        )
+
+                        recommender = Recommender()
+                        recommendations = recommender.recommend(metrics, req.element_type)
+
+                # --- Render video with skeleton overlay ---
                 pipe = VizPipeline(
                     meta=prepared.meta,
                     poses_norm=prepared.poses_norm,
@@ -418,9 +463,7 @@ async def process(req: ProcessRequest):
                 reader = AsyncFrameReader(video_local, buffer_size=16, frame_skip=1)
                 reader.start()
 
-                frame_idx = 0
                 pose_idx = 0
-
                 while True:
                     result = reader.get_frame()
                     if result is None:
@@ -430,39 +473,54 @@ async def process(req: ProcessRequest):
                     frame, _ = pipe.render_frame(frame, fi, current_pose_idx)
                     pipe.draw_frame_counter(frame, fi)
                     writer.write(frame)
-                    frame_idx += 1
 
                 reader.join(timeout=5)
                 writer.close()
 
-                result = {
+                # --- Upload results to R2 ---
+                out_video_key, poses_key, csv_key = _make_output_keys(req.video_r2_key)
+                logger.info("Uploading results to R2: %s", out_video_key)
+
+                upload_tasks = [_s3_upload(s3, req.r2_bucket, out_video_key, str(output_local))]
+
+                # Save poses as .npy
+                poses_local = Path(tmpdir) / "poses.npy"
+                np.save(str(poses_local), prepared.poses_norm)
+                upload_tasks.append(_s3_upload(s3, req.r2_bucket, poses_key, str(poses_local)))
+
+                # Save metrics + phases + recommendations as JSON
+                import json as _json
+
+                metrics_json = Path(tmpdir) / "metrics.json"
+                metrics_data = {
                     "stats": {
                         "total_frames": meta.num_frames,
                         "valid_frames": prepared.n_valid,
                         "fps": meta.fps,
                         "resolution": f"{meta.width}x{meta.height}",
                     },
+                    "metrics": [
+                        {"name": m.name, "value": m.value, "unit": m.unit, "is_good": m.is_good}
+                        for m in metrics
+                    ],
+                    "phases": phases.__dict__ if phases else None,
+                    "recommendations": recommendations,
+                    "element_type": req.element_type,
                 }
-
-                out_key = req.video_r2_key.replace("input/", "output/")
-                logger.info("Uploading result to R2: %s", out_key)
-
-                upload_tasks = [_s3_upload(s3, req.r2_bucket, out_key, str(output_local))]
-
-                poses_key = None
-                csv_key = None
+                metrics_json.write_text(_json.dumps(metrics_data, ensure_ascii=False, indent=2))
+                upload_tasks.append(_s3_upload(s3, req.r2_bucket, csv_key, str(metrics_json)))
 
                 await asyncio.gather(*upload_tasks)
 
                 INFERENCE_REQUESTS.labels(status="success").inc()
                 return ProcessResponse(
-                    video_r2_key=out_key,
+                    video_r2_key=out_video_key,
                     poses_r2_key=poses_key,
                     csv_r2_key=csv_key,
-                    stats=result["stats"],
-                    metrics=result.get("metrics"),
-                    phases=result.get("phases"),
-                    recommendations=result.get("recommendations"),
+                    stats=metrics_data["stats"],
+                    metrics=metrics_data["metrics"],
+                    phases=metrics_data["phases"],
+                    recommendations=recommendations,
                 )
     except Exception:
         INFERENCE_REQUESTS.labels(status="error").inc()
