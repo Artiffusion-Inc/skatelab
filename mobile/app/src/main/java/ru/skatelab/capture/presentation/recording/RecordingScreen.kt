@@ -1,6 +1,7 @@
 package ru.skatelab.capture.presentation.recording
 
-import androidx.camera.view.PreviewView
+import android.view.SurfaceHolder
+import android.view.SurfaceView
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -48,8 +49,9 @@ fun RecordingScreen(
     val error by viewModel.error.collectAsState()
     val sessionId by viewModel.sessionId.collectAsState()
     val reconnectingSensor by viewModel.reconnectingSensor.collectAsState()
+    val elapsedMs by viewModel.elapsedMs.collectAsState()
 
-    // Track whether the PreviewView surface has been provided to the ViewModel,
+    // Track whether the SurfaceView surface has been provided to the ViewModel,
     // so we only call prepareCamera once after the surface is available.
     var surfaceProvided by remember { mutableStateOf(false) }
 
@@ -71,6 +73,7 @@ fun RecordingScreen(
                 viewModel = viewModel,
                 isRecording = isRecording,
                 reconnectingSensor = reconnectingSensor,
+                elapsedMs = elapsedMs,
                 onSurfaceReady = {
                     if (!surfaceProvided) {
                         surfaceProvided = true
@@ -136,33 +139,29 @@ private fun CameraPreview(
     viewModel: RecordingViewModel,
     isRecording: Boolean,
     reconnectingSensor: SensorId?,
+    elapsedMs: Long,
     onSurfaceReady: () -> Unit,
 ) {
     Box(modifier = Modifier.fillMaxSize()) {
         AndroidView(
             factory = { context ->
-                PreviewView(context).apply {
-                    implementationMode = PreviewView.ImplementationMode.COMPATIBLE
-                    // Provide the surface provider to the ViewModel once the PreviewView
-                    // is created. The PreviewView's surfaceProvider manages the surface
-                    // lifecycle (creation, destruction, resize) for CameraX.
-                    // Also extract the Surface for Camera2-based recorder fallback.
-                    post {
-                        // CameraX path: pass PreviewView's surfaceProvider
-                        viewModel.setPreviewSurfaceProvider(surfaceProvider)
-                        // Camera2 path: extract Surface from the internal SurfaceView
-                        val surfaceView = getChildAt(0) as? android.view.SurfaceView
-                        surfaceView?.holder?.surface?.let { surface ->
-                            viewModel.setPreviewSurface(surface)
+                SurfaceView(context).apply {
+                    holder.addCallback(object : SurfaceHolder.Callback {
+                        override fun surfaceCreated(holder: SurfaceHolder) {
+                            viewModel.setPreviewSurface(holder.surface)
+                            onSurfaceReady()
                         }
-                        onSurfaceReady()
-                    }
+                        override fun surfaceChanged(holder: SurfaceHolder, format: Int, width: Int, height: Int) {}
+                        override fun surfaceDestroyed(holder: SurfaceHolder) {
+                            viewModel.setPreviewSurface(null)
+                        }
+                    })
                 }
             },
             modifier = Modifier.fillMaxSize(),
         )
 
-        // REC indicator overlay
+        // REC indicator + timer overlay
         if (isRecording) {
             Box(
                 modifier = Modifier
@@ -171,7 +170,14 @@ private fun CameraPreview(
                     .background(Color.Red, MaterialTheme.shapes.small)
                     .padding(horizontal = 8.dp, vertical = 4.dp),
             ) {
-                Text("REC", color = Color.White, style = MaterialTheme.typography.labelLarge)
+                val totalSec = elapsedMs / 1000
+                val min = (totalSec / 60).toInt()
+                val sec = (totalSec % 60).toInt()
+                Text(
+                    "REC %02d:%02d".format(min, sec),
+                    color = Color.White,
+                    style = MaterialTheme.typography.labelLarge,
+                )
             }
 
             // Reconnect warning

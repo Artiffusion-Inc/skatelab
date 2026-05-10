@@ -1,15 +1,8 @@
 package ru.skatelab.capture.domain.usecase
 
-import android.content.Context
-import android.content.Intent
 import io.mockk.coEvery
 import io.mockk.coVerify
-import io.mockk.every
 import io.mockk.mockk
-import io.mockk.slot
-import io.mockk.just
-import io.mockk.Runs
-import io.mockk.verify
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -18,14 +11,12 @@ import org.junit.Test
 import ru.skatelab.capture.domain.model.SensorId
 import ru.skatelab.capture.domain.repository.BleRepository
 import ru.skatelab.capture.domain.repository.CameraRepository
-import ru.skatelab.capture.service.SensorRecordingService
 import java.io.File
 
 class StartRecordingUseCaseTest {
 
     private lateinit var bleRepository: BleRepository
     private lateinit var cameraRepository: CameraRepository
-    private lateinit var context: Context
     private lateinit var useCase: StartRecordingUseCase
 
     private val outputDir = File("/tmp/test-output")
@@ -38,9 +29,8 @@ class StartRecordingUseCaseTest {
     fun setUp() {
         bleRepository = mockk(relaxed = true)
         cameraRepository = mockk(relaxed = true)
-        context = mockk(relaxed = true)
 
-        useCase = StartRecordingUseCase(bleRepository, cameraRepository, context)
+        useCase = StartRecordingUseCase(bleRepository, cameraRepository)
     }
 
     @Test
@@ -103,21 +93,6 @@ class StartRecordingUseCaseTest {
         val result = useCase.invoke(outputDir, videoFile, framesFile, imuLeftFile, imuRightFile)
 
         assertTrue(result.isFailure)
-    }
-
-    @Test
-    fun fgsIntentSentBeforeBleAndCamera() = runTest {
-        coEvery { bleRepository.startStreaming(any()) } returns Result.success(Unit)
-        coEvery { cameraRepository.startRecording() } returns Result.success(
-            CameraRepository.RecordingStartResult(
-                tStartCalledNs = 1L, tFirstFrameNs = 2L,
-                timestampSource = "SENSOR", videoStartDelayMs = 0L,
-            )
-        )
-
-        useCase.invoke(outputDir, videoFile, framesFile, imuLeftFile, imuRightFile)
-
-        verify { context.startForegroundService(any<Intent>()) }
     }
 
     @Test

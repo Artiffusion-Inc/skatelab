@@ -56,7 +56,8 @@ class BleManager(private val context: Context, private val logger: ru.skatelab.c
         (context.getSystemService(Context.BLUETOOTH_SERVICE) as? android.bluetooth.BluetoothManager)
             ?.adapter
 
-    private val handlerThread = BleHandlerThread()
+    // Per-sensor handler threads — eliminates head-of-line blocking between sensors
+    private val handlerThreads = ConcurrentHashMap<String, BleHandlerThread>()
 
     // Active GATT connections keyed by sensor address
     private val gattConnections = ConcurrentHashMap<String, BluetoothGatt>()
@@ -70,7 +71,7 @@ class BleManager(private val context: Context, private val logger: ru.skatelab.c
     private val _connectionState = MutableStateFlow<Map<SensorId, ConnectionState>>(emptyMap())
     val connectionState: Flow<Map<SensorId, ConnectionState>> = _connectionState.asStateFlow()
 
-    private val _imuSamples = MutableSharedFlow<Pair<SensorId, ImuSample>>(extraBufferCapacity = 64)
+    private val _imuSamples = MutableSharedFlow<Pair<SensorId, ImuSample>>(extraBufferCapacity = 256)
     val imuSamples: Flow<Pair<SensorId, ImuSample>> = _imuSamples.asSharedFlow()
 
     // Register read responses: (sensorAddress, RegisterReadResult)
@@ -80,8 +81,12 @@ class BleManager(private val context: Context, private val logger: ru.skatelab.c
     private val _reconnectEvents = MutableSharedFlow<SensorId>(extraBufferCapacity = 8)
     val reconnectEvents: Flow<SensorId> = _reconnectEvents.asSharedFlow()
 
-    @Volatile
-    var isRecording = false
+    /** Per-sensor recording state. Set by BleRepositoryImpl. */
+    private val recordingSensors = mutableSetOf<SensorId>()
+
+    fun markRecording(sensorId: SensorId) { recordingSensors.add(sensorId) }
+    fun markStopped(sensorId: SensorId) { recordingSensors.remove(sensorId) }
+    fun isRecording(sensorId: SensorId): Boolean = sensorId in recordingSensors
 
     // Map sensor address to SensorId (assigned by user during scan)
     private val addressToSensorId = ConcurrentHashMap<String, SensorId>()
@@ -140,13 +145,14 @@ class BleManager(private val context: Context, private val logger: ru.skatelab.c
         addressToSensorId[address] = sensorId
         updateConnectionState(sensorId, ConnectionState.CONNECTING)
 
-        if (!handlerThread.isAlive) {
-            handlerThread.start()
-            handlerThread.prepareHandler()
-            handlerThread.setRegisterReadCallback { address, result ->
-                _registerReadResults.tryEmit(address to result)
-            }
+        // Create per-sensor handler thread to avoid head-of-line blocking
+        val ht = BleHandlerThread("ble-parse-${sensorId.name.lowercase()}")
+        ht.start()
+        ht.prepareHandler()
+        ht.setRegisterReadCallback { addr, result ->
+            _registerReadResults.tryEmit(addr to result)
         }
+        handlerThreads[address] = ht
 
         device.connectGatt(context, false, createGattCallback(sensorId, address))
 
@@ -170,7 +176,7 @@ class BleManager(private val context: Context, private val logger: ru.skatelab.c
         val gatt = gattConnections.remove(address) ?: return
         writeCharacteristics.remove(address)
         notifyCharacteristics.remove(address)
-        handlerThread.removeParser(address)
+        handlerThreads.remove(address)?.let { it.quitSafely() }
         addressToSensorId.remove(address)
         repriorityTimers.remove(address)
         gatt.disconnect()
@@ -192,12 +198,12 @@ class BleManager(private val context: Context, private val logger: ru.skatelab.c
             } else if (newState == BluetoothProfile.STATE_DISCONNECTED) {
                 // Auto-reconnect if sensor was previously connected (not explicit disconnect)
                 val wasConnected = gattConnections.remove(address) != null
-                if (wasConnected && isRecording) {
+                if (wasConnected && isRecording(sensorId)) {
                     logw("BLE disconnected during recording, attempting reconnect: $address")
                     updateConnectionState(sensorId, ConnectionState.RECONNECTING)
                     _reconnectEvents.tryEmit(sensorId)
-                    // Delayed reconnect on handler thread
-                    handlerThread.handler?.postDelayed({
+                    // Delayed reconnect on per-sensor handler thread
+                    handlerThreads[address]?.handler?.postDelayed({
                         try {
                             val device: BluetoothDevice = gatt.device
                             val callback: BluetoothGattCallback = createGattCallback(sensorId, address)
@@ -277,8 +283,8 @@ class BleManager(private val context: Context, private val logger: ru.skatelab.c
                 logi("IMU packets: $imuPacketCount from $address")
             }
 
-            // Offload parsing to handler thread
-            handlerThread.postParsing(bytes, address) { sample ->
+            // Offload parsing to per-sensor handler thread (arrivalNs captured on Binder thread)
+            handlerThreads[address]?.postParsing(bytes, address, arrivalNs) { sample ->
                 if (sample != null) {
                     val id = addressToSensorId[address] ?: return@postParsing
                     _imuSamples.tryEmit(id to sample)
@@ -357,24 +363,21 @@ class BleManager(private val context: Context, private val logger: ru.skatelab.c
 
     /**
      * Send a sequence of command steps with inter-command delays.
-     * Delays are implemented via Thread.sleep on the handler thread.
+     * Uses coroutine delay() instead of Thread.sleep to avoid blocking the parsing thread.
      */
-    fun sendSequence(sensorId: SensorId, steps: List<Wt901Commander.CommandStep>) {
+    suspend fun sendSequence(sensorId: SensorId, steps: List<Wt901Commander.CommandStep>) {
         val address = addressToSensorId.entries.find { it.value == sensorId }?.key ?: run {
             logw("sendSequence: no address for $sensorId"); return
         }
         logi("sendSequence: $sensorId steps=${steps.size}")
-        handlerThread.handler?.post {
-            // Small delay after CCCD write before sending commands
-            Thread.sleep(100L)
-            for ((index, step) in steps.withIndex()) {
-                sendCommand(sensorId, step.bytes)
-                if (step.delayAfterMs > 0) {
-                    Thread.sleep(step.delayAfterMs)
-                }
+        kotlinx.coroutines.delay(100L)
+        for ((index, step) in steps.withIndex()) {
+            sendCommand(sensorId, step.bytes)
+            if (step.delayAfterMs > 0) {
+                kotlinx.coroutines.delay(step.delayAfterMs)
             }
-            logi("sendSequence complete: $sensorId")
         }
+        logi("sendSequence complete: $sensorId")
     }
 
     // --- Priority Management ---

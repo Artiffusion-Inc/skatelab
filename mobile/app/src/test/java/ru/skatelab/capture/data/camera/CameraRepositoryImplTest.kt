@@ -7,27 +7,27 @@ import org.junit.Test
 class CameraRepositoryImplTest {
 
     @Test
-    fun legacyHardwareLevel_selectsCameraX() {
-        val useCameraX = LEGACY < FULL
-        assertTrue("LEGACY (0) should use CameraX", useCameraX)
+    fun fullHardwareLevel_isSupported() {
+        val isSupported = FULL >= FULL
+        assertTrue("FULL (2) devices should be supported", isSupported)
     }
 
     @Test
-    fun limitedHardwareLevel_selectsCameraX() {
-        val useCameraX = LIMITED < FULL
-        assertTrue("LIMITED (1) should use CameraX", useCameraX)
+    fun level3HardwareLevel_isSupported() {
+        val isSupported = LEVEL_3 >= FULL
+        assertTrue("LEVEL_3 (3) devices should be supported", isSupported)
     }
 
     @Test
-    fun fullHardwareLevel_selectsCamera2() {
-        val useCameraX = FULL < FULL
-        assertFalse("FULL (2) should use Camera2, not CameraX", useCameraX)
+    fun legacyHardwareLevel_isNotSupported() {
+        val isSupported = LEGACY >= FULL
+        assertFalse("LEGACY (0) devices should NOT be supported", isSupported)
     }
 
     @Test
-    fun level3HardwareLevel_selectsCamera2() {
-        val useCameraX = LEVEL_3 < FULL
-        assertFalse("LEVEL_3 (3) should use Camera2, not CameraX", useCameraX)
+    fun limitedHardwareLevel_isNotSupported() {
+        val isSupported = LIMITED >= FULL
+        assertFalse("LIMITED (1) devices should NOT be supported", isSupported)
     }
 
     companion object {

@@ -4,6 +4,7 @@ import android.os.Handler
 import android.os.HandlerThread
 import android.os.SystemClock
 import ru.skatelab.capture.domain.model.ImuSample
+import java.util.concurrent.ConcurrentHashMap
 
 /**
  * Dedicated [HandlerThread] for BLE processing.
@@ -20,7 +21,7 @@ class BleHandlerThread(name: String = "ble-parsing") : HandlerThread(name) {
 
     var handler: Handler? = null
         private set
-    private val parsers = mutableMapOf<String, Wt901Parser>()
+    private val parsers = ConcurrentHashMap<String, Wt901Parser>()
     private var parseCount = 0L
 
     // Register read callback — set by BleManager, invoked on handler thread
@@ -50,6 +51,7 @@ class BleHandlerThread(name: String = "ble-parsing") : HandlerThread(name) {
     fun getOrCreateParser(sensorAddress: String): Wt901Parser {
         return parsers.getOrPut(sensorAddress) {
             Wt901Parser().also { parser ->
+                parser.logTag = "Wt901Parse-${sensorAddress.takeLast(5)}"
                 parser.onRegisterRead = { result ->
                     registerReadCallback?.invoke(sensorAddress, result)
                 }
@@ -62,11 +64,13 @@ class BleHandlerThread(name: String = "ble-parsing") : HandlerThread(name) {
      *
      * @param bytes Raw BLE notification bytes (already copied).
      * @param sensorAddress MAC address of the sensor.
+     * @param arrivalNs Monotonic timestamp captured in onCharacteristicChanged.
+     *   Must be captured immediately on the Binder thread — NOT inside the handler post,
+     *   or batched notifications get out-of-order timestamps.
      * @param callback Invoked on the handler thread with the parsed sample, if any.
      */
-    fun postParsing(bytes: ByteArray, sensorAddress: String, callback: (ImuSample?) -> Unit) {
+    fun postParsing(bytes: ByteArray, sensorAddress: String, arrivalNs: Long, callback: (ImuSample?) -> Unit) {
         handler?.post {
-            val arrivalNs = SystemClock.elapsedRealtimeNanos()
             val parser = getOrCreateParser(sensorAddress)
             val sample = parser.feed(bytes, arrivalNs)
             parseCount++

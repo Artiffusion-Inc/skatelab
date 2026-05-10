@@ -1,6 +1,7 @@
 package ru.skatelab.capture.data.ble
 
 import android.os.SystemClock
+import android.util.Log
 import ru.skatelab.capture.domain.model.ImuSample
 import kotlin.math.atan2
 import kotlin.math.cos
@@ -76,6 +77,11 @@ class Wt901Parser {
     private var quatW = 0f; private var quatX = 0f; private var quatY = 0f; private var quatZ = 0f
     private var sampleTimestampNs = 0L
 
+    // Frame type statistics for debugging
+    private var frameCounts = mutableMapOf<Byte, Int>()
+    var logTag: String = "Wt901Parse"
+    private var logSeq = 0
+
     /** Count of incomplete cycles dropped. */
     var droppedPartialCount = 0
         private set
@@ -115,6 +121,16 @@ class Wt901Parser {
             }
 
             val frameType = buffer[1]
+
+            // Track frame types for debugging
+            frameCounts[frameType] = (frameCounts[frameType] ?: 0) + 1
+            logSeq++
+            if (logSeq % 200 == 0) {
+                val stats = frameCounts.entries.joinToString(", ") { (k, v) ->
+                    "0x%02X=%d".format(k, v)
+                }
+                Log.i(logTag, "Frame stats: $stats, dropped=$droppedPartialCount, mask=$receivedMask")
+            }
 
             // Determine frame size
             val frameSize = if (frameType == TYPE_COMBINED) COMBINED_FRAME_SIZE else INDIVIDUAL_FRAME_SIZE

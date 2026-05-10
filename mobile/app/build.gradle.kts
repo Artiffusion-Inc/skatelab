@@ -50,8 +50,9 @@ android {
     }
 
     tasks.withType<Test>().configureEach {
-        jvmArgs = listOf("-Xmx3g", "-XX:+UseG1GC")
-        maxHeapSize = "3g"
+        jvmArgs = listOf("-Xmx768m", "-XX:+UseG1GC", "-XX:MaxMetaspaceSize=256m")
+        maxHeapSize = "768m"
+        maxParallelForks = 1
     }
 
     protobuf {
@@ -91,13 +92,6 @@ dependencies {
     implementation("com.google.dagger:hilt-android:2.56.1")
     kapt("com.google.dagger:hilt-android-compiler:2.56.1")
     implementation("androidx.hilt:hilt-navigation-compose:1.2.0")
-
-    // Camera
-    implementation("androidx.camera:camera-core:1.4.2")
-    implementation("androidx.camera:camera-camera2:1.4.2")
-    implementation("androidx.camera:camera-lifecycle:1.4.2")
-    implementation("androidx.camera:camera-video:1.4.2")
-    implementation("androidx.camera:camera-view:1.4.2")
 
     // Protobuf
     implementation("com.google.protobuf:protobuf-javalite:4.30.2")

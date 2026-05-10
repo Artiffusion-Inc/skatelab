@@ -19,6 +19,7 @@ import ru.skatelab.capture.presentation.session.SessionListScreen
 import ru.skatelab.capture.presentation.session.SessionListViewModel
 import ru.skatelab.capture.presentation.SessionState
 import java.io.File
+import android.os.Environment
 
 object Routes {
     const val BLE_SCAN = "ble_scan"
@@ -57,8 +58,7 @@ fun AppNavigation() {
         composable(Routes.RECORDING) {
             val viewModel: RecordingViewModel = hiltViewModel()
             val context = androidx.compose.ui.platform.LocalContext.current
-            val downloadsDir = android.os.Environment.getExternalStoragePublicDirectory(android.os.Environment.DIRECTORY_DOWNLOADS)
-            val outputDir = File(downloadsDir, "skatelab_capture_${System.currentTimeMillis()}")
+            val outputDir = File(context.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS), "skatelab_capture_${System.currentTimeMillis()}").also { it.mkdirs() }
 
             RecordingScreen(
                 viewModel = viewModel,

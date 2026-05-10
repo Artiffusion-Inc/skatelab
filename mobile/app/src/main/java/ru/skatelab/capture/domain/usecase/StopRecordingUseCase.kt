@@ -1,34 +1,56 @@
 package ru.skatelab.capture.domain.usecase
 
-import android.content.Context
-import android.content.Intent
-import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.withContext
 import ru.skatelab.capture.domain.model.SensorId
 import ru.skatelab.capture.domain.repository.BleRepository
 import ru.skatelab.capture.domain.repository.CameraRepository
-import ru.skatelab.capture.service.SensorRecordingService
 import javax.inject.Inject
 
 class StopRecordingUseCase @Inject constructor(
     private val bleRepository: BleRepository,
     private val cameraRepository: CameraRepository,
-    @ApplicationContext private val context: Context,
 ) {
-    suspend operator fun invoke(): Result<Unit> = runCatching {
-        // 1. Stop camera
-        cameraRepository.stopRecording().getOrThrow()
+    /**
+     * Stop recording with per-step error handling.
+     * All cleanup steps always execute — a failure in one step
+     * does not prevent other cleanup from running.
+     * BLE stop for LEFT/RIGHT runs in parallel.
+     */
+    suspend operator fun invoke(): Result<Unit> {
+        val errors = mutableListOf<Throwable>()
 
-        // 2. Stop BLE streaming (best-effort — don't abort if one sensor fails)
-        bleRepository.stopStreaming(SensorId.LEFT).getOrDefault(Unit)
-        bleRepository.stopStreaming(SensorId.RIGHT).getOrDefault(Unit)
-
-        // 3. Release camera
-        cameraRepository.release()
-
-        // 4. Stop Foreground Service
-        val serviceIntent = Intent(context, SensorRecordingService::class.java).apply {
-            action = SensorRecordingService.ACTION_STOP
+        try {
+            withContext(Dispatchers.Main) {
+                cameraRepository.stopRecording().getOrDefault(Unit)
+            }
+        } catch (e: Exception) {
+            errors.add(e)
         }
-        context.startService(serviceIntent)
+
+        try {
+            coroutineScope {
+                withContext(Dispatchers.IO) {
+                    val left = async { bleRepository.stopStreaming(SensorId.LEFT) }
+                    val right = async { bleRepository.stopStreaming(SensorId.RIGHT) }
+                    left.await().getOrDefault(Unit)
+                    right.await().getOrDefault(Unit)
+                }
+            }
+        } catch (e: Exception) {
+            errors.add(e)
+        }
+
+        try {
+            withContext(Dispatchers.Main) {
+                cameraRepository.release()
+            }
+        } catch (e: Exception) {
+            errors.add(e)
+        }
+
+        return if (errors.isEmpty()) Result.success(Unit) else Result.failure(errors.first())
     }
 }

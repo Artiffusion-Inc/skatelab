@@ -7,7 +7,6 @@ import android.hardware.camera2.CameraCharacteristics
 import android.hardware.camera2.CameraDevice
 import android.hardware.camera2.CameraManager
 import android.hardware.camera2.CaptureRequest
-import android.media.ImageReader
 import android.media.MediaRecorder
 import android.os.Handler
 import android.os.HandlerThread
@@ -27,7 +26,6 @@ class Camera2Recorder(
     private var cameraDevice: CameraDevice? = null
     private var captureSession: CameraCaptureSession? = null
     private var mediaRecorder: MediaRecorder? = null
-    private var imageReader: ImageReader? = null
     private var timestampTracker: FrameTimestampTracker? = null
     private var timestampsFile: File? = null
     private var previewSurface: Surface? = null
@@ -95,15 +93,6 @@ class Camera2Recorder(
             prepare()
         }
 
-        @Suppress("MagicNumber")
-        val YUV_420_888 = 0x23 // android.graphics.ImageFormat.YUV_420_888
-        imageReader = ImageReader.newInstance(width, height, YUV_420_888, 2)
-        imageReader?.setOnImageAvailableListener({ reader ->
-            val image = reader.acquireLatestImage() ?: return@setOnImageAvailableListener
-            timestampTracker?.onFrame(image.timestamp)
-            image.close()
-        }, callbackHandler)
-
         this.previewSurface = previewSurface
 
         cameraDevice = suspendCancellableCoroutine { cont ->
@@ -123,14 +112,12 @@ class Camera2Recorder(
     suspend fun startRecording(): CameraRepository.RecordingStartResult {
         val device = cameraDevice ?: throw IllegalStateException("Camera not prepared")
         val recorder = mediaRecorder ?: throw IllegalStateException("MediaRecorder not prepared")
-        val reader = imageReader ?: throw IllegalStateException("ImageReader not prepared")
 
         timestampTracker?.open(timestampsFile!!)
 
         val surfaces = mutableListOf<Surface>()
         val recorderSurface = recorder.surface
         surfaces.add(recorderSurface)
-        surfaces.add(reader.surface)
         if (previewSurface != null) {
             surfaces.add(previewSurface!!)
         }
@@ -149,7 +136,6 @@ class Camera2Recorder(
 
         val builder = captureSession!!.device.createCaptureRequest(CameraDevice.TEMPLATE_RECORD)
         builder.addTarget(recorderSurface)
-        builder.addTarget(reader.surface)
         if (previewSurface != null && surfaces.contains(previewSurface)) {
             builder.addTarget(previewSurface!!)
         }
@@ -167,19 +153,32 @@ class Camera2Recorder(
                 CaptureRequest.LENS_OPTICAL_STABILIZATION_MODE_OFF)
         }
 
-        val tFirstFrameNs = suspendCancellableCoroutine<Long> { cont ->
-            captureSession!!.setRepeatingRequest(builder.build(), object : CameraCaptureSession.CaptureCallback() {
-                override fun onCaptureStarted(
-                    session: CameraCaptureSession,
-                    request: CaptureRequest,
-                    timestamp: Long,
-                    frameNumber: Long,
-                ) {
-                    if (!cont.isCompleted) {
-                        cont.resume(timestamp)
-                    }
+        var firstFrameCaptured = false
+        var tFirstFrameNs = 0L
+
+        captureSession!!.setRepeatingRequest(builder.build(), object : CameraCaptureSession.CaptureCallback() {
+            override fun onCaptureStarted(
+                session: CameraCaptureSession,
+                request: CaptureRequest,
+                timestamp: Long,
+                frameNumber: Long,
+            ) {
+                // Record every frame timestamp via tracker
+                timestampTracker?.onFrame(timestamp)
+                if (!firstFrameCaptured) {
+                    firstFrameCaptured = true
+                    tFirstFrameNs = timestamp
                 }
-            }, callbackHandler)
+            }
+        }, callbackHandler)
+
+        // Wait briefly for first frame timestamp
+        val deadline = SystemClock.elapsedRealtimeNanos() + 2_000_000_000L // 2s timeout
+        while (!firstFrameCaptured && SystemClock.elapsedRealtimeNanos() < deadline) {
+            Thread.sleep(10L)
+        }
+        if (!firstFrameCaptured) {
+            throw IllegalStateException("No first frame received within 2s")
         }
 
         val videoStartDelayMs = (tFirstFrameNs - tStartCalledNs) / 1_000_000
@@ -207,11 +206,9 @@ class Camera2Recorder(
         captureSession?.close()
         cameraDevice?.close()
         mediaRecorder?.release()
-        imageReader?.close()
         handlerThread?.quitSafely()
         cameraDevice = null
         mediaRecorder = null
-        imageReader = null
         captureSession = null
         handlerThread = null
         callbackHandler = null

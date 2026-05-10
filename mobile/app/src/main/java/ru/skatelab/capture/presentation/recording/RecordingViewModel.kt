@@ -6,9 +6,12 @@ import android.view.Surface
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withContext
 import ru.skatelab.capture.AppLogger
 import ru.skatelab.capture.data.recording.ImuCollector
 import ru.skatelab.capture.data.sync.PeriodicTimeSync
@@ -26,6 +29,7 @@ import ru.skatelab.capture.service.SensorRecordingService
 import java.io.File
 import java.util.UUID
 import javax.inject.Inject
+import kotlinx.coroutines.withContext
 
 @HiltViewModel
 class RecordingViewModel @Inject constructor(
@@ -55,6 +59,9 @@ class RecordingViewModel @Inject constructor(
 
     private val _reconnectingSensor = MutableStateFlow<SensorId?>(null)
     val reconnectingSensor: StateFlow<SensorId?> = _reconnectingSensor
+
+    private val _elapsedMs = MutableStateFlow(0L)
+    val elapsedMs: StateFlow<Long> = _elapsedMs
 
     private val _sessionId = MutableStateFlow<String?>(null)
     val sessionId: StateFlow<String?> = _sessionId
@@ -87,8 +94,32 @@ class RecordingViewModel @Inject constructor(
         _reconnectingSensor.value = null
     }
 
+    private var timerJob: kotlinx.coroutines.Job? = null
+    private var recordingStartNanos: Long = 0L
+
+    private fun startTimer() {
+        recordingStartNanos = System.nanoTime()
+        timerJob?.cancel()
+        timerJob = viewModelScope.launch {
+            while (_isRecording.value) {
+                _elapsedMs.value = (System.nanoTime() - recordingStartNanos) / 1_000_000
+                kotlinx.coroutines.delay(200L)
+            }
+        }
+    }
+
+    private fun stopTimer() {
+        timerJob?.cancel()
+        timerJob = null
+        _elapsedMs.value = 0L
+    }
+
     fun prepareCamera(outputDir: File) {
         currentOutputDir = outputDir
+
+        // Clean up stale capture directories from previous incomplete sessions
+        cleanupStaleCaptureDirs(outputDir.parentFile, excludeDir = outputDir)
+
         val timestamp = System.currentTimeMillis()
         val videoFile = File(outputDir, "${timestamp}.mp4")
         val framesFile = File(outputDir, "${timestamp}_frames.csv")
@@ -111,6 +142,24 @@ class RecordingViewModel @Inject constructor(
                     appLogger.e(TAG, "Camera prepare failed: ${it.message}")
                 }
         }
+    }
+
+    /**
+     * Remove stale capture directories that contain no .mp4 file (incomplete recordings).
+     * Skips [excludeDir] to avoid deleting the active capture directory.
+     */
+    private fun cleanupStaleCaptureDirs(parentDir: File?, excludeDir: File) {
+        if (parentDir == null || !parentDir.exists()) return
+
+        parentDir.listFiles()
+            ?.filter { it.isDirectory && it.name.startsWith("skatelab_capture_") && it != excludeDir }
+            ?.forEach { dir ->
+                val hasVideo = dir.listFiles()?.any { it.extension == "mp4" } ?: false
+                if (!hasVideo) {
+                    dir.deleteRecursively()
+                    appLogger.i(TAG, "Cleaned up stale capture dir: ${dir.name}")
+                }
+            }
     }
 
     fun startRecording(outputDir: File, calibration: Map<SensorId, CalibrationData>, context: Context) {
@@ -142,6 +191,10 @@ class RecordingViewModel @Inject constructor(
         startForegroundService(context)
 
         viewModelScope.launch {
+            // Time sync BEFORE streaming starts — WT901 ignores register reads during streaming
+            periodicTimeSync.sync(viewModelScope)
+            periodicTimeSync.awaitSync()
+
             imuCollector.start(
                 viewModelScope,
                 mapOf(SensorId.LEFT to imuLeftFile, SensorId.RIGHT to imuRightFile),
@@ -151,8 +204,8 @@ class RecordingViewModel @Inject constructor(
                 .onSuccess { startInfo ->
                     currentStartInfo = startInfo
                     _isRecording.value = true
-                    periodicTimeSync.start(viewModelScope)
                     startReconnectWatch()
+                    startTimer()
                     appLogger.i(
                         TAG,
                         "Recording started: t0=${startInfo.t0Ns}, videoDelay=${startInfo.videoStartDelayMs}ms"
@@ -180,6 +233,7 @@ class RecordingViewModel @Inject constructor(
         viewModelScope.launch {
             periodicTimeSync.stop()
             stopReconnectWatch()
+            stopTimer()
 
             stopRecordingUseCase()
                 .onFailure {
@@ -189,7 +243,7 @@ class RecordingViewModel @Inject constructor(
             _isRecording.value = false
             stopForegroundService(context)
 
-            val imuCounts = imuCollector.stop()
+            val imuCounts = withContext(Dispatchers.IO) { imuCollector.stop() }
             appLogger.i(TAG, "IMU samples: $imuCounts")
 
             val clockOffsets = mapOf(
@@ -235,10 +289,6 @@ class RecordingViewModel @Inject constructor(
         cameraRepository.setPreviewSurface(surface)
     }
 
-    fun setPreviewSurfaceProvider(provider: Any?) {
-        cameraRepository.setPreviewSurfaceProvider(provider)
-    }
-
     private fun startForegroundService(context: Context) {
         val intent = Intent(context, SensorRecordingService::class.java).apply {
             action = SensorRecordingService.ACTION_START
@@ -258,7 +308,16 @@ class RecordingViewModel @Inject constructor(
     override fun onCleared() {
         super.onCleared()
         periodicTimeSync.stop()
-        viewModelScope.launch {
+        runBlocking(Dispatchers.IO) {
+            // If recording never completed, clean up the current capture directory
+            // (no .mp4 means recording was never finalized successfully)
+            currentOutputDir?.let { dir ->
+                val hasVideo = dir.listFiles()?.any { it.extension == "mp4" } ?: false
+                if (!hasVideo && dir.exists()) {
+                    dir.deleteRecursively()
+                    appLogger.i(TAG, "Cleaned up incomplete capture dir on clear: ${dir.name}")
+                }
+            }
             cameraRepository.release()
         }
     }

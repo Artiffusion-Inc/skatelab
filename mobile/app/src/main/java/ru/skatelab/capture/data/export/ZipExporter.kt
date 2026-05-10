@@ -5,6 +5,7 @@ import java.io.BufferedInputStream
 import java.io.BufferedOutputStream
 import java.io.File
 import java.io.FileInputStream
+import java.util.zip.CRC32
 import java.util.zip.ZipEntry
 import java.util.zip.ZipOutputStream
 import javax.inject.Inject
@@ -21,6 +22,8 @@ class ZipExporter @Inject constructor() {
 
     companion object {
         private const val BUFFER_SIZE = 16_384
+        // Already-compressed formats — use STORED to avoid wasted CPU
+        private val STORED_EXTENSIONS = setOf("mp4", "binpb")
     }
 
     /**
@@ -48,6 +51,12 @@ class ZipExporter @Inject constructor() {
 
     private fun addToZip(zos: ZipOutputStream, file: File) {
         val entry = ZipEntry(file.name)
+        if (file.extension in STORED_EXTENSIONS) {
+            entry.method = ZipEntry.STORED
+            entry.size = file.length()
+            entry.compressedSize = file.length()
+            entry.setCrc(computeCrc32(file))
+        }
         zos.putNextEntry(entry)
         BufferedInputStream(FileInputStream(file), BUFFER_SIZE).use { fis ->
             val buffer = ByteArray(BUFFER_SIZE)
@@ -57,5 +66,17 @@ class ZipExporter @Inject constructor() {
             }
         }
         zos.closeEntry()
+    }
+
+    private fun computeCrc32(file: File): Long {
+        val crc = CRC32()
+        BufferedInputStream(FileInputStream(file), BUFFER_SIZE).use { fis ->
+            val buffer = ByteArray(BUFFER_SIZE)
+            var read: Int
+            while (fis.read(buffer).also { read = it } != -1) {
+                crc.update(buffer, 0, read)
+            }
+        }
+        return crc.value
     }
 }

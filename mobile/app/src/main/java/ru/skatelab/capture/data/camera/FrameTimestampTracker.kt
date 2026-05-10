@@ -18,6 +18,7 @@ class FrameTimestampTracker {
     private var frameCount = 0
     private var firstFrameNs: Long = 0L
     private var lastFrameNs: Long = 0L
+    private var framesSinceFlush = 0
 
     /**
      * Opens [file] for writing and writes the CSV header.
@@ -33,6 +34,7 @@ class FrameTimestampTracker {
     /**
      * Records a frame with the given [timestampNs] (nanoseconds).
      * The CSV line is written asynchronously on a background thread.
+     * Flushes every 30 frames (~0.5s at 60fps) instead of every frame.
      */
     fun onFrame(timestampNs: Long) {
         val index = frameCount
@@ -45,7 +47,11 @@ class FrameTimestampTracker {
         val w = writer ?: return
         executor.submit {
             w.write("$index,$timestampNs\n")
-            w.flush()
+            framesSinceFlush++
+            if (framesSinceFlush >= 30) {
+                w.flush()
+                framesSinceFlush = 0
+            }
         }
     }
 

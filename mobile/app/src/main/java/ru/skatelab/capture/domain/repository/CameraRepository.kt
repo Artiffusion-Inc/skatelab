@@ -15,13 +15,6 @@ interface CameraRepository {
     /** Set preview surface for Camera2-based recorder. */
     fun setPreviewSurface(surface: Surface?)
 
-    /**
-     * Set preview surface provider for CameraX-based recorder.
-     * Accepts [androidx.camera.core.Preview.SurfaceProvider] as [Any]
-     * to avoid CameraX dependency in the domain layer.
-     */
-    fun setPreviewSurfaceProvider(provider: Any?)
-
     suspend fun prepare(outputFile: File, timestampsFile: File): Result<Unit>
     suspend fun startRecording(): Result<RecordingStartResult>
     suspend fun stopRecording(): Result<RecordingStopResult>

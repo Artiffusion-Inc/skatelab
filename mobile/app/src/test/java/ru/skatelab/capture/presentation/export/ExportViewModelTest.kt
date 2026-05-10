@@ -1,11 +1,13 @@
 package ru.skatelab.capture.presentation.export
 
+import android.content.Context
 import io.mockk.coEvery
+import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestScope
-import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
@@ -28,6 +30,7 @@ class ExportViewModelTest {
 
     private lateinit var exportUseCase: ExportSessionUseCase
     private lateinit var sessionRepository: SessionRepository
+    private lateinit var appContext: Context
     private lateinit var viewModel: ExportViewModel
 
     private val stubSession = CaptureSession(
@@ -54,7 +57,9 @@ class ExportViewModelTest {
         Dispatchers.setMain(testDispatcher)
         exportUseCase = mockk()
         sessionRepository = mockk()
-        viewModel = ExportViewModel(exportUseCase, sessionRepository)
+        appContext = mockk(relaxed = true)
+        every { appContext.packageName } returns "ru.skatelab.capture.test"
+        viewModel = ExportViewModel(exportUseCase, sessionRepository, appContext)
     }
 
     @After
@@ -71,7 +76,7 @@ class ExportViewModelTest {
         coEvery { exportUseCase.invoke(stubSession, any()) } returns Result.success(zipFile)
 
         viewModel.export("export-test", outputDir)
-        advanceUntilIdle()
+        runCurrent()
 
         assertTrue(viewModel.exportPath.value!!.endsWith(".zip"))
         assertNull(viewModel.error.value)
@@ -84,7 +89,7 @@ class ExportViewModelTest {
         coEvery { sessionRepository.getSession("missing") } returns null
 
         viewModel.export("missing", outputDir)
-        advanceUntilIdle()
+        runCurrent()
 
         assertTrue(viewModel.error.value!!.contains("Session not found"))
         outputDir.deleteRecursively()
@@ -98,7 +103,7 @@ class ExportViewModelTest {
             Result.failure(IllegalStateException("ZIP failed"))
 
         viewModel.export("export-test", outputDir)
-        advanceUntilIdle()
+        runCurrent()
 
         assertTrue(viewModel.error.value!!.contains("ZIP failed"))
         outputDir.deleteRecursively()
@@ -112,7 +117,7 @@ class ExportViewModelTest {
             Result.success(File(outputDir, "export-test.zip"))
 
         viewModel.export("export-test", outputDir)
-        advanceUntilIdle()
+        runCurrent()
 
         assertEquals(false, viewModel.isExporting.value)
         outputDir.deleteRecursively()

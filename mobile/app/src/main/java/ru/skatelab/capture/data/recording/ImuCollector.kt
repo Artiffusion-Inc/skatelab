@@ -21,16 +21,20 @@ import javax.inject.Singleton
 class ImuCollector @Inject constructor(
     private val bleRepository: BleRepository,
     private val appLogger: AppLogger,
-    @Named("Io") private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
+    @Named("ImuIo") private val ioDispatcher: CoroutineDispatcher,
 ) {
     companion object {
         private const val TAG = "ImuCollector"
+        // WT901 sends zero acc/gyro for ~0.5-1s after start streaming.
+        // Discard samples where acc magnitude is below 1.0 m/s² (gravity component missing).
+        private const val WARMUP_MIN_ACC_MAGNITUDE = 1.0f
     }
 
     private val writers = mutableMapOf<SensorId, ImuStreamWriter>()
     private val counts = mutableMapOf<SensorId, Int>()
     private val lastSampleNs = mutableMapOf<SensorId, Long>()
     private val pendingGaps = mutableMapOf<SensorId, PendingGap>()
+    private val warmedUp = mutableMapOf<SensorId, Boolean>()
     private var reconnectSeq = 0
     private var collectJob: Job? = null
     private var reconnectJob: Job? = null
@@ -38,11 +42,13 @@ class ImuCollector @Inject constructor(
 
     fun start(scope: CoroutineScope, files: Map<SensorId, File>) {
         files.forEach { (sensorId, file) ->
+            file.parentFile?.mkdirs()
             val writer = ImuStreamWriter()
             writer.open(file)
             writers[sensorId] = writer
             counts[sensorId] = 0
             lastSampleNs[sensorId] = 0L
+            warmedUp[sensorId] = false
             appLogger.i(TAG, "Started IMU writer for $sensorId → ${file.absolutePath}")
         }
 
@@ -50,6 +56,21 @@ class ImuCollector @Inject constructor(
             bleRepository.imuSamples
                 .filter { (id, _) -> writers.containsKey(id) }
                 .collect { (sensorId, sample) ->
+                    // Skip warm-up zeros: WT901 sends zero acc/gyro for ~0.5-1s
+                    // after start streaming. Once we see a real sample, mark as warmed up.
+                    if (warmedUp[sensorId] != true) {
+                        val accMag = kotlin.math.sqrt(
+                            sample.accX * sample.accX +
+                            sample.accY * sample.accY +
+                            sample.accZ * sample.accZ
+                        )
+                        if (accMag < WARMUP_MIN_ACC_MAGNITUDE) {
+                            return@collect // discard warm-up zero sample
+                        }
+                        warmedUp[sensorId] = true
+                        appLogger.i(TAG, "Sensor $sensorId warm-up complete, first real sample accMag=$accMag")
+                    }
+
                     val writer = writers[sensorId] ?: return@collect
                     try {
                         // Write pending gap before first sample after reconnect
@@ -75,6 +96,7 @@ class ImuCollector @Inject constructor(
                     val lastNs = lastSampleNs[sensorId] ?: 0L
                     reconnectSeq++
                     pendingGaps[sensorId] = PendingGap(lastNs, reconnectSeq)
+                    warmedUp[sensorId] = false  // Sensor may send zeros again after reconnect
                     appLogger.w(TAG, "BLE reconnect gap #$reconnectSeq for $sensorId, lastNs=$lastNs")
 
                     // Wait for reconnection then restart streaming
@@ -112,6 +134,7 @@ class ImuCollector @Inject constructor(
         }
         writers.clear()
         pendingGaps.clear()
+        warmedUp.clear()
         val result = counts.toMap()
         counts.clear()
         return result

@@ -32,6 +32,8 @@
     <string name="export_session">Сессия: %s</string>
     <string name="exporting">Экспорт…</string>
     <string name="export_done">Экспорт завершён!</string>
+    <string name="export_share">Поделиться</string>
+    <string name="export_share_title">Отправить сессию</string>
 
     <!-- Permissions -->
     <string name="permissions_required">Разрешения необходимы для работы</string>

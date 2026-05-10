@@ -10,7 +10,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestScope
-import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
@@ -105,7 +105,7 @@ class RecordingViewModelTest {
         coEvery { cameraRepository.prepare(any(), any()) } returns Result.success(Unit)
 
         viewModel.prepareCamera(outputDir)
-        advanceUntilIdle()
+        runCurrent()
 
         assertTrue(viewModel.isPreviewReady.value)
         assertNull(viewModel.error.value)
@@ -117,7 +117,7 @@ class RecordingViewModelTest {
             Result.failure(IllegalStateException("Camera busy"))
 
         viewModel.prepareCamera(outputDir)
-        advanceUntilIdle()
+        runCurrent()
 
         assertFalse(viewModel.isPreviewReady.value)
         assertTrue(viewModel.error.value!!.contains("Camera prepare failed"))
@@ -130,15 +130,16 @@ class RecordingViewModelTest {
             Result.success(stubStartInfo)
 
         viewModel.prepareCamera(outputDir)
-        advanceUntilIdle()
+        runCurrent()
 
         viewModel.startRecording(outputDir, emptyMap(), context)
-        advanceUntilIdle()
+        runCurrent()
 
         assertTrue(viewModel.isRecording.value)
         assertNull(viewModel.error.value)
         verify { imuCollector.start(any(), any()) }
-        verify { periodicTimeSync.start(any()) }
+        coVerify { periodicTimeSync.sync(any()) }
+        coVerify { periodicTimeSync.awaitSync() }
     }
 
     @Test
@@ -148,10 +149,10 @@ class RecordingViewModelTest {
             Result.failure(IllegalStateException("BLE start failed"))
 
         viewModel.prepareCamera(outputDir)
-        advanceUntilIdle()
+        runCurrent()
 
         viewModel.startRecording(outputDir, emptyMap(), context)
-        advanceUntilIdle()
+        runCurrent()
 
         assertFalse(viewModel.isRecording.value)
         assertTrue(viewModel.error.value!!.contains("Recording start failed"))
@@ -160,7 +161,7 @@ class RecordingViewModelTest {
     @Test
     fun startRecording_withoutPrepare_setsError() = testScope.runTest {
         viewModel.startRecording(outputDir, emptyMap(), context)
-        advanceUntilIdle()
+        runCurrent()
 
         assertFalse(viewModel.isRecording.value)
         assertTrue(viewModel.error.value!!.contains("Camera not prepared"))
@@ -176,13 +177,13 @@ class RecordingViewModelTest {
         every { imuCollector.stop() } returns emptyMap()
 
         viewModel.prepareCamera(outputDir)
-        advanceUntilIdle()
+        runCurrent()
 
         viewModel.startRecording(outputDir, emptyMap(), context)
-        advanceUntilIdle()
+        runCurrent()
 
         viewModel.stopRecording(context)
-        advanceUntilIdle()
+        runCurrent()
 
         assertTrue("sessionId should be set", viewModel.sessionId.value != null)
         assertFalse(viewModel.isRecording.value)
@@ -194,7 +195,7 @@ class RecordingViewModelTest {
     @Test
     fun stopRecording_withoutActiveStart_setsError() = testScope.runTest {
         viewModel.stopRecording(context)
-        advanceUntilIdle()
+        runCurrent()
 
         assertTrue(viewModel.error.value!!.contains("No active recording"))
     }
@@ -210,13 +211,13 @@ class RecordingViewModelTest {
         every { imuCollector.stop() } returns emptyMap()
 
         viewModel.prepareCamera(outputDir)
-        advanceUntilIdle()
+        runCurrent()
 
         viewModel.startRecording(outputDir, emptyMap(), context)
-        advanceUntilIdle()
+        runCurrent()
 
         viewModel.stopRecording(context)
-        advanceUntilIdle()
+        runCurrent()
 
         assertTrue("sessionId should be set", viewModel.sessionId.value != null)
         assertFalse(viewModel.isRecording.value)
@@ -237,13 +238,13 @@ class RecordingViewModelTest {
         every { imuCollector.stop() } returns emptyMap()
 
         viewModel.prepareCamera(outputDir)
-        advanceUntilIdle()
+        runCurrent()
 
         viewModel.startRecording(outputDir, calibration, context)
-        advanceUntilIdle()
+        runCurrent()
 
         viewModel.stopRecording(context)
-        advanceUntilIdle()
+        runCurrent()
 
         coVerify { sessionRepository.saveSession(match { it.calibration == calibration }) }
     }
@@ -255,10 +256,10 @@ class RecordingViewModelTest {
             Result.success(stubStartInfo)
 
         viewModel.prepareCamera(outputDir)
-        advanceUntilIdle()
+        runCurrent()
 
         viewModel.startRecording(outputDir, emptyMap(), context)
-        advanceUntilIdle()
+        runCurrent()
 
         verify { imuCollector.start(any(), any()) }
     }
@@ -273,13 +274,13 @@ class RecordingViewModelTest {
         every { imuCollector.stop() } returns mapOf(SensorId.LEFT to 100, SensorId.RIGHT to 95)
 
         viewModel.prepareCamera(outputDir)
-        advanceUntilIdle()
+        runCurrent()
 
         viewModel.startRecording(outputDir, emptyMap(), context)
-        advanceUntilIdle()
+        runCurrent()
 
         viewModel.stopRecording(context)
-        advanceUntilIdle()
+        runCurrent()
 
         verify { imuCollector.stop() }
     }

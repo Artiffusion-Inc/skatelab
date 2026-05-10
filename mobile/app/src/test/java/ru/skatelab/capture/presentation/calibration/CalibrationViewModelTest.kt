@@ -9,7 +9,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestScope
-import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
@@ -59,7 +59,7 @@ class CalibrationViewModelTest {
         coEvery { calibrateUseCase.invoke(SensorId.LEFT) } returns Result.success(data)
 
         viewModel.calibrate(SensorId.LEFT)
-        advanceUntilIdle()
+        runCurrent()
 
         assertEquals(data, viewModel.leftCalibration.value)
         assertNull(viewModel.error.value)
@@ -71,7 +71,7 @@ class CalibrationViewModelTest {
         coEvery { calibrateUseCase.invoke(SensorId.RIGHT) } returns Result.success(data)
 
         viewModel.calibrate(SensorId.RIGHT)
-        advanceUntilIdle()
+        runCurrent()
 
         assertEquals(data, viewModel.rightCalibration.value)
         assertNull(viewModel.error.value)
@@ -83,7 +83,7 @@ class CalibrationViewModelTest {
             Result.failure(IllegalStateException("No still samples"))
 
         viewModel.calibrate(SensorId.LEFT)
-        advanceUntilIdle()
+        runCurrent()
 
         assertNull(viewModel.leftCalibration.value)
         assertTrue(viewModel.error.value!!.contains("No still samples"))
@@ -95,7 +95,7 @@ class CalibrationViewModelTest {
         coEvery { calibrateUseCase.invoke(SensorId.LEFT) } returns Result.success(data)
 
         viewModel.calibrate(SensorId.LEFT)
-        advanceUntilIdle()
+        runCurrent()
 
         assertTrue(ru.skatelab.capture.presentation.SessionState.calibration.containsKey(SensorId.LEFT))
     }
@@ -108,14 +108,14 @@ class CalibrationViewModelTest {
         viewModel.calibrate(SensorId.LEFT)
         assertFalse(viewModel.isCalibrating.value) // not yet started in test dispatcher
 
-        advanceUntilIdle()
+        runCurrent()
         assertFalse(viewModel.isCalibrating.value)
     }
 
     @Test
     fun startPreview_callsStartStreaming() = testScope.runTest {
         viewModel.startPreview(SensorId.LEFT)
-        advanceUntilIdle()
+        runCurrent()
 
         coVerify { bleRepository.startStreaming(SensorId.LEFT) }
     }
@@ -126,10 +126,10 @@ class CalibrationViewModelTest {
         coEvery { bleRepository.stopStreaming(SensorId.LEFT) } returns Result.success(Unit)
 
         viewModel.startPreview(SensorId.LEFT)
-        testDispatcher.scheduler.advanceUntilIdle()
+        testDispatcher.scheduler.runCurrent()
 
         viewModel.stopPreview()
-        testDispatcher.scheduler.advanceUntilIdle()
+        testDispatcher.scheduler.runCurrent()
 
         coVerify(timeout = 2000L) { bleRepository.stopStreaming(SensorId.LEFT) }
     }
@@ -142,9 +142,9 @@ class CalibrationViewModelTest {
         coEvery { calibrateUseCase.invoke(SensorId.RIGHT) } returns Result.success(rightData)
 
         viewModel.calibrate(SensorId.LEFT)
-        advanceUntilIdle()
+        runCurrent()
         viewModel.calibrate(SensorId.RIGHT)
-        advanceUntilIdle()
+        runCurrent()
 
         assertEquals(leftData, viewModel.leftCalibration.value)
         assertEquals(rightData, viewModel.rightCalibration.value)

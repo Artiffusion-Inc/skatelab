@@ -1,13 +1,9 @@
 package ru.skatelab.capture
 
 import android.Manifest
-import android.content.Intent
 import android.content.pm.PackageManager
-import android.net.Uri
 import android.os.Build
 import android.os.Bundle
-import android.os.Environment
-import android.provider.Settings
 import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -59,7 +55,6 @@ private fun PermissionGate(content: @Composable () -> Unit) {
     }
 
     var runtimeGranted by remember { mutableStateOf(false) }
-    var storageGranted by remember { mutableStateOf(false) }
     val context = androidx.compose.ui.platform.LocalContext.current
 
     val runtimeLauncher = rememberLauncherForActivityResult(
@@ -67,13 +62,6 @@ private fun PermissionGate(content: @Composable () -> Unit) {
     ) { results ->
         runtimeGranted = results.all { it.value }
         if (!runtimeGranted) Log.w("MainActivity", "Denied: ${results.filter { !it.value }.keys}")
-    }
-
-    val storageLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.StartActivityForResult()
-    ) {
-        storageGranted = Build.VERSION.SDK_INT < Build.VERSION_CODES.R ||
-            Environment.isExternalStorageManager()
     }
 
     LaunchedEffect(Unit) {
@@ -87,23 +75,7 @@ private fun PermissionGate(content: @Composable () -> Unit) {
         }
     }
 
-    LaunchedEffect(runtimeGranted) {
-        if (!runtimeGranted) return@LaunchedEffect
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            if (Environment.isExternalStorageManager()) {
-                storageGranted = true
-            } else {
-                val intent = Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION).apply {
-                    data = Uri.fromParts("package", context.packageName, null)
-                }
-                storageLauncher.launch(intent)
-            }
-        } else {
-            storageGranted = true
-        }
-    }
-
-    if (runtimeGranted && storageGranted) {
+    if (runtimeGranted) {
         content()
     } else {
         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {

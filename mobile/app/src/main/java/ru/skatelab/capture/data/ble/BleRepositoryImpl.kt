@@ -59,13 +59,13 @@ class BleRepositoryImpl @Inject constructor(
     }
 
     override suspend fun startStreaming(sensorId: SensorId): Result<Unit> = runCatching {
-        bleManager.isRecording = true
+        bleManager.markRecording(sensorId)
         bleManager.sendSequence(sensorId, Wt901Commander.startStreamingSequence())
     }
 
     override suspend fun stopStreaming(sensorId: SensorId): Result<Unit> = runCatching {
         bleManager.sendSequence(sensorId, Wt901Commander.stopStreamingSequence())
-        bleManager.isRecording = false
+        bleManager.markStopped(sensorId)
     }
 
     override suspend fun readBattery(sensorId: SensorId): Result<Int> {

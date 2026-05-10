@@ -3,6 +3,8 @@ package ru.skatelab.capture.data.repository
 import android.content.Context
 import ru.skatelab.capture.AppLogger
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import org.json.JSONObject
 import ru.skatelab.capture.domain.model.CalibrationData
 import ru.skatelab.capture.domain.model.CaptureSession
@@ -28,11 +30,13 @@ class SessionRepositoryImpl @Inject constructor(
         get() = File(context.filesDir, SESSIONS_DIR)
 
     override suspend fun saveSession(session: CaptureSession): Result<Unit> = runCatching {
-        val dir = File(sessionsDir, session.id)
-        dir.mkdirs()
-        val metaFile = File(dir, META_FILE)
-        metaFile.writeText(sessionToJson(session))
-        appLogger.i(TAG, "Session saved: ${session.id}")
+        withContext(Dispatchers.IO) {
+            val dir = File(sessionsDir, session.id)
+            dir.mkdirs()
+            val metaFile = File(dir, META_FILE)
+            metaFile.writeText(sessionToJson(session))
+            appLogger.i(TAG, "Session saved: ${session.id}")
+        }
     }
 
     override suspend fun getSessions(): List<CaptureSession> {
