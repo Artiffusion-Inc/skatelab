@@ -76,7 +76,9 @@ class CalibrateSensorUseCase @Inject constructor(
                                     sample.accY * sample.accY +
                                     sample.accZ * sample.accZ).toDouble()
                         ).toFloat()
-                        if (accMag < WARMUP_MIN_ACC_MAGNITUDE) return@collect  // discard warm-up zeros
+                        // Discard WT901 warm-up zeros: sensor sends ~0 acc/gyro for ~0.5-1 s after streaming starts.
+                        // Threshold matches ImuCollector.kt.
+                        if (accMag < WARMUP_MIN_ACC_MAGNITUDE) return@collect
                         val gyroMagDegS = sqrt(
                             (sample.gyroX * sample.gyroX +
                                     sample.gyroY * sample.gyroY +
