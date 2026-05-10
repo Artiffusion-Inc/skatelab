@@ -22,7 +22,7 @@ export function FAQSection() {
     >
       <div className="faq-header mb-10">
         <p className="mb-4 sh-micro uppercase tracking-[0.3em] text-ink-mute">
-          {t("faqTitle")}
+          {t("faqEyebrow")}
         </p>
         <h2 id="faq-heading" className="sh-display-xl text-ink">
           {t("faqTitle")}
