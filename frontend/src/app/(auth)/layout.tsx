@@ -8,7 +8,7 @@ export default async function AuthLayout({ children }: { children: React.ReactNo
   const t = await getTranslations("app")
 
   const hasAuth = (await cookies()).get("sb_auth")?.value
-  if (hasAuth) redirect("/feed")
+  if (hasAuth) redirect("/")
 
   return (
     <div className="flex min-h-[dvh] flex-col">
