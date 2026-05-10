@@ -49,6 +49,11 @@ android {
         unitTests.isReturnDefaultValues = true
     }
 
+    tasks.withType<Test>().configureEach {
+        jvmArgs = listOf("-Xmx3g", "-XX:+UseG1GC")
+        maxHeapSize = "3g"
+    }
+
     protobuf {
         protoc {
             artifact = "com.google.protobuf:protoc:4.30.2"

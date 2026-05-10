@@ -58,6 +58,11 @@ class AppLogger @Inject constructor(
         queue.add("I/$tag: $msg")
     }
 
+    fun d(tag: String, msg: String) {
+        Log.d(tag, msg)
+        queue.add("D/$tag: $msg")
+    }
+
     fun w(tag: String, msg: String) {
         Log.w(tag, msg)
         queue.add("W/$tag: $msg")

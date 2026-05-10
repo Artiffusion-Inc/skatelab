@@ -10,6 +10,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import ru.skatelab.capture.AppLogger
 import ru.skatelab.capture.data.recording.ImuCollector
+import ru.skatelab.capture.data.sync.PeriodicTimeSync
+import ru.skatelab.capture.data.sync.TimeSyncManager
 import ru.skatelab.capture.domain.model.CalibrationData
 import ru.skatelab.capture.domain.model.CaptureSession
 import ru.skatelab.capture.domain.model.SensorId
@@ -29,6 +31,8 @@ class RecordingViewModel @Inject constructor(
     private val sessionRepository: SessionRepository,
     private val startRecordingUseCase: StartRecordingUseCase,
     private val stopRecordingUseCase: StopRecordingUseCase,
+    private val timeSyncManager: TimeSyncManager,
+    private val periodicTimeSync: PeriodicTimeSync,
     private val appLogger: AppLogger,
 ) : ViewModel() {
 
@@ -52,16 +56,11 @@ class RecordingViewModel @Inject constructor(
     private var currentCalibration = mapOf<SensorId, CalibrationData>()
     private var currentOutputDir: File? = null
 
-    // File paths generated during prepareCamera, reused in startRecording
     private var preparedVideoFile: File? = null
     private var preparedFramesFile: File? = null
     private var preparedImuLeftFile: File? = null
     private var preparedImuRightFile: File? = null
 
-    /**
-     * Prepare camera for recording. Sets [isPreviewReady] on success.
-     * Must be called before [startRecording].
-     */
     fun prepareCamera(outputDir: File) {
         currentOutputDir = outputDir
         val timestamp = System.currentTimeMillis()
@@ -115,7 +114,6 @@ class RecordingViewModel @Inject constructor(
         }
 
         viewModelScope.launch {
-            // Start IMU collector before use case starts BLE streaming
             imuCollector.start(
                 viewModelScope,
                 mapOf(SensorId.LEFT to imuLeftFile, SensorId.RIGHT to imuRightFile),
@@ -125,6 +123,7 @@ class RecordingViewModel @Inject constructor(
                 .onSuccess { startInfo ->
                     currentStartInfo = startInfo
                     _isRecording.value = true
+                    periodicTimeSync.start(viewModelScope)
                     appLogger.i(
                         TAG,
                         "Recording started: t0=${startInfo.t0Ns}, videoDelay=${startInfo.videoStartDelayMs}ms"
@@ -149,7 +148,8 @@ class RecordingViewModel @Inject constructor(
         }
 
         viewModelScope.launch {
-            // 1. Stop camera + BLE + release + FGS via use case
+            periodicTimeSync.stop()
+
             stopRecordingUseCase()
                 .onFailure {
                     appLogger.w(TAG, "Stop use case partial failure: ${it.message}")
@@ -157,11 +157,15 @@ class RecordingViewModel @Inject constructor(
 
             _isRecording.value = false
 
-            // 2. Stop IMU collection
             val imuCounts = imuCollector.stop()
             appLogger.i(TAG, "IMU samples: $imuCounts")
 
-            // 3. Build and save session
+            val clockOffsets = mapOf(
+                SensorId.LEFT to timeSyncManager.getOffset(SensorId.LEFT),
+                SensorId.RIGHT to timeSyncManager.getOffset(SensorId.RIGHT),
+            )
+            appLogger.i(TAG, "Clock offsets: $clockOffsets")
+
             val durationMs = if (startInfo.t0Ns > 0) {
                 (System.nanoTime() - startInfo.t0Ns) / 1_000_000
             } else 0L
@@ -180,6 +184,7 @@ class RecordingViewModel @Inject constructor(
                 videoStartDelayMs = startInfo.videoStartDelayMs,
                 imuStartDelayMs = startInfo.imuStartDelayMs,
                 calibration = currentCalibration,
+                clockOffsetNs = clockOffsets,
                 createdAt = System.currentTimeMillis(),
                 isComplete = startInfo.videoFile.exists() &&
                     (startInfo.imuLeftFile.exists() || startInfo.imuRightFile.exists()),
@@ -194,26 +199,17 @@ class RecordingViewModel @Inject constructor(
         }
     }
 
-    /**
-     * Set the preview surface for Camera2-based recorder.
-     * Must be called before [prepareCamera] for the preview to appear.
-     */
     fun setPreviewSurface(surface: Surface?) {
         cameraRepository.setPreviewSurface(surface)
     }
 
-    /**
-     * Set the preview surface provider for CameraX-based recorder.
-     * Accepts [androidx.camera.core.Preview.SurfaceProvider] as [Any]
-     * to avoid CameraX dependency in the ViewModel.
-     * Must be called before [prepareCamera] for the preview to appear.
-     */
     fun setPreviewSurfaceProvider(provider: Any?) {
         cameraRepository.setPreviewSurfaceProvider(provider)
     }
 
     override fun onCleared() {
         super.onCleared()
+        periodicTimeSync.stop()
         viewModelScope.launch {
             cameraRepository.release()
         }

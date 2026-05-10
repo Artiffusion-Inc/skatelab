@@ -16,6 +16,7 @@ data class CaptureSession(
     val videoStartDelayMs: Long,
     val imuStartDelayMs: Map<SensorId, Long>,
     val calibration: Map<SensorId, CalibrationData>,
+    val clockOffsetNs: Map<SensorId, Long> = emptyMap(),
     val createdAt: Long,
     val isComplete: Boolean,
 )

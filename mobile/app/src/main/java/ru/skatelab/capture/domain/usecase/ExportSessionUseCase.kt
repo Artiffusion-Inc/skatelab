@@ -45,11 +45,13 @@ class ExportSessionUseCase @Inject constructor(
             imu("left") {
                 filename(session.imuLeftFile.name)
                 sensorId(SensorId.LEFT.name)
+                clockOffsetNs(session.clockOffsetNs[SensorId.LEFT] ?: 0L)
                 imuStartDelayMs(session.imuStartDelayMs[SensorId.LEFT] ?: 0L)
             }
             imu("right") {
                 filename(session.imuRightFile.name)
                 sensorId(SensorId.RIGHT.name)
+                clockOffsetNs(session.clockOffsetNs[SensorId.RIGHT] ?: 0L)
                 imuStartDelayMs(session.imuStartDelayMs[SensorId.RIGHT] ?: 0L)
             }
             calibration {

@@ -65,6 +65,9 @@ class SessionRepositoryImpl @Inject constructor(
         val calEntries = s.calibration.entries.joinToString(",") { (sensorId, cal) ->
             "\"${sensorId.name}\": {\"quatRef\": [${cal.quatRef.joinToString(",")}],\"calibratedAt\": ${cal.calibratedAt}}"
         }
+        val clockOffsetEntries = s.clockOffsetNs.entries.joinToString(",") { (k, v) ->
+            "\"${k.name}\": $v"
+        }
         return buildString {
             appendLine("{")
             appendLine("  \"id\": \"${s.id}\",")
@@ -80,6 +83,7 @@ class SessionRepositoryImpl @Inject constructor(
             appendLine("  \"videoStartDelayMs\": ${s.videoStartDelayMs},")
             appendLine("  \"imuStartDelayMs\": {$imuDelayEntries},")
             appendLine("  \"calibration\": {$calEntries},")
+            appendLine("  \"clockOffsetNs\": {$clockOffsetEntries},")
             appendLine("  \"createdAt\": ${s.createdAt},")
             appendLine("  \"isComplete\": ${s.isComplete}")
             append("}")
@@ -109,6 +113,12 @@ class SessionRepositoryImpl @Inject constructor(
                 }.toMap()
             } ?: emptyMap()
 
+            val clockOffsetNs = o.optJSONObject("clockOffsetNs")?.let { obj ->
+                SensorId.entries.mapNotNull { id ->
+                    obj.optLong(id.name, Long.MIN_VALUE).takeIf { it != Long.MIN_VALUE }?.let { id to it }
+                }.toMap()
+            } ?: emptyMap()
+
             CaptureSession(
                 id = o.getString("id"),
                 videoFile = File(o.getString("videoPath")),
@@ -123,6 +133,7 @@ class SessionRepositoryImpl @Inject constructor(
                 videoStartDelayMs = o.optLong("videoStartDelayMs", 0),
                 imuStartDelayMs = imuStartDelayMs,
                 calibration = calibration,
+                clockOffsetNs = clockOffsetNs,
                 createdAt = o.getLong("createdAt"),
                 isComplete = o.optBoolean("isComplete", false),
             )
