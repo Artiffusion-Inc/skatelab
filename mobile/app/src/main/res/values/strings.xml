@@ -44,4 +44,10 @@
     <string name="session_incomplete">Незавершена</string>
     <string name="session_no_sessions">Нет сохранённых сессий</string>
     <string name="session_export">Экспорт</string>
+    <string name="session_delete">Удалить</string>
+    <string name="session_delete_title">Удалить сессию?</string>
+    <string name="session_delete_confirm">Сессия и все файлы будут удалены.</string>
+    <string name="session_delete_confirm_button">Удалить</string>
+    <string name="session_delete_cancel">Отмена</string>
+    <string name="session_new_recording">Новая запись</string>
 </resources>

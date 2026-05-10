@@ -96,6 +96,11 @@ fun AppNavigation() {
                 onSessionClick = { sessionId ->
                     navController.navigate(Routes.export(sessionId))
                 },
+                onNewRecording = {
+                    navController.navigate(Routes.BLE_SCAN) {
+                        popUpTo(Routes.SESSIONS) { inclusive = true }
+                    }
+                },
             )
         }
     }

@@ -47,6 +47,7 @@ fun RecordingScreen(
     val isPreviewReady by viewModel.isPreviewReady.collectAsState()
     val error by viewModel.error.collectAsState()
     val sessionId by viewModel.sessionId.collectAsState()
+    val reconnectingSensor by viewModel.reconnectingSensor.collectAsState()
 
     // Track whether the PreviewView surface has been provided to the ViewModel,
     // so we only call prepareCamera once after the surface is available.
@@ -69,6 +70,7 @@ fun RecordingScreen(
             CameraPreview(
                 viewModel = viewModel,
                 isRecording = isRecording,
+                reconnectingSensor = reconnectingSensor,
                 onSurfaceReady = {
                     if (!surfaceProvided) {
                         surfaceProvided = true
@@ -133,6 +135,7 @@ fun RecordingScreen(
 private fun CameraPreview(
     viewModel: RecordingViewModel,
     isRecording: Boolean,
+    reconnectingSensor: SensorId?,
     onSurfaceReady: () -> Unit,
 ) {
     Box(modifier = Modifier.fillMaxSize()) {
@@ -169,6 +172,23 @@ private fun CameraPreview(
                     .padding(horizontal = 8.dp, vertical = 4.dp),
             ) {
                 Text("REC", color = Color.White, style = MaterialTheme.typography.labelLarge)
+            }
+
+            // Reconnect warning
+            if (reconnectingSensor != null) {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.TopStart)
+                        .padding(12.dp)
+                        .background(MaterialTheme.colorScheme.errorContainer, MaterialTheme.shapes.small)
+                        .padding(horizontal = 8.dp, vertical = 4.dp),
+                ) {
+                    Text(
+                        "Переподключение: ${reconnectingSensor?.name?.lowercase()}",
+                        color = MaterialTheme.colorScheme.onErrorContainer,
+                        style = MaterialTheme.typography.labelMedium,
+                    )
+                }
             }
         }
     }

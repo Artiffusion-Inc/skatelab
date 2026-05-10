@@ -26,6 +26,7 @@ import ru.skatelab.capture.data.sync.PeriodicTimeSync
 import ru.skatelab.capture.data.sync.TimeSyncManager
 import ru.skatelab.capture.domain.model.CalibrationData
 import ru.skatelab.capture.domain.model.SensorId
+import ru.skatelab.capture.domain.repository.BleRepository
 import ru.skatelab.capture.domain.repository.CameraRepository
 import ru.skatelab.capture.domain.repository.SessionRepository
 import ru.skatelab.capture.domain.usecase.RecordingStartInfo
@@ -39,6 +40,7 @@ class RecordingViewModelTest {
     private val testScope = TestScope(testDispatcher)
 
     private lateinit var cameraRepository: CameraRepository
+    private lateinit var bleRepository: BleRepository
     private lateinit var imuCollector: ImuCollector
     private lateinit var sessionRepository: SessionRepository
     private lateinit var startRecordingUseCase: StartRecordingUseCase
@@ -71,6 +73,7 @@ class RecordingViewModelTest {
         Dispatchers.setMain(testDispatcher)
 
         cameraRepository = mockk(relaxed = true)
+        bleRepository = mockk(relaxed = true)
         imuCollector = mockk(relaxed = true)
         sessionRepository = mockk(relaxed = true)
         startRecordingUseCase = mockk()
@@ -83,9 +86,10 @@ class RecordingViewModelTest {
         every { cameraRepository.isRecording } returns MutableStateFlow(false)
         every { cameraRepository.previewSurface } returns MutableStateFlow(null)
         every { timeSyncManager.getOffset(any()) } returns 0L
+        every { bleRepository.reconnectEvents } returns kotlinx.coroutines.flow.emptyFlow()
 
         viewModel = RecordingViewModel(
-            cameraRepository, imuCollector, sessionRepository,
+            cameraRepository, bleRepository, imuCollector, sessionRepository,
             startRecordingUseCase, stopRecordingUseCase,
             timeSyncManager, periodicTimeSync, appLogger,
         )
