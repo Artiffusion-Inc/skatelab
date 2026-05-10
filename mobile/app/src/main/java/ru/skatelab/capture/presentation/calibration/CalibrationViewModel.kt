@@ -87,14 +87,29 @@ class CalibrationViewModel @Inject constructor(
         viewModelScope.launch {
             _isCalibrating.value = true
             _error.value = null
-            calibrateSensorUseCase.invokeBoth()
-                .onSuccess { calMap ->
-                    calMap[SensorId.LEFT]?.let { _leftCalibration.value = it }
-                    calMap[SensorId.RIGHT]?.let { _rightCalibration.value = it }
-                    SessionState.calibration = calMap
-                }
-                .onFailure { _error.value = it.message }
-            _isCalibrating.value = false
+            try {
+                calibrateSensorUseCase.invokeBoth()
+                    .onSuccess { calMap ->
+                        calMap[SensorId.LEFT]?.let { _leftCalibration.value = it }
+                        calMap[SensorId.RIGHT]?.let { _rightCalibration.value = it }
+                        SessionState.calibration = calMap
+                    }
+                    .onFailure { _error.value = it.message }
+                // Restart preview after calibration (invokeBoth stops streaming)
+                restartPreview()
+            } finally {
+                _isCalibrating.value = false
+            }
+        }
+    }
+
+    private fun restartPreview() {
+        val toRestart = streamingSensors.toList()
+        streamingSensors.clear()
+        previewJob?.cancel()
+        previewJob = null
+        for (id in toRestart) {
+            startPreview(id)
         }
     }
 

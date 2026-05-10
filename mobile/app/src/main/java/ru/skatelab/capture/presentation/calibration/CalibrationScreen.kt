@@ -8,6 +8,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
+import java.util.Locale
 import ru.skatelab.capture.R
 import ru.skatelab.capture.domain.model.SensorId
 
@@ -113,4 +114,4 @@ private fun SensorStatusCard(
     }
 }
 
-private fun Float.formatF(): String = String.format("%.3f", this)
+private fun Float.formatF(): String = String.format(Locale.US, "%.3f", this)
