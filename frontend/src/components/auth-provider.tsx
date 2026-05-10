@@ -59,6 +59,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return
     }
 
+    const isPublicPage =
+      typeof window !== "undefined" &&
+      (window.location.pathname === "/" ||
+        window.location.pathname.startsWith("/privacy") ||
+        window.location.pathname.startsWith("/terms") ||
+        window.location.pathname.startsWith("/offer") ||
+        window.location.pathname.startsWith("/cookies"))
+
     auth
       .fetchMe()
       .then(u => {
@@ -69,7 +77,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       })
       .catch(() => {
         clearTokens()
-        router.push("/login")
+        if (!isPublicPage) router.push("/login")
       })
       .finally(() => setIsLoading(false))
   })
