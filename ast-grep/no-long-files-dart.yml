@@ -1,0 +1,17 @@
+id: no-long-files-dart
+language: dart
+message: |
+  File exceeds 350 lines. Split into smaller files with clear responsibilities.
+
+  Target: ≤ 350 lines per file (excluding generated code).
+  Why: Long files hide bugs, slow reviews, and make refactoring harder.
+severity: warning
+note: |
+  Allowed: generated files (.g.dart, .pb.dart), i18n files (strings.g.dart).
+  To fix: extract widgets, services, or helpers into separate files.
+rule:
+  kind: source_file
+  regex: '(?:.*\n){350,}'
+ignores:
+  - "mobile/**/*.g.dart"
+  - "mobile/**/*.pb.dart"

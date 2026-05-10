@@ -26,5 +26,6 @@ rule:
 ignores:
   - "ml/src/device.py"
   - "ml/tests/**"
+  - "ml/scripts/**"
   - "experiments/**"
   - "data/**"

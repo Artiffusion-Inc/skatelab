@@ -1,0 +1,21 @@
+id: no-hardcoded-urls-dart
+language: dart
+message: |
+  Hardcoded localhost/IP URL detected. Use environment config or constants.
+
+  Instead of:  "http://localhost:8000/api/v1/..."
+  Use:         AppConstants.apiBaseUrl + "/v1/..."
+
+  Instead of:  "http://192.168.1.100:3000"
+  Use:         AppConstants.apiBaseUrl
+severity: warning
+note: |
+  Allowed in test files and generated protobuf code.
+rule:
+  kind: string_literal
+  regex: '(?:localhost|127\.0\.0\.1|0\.0\.0\.0|192\.168\.|10\.0\.|172\.(?:1[6-9]|2\d|3[01])\.)\b'
+ignores:
+  - "mobile/**/*.g.dart"
+  - "mobile/**/*.pb.dart"
+  - "mobile/**/test/**"
+  - "mobile/**/test_*.dart"

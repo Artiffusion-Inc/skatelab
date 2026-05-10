@@ -7,3 +7,5 @@ languageGlobs:
     - "frontend/**/*.{ts,tsx}"
   python:
     - "{backend,ml}/**/*.py"
+  dart:
+    - "mobile/**/*.dart"

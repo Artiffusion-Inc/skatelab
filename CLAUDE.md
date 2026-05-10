@@ -47,13 +47,15 @@ skatelab/
 │   └── messages/                     # Translation files
 ├── ml/                               # ML pipeline (pure library, no backend deps)
 │   ├── src/                   # Python package (src.*)
-│   │   ├── pose_estimation/          # RTMPose via rtmlib
+│   │   ├── pose_estimation/          # MogaNet-B (ONNX) + YOLO detection + tracking
 │   │   ├── analysis/                 # Metrics, phase detection, recommender
-│   │   ├── pose_3d/                  # 3D lifting, corrective lens
-│   │   ├── detection/                # Person detection, tracking
-│   │   ├── utils/                    # Smoothing, visualization, gap filling
-│   │   ├── visualization/            # HUD, skeleton, comparison layers
-│   │   └── extras/                   # Optional ML models (depth, optical flow)
+│   │   ├── pose_3d/                  # 3D lifting (ONNX, MotionAGFormer/TCPFormer)
+│   │   ├── detection/                # Person detection (YOLOv8n), spatial reference
+│   │   ├── tracking/                 # DeepSORT, Sports2D, tracklet merger
+│   │   ├── alignment/                # DTW alignment vs reference
+│   │   ├── utils/                    # Smoothing, geometry, gap filling
+│   │   ├── visualization/            # HUD, skeleton, comparison, export
+│   │   └── tas/                      # TAS element segmentation (BiGRU + RF)
 │   ├── gpu_server/                   # Vast.ai GPU server (Containerfile)
 │   ├── tests/                        # ML tests
 │   └── pyproject.toml                # ML dependencies
@@ -76,8 +78,8 @@ Frontend (Next.js 16) → FastAPI (backend/) → Valkey queue → arq worker (ba
     → NO:  local GPU (process_video_pipeline)
 
 ML Pipeline:
-  Video → RTMO (rtmlib, CUDA, COCO 17kp)
-    → COCO→H3.6M conversion → GapFiller → Smoothing (One-Euro, Numba JIT)
+  Video → PersonDetector (YOLOv8n) → MogaNet-B (ONNX, COCO 17kp)
+    → coco_to_h36m() conversion → GapFiller → Smoothing (One-Euro, Numba JIT)
     → [Optional] CorrectiveLens (3D lift → kinematic constraints → project back to 2D)
     → Phase Detection (CoM-based, adaptive sigma)
     → Biomechanics Metrics (airtime, height, knee angles, rotation, landing quality)
@@ -94,10 +96,10 @@ Choreography Planner:
 
 **Key decisions:**
 
-- **RTMO via rtmlib**: primary pose estimation — COCO 17kp, ONNX Runtime (CPU+GPU)
-- **COCO 17kp → H3.6M 17kp**: public `coco_to_h36m()` conversion (HALPE26 deprecated)
-- **CorrectiveLens**: 3D lift corrective layer 2D skeleton (Kinovea-style angles)
-- **PoseTracker**: anatomical biometric Re-ID not color (solves black clothing on ice)
+- **MogaNet-B (ONNX)**: primary 2D pose estimation — top-down, YOLO detect → MogaNet-B keypoints, 384x288 input, COCO 17kp
+- **COCO 17kp → H3.6M 17kp**: `coco_to_h36m()` conversion after MogaNet-B inference
+- **CorrectiveLens**: 3D lift corrective layer 2D skeleton (disabled by default, ~3px max shift)
+- **Tracking**: DeepSORT (preferred) → Sports2D (fallback) → TrackValidator anti-steal → TrackletMerger post-hoc
 - **CoM trajectory** not flight time (eliminates 60% error low jumps)
 - **OOFSkate proxy features**: landing quality, torso lean, approach arc (no blade edge detection)
 
@@ -105,7 +107,7 @@ Choreography Planner:
 
 | Component           | Technology                                                                 |
 | ------------------- | -------------------------------------------------------------------------- |
-| **ML Pipeline**     | Python, rtmlib, onnxruntime-gpu, scipy, numba                              |
+| **ML Pipeline**     | Python, ultralytics, onnxruntime-gpu, scipy, numba                              |
 | **Backend API**     | FastAPI, SQLAlchemy, Alembic, arq + Valkey                                 |
 | **Frontend**        | Next.js 16, React, Tailwind CSS, shadcn/ui, Recharts, three.js             |
 | **Storage**         | Cloudflare R2 (S3-compatible), Postgres                                    |
@@ -145,8 +147,8 @@ System CUDA 13.2, onnxruntime-gpu needs CUDA 12 compat libs `.venv/cuda-compat/`
 ## Key Concepts
 
 - `poses_norm` — Normalized [0,1], `poses_px` — Pixel coords. Validate `assert_pose_format()`.
-- RTMO direct output H3.6M 17kp format (no conversion)
-- **CorrectiveLens**: 2D → MotionAGFormer 3D lift → kinematic constraints → anchor projection → blend.
+- MogaNet-B outputs COCO 17kp → `coco_to_h36m()` → H3.6M 17kp format
+- **CorrectiveLens**: 2D → MotionAGFormer 3D lift → kinematic constraints → anchor projection → blend. Disabled by default.
 - **CUDA compat**: standalone CUDA 12 libs `.venv/cuda-compat/` with patched RUNPATH.
 
 ## Remote GPU Processing (Vast.ai Serverless)
@@ -163,9 +165,9 @@ Tracking degrades (skeleton jumps wrong person) → data-driven analysis. **Do N
 
 Tracking pipeline 3 layers, each can cause track switches:
 
-1. **Sports2DTracker** — per-frame centroid association (Kalman-predicted distance matrix)
-2. **Anti-steal logic** — `ml/src/pose_estimation/rtmlib_extractor.py`, guards centroid jumps
-3. **Tracklet merger** — post-hoc NaN gap fill with biometric re-association
+1. **DeepSORT** (preferred) / **Sports2D** (fallback) — appearance-based ReID + Kalman filter or centroid association
+2. **Anti-steal logic** — `ml/src/pose_estimation/_track_validator.py`, guards centroid jumps + skeletal anomaly
+3. **Tracklet merger** — post-hoc NaN gap fill with biometric re-association (SkeletalIdentity)
 
 ### Step 2: Analyze centroid trajectories
 

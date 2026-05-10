@@ -121,7 +121,7 @@ async def ready():
         if "CUDAExecutionProvider" not in providers:
             return Response(status_code=503, content='{"status": "no_cuda"}')
         return {"status": "ready"}
-    except Exception:
+    except (ImportError, RuntimeError, OSError):
         return Response(status_code=503, content='{"status": "unhealthy"}')
 
 
