@@ -411,7 +411,9 @@ async def process(req: ProcessRequest):
                     else None
                 )
 
-                logger.info("Running pipeline (element=%s, ml_flags=%s)", req.element_type, req.ml_flags)
+                logger.info(
+                    "Running pipeline (element=%s, ml_flags=%s)", req.element_type, req.ml_flags
+                )
                 prepared = prepare_poses(
                     video_local,
                     person_click=click,
@@ -440,9 +442,7 @@ async def process(req: ProcessRequest):
                         phases = phase_result.phases
 
                         analyzer = BiomechanicsAnalyzer(element_def)
-                        metrics = analyzer.analyze(
-                            prepared.poses_norm, phases, prepared.meta.fps
-                        )
+                        metrics = analyzer.analyze(prepared.poses_norm, phases, prepared.meta.fps)
 
                         recommender = Recommender()
                         recommendations = recommender.recommend(metrics, req.element_type)
@@ -533,23 +533,3 @@ async def process(req: ProcessRequest):
 @app.get("/health")
 async def health():
     return {"status": "ok"}
-
-
-@app.get("/debug/net")
-async def debug_net():
-    """Check outbound HTTPS connectivity."""
-    import httpx
-
-    r2_ep = os.environ.get(
-        "CF_R2_ENDPOINT_URL",
-        "https://28d6f87dc336e12d133b3886d711348d.r2.cloudflarestorage.com",
-    )
-    results = {}
-    async with httpx.AsyncClient(timeout=5) as client:
-        for url in ["https://1.1.1.1", "https://httpbin.org/get", r2_ep]:
-            try:
-                await client.head(url)
-                results[url] = "ok"
-            except Exception as e:
-                results[url] = f"FAIL: {e}"
-    return results
