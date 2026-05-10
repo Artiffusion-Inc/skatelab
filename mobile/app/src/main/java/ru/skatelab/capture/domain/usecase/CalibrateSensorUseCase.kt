@@ -24,7 +24,6 @@ class CalibrateSensorUseCase @Inject constructor(
         private const val COLLECTION_DURATION_MS = 10_000L
         private const val MAX_STILL_SAMPLES = 500
         private const val ANGULAR_VELOCITY_THRESHOLD_DEG_S = 10.0
-        private const val DEG_TO_RAD = Math.PI / 180.0
     }
 
     suspend fun invoke(sensorId: SensorId): Result<CalibrationData> {
@@ -71,13 +70,12 @@ class CalibrateSensorUseCase @Inject constructor(
                     .collect { (_, sample) ->
                         if (done) return@collect
                         totalReceived++
-                        val gyroRad = sqrt(
+                        val gyroMagDegS = sqrt(
                             (sample.gyroX * sample.gyroX +
                                     sample.gyroY * sample.gyroY +
                                     sample.gyroZ * sample.gyroZ).toDouble()
                         )
-                        val gyroDeg = gyroRad / DEG_TO_RAD
-                        if (gyroDeg <= ANGULAR_VELOCITY_THRESHOLD_DEG_S) {
+                        if (gyroMagDegS <= ANGULAR_VELOCITY_THRESHOLD_DEG_S) {
                             stillSamples.add(sample)
                         }
                         if (System.currentTimeMillis() - startTime >= COLLECTION_DURATION_MS ||
