@@ -38,6 +38,11 @@ class CalibrationViewModel @Inject constructor(
                         SensorId.LEFT -> _leftCalibration.value = data
                         SensorId.RIGHT -> _rightCalibration.value = data
                     }
+                    // Update shared session state
+                    val calMap = mutableMapOf<SensorId, ru.skatelab.capture.domain.model.CalibrationData>()
+                    _leftCalibration.value?.let { calMap[SensorId.LEFT] = it }
+                    _rightCalibration.value?.let { calMap[SensorId.RIGHT] = it }
+                    ru.skatelab.capture.presentation.SessionState.calibration = calMap
                 }
                 .onFailure { _error.value = it.message }
             _isCalibrating.value = false

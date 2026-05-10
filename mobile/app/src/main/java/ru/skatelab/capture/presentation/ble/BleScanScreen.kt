@@ -19,6 +19,8 @@ fun BleScanScreen(
     val scanResults by viewModel.scanResults.collectAsState()
     val connectionState by viewModel.connectionState.collectAsState()
 
+    LaunchedEffect(Unit) { viewModel.startScan() }
+
     Column(
         modifier = Modifier.fillMaxSize().padding(16.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -46,10 +48,10 @@ fun BleScanScreen(
             }
         }
 
-        val bothConnected = connectionState[SensorId.LEFT] == ru.skatelab.capture.domain.repository.BleRepository.ConnectionState.CONNECTED &&
+        val anyConnected = connectionState[SensorId.LEFT] == ru.skatelab.capture.domain.repository.BleRepository.ConnectionState.CONNECTED ||
             connectionState[SensorId.RIGHT] == ru.skatelab.capture.domain.repository.BleRepository.ConnectionState.CONNECTED
 
-        Button(onClick = onProceed, enabled = bothConnected) {
+        Button(onClick = onProceed, enabled = anyConnected) {
             Text("Proceed to Calibration")
         }
     }

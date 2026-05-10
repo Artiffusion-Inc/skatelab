@@ -11,17 +11,16 @@ import ru.skatelab.capture.presentation.ble.BleScanScreen
 import ru.skatelab.capture.presentation.ble.BleScanViewModel
 import ru.skatelab.capture.presentation.calibration.CalibrationScreen
 import ru.skatelab.capture.presentation.calibration.CalibrationViewModel
-import ru.skatelab.capture.presentation.camera.CameraPreviewScreen
-import ru.skatelab.capture.presentation.camera.CameraViewModel
 import ru.skatelab.capture.presentation.export.ExportScreen
 import ru.skatelab.capture.presentation.export.ExportViewModel
 import ru.skatelab.capture.presentation.recording.RecordingScreen
 import ru.skatelab.capture.presentation.recording.RecordingViewModel
+import ru.skatelab.capture.presentation.SessionState
+import java.io.File
 
 object Routes {
     const val BLE_SCAN = "ble_scan"
     const val CALIBRATION = "calibration"
-    const val CAMERA_PREVIEW = "camera_preview"
     const val RECORDING = "recording"
     const val EXPORT = "export/{sessionId}"
 
@@ -48,25 +47,23 @@ fun AppNavigation() {
             val viewModel: CalibrationViewModel = hiltViewModel()
             CalibrationScreen(
                 viewModel = viewModel,
-                onProceed = { navController.navigate(Routes.CAMERA_PREVIEW) },
-            )
-        }
-
-        composable(Routes.CAMERA_PREVIEW) {
-            val viewModel: CameraViewModel = hiltViewModel()
-            CameraPreviewScreen(
-                viewModel = viewModel,
-                onStartRecording = { navController.navigate(Routes.RECORDING) },
+                onProceed = { navController.navigate(Routes.RECORDING) },
             )
         }
 
         composable(Routes.RECORDING) {
             val viewModel: RecordingViewModel = hiltViewModel()
+            val context = androidx.compose.ui.platform.LocalContext.current
+            val downloadsDir = android.os.Environment.getExternalStoragePublicDirectory(android.os.Environment.DIRECTORY_DOWNLOADS)
+            val outputDir = File(downloadsDir, "skatelab_capture_${System.currentTimeMillis()}")
+
             RecordingScreen(
                 viewModel = viewModel,
-                onStop = { sessionId ->
+                outputDir = outputDir,
+                calibration = SessionState.calibration,
+                onRecordingComplete = { sessionId ->
                     navController.navigate(Routes.export(sessionId)) {
-                        popUpTo(Routes.CAMERA_PREVIEW) { inclusive = false }
+                        popUpTo(Routes.CALIBRATION) { inclusive = false }
                     }
                 },
             )

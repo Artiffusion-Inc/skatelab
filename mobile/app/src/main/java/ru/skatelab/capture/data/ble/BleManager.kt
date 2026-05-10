@@ -34,7 +34,11 @@ import java.util.concurrent.TimeUnit
  * - Re-requests CONNECTION_PRIORITY_HIGH every 30 seconds
  * - Serializes GATT write operations with inter-command delays
  */
-class BleManager(private val context: Context) {
+class BleManager(private val context: Context, private val logger: ru.skatelab.capture.AppLogger? = null) {
+
+    private fun logi(msg: String) { Log.i(TAG, msg); logger?.i(TAG, msg) }
+    private fun logw(msg: String) { Log.w(TAG, msg); logger?.w(TAG, msg) }
+    private fun loge(msg: String) { Log.e(TAG, msg); logger?.e(TAG, msg) }
 
     companion object {
         private const val TAG = "BleManager"
@@ -78,9 +82,9 @@ class BleManager(private val context: Context) {
 
     @SuppressLint("MissingPermission")
     fun startScan() {
-        val adapter = bluetoothAdapter ?: run { Log.e(TAG, "No BluetoothAdapter"); return }
-        val scanner = adapter.bluetoothLeScanner ?: run { Log.e(TAG, "No BLE scanner"); return }
-        Log.d(TAG, "Starting BLE scan with filter ${SERVICE_UUID}")
+        val adapter = bluetoothAdapter ?: run { loge("No BluetoothAdapter"); return }
+        val scanner = adapter.bluetoothLeScanner ?: run { loge("No BLE scanner"); return }
+        logi("Starting BLE scan with filter $SERVICE_UUID")
 
         val filter = android.bluetooth.le.ScanFilter.Builder()
             .setServiceUuid(android.os.ParcelUuid.fromString(SERVICE_UUID.toString()))
@@ -95,7 +99,7 @@ class BleManager(private val context: Context) {
         scanner.startScan(listOf(filter), settings, object : android.bluetooth.le.ScanCallback() {
             override fun onScanResult(callbackType: Int, result: android.bluetooth.le.ScanResult) {
                 val device = result.device
-                Log.d(TAG, "Scan result: ${device.name} @ ${device.address} RSSI=${result.rssi}")
+                logi("Scan result: ${device.name} @ ${device.address} RSSI=${result.rssi}")
                 val name = device.name ?: "WT901"
                 val address = device.address
                 foundDevices[address] = ScanResult(name, address, result.rssi)
@@ -103,7 +107,7 @@ class BleManager(private val context: Context) {
             }
 
             override fun onScanFailed(errorCode: Int) {
-                Log.e(TAG, "BLE scan failed: errorCode=$errorCode")
+                loge("BLE scan failed: errorCode=$errorCode")
             }
         })
     }
@@ -139,10 +143,10 @@ class BleManager(private val context: Context) {
 
         val state = _connectionState.value[sensorId]
         return if (state == ConnectionState.CONNECTED) {
-            Log.i(TAG, "Sensor $sensorId connected and ready")
+            logi("Sensor $sensorId connected and ready")
             Result.success(Unit)
         } else {
-            Log.e(TAG, "Sensor $sensorId connection failed or timeout, state=$state")
+            loge("Sensor $sensorId connection failed or timeout, state=$state")
             Result.failure(IllegalStateException("Connection failed for $sensorId, state=$state"))
         }
     }
@@ -166,7 +170,7 @@ class BleManager(private val context: Context) {
     private fun createGattCallback(sensorId: SensorId, address: String) = object : BluetoothGattCallback() {
 
         override fun onConnectionStateChange(gatt: BluetoothGatt, status: Int, newState: Int) {
-            Log.d(TAG, "GATT state change: address=$address status=$status newState=$newState")
+            logi("GATT state change: address=$address status=$status newState=$newState")
             if (newState == BluetoothProfile.STATE_CONNECTED) {
                 gattConnections[address] = gatt
                 gatt.requestConnectionPriority(BluetoothGatt.CONNECTION_PRIORITY_HIGH)
@@ -178,12 +182,12 @@ class BleManager(private val context: Context) {
         }
 
         override fun onServicesDiscovered(gatt: BluetoothGatt, status: Int) {
-            Log.d(TAG, "Services discovered: address=$address status=$status")
+            logi("Services discovered: address=$address status=$status")
             if (status != BluetoothGatt.GATT_SUCCESS) return
 
             val service = gatt.getService(SERVICE_UUID)
             if (service == null) {
-                Log.e(TAG, "Service $SERVICE_UUID not found for $address")
+                loge("Service $SERVICE_UUID not found for $address")
                 gatt.disconnect()
                 return
             }
@@ -191,36 +195,39 @@ class BleManager(private val context: Context) {
             // Subscribe to IMU notifications (FFE4)
             val notifyChar = service.getCharacteristic(NOTIFY_UUID)
             if (notifyChar == null) {
-                Log.e(TAG, "Notify char $NOTIFY_UUID not found for $address")
+                loge("Notify char $NOTIFY_UUID not found for $address")
                 gatt.disconnect()
                 return
             }
             notifyCharacteristics[address] = notifyChar
             gatt.setCharacteristicNotification(notifyChar, true)
 
-            // Write CCCD descriptor to enable notifications
-            val descriptor = notifyChar.getDescriptor(CCCD_UUID)
+            // Write CCCD descriptor to enable notifications.
+            // WT901 uses non-standard CCCD UUID (9b34fb vs 9a34fb), so find by descriptor 0x2902 prefix.
+            val descriptor = notifyChar.descriptors.find {
+                it.uuid.toString().startsWith("00002902")
+            }
             if (descriptor != null) {
                 descriptor.value = BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE
                 gatt.writeDescriptor(descriptor)
-                Log.d(TAG, "CCCD descriptor written for $address")
+                logi("CCCD descriptor write requested for $address (uuid=${descriptor.uuid})")
             } else {
-                Log.w(TAG, "No CCCD descriptor for $NOTIFY_UUID — notifications may need manual enable")
+                logw("No CCCD descriptor found for $NOTIFY_UUID — completing setup")
+                completeSetup(gatt, address, sensorId)
             }
 
-            // Get write characteristic (FFE9)
+            // Get write characteristic (FFE9) — store for later use
             val writeChar = service.getCharacteristic(WRITE_UUID)
             if (writeChar == null) {
-                Log.e(TAG, "Write char $WRITE_UUID not found for $address")
+                loge("Write char $WRITE_UUID not found for $address")
                 gatt.disconnect()
                 return
             }
             writeChar.writeType = BluetoothGattCharacteristic.WRITE_TYPE_NO_RESPONSE
             writeCharacteristics[address] = writeChar
-
-            updateConnectionState(sensorId, ConnectionState.CONNECTED)
-            Log.i(TAG, "Sensor $sensorId CONNECTED, notify+write chars ready")
         }
+
+        private var imuPacketCount = 0L
 
         override fun onCharacteristicChanged(gatt: BluetoothGatt, characteristic: BluetoothGattCharacteristic) {
             if (characteristic.uuid != NOTIFY_UUID) return
@@ -232,6 +239,12 @@ class BleManager(private val context: Context) {
             // Re-request high priority every 30 seconds
             reRequestHighPriority(gatt, address)
 
+            // Periodic packet counter log (every 500 packets ≈ every 5s at 100Hz)
+            imuPacketCount++
+            if (imuPacketCount % 500 == 0L) {
+                logi("IMU packets: $imuPacketCount from $address")
+            }
+
             // Offload parsing to handler thread
             handlerThread.postParsing(bytes, address) { sample ->
                 if (sample != null) {
@@ -240,17 +253,37 @@ class BleManager(private val context: Context) {
                 }
             }
         }
+
+        override fun onDescriptorWrite(gatt: BluetoothGatt, descriptor: BluetoothGattDescriptor, status: Int) {
+            logi("onDescriptorWrite: $address uuid=${descriptor.uuid} status=$status")
+            if (descriptor.uuid.toString().startsWith("00002902")) {
+                completeSetup(gatt, address, sensorId)
+            }
+        }
+    }
+
+    @SuppressLint("MissingPermission")
+    private fun completeSetup(gatt: BluetoothGatt, address: String, sensorId: SensorId) {
+        updateConnectionState(sensorId, ConnectionState.CONNECTED)
+        logi("Sensor $sensorId CONNECTED, notify+write chars ready")
     }
 
     // --- Command Sending ---
 
     @SuppressLint("MissingPermission")
     fun sendCommand(sensorId: SensorId, bytes: ByteArray) {
-        val address = addressToSensorId.entries.find { it.value == sensorId }?.key ?: return
-        val gatt = gattConnections[address] ?: return
-        val char = writeCharacteristics[address] ?: return
+        val address = addressToSensorId.entries.find { it.value == sensorId }?.key ?: run {
+            logw("sendCommand: no address for $sensorId"); return
+        }
+        val gatt = gattConnections[address] ?: run {
+            logw("sendCommand: no GATT for $address"); return
+        }
+        val char = writeCharacteristics[address] ?: run {
+            logw("sendCommand: no write char for $address"); return
+        }
         char.value = bytes
-        gatt.writeCharacteristic(char)
+        val success = gatt.writeCharacteristic(char)
+        logi("writeCharacteristic $sensorId: ${bytes.joinToString("") { "%02x".format(it) }} success=$success")
     }
 
     /**
@@ -258,14 +291,20 @@ class BleManager(private val context: Context) {
      * Delays are implemented via Thread.sleep on the handler thread.
      */
     fun sendSequence(sensorId: SensorId, steps: List<Wt901Commander.CommandStep>) {
-        val address = addressToSensorId.entries.find { it.value == sensorId }?.key ?: return
+        val address = addressToSensorId.entries.find { it.value == sensorId }?.key ?: run {
+            logw("sendSequence: no address for $sensorId"); return
+        }
+        logi("sendSequence: $sensorId steps=${steps.size}")
         handlerThread.handler?.post {
-            for (step in steps) {
+            // Small delay after CCCD write before sending commands
+            Thread.sleep(100L)
+            for ((index, step) in steps.withIndex()) {
                 sendCommand(sensorId, step.bytes)
                 if (step.delayAfterMs > 0) {
                     Thread.sleep(step.delayAfterMs)
                 }
             }
+            logi("sendSequence complete: $sensorId")
         }
     }
 

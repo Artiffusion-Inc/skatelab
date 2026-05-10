@@ -6,6 +6,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeout
+import ru.skatelab.capture.AppLogger
 import ru.skatelab.capture.domain.model.CalibrationData
 import ru.skatelab.capture.domain.model.ImuSample
 import ru.skatelab.capture.domain.model.SensorId
@@ -15,20 +16,28 @@ import kotlin.math.sqrt
 
 class CalibrateSensorUseCase @Inject constructor(
     private val bleRepository: BleRepository,
+    private val appLogger: AppLogger,
 ) {
     companion object {
+        private const val TAG = "CalibrateSensorUC"
         private const val COLLECTION_TIMEOUT_MS = 12_000L
         private const val COLLECTION_DURATION_MS = 10_000L
         private const val MAX_STILL_SAMPLES = 500
-        private const val ANGULAR_VELOCITY_THRESHOLD_DEG_S = 5.0
+        private const val ANGULAR_VELOCITY_THRESHOLD_DEG_S = 10.0
         private const val DEG_TO_RAD = Math.PI / 180.0
     }
 
     suspend fun invoke(sensorId: SensorId): Result<CalibrationData> {
         return try {
+            appLogger.i(TAG, "Starting streaming for $sensorId")
+            bleRepository.startStreaming(sensorId).getOrThrow()
+            appLogger.i(TAG, "Streaming started, collecting still samples for $sensorId")
             val samples = collectStillSamples(sensorId)
+            appLogger.i(TAG, "Collected ${samples.size} still samples for $sensorId")
+            bleRepository.stopStreaming(sensorId)
 
             if (samples.isEmpty()) {
+                appLogger.w(TAG, "No still samples for $sensorId")
                 Result.failure(IllegalStateException("No still samples collected for $sensorId"))
             } else {
                 val meanQ = computeMeanQuaternion(samples)
@@ -40,8 +49,11 @@ class CalibrateSensorUseCase @Inject constructor(
                 )
             }
         } catch (e: CancellationException) {
+            bleRepository.stopStreaming(sensorId)
             throw e
         } catch (e: Exception) {
+            appLogger.e(TAG, "Calibration failed for $sensorId: ${e.message}")
+            bleRepository.stopStreaming(sensorId)
             Result.failure(e)
         }
     }
@@ -50,6 +62,7 @@ class CalibrateSensorUseCase @Inject constructor(
         val stillSamples = mutableListOf<ImuSample>()
         val startTime = System.currentTimeMillis()
         var done = false
+        var totalReceived = 0
 
         coroutineScope {
             val collectJob = launch {
@@ -57,6 +70,7 @@ class CalibrateSensorUseCase @Inject constructor(
                     .filter { (id, _) -> id == sensorId }
                     .collect { (_, sample) ->
                         if (done) return@collect
+                        totalReceived++
                         val gyroRad = sqrt(
                             (sample.gyroX * sample.gyroX +
                                     sample.gyroY * sample.gyroY +
@@ -83,6 +97,7 @@ class CalibrateSensorUseCase @Inject constructor(
             collectJob.cancel()
         }
 
+        appLogger.i(TAG, "Total IMU received: $totalReceived, still: ${stillSamples.size}")
         return stillSamples.toList()
     }
 

@@ -8,6 +8,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import ru.skatelab.capture.AppLogger
 import ru.skatelab.capture.domain.model.SensorId
 import ru.skatelab.capture.domain.repository.BleRepository
 import ru.skatelab.capture.domain.repository.ScanDevice
@@ -18,6 +19,7 @@ import javax.inject.Inject
 class BleScanViewModel @Inject constructor(
     private val bleRepository: BleRepository,
     private val connectSensorUseCase: ConnectSensorUseCase,
+    private val appLogger: AppLogger,
 ) : ViewModel() {
 
     private val tag = "BleScanVM"
@@ -34,7 +36,7 @@ class BleScanViewModel @Inject constructor(
     fun startScan() {
         if (_isScanning) return
         _isScanning = true
-        Log.d(tag, "startScan() called")
+        appLogger.i(tag, "startScan() called")
         bleRepository.startScan()
     }
 
@@ -45,12 +47,12 @@ class BleScanViewModel @Inject constructor(
 
     fun connectSensor(sensorId: SensorId, address: String) {
         viewModelScope.launch {
-            Log.d(tag, "connectSensor: $sensorId -> $address")
+            appLogger.i(tag, "connectSensor: $sensorId -> $address")
             val result = connectSensorUseCase.invoke(sensorId, address)
             if (result.isFailure) {
-                Log.e(tag, "connectSensor failed: ${result.exceptionOrNull()?.message}")
+                appLogger.e(tag, "connectSensor failed: ${result.exceptionOrNull()?.message}")
             } else {
-                Log.i(tag, "connectSensor success: $sensorId")
+                appLogger.i(tag, "connectSensor success: $sensorId")
             }
         }
     }

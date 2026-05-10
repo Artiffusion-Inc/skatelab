@@ -1,9 +1,13 @@
 package ru.skatelab.capture
 
 import android.Manifest
+import android.content.Intent
 import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.os.Environment
+import android.provider.Settings
 import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -43,7 +47,7 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 private fun PermissionGate(content: @Composable () -> Unit) {
-    val requiredPermissions = buildList {
+    val runtimePermissions = buildList {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             add(Manifest.permission.BLUETOOTH_SCAN)
             add(Manifest.permission.BLUETOOTH_CONNECT)
@@ -53,27 +57,52 @@ private fun PermissionGate(content: @Composable () -> Unit) {
         add(Manifest.permission.CAMERA)
     }
 
-    var allGranted by remember { mutableStateOf(false) }
+    var runtimeGranted by remember { mutableStateOf(false) }
+    var storageGranted by remember { mutableStateOf(false) }
     val context = androidx.compose.ui.platform.LocalContext.current
-    val launcher = rememberLauncherForActivityResult(
+
+    val runtimeLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
     ) { results ->
-        allGranted = results.all { it.value }
-        if (!allGranted) Log.w("MainActivity", "Denied permissions: ${results.filter { !it.value }.keys}")
+        runtimeGranted = results.all { it.value }
+        if (!runtimeGranted) Log.w("MainActivity", "Denied: ${results.filter { !it.value }.keys}")
+    }
+
+    val storageLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) {
+        storageGranted = Build.VERSION.SDK_INT < Build.VERSION_CODES.R ||
+            Environment.isExternalStorageManager()
     }
 
     LaunchedEffect(Unit) {
-        val missing = requiredPermissions.filter {
+        val missing = runtimePermissions.filter {
             ContextCompat.checkSelfPermission(context, it) != PackageManager.PERMISSION_GRANTED
         }
         if (missing.isEmpty()) {
-            allGranted = true
+            runtimeGranted = true
         } else {
-            launcher.launch(missing.toTypedArray())
+            runtimeLauncher.launch(missing.toTypedArray())
         }
     }
 
-    if (allGranted) {
+    LaunchedEffect(runtimeGranted) {
+        if (!runtimeGranted) return@LaunchedEffect
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            if (Environment.isExternalStorageManager()) {
+                storageGranted = true
+            } else {
+                val intent = Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION).apply {
+                    data = Uri.fromParts("package", context.packageName, null)
+                }
+                storageLauncher.launch(intent)
+            }
+        } else {
+            storageGranted = true
+        }
+    }
+
+    if (runtimeGranted && storageGranted) {
         content()
     } else {
         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {

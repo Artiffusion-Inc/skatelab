@@ -50,8 +50,10 @@ object Wt901Commander {
 
     /**
      * Set OutputContent register (0x02).
-     * @param value Bitmask of output types to enable.
-     *   0x0046 = ACC(0x02) + GYRO(0x04) + QUAT(0x40)
+     * @param value Bitmask of output types to enable (XAMLCORP SDK flags).
+     *   Time=0x0001, ACC=0x0002, GYRO=0x0004, Angle=0x0008,
+     *   Magnetic=0x0010, Quaternion=0x0040
+     *   0x0046 = ACC + GYRO + Quaternion
      *   0x0000 = disable all output
      */
     fun setOutputContent(value: Int): ByteArray =

@@ -21,6 +21,7 @@ class BleHandlerThread(name: String = "ble-parsing") : HandlerThread(name) {
     var handler: Handler? = null
         private set
     private val parsers = mutableMapOf<String, Wt901Parser>()
+    private var parseCount = 0L
 
     /**
      * Call after [start()] to prepare the [Handler] for this looper.
@@ -49,6 +50,10 @@ class BleHandlerThread(name: String = "ble-parsing") : HandlerThread(name) {
             val arrivalNs = SystemClock.elapsedRealtimeNanos()
             val parser = getOrCreateParser(sensorAddress)
             val sample = parser.feed(bytes, arrivalNs)
+            parseCount++
+            if (parseCount % 500 == 0L) {
+                android.util.Log.i("BleParse", "Parsed $parseCount packets from $sensorAddress, last sample: ${sample != null}, dropped: ${parser.droppedPartialCount}")
+            }
             callback(sample)
         }
     }

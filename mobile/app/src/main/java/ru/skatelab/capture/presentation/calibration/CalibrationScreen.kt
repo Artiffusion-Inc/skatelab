@@ -44,7 +44,7 @@ fun CalibrationScreen(
         Spacer(modifier = Modifier.weight(1f))
         Button(
             onClick = onProceed,
-            enabled = leftCal != null && rightCal != null,
+            enabled = leftCal != null || rightCal != null,
         ) {
             Text("Proceed to Camera")
         }

@@ -25,6 +25,12 @@ class ExportSessionUseCase @Inject constructor(
     }
 
     private fun buildManifest(session: CaptureSession): String {
+        val imuDelayEntries = session.imuStartDelayMs.entries.joinToString(",") { (k, v) ->
+            "\"${k.name}\": $v"
+        }
+        val calEntries = session.calibration.entries.joinToString(",") { (sensorId, calib) ->
+            "\"${sensorId.name}\": {\"quatRef\": [${calib.quatRef.joinToString(",")}],\"calibratedAt\": ${calib.calibratedAt}}"
+        }
         return buildString {
             appendLine("{")
             appendLine("  \"sessionId\": \"${session.id}\",")
@@ -33,18 +39,8 @@ class ExportSessionUseCase @Inject constructor(
             appendLine("  \"videoFps\": ${session.videoFps},")
             appendLine("  \"timestampSource\": \"${session.timestampSource}\",")
             appendLine("  \"videoStartDelayMs\": ${session.videoStartDelayMs},")
-            appendLine("  \"imuStartDelayMs\": {")
-            appendLine("    \"LEFT\": ${session.imuStartDelayMs[SensorId.LEFT]},")
-            appendLine("    \"RIGHT\": ${session.imuStartDelayMs[SensorId.RIGHT]}")
-            appendLine("  },")
-            appendLine("  \"calibration\": {")
-            session.calibration.forEach { (sensorId, calib) ->
-                appendLine("    \"${sensorId.name}\": {")
-                appendLine("      \"quatRef\": [${calib.quatRef.joinToString(", ")}],")
-                appendLine("      \"calibratedAt\": ${calib.calibratedAt}")
-                appendLine("    },")
-            }
-            appendLine("  },")
+            appendLine("  \"imuStartDelayMs\": {$imuDelayEntries},")
+            appendLine("  \"calibration\": {$calEntries},")
             appendLine("  \"createdAt\": ${session.createdAt},")
             appendLine("  \"isComplete\": ${session.isComplete}")
             append("}")

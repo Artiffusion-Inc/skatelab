@@ -14,9 +14,10 @@ import javax.inject.Singleton
 @Singleton
 class BleRepositoryImpl @Inject constructor(
     @ApplicationContext private val context: Context,
+    private val appLogger: ru.skatelab.capture.AppLogger,
 ) : BleRepository {
 
-    private val bleManager = BleManager(context)
+    private val bleManager = BleManager(context, appLogger)
     private val _addressMap = mutableMapOf<SensorId, String>()
 
     override val scanResults: Flow<List<ScanDevice>> = bleManager.scanResults.map { results ->
