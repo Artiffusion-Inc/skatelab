@@ -43,8 +43,9 @@ ACTIVE_REQUESTS = Gauge(
 # Models are at /app/data/models/ inside the container
 os.environ.setdefault("PROJECT_ROOT", "/app")
 
-MOGANET_MODEL_PATH = Path("data/models/moganet/moganet_b_ap2d_384x288.onnx")
-YOLO_MODEL_PATH = Path("data/models/yolov8n.onnx")
+_PROJECT_ROOT = Path(os.environ.get("PROJECT_ROOT", "/app"))
+MOGANET_MODEL_PATH = _PROJECT_ROOT / "data/models/moganet/moganet_b_ap2d_384x288.onnx"
+YOLO_MODEL_PATH = _PROJECT_ROOT / "data/models/yolov8n.onnx"
 
 # R2 keys for each model
 _R2_MODELS: list[tuple[Path, str]] = [
