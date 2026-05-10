@@ -85,13 +85,7 @@ ENV PATH="/opt/venv/bin:$PATH" \
     VIRTUAL_ENV=/opt/venv \
     LD_LIBRARY_PATH="/opt/venv/lib/python3.11/site-packages/nvidia/cublas/lib:/opt/venv/lib/python3.11/site-packages/nvidia/cuda_runtime/lib:/opt/venv/lib/python3.11/site-packages/nvidia/cudnn/lib:/opt/venv/lib/python3.11/site-packages/nvidia/curand/lib:/opt/venv/lib/python3.11/site-packages/nvidia/cufft/lib:/opt/venv/lib/python3.11/site-packages/nvidia/cusolver/lib:/opt/venv/lib/python3.11/site-packages/nvidia/cusparse/lib:/opt/venv/lib/python3.11/site-packages/nvidia/cuda_nvcc/lib"
 
-# ONNX models (~700MB) — rarely changes, separate layer for cache hits
-COPY --chown=appuser:appuser data/models/depth_anything_v2_small.onnx data/models/
-COPY --chown=appuser:appuser data/models/neuflowv2_mixed.onnx data/models/
-COPY --chown=appuser:appuser data/models/rvm_mobilenetv3.onnx data/models/
-COPY --chown=appuser:appuser data/models/lama_fp32.onnx data/models/
-COPY --chown=appuser:appuser data/models/sam2/ data/models/sam2/
-COPY --chown=appuser:appuser data/models/moganet/ data/models/moganet/
+# ONNX models downloaded from R2 at startup — no COPY needed
 
 # Source code — changes most often, top layer
 COPY --chown=appuser:appuser ml/src/ src/
