@@ -27,10 +27,20 @@ const BASE_POINTS = [
 ]
 
 const LINES: readonly [number, number][] = [
-  [0, 1], [1, 2], [2, 3], [3, 4],
-  [1, 5], [5, 6], [6, 7],
-  [1, 8], [8, 9], [9, 10], [10, 11],
-  [8, 12], [12, 13], [13, 14],
+  [0, 1],
+  [1, 2],
+  [2, 3],
+  [3, 4],
+  [1, 5],
+  [5, 6],
+  [6, 7],
+  [1, 8],
+  [8, 9],
+  [9, 10],
+  [10, 11],
+  [8, 12],
+  [12, 13],
+  [13, 14],
 ] as const
 
 export function SkeletonPose({ role, "aria-label": ariaLabel }: SkeletonPoseProps) {
@@ -50,10 +60,9 @@ export function SkeletonPose({ role, "aria-label": ariaLabel }: SkeletonPoseProp
     <svg
       viewBox="0 0 1 1"
       className="absolute inset-0 h-full w-full"
-      {...(role
-        ? { role, "aria-label": ariaLabel }
-        : { "aria-hidden": "true" as const })}
+      {...(role ? { role, "aria-label": ariaLabel } : { "aria-hidden": "true" as const })}
     >
+      <title>{ariaLabel ?? "Skeleton pose animation"}</title>
       {LINES.map(([a, b]) => (
         <line
           key={`${a}-${b}`}
@@ -67,13 +76,8 @@ export function SkeletonPose({ role, "aria-label": ariaLabel }: SkeletonPoseProp
         />
       ))}
       {points.map((p, i) => (
-        <circle
-          key={`pt-${i}`}
-          cx={p.x}
-          cy={p.y}
-          r="0.012"
-          fill="rgba(255,255,255,0.95)"
-        />
+        // biome-ignore lint/suspicious/noArrayIndexKey: skeleton joints are positionally ordered, index IS the identity
+        <circle key={`joint-${i}`} cx={p.x} cy={p.y} r="0.012" fill="rgba(255,255,255,0.95)" />
       ))}
     </svg>
   )

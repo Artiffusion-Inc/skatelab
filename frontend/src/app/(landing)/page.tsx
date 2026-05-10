@@ -5,7 +5,7 @@ import { getTranslations } from "next-intl/server"
 import { LandingClient } from "@/components/landing/landing-client"
 
 export async function generateMetadata(): Promise<Metadata> {
-  const t = await getTranslations("landing")
+  const _t = await getTranslations("landing")
   return {
     title: "SkateLab — AI Тренер по фигурному катанию",
     description:
@@ -50,7 +50,7 @@ export default async function LandingPage() {
     {
       "@context": "https://schema.org",
       "@type": "FAQPage",
-      mainEntity: faqItems.map((item) => ({
+      mainEntity: faqItems.map(item => ({
         "@type": "Question",
         name: item.q,
         acceptedAnswer: { "@type": "Answer", text: item.a },
@@ -75,8 +75,10 @@ export default async function LandingPage() {
     <>
       {jsonLd.map((schema, i) => (
         <script
+          // biome-ignore lint/suspicious/noArrayIndexKey: static JSON-LD schemas, order never changes
           key={i}
           type="application/ld+json"
+          // biome-ignore lint/security/noDangerouslySetInnerHtml: structured data injection is standard Next.js pattern
           dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }}
         />
       ))}

@@ -13,9 +13,7 @@ export default function ChoreographyPage() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center py-20 text-ink-mute">
-        {tc("loading")}
-      </div>
+      <div className="flex items-center justify-center py-20 text-ink-mute">{tc("loading")}</div>
     )
   }
 

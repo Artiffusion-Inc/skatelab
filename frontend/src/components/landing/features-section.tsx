@@ -29,15 +29,18 @@ export function HowItWorksSection() {
   const FirstIcon = icons[0]
 
   return (
-    <section id="how-it-works" tabIndex={-1} aria-label={t("howItWorksTitle")} className="relative mx-auto max-w-5xl px-6 py-16 md:py-24">
+    <section
+      id="how-it-works"
+      tabIndex={-1}
+      aria-label={t("howItWorksTitle")}
+      className="relative mx-auto max-w-5xl px-6 py-16 md:py-24"
+    >
       {/* Section opener — left-aligned, asymmetric */}
       <div className="mb-14 md:mb-20">
         <p className="mb-4 sh-micro uppercase tracking-[0.3em] text-ink-mute">
           {t("howItWorksTitle")}
         </p>
-        <h2 className="sh-display-xl text-ink max-w-xl">
-          {t("howItWorksHeadline")}
-        </h2>
+        <h2 className="sh-display-xl text-ink max-w-xl">{t("howItWorksHeadline")}</h2>
       </div>
 
       {/* Step 1: full-width, dominant */}
@@ -62,7 +65,10 @@ export function HowItWorksSection() {
           <span className="step-watermark">02</span>
           <div className="relative z-10">
             <div className="mb-5 flex h-12 w-12 items-center justify-center rounded-md bg-muted transition-colors group-hover:bg-primary group-hover:text-primary-foreground">
-              {(() => { const Icon = icons[1]; return <Icon className="h-5 w-5 text-primary group-hover:text-primary-foreground" />; })()}
+              {(() => {
+                const Icon = icons[1]
+                return <Icon className="h-5 w-5 text-primary group-hover:text-primary-foreground" />
+              })()}
             </div>
             <h3 className="sh-heading-lg mb-2 text-ink">{steps[1].title}</h3>
             <p className="sh-caption text-ink-mute">{steps[1].description}</p>

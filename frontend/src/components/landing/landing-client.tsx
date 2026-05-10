@@ -31,7 +31,7 @@ export function LandingClient() {
 
       mm.add("(prefers-reduced-motion: no-preference)", () => {
         const heroEls = containerRef.current?.querySelectorAll(
-          ".hero-eyebrow, .hero-headline, .hero-subtitle, .hero-cta, .hero-scroll"
+          ".hero-eyebrow, .hero-headline, .hero-subtitle, .hero-cta, .hero-scroll",
         )
         if (!heroEls?.length) return
 
@@ -44,7 +44,7 @@ export function LandingClient() {
             duration: 0.7,
             stagger: 0.1,
             ease: "power3.out",
-          }
+          },
         )
       })
 
@@ -65,7 +65,7 @@ export function LandingClient() {
               start: "top 80%",
               toggleActions: "play none none none",
             },
-          }
+          },
         )
       })
 
@@ -87,7 +87,7 @@ export function LandingClient() {
               start: "top 85%",
               toggleActions: "play none none none",
             },
-          }
+          },
         )
       })
 
@@ -107,7 +107,7 @@ export function LandingClient() {
               start: "top 90%",
               toggleActions: "play none none none",
             },
-          }
+          },
         )
       })
 
@@ -127,16 +127,18 @@ export function LandingClient() {
               start: "top 85%",
               toggleActions: "play none none none",
             },
-          }
+          },
         )
       })
 
+      const heroSection = containerRef.current?.querySelector(".hero-section")
       const headerBg = containerRef.current?.querySelector(".header-bg")
       const headerBorder = containerRef.current?.querySelector(".header-border")
-      if (headerBg) {
+
+      if (headerBg && heroSection) {
         gsap.to(headerBg, {
           scrollTrigger: {
-            trigger: containerRef.current,
+            trigger: heroSection,
             start: "top top",
             end: "bottom top",
             scrub: true,
@@ -144,10 +146,10 @@ export function LandingClient() {
           opacity: 1,
         })
       }
-      if (headerBorder) {
+      if (headerBorder && heroSection) {
         gsap.to(headerBorder, {
           scrollTrigger: {
-            trigger: containerRef.current,
+            trigger: heroSection,
             start: "top top",
             end: "bottom top",
             scrub: true,
@@ -157,10 +159,10 @@ export function LandingClient() {
       }
 
       const navLinks = containerRef.current?.querySelectorAll(".header-nav-link")
-      if (navLinks?.length && headerBg) {
+      if (navLinks?.length && heroSection) {
         gsap.to(navLinks, {
           scrollTrigger: {
-            trigger: containerRef.current,
+            trigger: heroSection,
             start: "top top",
             end: "bottom top",
             scrub: true,

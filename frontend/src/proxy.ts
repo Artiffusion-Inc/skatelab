@@ -3,11 +3,31 @@ import type { NextRequest } from "next/server"
 
 function buildCsp(nonce: string, isDev: boolean): string {
   const scriptSrc = isDev
-    ? [`'nonce-${nonce}'`, "'self'", "'unsafe-inline'", "'unsafe-eval'", "https://cdn.jsdelivr.net", "http://localhost:8400"]
-    : [`'nonce-${nonce}'`, "'self'", "'strict-dynamic'", "'unsafe-inline'", "https://cdn.jsdelivr.net"]
+    ? [
+        `'nonce-${nonce}'`,
+        "'self'",
+        "'unsafe-inline'",
+        "'unsafe-eval'",
+        "https://cdn.jsdelivr.net",
+        "http://localhost:8400",
+      ]
+    : [
+        `'nonce-${nonce}'`,
+        "'self'",
+        "'strict-dynamic'",
+        "'unsafe-inline'",
+        "https://cdn.jsdelivr.net",
+      ]
 
   const connectSrc = isDev
-    ? ["'self'", "blob:", "https://*.r2.cloudflarestorage.com", "http://localhost:8000", "ws://localhost:*", "http://localhost:8400"]
+    ? [
+        "'self'",
+        "blob:",
+        "https://*.r2.cloudflarestorage.com",
+        "http://localhost:8000",
+        "ws://localhost:*",
+        "http://localhost:8400",
+      ]
     : ["'self'", "blob:", "https://*.r2.cloudflarestorage.com", "http://localhost:8000"]
 
   const directives: Record<string, string[]> = {

@@ -16,8 +16,7 @@ export default function DashboardPage() {
     r => r.status === "active" && r.connection_type === "coaching",
   )
 
-  if (isLoading)
-    return <div className="py-20 text-center text-ink-mute">{tc("loading")}</div>
+  if (isLoading) return <div className="py-20 text-center text-ink-mute">{tc("loading")}</div>
 
   if (!students.length) {
     return (

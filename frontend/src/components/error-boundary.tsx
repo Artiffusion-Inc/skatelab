@@ -32,7 +32,7 @@ export class ErrorBoundary extends React.Component<Props, State> {
     getSentry().then(Sentry =>
       Sentry.captureException(error, {
         contexts: { react: { componentStack: errorInfo.componentStack } },
-      })
+      }),
     )
   }
 

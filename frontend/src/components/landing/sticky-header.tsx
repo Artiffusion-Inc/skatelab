@@ -21,15 +21,18 @@ export function StickyHeader() {
     setMenuOpen(false)
   }, [])
 
-  const handleNavClick = useCallback((href: string) => {
-    closeMenu()
-    const el = document.querySelector(href)
-    if (el) {
-      el.scrollIntoView({ behavior: "smooth" })
-      const target = el as HTMLElement
-      target.focus({ preventScroll: true })
-    }
-  }, [closeMenu])
+  const handleNavClick = useCallback(
+    (href: string) => {
+      closeMenu()
+      const el = document.querySelector(href)
+      if (el) {
+        el.scrollIntoView({ behavior: "smooth" })
+        const target = el as HTMLElement
+        target.focus({ preventScroll: true })
+      }
+    },
+    [closeMenu],
+  )
 
   useEffect(() => {
     if (menuOpen) {
@@ -37,7 +40,9 @@ export function StickyHeader() {
     } else {
       document.body.style.overflow = ""
     }
-    return () => { document.body.style.overflow = "" }
+    return () => {
+      document.body.style.overflow = ""
+    }
   }, [menuOpen])
 
   useEffect(() => {
@@ -49,10 +54,7 @@ export function StickyHeader() {
   }, [menuOpen, closeMenu])
 
   return (
-    <header
-      role="banner"
-      className="fixed top-0 left-0 right-0 z-50 pt-[env(safe-area-inset-top)]"
-    >
+    <header className="fixed top-0 left-0 right-0 z-50 pt-[env(safe-area-inset-top)]">
       <div className="header-bg absolute inset-0 bg-background opacity-0" />
       <div className="header-border absolute bottom-0 left-0 right-0 h-px border-b border-hairline opacity-0" />
       <div className="relative mx-auto flex h-16 max-w-5xl items-center justify-between px-6">
@@ -61,8 +63,9 @@ export function StickyHeader() {
         </a>
 
         <nav aria-label="Основная навигация" className="hidden md:flex items-center gap-8">
-          {NAV_ITEMS.map((item) => (
+          {NAV_ITEMS.map(item => (
             <button
+              type="button"
               key={item.key}
               onClick={() => handleNavClick(item.href)}
               className="header-nav-link sh-body-md text-on-dark-mute hover:text-surface-white transition-colors min-h-[44px] flex items-center"
@@ -79,11 +82,10 @@ export function StickyHeader() {
             className="hidden md:inline-flex min-h-[44px]"
             asChild
           >
-            <a href="/register">
-              {t("headerCta")}
-            </a>
+            <a href="/register">{t("headerCta")}</a>
           </Button>
           <button
+            type="button"
             ref={hamburgerRef}
             onClick={() => setMenuOpen(true)}
             className="md:hidden min-h-[44px] min-w-[44px] flex items-center justify-center"
@@ -111,8 +113,14 @@ export function StickyHeader() {
               aria-label="Меню навигации"
             >
               <div className="flex items-center justify-between p-4">
-                <span className="sh-body-md text-ink" style={{ fontVariationSettings: '"wght" 600' }}>SkateLab</span>
+                <span
+                  className="sh-body-md text-ink"
+                  style={{ fontVariationSettings: '"wght" 600' }}
+                >
+                  SkateLab
+                </span>
                 <button
+                  type="button"
                   onClick={closeMenu}
                   className="min-h-[44px] min-w-[44px] flex items-center justify-center"
                   aria-label="Закрыть меню"
@@ -121,8 +129,9 @@ export function StickyHeader() {
                 </button>
               </div>
               <nav aria-label="Мобильная навигация" className="flex flex-col">
-                {NAV_ITEMS.map((item) => (
+                {NAV_ITEMS.map(item => (
                   <button
+                    type="button"
                     key={item.key}
                     onClick={() => handleNavClick(item.href)}
                     className="py-4 px-6 text-lg border-b border-hairline text-ink hover:bg-muted min-h-[44px] text-left"
