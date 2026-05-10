@@ -1,9 +1,22 @@
-import type { Metadata } from "next"
+import type { Metadata, Viewport } from "next"
+import { Inter } from "next/font/google"
 import { NextIntlClientProvider } from "next-intl"
 import { getLocale, getMessages, getTranslations } from "next-intl/server"
 import { Toaster } from "@/components/ui/sonner"
 import { Providers } from "./providers"
 import "./globals.css"
+
+const inter = Inter({
+  subsets: ["latin", "cyrillic"],
+  variable: "--font-inter",
+  display: "swap",
+})
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+}
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("app")
@@ -18,7 +31,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
 
   return (
     <html lang={locale} suppressHydrationWarning>
-      <body className="min-h-screen bg-background text-foreground">
+      <body className={`${inter.variable} min-h-screen bg-background text-foreground`}>
         <NextIntlClientProvider messages={messages}>
           <Providers>
             {children}

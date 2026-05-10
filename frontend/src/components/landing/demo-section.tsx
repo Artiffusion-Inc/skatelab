@@ -1,253 +1,215 @@
 "use client"
 
-import { useState } from "react"
-import { useMountEffect } from "@/lib/useMountEffect"
+import { useRef, useLayoutEffect, useState, useCallback } from "react"
+import Image from "next/image"
 import { useTranslations } from "@/i18n"
+import { SkeletonPose } from "./skeleton-pose"
+import gsap from "gsap"
+import { ScrollTrigger } from "gsap/ScrollTrigger"
 
-function SkeletonPose() {
-  const [frame, setFrame] = useState(0)
+gsap.registerPlugin(ScrollTrigger)
 
-  useMountEffect(() => {
-    const id = setInterval(() => setFrame(f => (f + 1) % 60), 50)
-    return () => clearInterval(id)
-  })
-
-  const basePoints = [
-    { x: 0.5, y: 0.15 },
-    { x: 0.5, y: 0.3 },
-    { x: 0.38, y: 0.32 },
-    { x: 0.3, y: 0.48 },
-    { x: 0.22, y: 0.62 },
-    { x: 0.62, y: 0.32 },
-    { x: 0.7, y: 0.48 },
-    { x: 0.78, y: 0.62 },
-    { x: 0.5, y: 0.52 },
-    { x: 0.42, y: 0.68 },
-    { x: 0.36, y: 0.85 },
-    { x: 0.32, y: 0.98 },
-    { x: 0.58, y: 0.68 },
-    { x: 0.64, y: 0.85 },
-    { x: 0.68, y: 0.98 },
-  ]
-
-  const points = basePoints.map((p, i) => {
-    const offset = Math.sin((frame + i * 10) * 0.1) * 0.015
-    return { x: p.x + offset, y: p.y + offset * 0.5 }
-  })
-
-  const lines = [
-    [0, 1],
-    [1, 2],
-    [2, 3],
-    [3, 4],
-    [1, 5],
-    [5, 6],
-    [6, 7],
-    [1, 8],
-    [8, 9],
-    [9, 10],
-    [10, 11],
-    [8, 12],
-    [12, 13],
-    [13, 14],
-  ] as const
-
-  return (
-    <svg viewBox="0 0 1 1" className="absolute inset-0 h-full w-full">
-      <title>Skeleton overlay</title>
-      {lines.map(([a, b]) => (
-        <line
-          key={`${a}-${b}`}
-          x1={points[a].x}
-          y1={points[a].y}
-          x2={points[b].x}
-          y2={points[b].y}
-          stroke="rgba(255,255,255,0.9)"
-          strokeWidth="0.008"
-          strokeLinecap="round"
-        />
-      ))}
-      {points.map(p => (
-        <circle
-          key={`pt-${p.x}-${p.y}`}
-          cx={p.x}
-          cy={p.y}
-          r="0.012"
-          fill="rgba(255,255,255,0.95)"
-        />
-      ))}
-    </svg>
-  )
-}
+const PHASES = ["demoPhase1Label", "demoPhase2Label", "demoPhase3Label"] as const
 
 export function DemoSection() {
   const t = useTranslations("landing")
+  const sectionRef = useRef<HTMLElement>(null)
+  const containerRef = useRef<HTMLDivElement>(null)
+  const phase1OverlayRef = useRef<HTMLDivElement>(null)
+  const skeletonRef = useRef<HTMLDivElement>(null)
+  const badgesRef = useRef<HTMLDivElement>(null)
+  const [activePhase, setActivePhase] = useState(0)
+
+  useLayoutEffect(() => {
+    const mm = gsap.matchMedia()
+
+    mm.add("(min-width: 1024px) and (prefers-reduced-motion: no-preference)", () => {
+      if (!containerRef.current || !phase1OverlayRef.current || !skeletonRef.current || !badgesRef.current) return
+
+      gsap.set(skeletonRef.current, { opacity: 0 })
+      gsap.set(badgesRef.current, { opacity: 0, y: 10 })
+
+      const tl = gsap.timeline({
+        scrollTrigger: {
+          trigger: containerRef.current,
+          pin: true,
+          scrub: 1,
+          end: "+=150%",
+          anticipatePin: 0.1,
+          invalidateOnRefresh: true,
+          onUpdate: (self) => {
+            const progress = self.progress
+            if (progress < 0.33) setActivePhase(0)
+            else if (progress < 0.66) setActivePhase(1)
+            else setActivePhase(2)
+          },
+        },
+      })
+
+      tl.to(phase1OverlayRef.current, { opacity: 0, duration: 1 }, 0)
+      tl.to(skeletonRef.current, { opacity: 1, duration: 1 }, 1)
+      tl.to(badgesRef.current, { opacity: 1, y: 0, duration: 1 }, 2)
+    })
+
+    mm.add("(max-width: 1023px), (prefers-reduced-motion: reduce)", () => {
+      if (!containerRef.current) return
+      gsap.from(containerRef.current, {
+        opacity: 0,
+        y: 30,
+        duration: 0.6,
+        scrollTrigger: {
+          trigger: containerRef.current,
+          start: "top 85%",
+          toggleActions: "play none none none",
+        },
+      })
+    })
+
+    return () => mm.revert()
+  }, [])
+
+  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
+    if (e.key === "ArrowRight" || e.key === "ArrowDown") {
+      e.preventDefault()
+      setActivePhase((p) => Math.min(p + 1, 2))
+    } else if (e.key === "ArrowLeft" || e.key === "ArrowUp") {
+      e.preventDefault()
+      setActivePhase((p) => Math.max(p - 1, 0))
+    }
+  }, [])
 
   return (
-    <section className="relative mx-auto max-w-[1400px] px-4 py-20 sm:px-6 md:py-32">
-      <div className="mb-12 md:mb-20">
-        <p className="mb-4 text-xs font-medium uppercase tracking-[0.3em] text-muted-foreground">
-          {t("demoEyebrow")}
+    <section
+      id="demo"
+      tabIndex={-1}
+      ref={sectionRef}
+      className="relative border-y border-hairline bg-canvas-soft"
+      aria-label={t("demoEyebrow")}
+    >
+      <div className="relative mx-auto max-w-5xl px-6 py-16 md:py-24">
+        <div className="mb-12 md:mb-20 md:pr-32">
+          <p className="mb-4 sh-micro uppercase tracking-[0.3em] text-ink-mute">
+            {t("demoEyebrow")}
+          </p>
+          <h2 className="sh-display-xl text-ink">{t("demoHeadline")}</h2>
+        </div>
+
+        <div ref={containerRef} className="hidden lg:block relative mx-auto max-w-4xl overflow-hidden rounded-lg border border-hairline">
+          <div className="relative aspect-video">
+            <Image
+              src="/images/hero-skater.webp"
+              alt="Figure skater during a jump, with AI skeleton overlay tracking body position"
+              width={1200}
+              height={675}
+              loading="lazy"
+              className="h-full w-full object-cover"
+            />
+            <div ref={phase1OverlayRef} className="absolute inset-0 sh-demo-overlay" />
+            <div className="absolute inset-0 sh-demo-glow" />
+            <div ref={skeletonRef}>
+              <SkeletonPose role="img" aria-label="AI отслеживает 17 ключевых точек тела" />
+            </div>
+            <div ref={badgesRef}>
+              <div className="absolute top-[12%] left-[8%]">
+                <div className="sh-badge-opaque rounded-md px-4 py-3 sh-metric-pulse">
+                  <p className="sh-micro uppercase tracking-wider text-on-dark-dim">{t("demoMetricCoM")}</p>
+                  <p className="sh-heading-lg text-primary-foreground tabular-nums">1.24 м</p>
+                </div>
+              </div>
+              <div className="absolute right-[10%] bottom-[18%]">
+                <div className="sh-badge-opaque rounded-md px-4 py-3 sh-metric-pulse">
+                  <p className="sh-micro uppercase tracking-wider text-on-dark-dim">{t("demoMetricRotation")}</p>
+                  <p className="sh-heading-lg text-primary-foreground tabular-nums">540°</p>
+                </div>
+              </div>
+              <div className="absolute top-[45%] right-[6%]">
+                <div className="sh-badge-opaque rounded-md px-4 py-3 sh-metric-pulse">
+                  <p className="sh-micro uppercase tracking-wider text-on-dark-dim">{t("demoMetricAirtime")}</p>
+                  <p className="sh-heading-lg text-primary-foreground tabular-nums">0.72 с</p>
+                </div>
+              </div>
+              <div className="sh-badge-opaque absolute bottom-4 left-4 right-4 flex items-center justify-between rounded-sm px-4 py-2">
+                <p className="sh-micro text-on-dark-mute">{t("demoSpecPoints")}</p>
+                <p className="sh-micro text-on-dark-dim">{t("demoSpecFps")}</p>
+              </div>
+            </div>
+          </div>
+
+          <div
+            className="flex items-center justify-center gap-4 py-4"
+            role="radiogroup"
+            aria-label="Фазы демо"
+            onKeyDown={handleKeyDown}
+          >
+            {PHASES.map((key, i) => (
+              <button
+                key={key}
+                role="radio"
+                aria-checked={activePhase === i}
+                tabIndex={activePhase === i ? 0 : -1}
+                className={`sh-caption px-3 py-1 rounded-full min-h-[44px] ${
+                  activePhase === i
+                    ? "bg-primary text-primary-foreground"
+                    : "text-ink-mute hover:text-ink"
+                }`}
+                onClick={() => setActivePhase(i)}
+              >
+                {t(key)}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="grid gap-4 lg:hidden">
+          {PHASES.map((key, i) => (
+            <div key={key} className="rounded-lg border border-hairline overflow-hidden">
+              <div className="relative aspect-video">
+                <Image
+                  src="/images/hero-skater.webp"
+                  alt=""
+                  width={1200}
+                  height={675}
+                  loading="lazy"
+                  className="h-full w-full object-cover"
+                />
+                {i >= 1 && (
+                  <>
+                    <div className="absolute inset-0 sh-demo-overlay" />
+                    <SkeletonPose role="img" aria-label="AI отслеживает 17 ключевых точек тела" />
+                  </>
+                )}
+                {i === 2 && (
+                  <>
+                    <div className="absolute top-[12%] left-[8%]">
+                      <div className="sh-badge-opaque rounded-md px-3 py-2">
+                        <p className="sh-micro uppercase tracking-wider text-on-dark-dim">{t("demoMetricCoM")}</p>
+                        <p className="sh-heading-lg text-primary-foreground">1.24 м</p>
+                      </div>
+                    </div>
+                    <div className="absolute right-[10%] bottom-[18%]">
+                      <div className="sh-badge-opaque rounded-md px-3 py-2">
+                        <p className="sh-micro uppercase tracking-wider text-on-dark-dim">{t("demoMetricRotation")}</p>
+                        <p className="sh-heading-lg text-primary-foreground">540°</p>
+                      </div>
+                    </div>
+                    <div className="absolute top-[45%] right-[6%]">
+                      <div className="sh-badge-opaque rounded-md px-3 py-2">
+                        <p className="sh-micro uppercase tracking-wider text-on-dark-dim">{t("demoMetricAirtime")}</p>
+                        <p className="sh-heading-lg text-primary-foreground">0.72 с</p>
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
+              <p className="px-4 py-3 sh-caption text-ink">{t(key)}</p>
+            </div>
+          ))}
+        </div>
+
+        <p className="mx-auto mt-8 max-w-xl text-center sh-caption text-ink-mute">
+          {t("demoPipelineText")}
         </p>
-        <h2 className="max-w-2xl text-[clamp(1.75rem,4vw,3rem)] font-medium leading-[1.1] tracking-[-0.02em]">
-          {t("demoHeadline")}
-        </h2>
       </div>
-
-      <div
-        className="relative mx-auto h-[340px] sm:h-auto sm:aspect-video max-w-4xl overflow-hidden rounded-2xl border border-border/60 shadow-2xl"
-        style={{
-          background:
-            "linear-gradient(to bottom right, oklch(0.18 0.03 240), oklch(0.14 0.02 240), oklch(0.18 0.03 240))",
-        }}
-      >
-        {/* Ice glow from bottom */}
-        <div
-          className="absolute inset-0"
-          style={{
-            background:
-              "radial-gradient(ellipse at 50% 100%, oklch(0.72 0.12 240 / 0.35) 0%, transparent 70%)",
-          }}
-        />
-
-        <SkeletonPose />
-
-        {/* Desktop: floating metric badges inside container */}
-        <div
-          className="hidden sm:block absolute top-[12%] left-[8%] rounded-xl px-3 py-2 text-xs font-medium backdrop-blur-md"
-          style={{
-            background: "oklch(0.18 0.03 240 / 0.7)",
-            border: "1px solid oklch(0.72 0.12 240 / 0.3)",
-            color: "white",
-          }}
-        >
-          <span className="text-[10px] uppercase tracking-wider opacity-60">CoM Height</span>
-          <div className="text-sm font-semibold">1.24 m</div>
-        </div>
-        <div
-          className="hidden sm:block absolute right-[10%] bottom-[18%] rounded-xl px-3 py-2 text-xs font-medium backdrop-blur-md"
-          style={{
-            background: "oklch(0.18 0.03 240 / 0.7)",
-            border: "1px solid oklch(0.72 0.12 240 / 0.3)",
-            color: "white",
-          }}
-        >
-          <span className="text-[10px] uppercase tracking-wider opacity-60">Rotation</span>
-          <div className="text-sm font-semibold">540°</div>
-        </div>
-        <div
-          className="hidden sm:block absolute top-[45%] right-[6%] rounded-xl px-3 py-2 text-xs font-medium backdrop-blur-md"
-          style={{
-            background: "oklch(0.18 0.03 240 / 0.7)",
-            border: "1px solid oklch(0.72 0.12 240 / 0.3)",
-            color: "white",
-          }}
-        >
-          <span className="text-[10px] uppercase tracking-wider opacity-60">Airtime</span>
-          <div className="text-sm font-semibold">0.72 s</div>
-        </div>
-
-        {/* Desktop: tech labels */}
-        <div
-          className="hidden sm:block absolute top-4 left-4 rounded-lg px-3 py-1.5 text-xs font-mono backdrop-blur-sm"
-          style={{ backgroundColor: "rgba(0,0,0,0.5)", color: "rgba(255,255,255,0.9)" }}
-        >
-          RTMO • 17kp • 30fps
-        </div>
-        <div
-          className="hidden sm:block absolute right-4 bottom-4 rounded-lg px-3 py-1.5 text-xs font-mono backdrop-blur-sm"
-          style={{ backgroundColor: "rgba(0,0,0,0.5)", color: "rgba(255,255,255,0.9)" }}
-        >
-          H3.6M Format
-        </div>
-
-        {/* Corner brackets */}
-        <div
-          className="absolute top-3 left-3 h-6 w-6"
-          style={{
-            borderTop: "2px solid rgba(255,255,255,0.3)",
-            borderLeft: "2px solid rgba(255,255,255,0.3)",
-          }}
-        />
-        <div
-          className="absolute top-3 right-3 h-6 w-6"
-          style={{
-            borderTop: "2px solid rgba(255,255,255,0.3)",
-            borderRight: "2px solid rgba(255,255,255,0.3)",
-          }}
-        />
-        <div
-          className="absolute right-3 bottom-3 h-6 w-6"
-          style={{
-            borderRight: "2px solid rgba(255,255,255,0.3)",
-            borderBottom: "2px solid rgba(255,255,255,0.3)",
-          }}
-        />
-        <div
-          className="absolute bottom-3 left-3 h-6 w-6"
-          style={{
-            borderBottom: "2px solid rgba(255,255,255,0.3)",
-            borderLeft: "2px solid rgba(255,255,255,0.3)",
-          }}
-        />
-      </div>
-
-      {/* Mobile: metric badges row below container */}
-      <div className="flex sm:hidden flex-row gap-3 mt-4 justify-center">
-        <div
-          className="rounded-lg px-3 py-2 text-xs font-medium backdrop-blur-md"
-          style={{
-            background: "oklch(0.18 0.03 240 / 0.7)",
-            border: "1px solid oklch(0.72 0.12 240 / 0.3)",
-            color: "white",
-          }}
-        >
-          <span className="text-[10px] uppercase tracking-wider opacity-60">CoM Height</span>
-          <div className="text-sm font-semibold">1.24 m</div>
-        </div>
-        <div
-          className="rounded-lg px-3 py-2 text-xs font-medium backdrop-blur-md"
-          style={{
-            background: "oklch(0.18 0.03 240 / 0.7)",
-            border: "1px solid oklch(0.72 0.12 240 / 0.3)",
-            color: "white",
-          }}
-        >
-          <span className="text-[10px] uppercase tracking-wider opacity-60">Rotation</span>
-          <div className="text-sm font-semibold">540°</div>
-        </div>
-        <div
-          className="rounded-lg px-3 py-2 text-xs font-medium backdrop-blur-md"
-          style={{
-            background: "oklch(0.18 0.03 240 / 0.7)",
-            border: "1px solid oklch(0.72 0.12 240 / 0.3)",
-            color: "white",
-          }}
-        >
-          <span className="text-[10px] uppercase tracking-wider opacity-60">Airtime</span>
-          <div className="text-sm font-semibold">0.72 s</div>
-        </div>
-      </div>
-
-      {/* Mobile: tech labels row */}
-      <div className="flex sm:hidden flex-row gap-2 mt-3 justify-center">
-        <div
-          className="rounded-md px-2 py-1 text-[10px] font-mono"
-          style={{ backgroundColor: "rgba(0,0,0,0.5)", color: "rgba(255,255,255,0.9)" }}
-        >
-          RTMO • 17kp • 30fps
-        </div>
-        <div
-          className="rounded-md px-2 py-1 text-[10px] font-mono"
-          style={{ backgroundColor: "rgba(0,0,0,0.5)", color: "rgba(255,255,255,0.9)" }}
-        >
-          H3.6M Format
-        </div>
-      </div>
-
-      <p className="mx-auto mt-8 max-w-xl text-center text-sm leading-relaxed text-muted-foreground">
-        {t("demoCaption")}
-      </p>
     </section>
   )
 }
