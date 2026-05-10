@@ -155,6 +155,19 @@ export function LandingClient() {
           opacity: 1,
         })
       }
+
+      const navLinks = containerRef.current?.querySelectorAll(".header-nav-link")
+      if (navLinks?.length && headerBg) {
+        gsap.to(navLinks, {
+          scrollTrigger: {
+            trigger: containerRef.current,
+            start: "top top",
+            end: "bottom top",
+            scrub: true,
+          },
+          color: "lab(47.8% 0 .0000119209)",
+        })
+      }
     }, containerRef)
 
     return () => ctx.revert()

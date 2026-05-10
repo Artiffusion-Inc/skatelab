@@ -65,7 +65,7 @@ export function StickyHeader() {
             <button
               key={item.key}
               onClick={() => handleNavClick(item.href)}
-              className="sh-body-md text-ink-mute hover:text-ink transition-colors min-h-[44px] flex items-center"
+              className="header-nav-link sh-body-md text-on-dark-mute hover:text-surface-white transition-colors min-h-[44px] flex items-center"
             >
               {t(item.key)}
             </button>
