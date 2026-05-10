@@ -24,7 +24,8 @@ function needsVerificationRedirect(user: UserResponse): boolean {
   if (user.is_verified) return false
   if (typeof window === "undefined") return false
   const path = window.location.pathname
-  return !path.startsWith("/verify-email") && !path.startsWith("/resend-verification")
+  if (path.startsWith("/verify-email") || path.startsWith("/resend-verification")) return false
+  return !isPublicPage(path)
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
