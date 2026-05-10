@@ -14,8 +14,11 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
-from types import TracebackType
-from typing import Any, Callable
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
+    from types import TracebackType
 
 import cv2
 import numpy as np

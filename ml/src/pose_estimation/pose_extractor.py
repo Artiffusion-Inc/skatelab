@@ -12,9 +12,10 @@ Key advantages:
 
 import importlib.util
 import logging
+from collections.abc import Callable
 from pathlib import Path
 from types import TracebackType
-from typing import Any, Callable
+from typing import Any
 
 import cv2
 import numpy as np
@@ -691,7 +692,7 @@ class PoseExtractor:
             )
 
         preview_path = str(
-            Path(tempfile.NamedTemporaryFile(suffix=".jpg", delete=False).name).with_name("person_preview.jpg")
+            Path(tempfile.NamedTemporaryFile(suffix=".jpg", delete=False).name).with_name("person_preview.jpg")  # noqa: SIM115
         )
         cv2.imwrite(preview_path, preview)
         return preview_path

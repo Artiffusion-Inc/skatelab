@@ -369,8 +369,8 @@ class ComparisonRenderer:
 
             # Compose output
             if self.config.mode == ComparisonMode.SIDE_BY_SIDE:
-                assert out_buf is not None
-                assert divider is not None
+                assert out_buf is not None  # noqa: S101
+                assert divider is not None  # noqa: S101
                 # Assemble side-by-side buffer
                 if pad_a is not None:
                     out_buf[:a_h, :target_w] = frame_a
