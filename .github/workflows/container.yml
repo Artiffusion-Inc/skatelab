@@ -28,59 +28,6 @@ jobs:
         with:
           fetch-depth: 1
 
-      - name: Cache ML models
-        uses: actions/cache@v4
-        with:
-          path: data/models
-          key: ml-models-v2
-
-      - uses: astral-sh/setup-uv@v6
-
-      - name: Download ML models from HuggingFace
-        run: |
-          uv run --with huggingface_hub --with boto3 \
-            python ml/scripts/download_ml_models.py --all
-
-      - name: Download ONNX models from R2
-        env:
-          R2_ENDPOINT_URL: ${{ secrets.CF_R2_ENDPOINT_URL }}
-          R2_ACCESS_KEY_ID: ${{ secrets.CF_R2_ACCESS_KEY_ID }}
-          R2_SECRET_ACCESS_KEY: ${{ secrets.CF_R2_SECRET_ACCESS_KEY }}
-          R2_BUCKET: ${{ secrets.CF_R2_BUCKET }}
-        run: |
-          mkdir -p data/models/moganet
-          pip install boto3
-          python3 -c "
-          import boto3, os
-          s3 = boto3.client('s3',
-              endpoint_url=os.environ['R2_ENDPOINT_URL'],
-              aws_access_key_id=os.environ['R2_ACCESS_KEY_ID'],
-              aws_secret_access_key=os.environ['R2_SECRET_ACCESS_KEY'],
-              region_name='auto')
-          if not os.path.exists('data/models/moganet/moganet_b_ap2d_384x288.onnx'):
-              s3.download_file(os.environ['R2_BUCKET'], 'models/moganet/moganet_b_ap2d_384x288.onnx',
-                                'data/models/moganet/moganet_b_ap2d_384x288.onnx')
-              print('Downloaded MogaNet ONNX from R2')
-          else:
-              print('MogaNet ONNX already cached, skipping download')
-          if not os.path.exists('data/models/yolov8n.onnx'):
-              s3.download_file(os.environ['R2_BUCKET'], 'models/yolov8n.onnx',
-                                'data/models/yolov8n.onnx')
-              print('Downloaded YOLOv8n ONNX from R2')
-          else:
-              print('YOLOv8n ONNX already cached, skipping download')
-          "
-
-      - name: Verify required models exist
-        run: |
-          for f in depth_anything_v2_small.onnx neuflowv2_mixed.onnx \
-                   rvm_mobilenetv3.onnx lama_fp32.onnx; do
-            test -f "data/models/$f" || { echo "MISSING: data/models/$f"; exit 1; }
-          done
-          test -d "data/models/sam2" || { echo "MISSING: data/models/sam2/"; exit 1; }
-          test -f "data/models/moganet/moganet_b_ap2d_384x288.onnx" || { echo "MISSING: data/models/moganet/moganet_b_ap2d_384x288.onnx"; exit 1; }
-          test -f "data/models/yolov8n.onnx" || { echo "MISSING: data/models/yolov8n.onnx"; exit 1; }
-
       - name: Lowercase GHCR owner
         id: ghcr
         run: echo "owner=${GITHUB_REPOSITORY_OWNER,,}" >> "$GITHUB_OUTPUT"
