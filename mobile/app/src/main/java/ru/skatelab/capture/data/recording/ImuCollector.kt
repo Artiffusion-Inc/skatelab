@@ -2,6 +2,7 @@ package ru.skatelab.capture.data.recording
 
 import ru.skatelab.capture.AppLogger
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.filter
@@ -13,12 +14,14 @@ import ru.skatelab.capture.domain.model.SensorId
 import ru.skatelab.capture.domain.repository.BleRepository
 import java.io.File
 import javax.inject.Inject
+import javax.inject.Named
 import javax.inject.Singleton
 
 @Singleton
 class ImuCollector @Inject constructor(
     private val bleRepository: BleRepository,
     private val appLogger: AppLogger,
+    @Named("Io") private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
 ) {
     companion object {
         private const val TAG = "ImuCollector"
@@ -43,7 +46,7 @@ class ImuCollector @Inject constructor(
             appLogger.i(TAG, "Started IMU writer for $sensorId → ${file.absolutePath}")
         }
 
-        collectJob = scope.launch(Dispatchers.IO) {
+        collectJob = scope.launch(ioDispatcher) {
             bleRepository.imuSamples
                 .filter { (id, _) -> writers.containsKey(id) }
                 .collect { (sensorId, sample) ->
@@ -65,7 +68,7 @@ class ImuCollector @Inject constructor(
         }
 
         // Watch for BLE reconnect events → insert IMUGap markers + restart streaming
-        reconnectJob = scope.launch(Dispatchers.IO) {
+        reconnectJob = scope.launch(ioDispatcher) {
             bleRepository.reconnectEvents
                 .filter { writers.containsKey(it) }
                 .collect { sensorId ->
@@ -76,7 +79,7 @@ class ImuCollector @Inject constructor(
 
                     // Wait for reconnection then restart streaming
                     streamingJob?.cancel()
-                    streamingJob = scope.launch(Dispatchers.IO) {
+                    streamingJob = scope.launch(ioDispatcher) {
                         try {
                             bleRepository.connectionState
                                 .first { it[sensorId] == BleRepository.ConnectionState.CONNECTED }
@@ -109,7 +112,9 @@ class ImuCollector @Inject constructor(
         }
         writers.clear()
         pendingGaps.clear()
-        return counts.toMap()
+        val result = counts.toMap()
+        counts.clear()
+        return result
     }
 
     private data class PendingGap(val lastSampleNs: Long, val seq: Int)

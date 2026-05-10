@@ -7,7 +7,9 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import ru.skatelab.capture.R
 import ru.skatelab.capture.domain.model.SensorId
 import ru.skatelab.capture.domain.repository.ScanDevice
 
@@ -25,12 +27,12 @@ fun BleScanScreen(
         modifier = Modifier.fillMaxSize().padding(16.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Text("BLE Sensor Scan", style = MaterialTheme.typography.headlineMedium)
+        Text(stringResource(R.string.ble_scan_title), style = MaterialTheme.typography.headlineMedium)
         Spacer(modifier = Modifier.height(16.dp))
 
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Button(onClick = { viewModel.startScan() }) { Text("Scan") }
-            Button(onClick = { viewModel.stopScan() }) { Text("Stop") }
+            Button(onClick = { viewModel.startScan() }) { Text(stringResource(R.string.ble_scan_button)) }
+            Button(onClick = { viewModel.stopScan() }) { Text(stringResource(R.string.ble_scan_stop)) }
         }
         Spacer(modifier = Modifier.height(16.dp))
 
@@ -52,7 +54,7 @@ fun BleScanScreen(
             connectionState[SensorId.RIGHT] == ru.skatelab.capture.domain.repository.BleRepository.ConnectionState.CONNECTED
 
         Button(onClick = onProceed, enabled = anyConnected) {
-            Text("Proceed to Calibration")
+            Text(stringResource(R.string.ble_proceed_calibration))
         }
     }
 }
@@ -77,8 +79,8 @@ private fun ScanDeviceRow(
                 Text("RSSI: ${device.rssi}", style = MaterialTheme.typography.bodySmall)
             }
             Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                OutlinedButton(onClick = onConnectLeft, enabled = !leftConnected) { Text("Left") }
-                OutlinedButton(onClick = onConnectRight, enabled = !rightConnected) { Text("Right") }
+                OutlinedButton(onClick = onConnectLeft, enabled = !leftConnected) { Text(stringResource(R.string.ble_left)) }
+                OutlinedButton(onClick = onConnectRight, enabled = !rightConnected) { Text(stringResource(R.string.ble_right)) }
             }
         }
     }

@@ -6,7 +6,9 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import ru.skatelab.capture.R
 import ru.skatelab.capture.domain.model.CalibrationData
 import ru.skatelab.capture.domain.model.SensorId
 import java.io.File
@@ -48,18 +50,18 @@ fun RecordingScreen(
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     CircularProgressIndicator(modifier = Modifier.size(48.dp))
                     Spacer(modifier = Modifier.height(8.dp))
-                    Text("Recording...", style = MaterialTheme.typography.titleMedium)
+                    Text(stringResource(R.string.recording_active), style = MaterialTheme.typography.titleMedium)
                 }
             } else if (isPreviewReady) {
                 Text(
-                    "Camera ready",
+                    stringResource(R.string.recording_camera_ready),
                     style = MaterialTheme.typography.titleMedium,
                     color = MaterialTheme.colorScheme.primary,
                 )
             } else {
                 CircularProgressIndicator(modifier = Modifier.size(48.dp))
                 Spacer(modifier = Modifier.height(8.dp))
-                Text("Preparing camera...", style = MaterialTheme.typography.bodyMedium)
+                Text(stringResource(R.string.recording_preparing), style = MaterialTheme.typography.bodyMedium)
             }
         }
 
@@ -76,7 +78,7 @@ fun RecordingScreen(
                     enabled = isPreviewReady,
                     modifier = Modifier.fillMaxWidth(),
                 ) {
-                    Text("Start Recording")
+                    Text(stringResource(R.string.recording_start))
                 }
             } else {
                 Button(
@@ -86,7 +88,7 @@ fun RecordingScreen(
                     ),
                     modifier = Modifier.fillMaxWidth(),
                 ) {
-                    Text("Stop Recording")
+                    Text(stringResource(R.string.recording_stop))
                 }
             }
 

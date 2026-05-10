@@ -5,7 +5,9 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import ru.skatelab.capture.R
 import ru.skatelab.capture.domain.model.SensorId
 
 @Composable
@@ -22,17 +24,17 @@ fun CalibrationScreen(
         modifier = Modifier.fillMaxSize().padding(16.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Text("Sensor Calibration", style = MaterialTheme.typography.headlineMedium)
+        Text(stringResource(R.string.calibration_title), style = MaterialTheme.typography.headlineMedium)
         Spacer(modifier = Modifier.height(16.dp))
 
-        Text("Place sensors flat and keep still.", style = MaterialTheme.typography.bodyMedium)
+        Text(stringResource(R.string.calibration_instruction), style = MaterialTheme.typography.bodyMedium)
         Spacer(modifier = Modifier.height(24.dp))
 
-        SensorCalibCard("Left Sensor", SensorId.LEFT, leftCal, isCalibrating) {
+        SensorCalibCard(stringResource(R.string.calibration_left), SensorId.LEFT, leftCal, isCalibrating) {
             viewModel.calibrate(SensorId.LEFT)
         }
         Spacer(modifier = Modifier.height(12.dp))
-        SensorCalibCard("Right Sensor", SensorId.RIGHT, rightCal, isCalibrating) {
+        SensorCalibCard(stringResource(R.string.calibration_right), SensorId.RIGHT, rightCal, isCalibrating) {
             viewModel.calibrate(SensorId.RIGHT)
         }
 
@@ -46,7 +48,7 @@ fun CalibrationScreen(
             onClick = onProceed,
             enabled = leftCal != null || rightCal != null,
         ) {
-            Text("Proceed to Camera")
+            Text(stringResource(R.string.calibration_proceed))
         }
     }
 }
@@ -63,14 +65,14 @@ private fun SensorCalibCard(
         Column(modifier = Modifier.padding(16.dp)) {
             Text(label, style = MaterialTheme.typography.titleMedium)
             if (calibration != null) {
-                Text("Calibrated", color = MaterialTheme.colorScheme.primary)
+                Text(stringResource(R.string.calibration_done), color = MaterialTheme.colorScheme.primary)
             } else {
                 Button(onClick = onCalibrate, enabled = !isCalibrating) {
                     if (isCalibrating) {
                         CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
                         Spacer(modifier = Modifier.width(8.dp))
                     }
-                    Text("Calibrate")
+                    Text(stringResource(R.string.calibration_calibrate))
                 }
             }
         }

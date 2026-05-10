@@ -1,5 +1,35 @@
 <resources>
     <string name="app_name">SkateLab Capture</string>
-    <string name="recording_notification_channel">Sensor Recording</string>
-    <string name="recording_notification_title">Recording in progress</string>
+    <string name="recording_notification_channel">Запись датчиков</string>
+    <string name="recording_notification_title">Идёт запись</string>
+
+    <!-- BLE Scan -->
+    <string name="ble_scan_title">Поиск датчиков</string>
+    <string name="ble_scan_button">Сканировать</string>
+    <string name="ble_scan_stop">Стоп</string>
+    <string name="ble_proceed_calibration">Далее: Калибровка</string>
+    <string name="ble_left">Левый</string>
+    <string name="ble_right">Правый</string>
+
+    <!-- Calibration -->
+    <string name="calibration_title">Калибровка датчиков</string>
+    <string name="calibration_instruction">Положите датчики на ровную поверхность и не двигайте.</string>
+    <string name="calibration_left">Левый датчик</string>
+    <string name="calibration_right">Правый датчик</string>
+    <string name="calibration_calibrate">Калибровать</string>
+    <string name="calibration_done">Откалиброван</string>
+    <string name="calibration_proceed">Далее: Камера</string>
+
+    <!-- Recording -->
+    <string name="recording_preparing">Подготовка камеры…</string>
+    <string name="recording_camera_ready">Камера готова</string>
+    <string name="recording_active">Запись…</string>
+    <string name="recording_start">Начать запись</string>
+    <string name="recording_stop">Остановить запись</string>
+
+    <!-- Export -->
+    <string name="export_title">Экспорт сессии</string>
+    <string name="export_session">Сессия: %s</string>
+    <string name="exporting">Экспорт…</string>
+    <string name="export_done">Экспорт завершён!</string>
 </resources>
