@@ -13,20 +13,15 @@ export function MobileCTABar({ hidden }: MobileCTABarProps) {
   if (hidden) return null
 
   return (
-    <div
-      role="complementary"
+    <aside
       aria-label={t("ctaPrimary")}
       className="fixed bottom-0 left-0 right-0 z-40 border-t border-hairline bg-background pb-[env(safe-area-inset-bottom)] md:hidden"
     >
       <div className="flex items-center justify-center px-4 py-3">
-        <Button
-          size="lg"
-          className="min-h-[44px] w-full max-w-md"
-          asChild
-        >
+        <Button size="lg" className="min-h-[44px] w-full max-w-md" asChild>
           <a href="/register">{t("ctaPrimary")}</a>
         </Button>
       </div>
-    </div>
+    </aside>
   )
 }

@@ -24,17 +24,26 @@ export function FooterSection() {
             <p className="sh-button-cap text-ink-mute mb-3">{t("footerProduct")}</p>
             <ul className="space-y-2">
               <li>
-                <a href="#how-it-works" className="sh-caption text-ink-mute hover:text-ink min-h-[44px] flex items-center">
+                <a
+                  href="#how-it-works"
+                  className="sh-caption text-ink-mute hover:text-ink min-h-[44px] flex items-center"
+                >
                   {t("footerHowItWorks")}
                 </a>
               </li>
               <li>
-                <a href="#pricing" className="sh-caption text-ink-mute hover:text-ink min-h-[44px] flex items-center">
+                <a
+                  href="#pricing"
+                  className="sh-caption text-ink-mute hover:text-ink min-h-[44px] flex items-center"
+                >
                   {t("footerPricing")}
                 </a>
               </li>
               <li>
-                <a href="#faq" className="sh-caption text-ink-mute hover:text-ink min-h-[44px] flex items-center">
+                <a
+                  href="#faq"
+                  className="sh-caption text-ink-mute hover:text-ink min-h-[44px] flex items-center"
+                >
                   {t("footerFaq")}
                 </a>
               </li>
@@ -45,29 +54,41 @@ export function FooterSection() {
             <p className="sh-button-cap text-ink-mute mb-3">{t("footerLegal")}</p>
             <ul className="space-y-2">
               <li>
-                <a href="/privacy" className="sh-caption text-ink-mute hover:text-ink min-h-[44px] flex items-center">
+                <a
+                  href="/privacy"
+                  className="sh-caption text-ink-mute hover:text-ink min-h-[44px] flex items-center"
+                >
                   {t("footerPrivacy")}
                 </a>
               </li>
               <li>
-                <a href="/terms" className="sh-caption text-ink-mute hover:text-ink min-h-[44px] flex items-center">
+                <a
+                  href="/terms"
+                  className="sh-caption text-ink-mute hover:text-ink min-h-[44px] flex items-center"
+                >
                   {t("footerTerms")}
                 </a>
               </li>
               <li>
-                <a href="/offer" className="sh-caption text-ink-mute hover:text-ink min-h-[44px] flex items-center">
+                <a
+                  href="/offer"
+                  className="sh-caption text-ink-mute hover:text-ink min-h-[44px] flex items-center"
+                >
                   {t("footerOffer")}
                 </a>
               </li>
               <li>
-                <a href="/cookies" className="sh-caption text-ink-mute hover:text-ink min-h-[44px] flex items-center">
+                <a
+                  href="/cookies"
+                  className="sh-caption text-ink-mute hover:text-ink min-h-[44px] flex items-center"
+                >
                   {t("footerCookiePolicy")}
                 </a>
               </li>
             </ul>
           </nav>
 
-          <div aria-label={t("footerContact")}>
+          <section aria-label={t("footerContact")}>
             <p className="sh-button-cap text-ink-mute mb-3">{t("footerContact")}</p>
             <ul className="space-y-2">
               <li>
@@ -91,7 +112,7 @@ export function FooterSection() {
                 </a>
               </li>
             </ul>
-          </div>
+          </section>
         </div>
 
         <div className="mt-8 border-t border-hairline pt-6">

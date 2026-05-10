@@ -147,7 +147,7 @@ class ONNXPoseExtractor:
         results = []
         for i, window in enumerate(windows):
             n = len(window)
-            results.append(result[i][:n])
+            results.append(result[i][:n])  # type: ignore[index]
 
         return results
 

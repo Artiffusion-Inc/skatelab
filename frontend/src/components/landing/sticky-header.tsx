@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useRef, useCallback } from "react"
+import { useState, useRef, useCallback } from "react"
 import { useTranslations } from "@/i18n"
 import { Menu, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -17,40 +17,42 @@ export function StickyHeader() {
   const [menuOpen, setMenuOpen] = useState(false)
   const hamburgerRef = useRef<HTMLButtonElement>(null)
 
+  const escHandlerRef = useRef<((e: KeyboardEvent) => void) | null>(null)
+
   const closeMenu = useCallback(() => {
     setMenuOpen(false)
+    document.body.style.overflow = ""
+    if (escHandlerRef.current) {
+      window.removeEventListener("keydown", escHandlerRef.current)
+      escHandlerRef.current = null
+    }
   }, [])
 
-  const handleNavClick = useCallback((href: string) => {
-    closeMenu()
-    const el = document.querySelector(href)
-    if (el) {
-      el.scrollIntoView({ behavior: "smooth" })
-      const target = el as HTMLElement
-      target.focus({ preventScroll: true })
-    }
-  }, [closeMenu])
-
-  useEffect(() => {
-    if (menuOpen) {
-      document.body.style.overflow = "hidden"
-    } else {
-      document.body.style.overflow = ""
-    }
-    return () => { document.body.style.overflow = "" }
-  }, [menuOpen])
-
-  useEffect(() => {
+  const openMenu = useCallback(() => {
+    setMenuOpen(true)
+    document.body.style.overflow = "hidden"
     const onEsc = (e: KeyboardEvent) => {
       if (e.key === "Escape") closeMenu()
     }
-    if (menuOpen) window.addEventListener("keydown", onEsc)
-    return () => window.removeEventListener("keydown", onEsc)
-  }, [menuOpen, closeMenu])
+    escHandlerRef.current = onEsc
+    window.addEventListener("keydown", onEsc)
+  }, [closeMenu])
+
+  const handleNavClick = useCallback(
+    (href: string) => {
+      closeMenu()
+      const el = document.querySelector(href)
+      if (el) {
+        el.scrollIntoView({ behavior: "smooth" })
+        const target = el as HTMLElement
+        target.focus({ preventScroll: true })
+      }
+    },
+    [closeMenu],
+  )
 
   return (
     <header
-      role="banner"
       className="fixed top-0 left-0 right-0 z-50 pt-[env(safe-area-inset-top)]"
       style={{ backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)" }}
     >
@@ -62,8 +64,9 @@ export function StickyHeader() {
         </a>
 
         <nav aria-label="Основная навигация" className="hidden md:flex items-center gap-8">
-          {NAV_ITEMS.map((item) => (
+          {NAV_ITEMS.map(item => (
             <button
+              type="button"
               key={item.key}
               onClick={() => handleNavClick(item.href)}
               className="sh-body-md text-ink-mute hover:text-ink transition-colors min-h-[44px] flex items-center"
@@ -80,13 +83,12 @@ export function StickyHeader() {
             className="hidden md:inline-flex min-h-[44px]"
             asChild
           >
-            <a href="/register">
-              {t("headerCta")}
-            </a>
+            <a href="/register">{t("headerCta")}</a>
           </Button>
           <button
+            type="button"
             ref={hamburgerRef}
-            onClick={() => setMenuOpen(true)}
+            onClick={openMenu}
             className="md:hidden min-h-[44px] min-w-[44px] flex items-center justify-center"
             aria-label="Открыть меню"
             aria-expanded={menuOpen}
@@ -112,8 +114,14 @@ export function StickyHeader() {
               aria-label="Меню навигации"
             >
               <div className="flex items-center justify-between p-4">
-                <span className="sh-body-md text-ink" style={{ fontVariationSettings: '"wght" 600' }}>SkateLab</span>
+                <span
+                  className="sh-body-md text-ink"
+                  style={{ fontVariationSettings: '"wght" 600' }}
+                >
+                  SkateLab
+                </span>
                 <button
+                  type="button"
                   onClick={closeMenu}
                   className="min-h-[44px] min-w-[44px] flex items-center justify-center"
                   aria-label="Закрыть меню"
@@ -122,8 +130,9 @@ export function StickyHeader() {
                 </button>
               </div>
               <nav aria-label="Мобильная навигация" className="flex flex-col">
-                {NAV_ITEMS.map((item) => (
+                {NAV_ITEMS.map(item => (
                   <button
+                    type="button"
                     key={item.key}
                     onClick={() => handleNavClick(item.href)}
                     className="py-4 px-6 text-lg border-b border-hairline text-ink hover:bg-muted min-h-[44px] text-left"

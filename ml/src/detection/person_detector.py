@@ -113,7 +113,7 @@ class PersonDetector:
         outputs = session.run(None, {input_name: blob})
         pred = outputs[0]  # (1, 84, 8400)
 
-        pred = pred[0].T  # (8400, 84): [x_center, y_center, w, h, class_0_score, ...]
+        pred = pred[0].T  # type: ignore[index]  # (8400, 84): [x_center, y_center, w, h, class_0_score, ...]
 
         # Filter person class
         person_scores = pred[:, 4 + _PERSON_CLASS]

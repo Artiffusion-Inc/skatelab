@@ -21,16 +21,14 @@ export function FAQSection() {
       aria-labelledby="faq-heading"
     >
       <div className="faq-header mb-10">
-        <p className="mb-4 sh-micro uppercase tracking-[0.3em] text-ink-mute">
-          {t("faqTitle")}
-        </p>
+        <p className="mb-4 sh-micro uppercase tracking-[0.3em] text-ink-mute">{t("faqTitle")}</p>
         <h2 id="faq-heading" className="sh-display-xl text-ink">
           {t("faqTitle")}
         </h2>
       </div>
 
       <Accordion type="single" collapsible>
-        {FAQ_KEYS.map((n) => (
+        {FAQ_KEYS.map(n => (
           <AccordionItem key={n} value={`faq-${n}`}>
             <AccordionTrigger className="min-h-[44px] py-3 text-left">
               {t(`faqQ${n}`)}

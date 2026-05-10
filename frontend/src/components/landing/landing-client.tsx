@@ -1,6 +1,7 @@
 "use client"
 
-import { useEffect, useLayoutEffect, useRef, useState } from "react"
+import { useLayoutEffect, useRef, useState } from "react"
+import { useMountEffect } from "@/lib/useMountEffect"
 import dynamic from "next/dynamic"
 import gsap from "gsap"
 import { ScrollTrigger } from "gsap/ScrollTrigger"
@@ -31,7 +32,7 @@ export function LandingClient() {
 
       mm.add("(prefers-reduced-motion: no-preference)", () => {
         const heroEls = containerRef.current?.querySelectorAll(
-          ".hero-eyebrow, .hero-headline, .hero-subtitle, .hero-cta, .hero-scroll"
+          ".hero-eyebrow, .hero-headline, .hero-subtitle, .hero-cta, .hero-scroll",
         )
         if (!heroEls?.length) return
 
@@ -44,7 +45,7 @@ export function LandingClient() {
             duration: 0.8,
             stagger: 0.12,
             ease: "power2.out",
-          }
+          },
         )
       })
 
@@ -65,7 +66,7 @@ export function LandingClient() {
               start: "top 80%",
               toggleActions: "play none none none",
             },
-          }
+          },
         )
       })
 
@@ -86,7 +87,7 @@ export function LandingClient() {
               start: "top 85%",
               toggleActions: "play none none none",
             },
-          }
+          },
         )
       })
 
@@ -106,7 +107,7 @@ export function LandingClient() {
               start: "top 90%",
               toggleActions: "play none none none",
             },
-          }
+          },
         )
       })
 
@@ -126,7 +127,7 @@ export function LandingClient() {
               start: "top 85%",
               toggleActions: "play none none none",
             },
-          }
+          },
         )
       })
 
@@ -159,18 +160,18 @@ export function LandingClient() {
     return () => ctx.revert()
   }, [])
 
-  useEffect(() => {
+  useMountEffect(() => {
     const onPageShow = (e: PageTransitionEvent) => {
       if (e.persisted) ScrollTrigger.refresh()
     }
     window.addEventListener("pageshow", onPageShow)
     return () => window.removeEventListener("pageshow", onPageShow)
-  }, [])
+  })
 
-  useEffect(() => {
+  useMountEffect(() => {
     const accepted = localStorage.getItem("consent_accepted")
     if (!accepted) setShowCookieBanner(true)
-  }, [])
+  })
 
   const acceptCookies = () => {
     localStorage.setItem("consent_accepted", "true")

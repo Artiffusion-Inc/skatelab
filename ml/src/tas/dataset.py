@@ -154,12 +154,12 @@ def pad_collate(batch: list[tuple]) -> tuple[torch.Tensor, torch.Tensor, torch.T
     poses_list, labels_list, lengths = zip(*batch, strict=True)
     max_len = max(lengths)
     B = len(batch)
-    poses_padded = torch.zeros(B, max_len, 17, 2, dtype=torch.float32)
-    labels_padded = torch.full((B, max_len), -1, dtype=torch.long)
+    poses_padded = torch.zeros(B, max_len, 17, 2, dtype=torch.float32)  # type: ignore[reportPrivateImportUsage]
+    labels_padded = torch.full((B, max_len), -1, dtype=torch.long)  # type: ignore[reportPrivateImportUsage]
     for i, (p, lbl, le) in enumerate(zip(poses_list, labels_list, lengths, strict=True)):
-        poses_padded[i, :le] = torch.from_numpy(p)
-        labels_padded[i, :le] = torch.from_numpy(lbl)
-    lengths_tensor = torch.tensor(lengths, dtype=torch.long)
+        poses_padded[i, :le] = torch.from_numpy(p)  # type: ignore[reportPrivateImportUsage]
+        labels_padded[i, :le] = torch.from_numpy(lbl)  # type: ignore[reportPrivateImportUsage]
+    lengths_tensor = torch.tensor(lengths, dtype=torch.long)  # type: ignore[reportPrivateImportUsage]
     return poses_padded, labels_padded, lengths_tensor
 
 

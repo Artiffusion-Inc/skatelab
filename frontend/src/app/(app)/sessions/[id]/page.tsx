@@ -48,8 +48,7 @@ export default function SessionDetailPage() {
   const totalFrames = session?.pose_data ? Math.max(...session.pose_data.frames) : 300
 
   if (isLoading) return <SkeletonDetail />
-  if (!session)
-    return <div className="py-20 text-center text-ink-mute">{ts("notFound")}</div>
+  if (!session) return <div className="py-20 text-center text-ink-mute">{ts("notFound")}</div>
 
   if (POLLING_STATUSES.has(session.status)) {
     return (

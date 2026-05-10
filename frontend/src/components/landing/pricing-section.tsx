@@ -54,8 +54,8 @@ export function PricingSection() {
         </h2>
       </div>
 
-      <ul className="grid gap-8 lg:grid-cols-3" role="list">
-        {tiers.map((tier) => (
+      <ul className="grid gap-8 lg:grid-cols-3">
+        {tiers.map(tier => (
           <li
             key={tier.name}
             className={`pricing-card relative rounded-lg p-8 ${
@@ -73,11 +73,20 @@ export function PricingSection() {
             <p className="sh-price mt-4">
               <data value={tier.price.replace(/[^\d]/g, "")}>{tier.price}</data>
             </p>
-            <p className={`mt-2 sh-caption ${tier.highlighted ? "text-on-dark-mute" : "text-ink-mute"}`}>{tier.desc}</p>
+            <p
+              className={`mt-2 sh-caption ${tier.highlighted ? "text-on-dark-mute" : "text-ink-mute"}`}
+            >
+              {tier.desc}
+            </p>
             <ul className="mt-6 space-y-3">
-              {tier.features.map((f) => (
-                <li key={f} className={`flex items-start gap-2 sh-caption ${tier.highlighted ? "text-on-dark-mute" : "text-ink-mute"}`}>
-                  <Check className={`h-4 w-4 mt-0.5 shrink-0 ${tier.highlighted ? "text-surface-violet-soft" : "text-score-good"}`} />
+              {tier.features.map(f => (
+                <li
+                  key={f}
+                  className={`flex items-start gap-2 sh-caption ${tier.highlighted ? "text-on-dark-mute" : "text-ink-mute"}`}
+                >
+                  <Check
+                    className={`h-4 w-4 mt-0.5 shrink-0 ${tier.highlighted ? "text-surface-violet-soft" : "text-score-good"}`}
+                  />
                   {f}
                 </li>
               ))}
@@ -89,7 +98,9 @@ export function PricingSection() {
             >
               <a
                 href={tier.href}
-                {...(tier.href.startsWith("http") ? { target: "_blank", rel: "noopener noreferrer" } : {})}
+                {...(tier.href.startsWith("http")
+                  ? { target: "_blank", rel: "noopener noreferrer" }
+                  : {})}
               >
                 {tier.cta}
               </a>

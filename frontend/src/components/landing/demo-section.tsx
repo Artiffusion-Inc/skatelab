@@ -24,7 +24,13 @@ export function DemoSection() {
     const mm = gsap.matchMedia()
 
     mm.add("(min-width: 1024px) and (prefers-reduced-motion: no-preference)", () => {
-      if (!containerRef.current || !phase1OverlayRef.current || !skeletonRef.current || !badgesRef.current) return
+      if (
+        !containerRef.current ||
+        !phase1OverlayRef.current ||
+        !skeletonRef.current ||
+        !badgesRef.current
+      )
+        return
 
       gsap.set(skeletonRef.current, { opacity: 0 })
       gsap.set(badgesRef.current, { opacity: 0, y: 10 })
@@ -37,7 +43,7 @@ export function DemoSection() {
           end: "+=150%",
           anticipatePin: 0.1,
           invalidateOnRefresh: true,
-          onUpdate: (self) => {
+          onUpdate: self => {
             const progress = self.progress
             if (progress < 0.33) setActivePhase(0)
             else if (progress < 0.66) setActivePhase(1)
@@ -71,10 +77,10 @@ export function DemoSection() {
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
     if (e.key === "ArrowRight" || e.key === "ArrowDown") {
       e.preventDefault()
-      setActivePhase((p) => Math.min(p + 1, 2))
+      setActivePhase(p => Math.min(p + 1, 2))
     } else if (e.key === "ArrowLeft" || e.key === "ArrowUp") {
       e.preventDefault()
-      setActivePhase((p) => Math.max(p - 1, 0))
+      setActivePhase(p => Math.max(p - 1, 0))
     }
   }, [])
 
@@ -94,7 +100,10 @@ export function DemoSection() {
           <h2 className="sh-display-xl text-ink">{t("demoHeadline")}</h2>
         </div>
 
-        <div ref={containerRef} className="hidden lg:block relative mx-auto max-w-4xl overflow-hidden rounded-lg border border-hairline">
+        <div
+          ref={containerRef}
+          className="hidden lg:block relative mx-auto max-w-4xl overflow-hidden rounded-lg border border-hairline"
+        >
           <div className="relative aspect-video">
             <Image
               src="/images/hero-skater.webp"
@@ -112,19 +121,25 @@ export function DemoSection() {
             <div ref={badgesRef}>
               <div className="absolute top-[12%] left-[8%]">
                 <div className="sh-badge-opaque rounded-md px-4 py-3 sh-metric-pulse">
-                  <p className="sh-micro uppercase tracking-wider text-on-dark-dim">{t("demoMetricCoM")}</p>
+                  <p className="sh-micro uppercase tracking-wider text-on-dark-dim">
+                    {t("demoMetricCoM")}
+                  </p>
                   <p className="sh-heading-lg text-primary-foreground tabular-nums">1.24 м</p>
                 </div>
               </div>
               <div className="absolute right-[10%] bottom-[18%]">
                 <div className="sh-badge-opaque rounded-md px-4 py-3 sh-metric-pulse">
-                  <p className="sh-micro uppercase tracking-wider text-on-dark-dim">{t("demoMetricRotation")}</p>
+                  <p className="sh-micro uppercase tracking-wider text-on-dark-dim">
+                    {t("demoMetricRotation")}
+                  </p>
                   <p className="sh-heading-lg text-primary-foreground tabular-nums">540°</p>
                 </div>
               </div>
               <div className="absolute top-[45%] right-[6%]">
                 <div className="sh-badge-opaque rounded-md px-4 py-3 sh-metric-pulse">
-                  <p className="sh-micro uppercase tracking-wider text-on-dark-dim">{t("demoMetricAirtime")}</p>
+                  <p className="sh-micro uppercase tracking-wider text-on-dark-dim">
+                    {t("demoMetricAirtime")}
+                  </p>
                   <p className="sh-heading-lg text-primary-foreground tabular-nums">0.72 с</p>
                 </div>
               </div>
@@ -143,6 +158,7 @@ export function DemoSection() {
           >
             {PHASES.map((key, i) => (
               <button
+                type="button"
                 key={key}
                 role="radio"
                 aria-checked={activePhase === i}
@@ -182,19 +198,25 @@ export function DemoSection() {
                   <>
                     <div className="absolute top-[12%] left-[8%]">
                       <div className="sh-badge-opaque rounded-md px-3 py-2">
-                        <p className="sh-micro uppercase tracking-wider text-on-dark-dim">{t("demoMetricCoM")}</p>
+                        <p className="sh-micro uppercase tracking-wider text-on-dark-dim">
+                          {t("demoMetricCoM")}
+                        </p>
                         <p className="sh-heading-lg text-primary-foreground">1.24 м</p>
                       </div>
                     </div>
                     <div className="absolute right-[10%] bottom-[18%]">
                       <div className="sh-badge-opaque rounded-md px-3 py-2">
-                        <p className="sh-micro uppercase tracking-wider text-on-dark-dim">{t("demoMetricRotation")}</p>
+                        <p className="sh-micro uppercase tracking-wider text-on-dark-dim">
+                          {t("demoMetricRotation")}
+                        </p>
                         <p className="sh-heading-lg text-primary-foreground">540°</p>
                       </div>
                     </div>
                     <div className="absolute top-[45%] right-[6%]">
                       <div className="sh-badge-opaque rounded-md px-3 py-2">
-                        <p className="sh-micro uppercase tracking-wider text-on-dark-dim">{t("demoMetricAirtime")}</p>
+                        <p className="sh-micro uppercase tracking-wider text-on-dark-dim">
+                          {t("demoMetricAirtime")}
+                        </p>
                         <p className="sh-heading-lg text-primary-foreground">0.72 с</p>
                       </div>
                     </div>

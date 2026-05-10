@@ -10,7 +10,7 @@ interface CookieBannerProps {
 }
 
 export default function CookieBanner({ onAccept, onDecline }: CookieBannerProps) {
-/** CookieBanner uses default export for dynamic import compatibility */
+  /** CookieBanner uses default export for dynamic import compatibility */
   const t = useTranslations("landing")
 
   return (
@@ -24,7 +24,9 @@ export default function CookieBanner({ onAccept, onDecline }: CookieBannerProps)
         <div className="mx-auto max-w-5xl px-6 py-4">
           <div className="flex flex-col items-start gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <h2 id="cookie-heading" className="sr-only">{t("cookieHeading")}</h2>
+              <h2 id="cookie-heading" className="sr-only">
+                {t("cookieHeading")}
+              </h2>
               <p className="sh-body-md text-ink-mute">
                 {t("cookieText")}{" "}
                 <a href="/cookies" className="text-link hover:underline">
@@ -40,11 +42,7 @@ export default function CookieBanner({ onAccept, onDecline }: CookieBannerProps)
               >
                 {t("cookieDecline")}
               </Button>
-              <Button
-                onClick={onAccept}
-                autoFocus
-                className="min-h-[44px] min-w-[120px] shrink-0"
-              >
+              <Button onClick={onAccept} autoFocus className="min-h-[44px] min-w-[120px] shrink-0">
                 {t("cookieAccept")}
               </Button>
             </div>

@@ -29,7 +29,7 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const [locale, messages] = await Promise.all([getLocale(), getMessages()])
-  const nonce = (await headers()).get("x-nonce") ?? ""
+  const _nonce = (await headers()).get("x-nonce") ?? ""
 
   return (
     <html lang={locale} suppressHydrationWarning className={inter.variable}>
@@ -40,10 +40,10 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             <Toaster richColors position="bottom-center" toastOptions={{ duration: 3000 }} />
           </Providers>
         </NextIntlClientProvider>
-      {/* impeccable-live-start */}
-<script src="http://localhost:8400/live.js"></script>
-{/* impeccable-live-end */}
-</body>
+        {/* impeccable-live-start */}
+        <script src="http://localhost:8400/live.js"></script>
+        {/* impeccable-live-end */}
+      </body>
     </html>
   )
 }

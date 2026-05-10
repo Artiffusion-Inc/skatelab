@@ -180,9 +180,7 @@ function InvitePreview() {
         </div>
       </div>
       <div className="flex items-center gap-2 rounded-lg border border-hairline bg-background px-3 py-2">
-        <span className="flex-1 truncate text-xs text-ink-mute">
-          icelab.app/invite/a7x9k2
-        </span>
+        <span className="flex-1 truncate text-xs text-ink-mute">icelab.app/invite/a7x9k2</span>
         <button
           type="button"
           onClick={handleCopy}

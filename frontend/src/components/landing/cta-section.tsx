@@ -16,19 +16,10 @@ export function CTASection() {
           <h2 id="cta-heading" className="sh-display-lg text-primary-foreground">
             {t("ctaHeadlineNew")}
           </h2>
-          <p className="mt-4 sh-body-lg text-on-dark-mute">
-            {t("ctaSubtitleNew")}
-          </p>
+          <p className="mt-4 sh-body-lg text-on-dark-mute">{t("ctaSubtitleNew")}</p>
           <div className="mt-10 flex flex-col items-start gap-4 sm:flex-row">
-            <Button
-              variant="on-teal"
-              size="lg"
-              className="min-h-[44px] px-10 text-base"
-              asChild
-            >
-              <a href="/register">
-                {t("ctaPrimary")}
-              </a>
+            <Button variant="on-teal" size="lg" className="min-h-[44px] px-10 text-base" asChild>
+              <a href="/register">{t("ctaPrimary")}</a>
             </Button>
             <a
               href="/login"

@@ -9,33 +9,25 @@ const buttonVariants = cva(
   {
     variants: {
       variant: {
-        default:
-          "bg-primary text-primary-foreground hover:bg-primary-deep",
-        outline:
-          "border-hairline-dark bg-background text-foreground hover:bg-muted",
-        secondary:
-          "bg-muted text-foreground hover:bg-muted/80",
-        ghost:
-          "hover:bg-muted hover:text-foreground",
+        default: "bg-primary text-primary-foreground hover:bg-primary-deep",
+        outline: "border-hairline-dark bg-background text-foreground hover:bg-muted",
+        secondary: "bg-muted text-foreground hover:bg-muted/80",
+        ghost: "hover:bg-muted hover:text-foreground",
         destructive:
           "bg-destructive/10 text-destructive hover:bg-destructive/20 focus-visible:border-destructive/40 focus-visible:ring-destructive/20 dark:bg-destructive/20 dark:hover:bg-destructive/30 dark:focus-visible:ring-destructive/40",
         link: "text-link underline-offset-4 hover:underline",
         "on-dark-pill":
           "bg-surface-violet-soft text-primary hover:bg-surface-violet-soft/80 rounded-full",
-        "on-teal":
-          "bg-background text-surface-teal-deep hover:bg-canvas-soft",
+        "on-teal": "bg-background text-surface-teal-deep hover:bg-canvas-soft",
       },
       size: {
-        default:
-          "h-10 gap-1.5 px-5",
+        default: "h-10 gap-1.5 px-5",
         xs: "h-6 gap-1 rounded-sm px-2 text-xs has-data-[icon=inline-end]:pr-1.5 has-data-[icon=inline-start]:pl-1.5 [&_svg:not([class*='size-'])]:size-3",
         sm: "h-8 gap-1 rounded-md px-4 text-[0.8rem] has-data-[icon=inline-end]:pr-1.5 has-data-[icon=inline-start]:pl-1.5 [&_svg:not([class*='size-'])]:size-3.5",
         lg: "h-11 gap-1.5 px-6",
         icon: "size-10",
-        "icon-xs":
-          "size-6 rounded-sm",
-        "icon-sm":
-          "size-8 rounded-md",
+        "icon-xs": "size-6 rounded-sm",
+        "icon-sm": "size-8 rounded-md",
         "icon-lg": "size-11",
       },
     },

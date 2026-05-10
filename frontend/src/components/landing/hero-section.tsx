@@ -9,7 +9,10 @@ export function HeroSection() {
   const t = useTranslations("landing")
 
   return (
-    <section className="hero-section relative flex min-h-[100dvh] items-center overflow-hidden bg-primary" aria-label={t("eyebrow")}>
+    <section
+      className="hero-section relative flex min-h-[100dvh] items-center overflow-hidden bg-primary"
+      aria-label={t("eyebrow")}
+    >
       {/* Violet-sky atmospheric backdrop */}
       <div className="sh-violet-backdrop absolute inset-0" />
 
@@ -33,21 +36,12 @@ export function HeroSection() {
 
             {/* Coaching-outcome stat */}
             <div className="hero-cta mt-3 flex items-baseline gap-2">
-              <span className="sh-display-lg text-surface-violet-soft">
-                {t("heroStatValue")}
-              </span>
-              <span className="sh-caption text-on-dark-mute">
-                {t("heroStatLabel")}
-              </span>
+              <span className="sh-display-lg text-surface-violet-soft">{t("heroStatValue")}</span>
+              <span className="sh-caption text-on-dark-mute">{t("heroStatLabel")}</span>
             </div>
 
             <div className="hero-cta mt-8 flex flex-col items-start gap-4 sm:flex-row">
-              <Button
-                variant="on-dark-pill"
-                size="lg"
-                className="h-14 px-10 text-base"
-                asChild
-              >
+              <Button variant="on-dark-pill" size="lg" className="h-14 px-10 text-base" asChild>
                 <a href="/register">{t("ctaPrimary")}</a>
               </Button>
               <Button
@@ -56,9 +50,7 @@ export function HeroSection() {
                 className="h-14 rounded-full px-8 text-base text-on-dark-mute hover:text-primary-foreground"
                 asChild
               >
-                <a href="#demo">
-                  {t("ctaSecondary")}
-                </a>
+                <a href="#demo">{t("ctaSecondary")}</a>
               </Button>
             </div>
           </div>
@@ -75,18 +67,13 @@ export function HeroSection() {
                 priority
               />
               <div className="absolute inset-0 bg-primary/40" />
-              <SkeletonPose
-                role="img"
-                aria-label="AI отслеживает 17 ключевых точек тела"
-              />
+              <SkeletonPose role="img" aria-label="AI отслеживает 17 ключевых точек тела" />
               {/* Inline metric badge */}
               <div className="sh-badge-opaque absolute top-[15%] right-[8%] rounded-md px-4 py-3">
                 <p className="sh-micro uppercase tracking-wider text-on-dark-dim">
                   {t("heroOverlayLabel")}
                 </p>
-                <p className="sh-caption text-primary-foreground">
-                  {t("heroOverlayValue")}
-                </p>
+                <p className="sh-caption text-primary-foreground">{t("heroOverlayValue")}</p>
               </div>
             </div>
           </div>
@@ -94,14 +81,28 @@ export function HeroSection() {
       </div>
 
       {/* Gradient bridge to next section */}
-      <div className="h-20 md:h-28 bg-gradient-to-b from-primary-deep via-primary-deep/50 to-transparent" aria-hidden="true" />
-
       <div
-        className="hero-scroll absolute bottom-8 left-1/2 -translate-x-1/2"
+        className="h-20 md:h-28 bg-gradient-to-b from-primary-deep via-primary-deep/50 to-transparent"
         aria-hidden="true"
-      >
-        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path d="M10 4v12m0 0l-4-4m4 4l4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-on-dark-mute" />
+      />
+
+      <div className="hero-scroll absolute bottom-8 left-1/2 -translate-x-1/2" aria-hidden="true">
+        <svg
+          role="img"
+          width="20"
+          height="20"
+          viewBox="0 0 20 20"
+          fill="none"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <path
+            d="M10 4v12m0 0l-4-4m4 4l4-4"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className="text-on-dark-mute"
+          />
         </svg>
       </div>
     </section>

@@ -108,7 +108,7 @@ class SkeletalIdentityExtractor:
         self._use_ml = False
         if model_path is not None:
             try:
-                from src.pose_3d.athletepose_extractor import (
+                from src.pose_3d.athletepose_extractor import (  # type: ignore[import-untyped]
                     AthletePose3DExtractor,
                 )
 
