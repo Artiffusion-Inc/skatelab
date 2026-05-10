@@ -19,6 +19,7 @@ class SensorRecordingService : Service() {
         private const val CHANNEL_ID = "sensor_recording"
         private const val NOTIFICATION_ID = 1
         const val ACTION_START = "ru.skatelab.capture.RECORDING"
+        const val ACTION_STOP = "ru.skatelab.capture.RECORDING_STOP"
     }
 
     override fun onBind(intent: Intent?): IBinder? = null
@@ -27,13 +28,22 @@ class SensorRecordingService : Service() {
         createNotificationChannel()
         val notification = buildNotification()
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            startForeground(NOTIFICATION_ID, notification,
-                android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_CONNECTED_DEVICE or
-                android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_CAMERA
-            )
-        } else {
-            startForeground(NOTIFICATION_ID, notification)
+        when (intent?.action) {
+            ACTION_START -> {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    startForeground(NOTIFICATION_ID, notification,
+                        android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_CONNECTED_DEVICE or
+                        android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_CAMERA
+                    )
+                } else {
+                    startForeground(NOTIFICATION_ID, notification)
+                }
+            }
+            ACTION_STOP -> {
+                stopForeground(STOP_FOREGROUND_REMOVE)
+                stopSelf()
+                return START_NOT_STICKY
+            }
         }
 
         return START_STICKY

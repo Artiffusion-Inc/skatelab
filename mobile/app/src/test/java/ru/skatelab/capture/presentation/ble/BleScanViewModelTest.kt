@@ -14,6 +14,7 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
+import ru.skatelab.capture.AppLogger
 import ru.skatelab.capture.domain.model.SensorId
 import ru.skatelab.capture.domain.repository.BleRepository
 import ru.skatelab.capture.domain.repository.ScanDevice
@@ -26,6 +27,7 @@ class BleScanViewModelTest {
 
     private lateinit var bleRepository: BleRepository
     private lateinit var connectSensorUseCase: ConnectSensorUseCase
+    private lateinit var appLogger: AppLogger
     private lateinit var viewModel: BleScanViewModel
 
     private val scanResultsFlow = MutableStateFlow<List<ScanDevice>>(emptyList())
@@ -35,11 +37,12 @@ class BleScanViewModelTest {
     fun setUp() {
         bleRepository = mockk(relaxed = true)
         connectSensorUseCase = mockk(relaxed = true)
+        appLogger = mockk(relaxed = true)
 
         every { bleRepository.scanResults } returns scanResultsFlow
         every { bleRepository.connectionState } returns connectionStateFlow
 
-        viewModel = BleScanViewModel(bleRepository, connectSensorUseCase)
+        viewModel = BleScanViewModel(bleRepository, connectSensorUseCase, appLogger)
     }
 
     @Test

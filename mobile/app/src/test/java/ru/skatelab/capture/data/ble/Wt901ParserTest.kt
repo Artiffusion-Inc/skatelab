@@ -95,8 +95,8 @@ class Wt901ParserTest {
         assertNotNull("Three complete frames should produce ImuSample", result)
         result!!.let { sample ->
             assertEquals(t0, sample.timestampNs)
-            // ACC: 2048 * 16/32768 = 1.0
-            assertEquals(1.0f, sample.accX, 0.01f)
+            // ACC: 2048 * 16 * 9.80665 / 32768 ≈ 9.81 m/s²
+            assertEquals(9.81f, sample.accX, 0.1f)
             assertEquals(0f, sample.accY, 0.01f)
             assertEquals(0f, sample.accZ, 0.01f)
             // GYRO: 16384 * 2000/32768 = 1000.0
