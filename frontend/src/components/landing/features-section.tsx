@@ -57,25 +57,28 @@ export function HowItWorksSection() {
 
       {/* Steps 2 & 3: paired row, varied proportions */}
       <div className="grid gap-8 lg:grid-cols-[1.2fr_1fr]">
-        {steps.slice(1).map((step, i) => {
-          const Icon = icons[i + 1]
-          return (
-            <div
-              key={step.title}
-              className="hiw-step group relative overflow-hidden rounded-lg border border-hairline bg-background p-8"
-            >
-              <span className="step-watermark">{String(i + 2).padStart(2, "0")}</span>
-              <div className="relative z-10">
-                <div className="mb-5 flex h-12 w-12 items-center justify-center rounded-md bg-muted transition-colors group-hover:bg-primary group-hover:text-primary-foreground">
-                  <Icon className="h-5 w-5 text-primary group-hover:text-primary-foreground" />
-                </div>
-                <h3 className="sh-heading-lg mb-2 text-ink">{step.title}</h3>
-                <p className="sh-caption text-ink-mute">{step.description}</p>
-                <p className="mt-3 sh-caption text-primary">{step.accent}</p>
-              </div>
+        {/* Step 2: icon-left */}
+        <div className="hiw-step group relative overflow-hidden rounded-lg border border-hairline bg-background p-8">
+          <span className="step-watermark">02</span>
+          <div className="relative z-10">
+            <div className="mb-5 flex h-12 w-12 items-center justify-center rounded-md bg-muted transition-colors group-hover:bg-primary group-hover:text-primary-foreground">
+              {(() => { const Icon = icons[1]; return <Icon className="h-5 w-5 text-primary group-hover:text-primary-foreground" />; })()}
             </div>
-          )
-        })}
+            <h3 className="sh-heading-lg mb-2 text-ink">{steps[1].title}</h3>
+            <p className="sh-caption text-ink-mute">{steps[1].description}</p>
+            <p className="mt-3 sh-caption text-primary">{steps[1].accent}</p>
+          </div>
+        </div>
+
+        {/* Step 3: narrative block, no icon box */}
+        <div className="hiw-step group relative overflow-hidden rounded-lg border border-hairline bg-background p-8 flex flex-col justify-center">
+          <span className="step-watermark">03</span>
+          <div className="relative z-10">
+            <h3 className="sh-heading-lg mb-2 text-ink">{steps[2].title}</h3>
+            <p className="sh-body-md text-ink-mute">{steps[2].description}</p>
+            <p className="mt-4 sh-caption text-primary">{steps[2].accent}</p>
+          </div>
+        </div>
       </div>
     </section>
   )
