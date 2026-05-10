@@ -29,9 +29,9 @@ def _probe_nvenc() -> bool:
     try:
         c = av.open("/dev/null", "w")  # noqa: SIM115
         s = c.add_stream("h264_nvenc")
-        s.width = 64
-        s.height = 64
-        s.pix_fmt = "yuv420p"
+        s.width = 64  # type: ignore[reportAttributeAccessIssue]
+        s.height = 64  # type: ignore[reportAttributeAccessIssue]
+        s.pix_fmt = "yuv420p"  # type: ignore[reportAttributeAccessIssue]
         del s, c  # release resources
         return True
     except Exception:
@@ -61,14 +61,14 @@ class H264Writer:
             logger.info("Video codec: %s", resolved_codec)
 
         self._stream = self._container.add_stream(resolved_codec, rate=rate)
-        self._stream.width = width  # type: ignore[attr-defined]
-        self._stream.height = height  # type: ignore[attr-defined]
-        self._stream.pix_fmt = "yuv420p"  # type: ignore[attr-defined]
+        self._stream.width = width  # type: ignore[reportAttributeAccessIssue]
+        self._stream.height = height  # type: ignore[reportAttributeAccessIssue]
+        self._stream.pix_fmt = "yuv420p"  # type: ignore[reportAttributeAccessIssue]
 
         if resolved_codec == "h264_nvenc":
-            self._stream.options = {"preset": "p4", "rc": "constqp", "qp": "28"}  # type: ignore[attr-defined]
+            self._stream.options = {"preset": "p4", "rc": "constqp", "qp": "28"}  # type: ignore[reportAttributeAccessIssue]
         else:
-            self._stream.options = {"preset": preset, "crf": str(crf)}  # type: ignore[attr-defined]
+            self._stream.options = {"preset": preset, "crf": str(crf)}  # type: ignore[reportAttributeAccessIssue]
 
     def write(self, frame: np.ndarray) -> None:
         """Write a BGR frame (numpy array)."""

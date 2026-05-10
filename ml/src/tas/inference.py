@@ -24,7 +24,7 @@ class TASElementSegmenter:
         min_segment_duration: float = 0.5,
     ) -> None:
         cfg = DeviceConfig(device=device) if device else DeviceConfig.default()
-        self.device = torch.device(cfg.device)
+        self.device = torch.device(cfg.device)  # type: ignore[reportPrivateImportUsage]
         checkpoint = torch.load(model_path, map_location=self.device, weights_only=True)
         cfg = checkpoint.get("config", {})
         self.model = BiGRUTAS(
@@ -52,8 +52,8 @@ class TASElementSegmenter:
     ) -> list[dict]:
         """Segment poses into elements."""
         T = poses.shape[0]
-        poses_tensor = torch.from_numpy(poses).unsqueeze(0).to(self.device)
-        lengths = torch.tensor([T], dtype=torch.long)
+        poses_tensor = torch.from_numpy(poses).unsqueeze(0).to(self.device)  # type: ignore[reportPrivateImportUsage]
+        lengths = torch.tensor([T], dtype=torch.long)  # type: ignore[reportPrivateImportUsage]
 
         with torch.no_grad():
             logits = self.model(poses_tensor, lengths)

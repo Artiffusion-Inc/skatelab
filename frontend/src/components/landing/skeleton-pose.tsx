@@ -75,9 +75,14 @@ export function SkeletonPose({ role, "aria-label": ariaLabel }: SkeletonPoseProp
           strokeLinecap="round"
         />
       ))}
-      {points.map((p, i) => (
-        // biome-ignore lint/suspicious/noArrayIndexKey: skeleton joints are positionally ordered, index IS the identity
-        <circle key={`joint-${i}`} cx={p.x} cy={p.y} r="0.012" fill="rgba(255,255,255,0.95)" />
+      {BASE_POINTS.map((base, i) => (
+        <circle
+          key={`pt-${base.x}-${base.y}`}
+          cx={points[i].x}
+          cy={points[i].y}
+          r="0.012"
+          fill="rgba(255,255,255,0.95)"
+        />
       ))}
     </svg>
   )

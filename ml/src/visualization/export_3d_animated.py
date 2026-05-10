@@ -182,7 +182,7 @@ def _subdivide_mesh(vertices: np.ndarray, indices: np.ndarray) -> tuple[np.ndarr
 
     def get_midpoint(i1: int, i2: int) -> int:
         """Get or create midpoint vertex between two vertices."""
-        edge = tuple(sorted((i1, i2)))
+        edge = (min(i1, i2), max(i1, i2))
         if edge in midpoints:
             return midpoints[edge]
 
@@ -774,7 +774,7 @@ def poses_to_animated_glb(
             pygltflib.AnimationSampler(
                 input=times_acc,
                 output=bone_trans_accs[i],
-                interpolation=pygltflib.LINEAR,
+                interpolation="LINEAR",
             )
         )
         trans_sampler = len(samplers) - 1
@@ -784,7 +784,7 @@ def poses_to_animated_glb(
             pygltflib.AnimationSampler(
                 input=times_acc,
                 output=bone_rot_accs[i],
-                interpolation=pygltflib.LINEAR,
+                interpolation="LINEAR",
             )
         )
         rot_sampler = len(samplers) - 1
@@ -794,7 +794,7 @@ def poses_to_animated_glb(
             pygltflib.AnimationSampler(
                 input=times_acc,
                 output=bone_scale_accs[i],
-                interpolation=pygltflib.LINEAR,
+                interpolation="LINEAR",
             )
         )
         scale_sampler = len(samplers) - 1
@@ -826,7 +826,7 @@ def poses_to_animated_glb(
             pygltflib.AnimationSampler(
                 input=times_acc,
                 output=joint_trans_accs[j],
-                interpolation=pygltflib.LINEAR,
+                interpolation="LINEAR",
             )
         )
         trans_sampler = len(samplers) - 1

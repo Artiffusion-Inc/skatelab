@@ -22,7 +22,7 @@ import numpy as np
 
 from ..device import MultiGPUConfig
 from ..types import PersonClick, TrackedExtraction
-from ..utils.video import get_video_meta
+from ..utils.video import VideoMeta, get_video_meta
 
 logger = logging.getLogger(__name__)
 
@@ -205,7 +205,7 @@ class MultiGPUPoseExtractor:
     def _merge_chunks(
         self,
         results: list[tuple[int, dict]],
-        meta,
+        meta: VideoMeta,
         person_click: PersonClick | None,
     ) -> TrackedExtraction:
         """Merge results from multiple chunks.

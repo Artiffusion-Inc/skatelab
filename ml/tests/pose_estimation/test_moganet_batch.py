@@ -177,3 +177,331 @@ class TestMogaNetBatchInit:
         """Missing model file raises FileNotFoundError."""
         with pytest.raises(FileNotFoundError):
             MogaNetBatch(model_path="/nonexistent/model.onnx", device="cpu")
+
+    def test_init_auto_device_cuda_available(self, monkeypatch, tmp_path):
+        """Auto device selects cuda when CUDAExecutionProvider is available."""
+        model_path = tmp_path / "model.onnx"
+        model_path.write_bytes(b"fake")
+
+        mock_ort = _make_mock_onnxruntime(cuda_available=True)
+        monkeypatch.setitem(__import__("sys").modules, "onnxruntime", mock_ort)
+
+        batch = MogaNetBatch(model_path=str(model_path), device="auto")
+        assert batch._device == "cuda"
+        batch.close()
+
+    def test_init_auto_device_cpu_fallback(self, monkeypatch, tmp_path):
+        """Auto device falls back to cpu when CUDA is not available."""
+        model_path = tmp_path / "model.onnx"
+        model_path.write_bytes(b"fake")
+
+        mock_ort = _make_mock_onnxruntime(cuda_available=False)
+        monkeypatch.setitem(__import__("sys").modules, "onnxruntime", mock_ort)
+
+        batch = MogaNetBatch(model_path=str(model_path), device="auto")
+        assert batch._device == "cpu"
+        batch.close()
+
+    def test_init_auto_device_onnxruntime_import_error(self, monkeypatch, tmp_path):
+        """Auto device falls back to cpu when onnxruntime cannot be imported."""
+        model_path = tmp_path / "model.onnx"
+        model_path.write_bytes(b"fake")
+
+        # First import (device resolution) fails, second (session creation) succeeds
+        import_count = 0
+        orig_import = __builtins__.__import__ if hasattr(__builtins__, "__import__") else __import__
+
+        def fake_import(name, *args, **kwargs):
+            nonlocal import_count
+            if name == "onnxruntime":
+                import_count += 1
+                if import_count == 1:
+                    raise ImportError("onnxruntime not available")
+                return _make_mock_onnxruntime(cuda_available=False)
+            return orig_import(name, *args, **kwargs)
+
+        monkeypatch.setattr("builtins.__import__", fake_import)
+
+        batch = MogaNetBatch(model_path=str(model_path), device="auto")
+        assert batch._device == "cpu"
+        batch.close()
+
+    def test_init_loads_onnx_session(self, monkeypatch, tmp_path):
+        """Init creates ONNX session with correct providers and runs warm-up."""
+        model_path = tmp_path / "model.onnx"
+        model_path.write_bytes(b"fake")
+
+        mock_ort = _make_mock_onnxruntime(cuda_available=False)
+        monkeypatch.setitem(__import__("sys").modules, "onnxruntime", mock_ort)
+
+        batch = MogaNetBatch(model_path=str(model_path), device="cpu")
+        session = batch._session
+
+        # Verify session was created with CPU provider
+        assert session._providers_used == ["CPUExecutionProvider"]
+        # Verify warm-up was called (run called once during init)
+        assert session._run_count >= 1
+        # Verify input/output names stored
+        assert batch._input_name == "input"
+        assert batch._output_names == ["output"]
+        batch.close()
+
+    def test_init_cuda_providers(self, monkeypatch, tmp_path):
+        """Init with cuda device uses CUDA + CPU providers."""
+        model_path = tmp_path / "model.onnx"
+        model_path.write_bytes(b"fake")
+
+        mock_ort = _make_mock_onnxruntime(cuda_available=True)
+        monkeypatch.setitem(__import__("sys").modules, "onnxruntime", mock_ort)
+
+        batch = MogaNetBatch(model_path=str(model_path), device="cuda")
+        assert batch._session._providers_used == [
+            "CUDAExecutionProvider",
+            "CPUExecutionProvider",
+        ]
+        batch.close()
+
+
+class TestMogaNetBatchInferBatch:
+    def test_infer_batch_empty_crops(self, monkeypatch, tmp_path):
+        """infer_batch with empty crops returns empty arrays."""
+        model_path = tmp_path / "model.onnx"
+        model_path.write_bytes(b"fake")
+
+        mock_ort = _make_mock_onnxruntime()
+        monkeypatch.setitem(__import__("sys").modules, "onnxruntime", mock_ort)
+
+        batch = MogaNetBatch(model_path=str(model_path), device="cpu")
+        keypoints, scores = batch.infer_batch([], [])
+        assert keypoints.shape == (0, 17, 2)
+        assert scores.shape == (0, 17)
+        batch.close()
+
+    def test_infer_batch_mismatched_lengths_raises(self, monkeypatch, tmp_path):
+        """infer_batch raises ValueError when crops and bboxes have different lengths."""
+        model_path = tmp_path / "model.onnx"
+        model_path.write_bytes(b"fake")
+
+        mock_ort = _make_mock_onnxruntime()
+        monkeypatch.setitem(__import__("sys").modules, "onnxruntime", mock_ort)
+
+        batch = MogaNetBatch(model_path=str(model_path), device="cpu")
+        crops = [np.zeros((100, 100, 3), dtype=np.uint8)]
+        bboxes = [(0, 0, 100, 100), (0, 0, 50, 50)]  # 2 bboxes for 1 crop
+
+        with pytest.raises(ValueError, match="crops and bboxes must have same length"):
+            batch.infer_batch(crops, bboxes)
+        batch.close()
+
+    def test_infer_batch_single_crop(self, monkeypatch, tmp_path):
+        """infer_batch processes a single crop and returns correct shapes."""
+        model_path = tmp_path / "model.onnx"
+        model_path.write_bytes(b"fake")
+
+        mock_ort = _make_mock_onnxruntime()
+        monkeypatch.setitem(__import__("sys").modules, "onnxruntime", mock_ort)
+
+        batch = MogaNetBatch(model_path=str(model_path), device="cpu")
+        crop = np.zeros((200, 150, 3), dtype=np.uint8)
+        bbox = (10, 20, 140, 180)
+
+        keypoints, scores = batch.infer_batch([crop], [bbox])
+        assert keypoints.shape == (1, 17, 2)
+        assert scores.shape == (1, 17)
+        batch.close()
+
+    def test_infer_batch_multiple_crops(self, monkeypatch, tmp_path):
+        """infer_batch processes multiple crops and concatenates results."""
+        model_path = tmp_path / "model.onnx"
+        model_path.write_bytes(b"fake")
+
+        mock_ort = _make_mock_onnxruntime()
+        monkeypatch.setitem(__import__("sys").modules, "onnxruntime", mock_ort)
+
+        batch = MogaNetBatch(model_path=str(model_path), device="cpu")
+        crops = [
+            np.zeros((200, 150, 3), dtype=np.uint8),
+            np.zeros((300, 200, 3), dtype=np.uint8),
+        ]
+        bboxes = [(10, 20, 140, 180), (30, 40, 200, 280)]
+
+        keypoints, scores = batch.infer_batch(crops, bboxes)
+        assert keypoints.shape == (2, 17, 2)
+        assert scores.shape == (2, 17)
+        batch.close()
+
+    def test_infer_batch_score_threshold_applied(self, monkeypatch, tmp_path):
+        """infer_batch zeros out scores below the threshold."""
+        model_path = tmp_path / "model.onnx"
+        model_path.write_bytes(b"fake")
+
+        # Create mock that returns heatmaps with known max values (some below threshold)
+        mock_ort = _make_mock_onnxruntime(heatmap_max=0.1)
+        monkeypatch.setitem(__import__("sys").modules, "onnxruntime", mock_ort)
+
+        batch = MogaNetBatch(model_path=str(model_path), device="cpu", score_thr=0.3)
+        crop = np.zeros((200, 150, 3), dtype=np.uint8)
+        bbox = (10, 20, 140, 180)
+
+        _keypoints, scores = batch.infer_batch([crop], [bbox])
+        # All scores should be 0 since heatmap max (0.1) < score_thr (0.3)
+        assert np.all(scores == 0.0)
+        batch.close()
+
+    def test_infer_batch_chunked_inference(self, monkeypatch, tmp_path):
+        """infer_batch processes more than _MAX_GPU_BATCH items in chunks."""
+        model_path = tmp_path / "model.onnx"
+        model_path.write_bytes(b"fake")
+
+        mock_ort = _make_mock_onnxruntime()
+        monkeypatch.setitem(__import__("sys").modules, "onnxruntime", mock_ort)
+
+        batch = MogaNetBatch(model_path=str(model_path), device="cpu")
+        # Create more crops than _MAX_GPU_BATCH (32)
+        n = 35
+        crops = [np.zeros((100, 80, 3), dtype=np.uint8) for _ in range(n)]
+        bboxes = [(0, 0, 80, 100) for _ in range(n)]
+
+        keypoints, scores = batch.infer_batch(crops, bboxes)
+        assert keypoints.shape == (n, 17, 2)
+        assert scores.shape == (n, 17)
+        # Session.run should have been called multiple times (chunks)
+        assert batch._session._run_count >= 2  # At least 2 chunks: 32 + 3
+        batch.close()
+
+    def test_infer_batch_preserves_original_scores(self, monkeypatch, tmp_path):
+        """Score thresholding does not mutate the raw scores array."""
+        model_path = tmp_path / "model.onnx"
+        model_path.write_bytes(b"fake")
+
+        mock_ort = _make_mock_onnxruntime(heatmap_max=0.5)
+        monkeypatch.setitem(__import__("sys").modules, "onnxruntime", mock_ort)
+
+        batch = MogaNetBatch(model_path=str(model_path), device="cpu", score_thr=0.3)
+        crop = np.zeros((200, 150, 3), dtype=np.uint8)
+        bbox = (10, 20, 140, 180)
+
+        _keypoints, scores = batch.infer_batch([crop], [bbox])
+        # With heatmap_max=0.5 and threshold=0.3, scores should NOT be zeroed
+        assert np.all(scores > 0.0)
+        batch.close()
+
+
+class TestMogaNetBatchLifecycle:
+    def test_close_deletes_session(self, monkeypatch, tmp_path):
+        """close() removes the _session attribute."""
+        model_path = tmp_path / "model.onnx"
+        model_path.write_bytes(b"fake")
+
+        mock_ort = _make_mock_onnxruntime()
+        monkeypatch.setitem(__import__("sys").modules, "onnxruntime", mock_ort)
+
+        batch = MogaNetBatch(model_path=str(model_path), device="cpu")
+        assert hasattr(batch, "_session")
+        batch.close()
+        assert not hasattr(batch, "_session")
+
+    def test_close_idempotent(self, monkeypatch, tmp_path):
+        """close() can be called multiple times without error."""
+        model_path = tmp_path / "model.onnx"
+        model_path.write_bytes(b"fake")
+
+        mock_ort = _make_mock_onnxruntime()
+        monkeypatch.setitem(__import__("sys").modules, "onnxruntime", mock_ort)
+
+        batch = MogaNetBatch(model_path=str(model_path), device="cpu")
+        batch.close()
+        batch.close()  # Should not raise
+
+    def test_context_manager_enter_returns_self(self, monkeypatch, tmp_path):
+        """__enter__ returns the MogaNetBatch instance."""
+        model_path = tmp_path / "model.onnx"
+        model_path.write_bytes(b"fake")
+
+        mock_ort = _make_mock_onnxruntime()
+        monkeypatch.setitem(__import__("sys").modules, "onnxruntime", mock_ort)
+
+        with MogaNetBatch(model_path=str(model_path), device="cpu") as batch:
+            assert isinstance(batch, MogaNetBatch)
+            assert hasattr(batch, "_session")
+
+    def test_context_manager_exit_closes_session(self, monkeypatch, tmp_path):
+        """__exit__ calls close() and releases session."""
+        model_path = tmp_path / "model.onnx"
+        model_path.write_bytes(b"fake")
+
+        mock_ort = _make_mock_onnxruntime()
+        monkeypatch.setitem(__import__("sys").modules, "onnxruntime", mock_ort)
+
+        batch = MogaNetBatch(model_path=str(model_path), device="cpu")
+        batch.__exit__(None, None, None)
+        assert not hasattr(batch, "_session")
+
+    def test_context_manager_full_flow(self, monkeypatch, tmp_path):
+        """Context manager allows inference inside with block, then closes."""
+        model_path = tmp_path / "model.onnx"
+        model_path.write_bytes(b"fake")
+
+        mock_ort = _make_mock_onnxruntime()
+        monkeypatch.setitem(__import__("sys").modules, "onnxruntime", mock_ort)
+
+        with MogaNetBatch(model_path=str(model_path), device="cpu") as batch:
+            crop = np.zeros((100, 80, 3), dtype=np.uint8)
+            kp, _sc = batch.infer_batch([crop], [(0, 0, 80, 100)])
+            assert kp.shape == (1, 17, 2)
+        # After with block, session should be cleaned up
+        assert not hasattr(batch, "_session")
+
+
+# --- Helper to create mock onnxruntime module ---
+
+
+def _make_mock_onnxruntime(cuda_available: bool = False, heatmap_max: float = 1.0):
+    """Create a mock onnxruntime module with a fake InferenceSession.
+
+    Args:
+        cuda_available: Whether CUDAExecutionProvider is reported as available.
+        heatmap_max: Max value for the fake heatmap output (controls score values).
+    """
+
+    class FakeSessionOptions:
+        graph_optimization_level = None
+        enable_mem_pattern = False
+        enable_mem_reuse = False
+        intra_op_num_threads = 1
+        inter_op_num_threads = 1
+
+    class FakeGraphOptimizationLevel:
+        ORT_ENABLE_ALL = "ORT_ENABLE_ALL"
+
+    class FakeInferenceSession:
+        def __init__(self, model_path, sess_options=None, providers=None):
+            self._providers_used = providers or []
+            self._run_count = 0
+            self._heatmap_max = heatmap_max
+
+        def get_inputs(self):
+            return [type("Input", (), {"name": "input"})()]
+
+        def get_outputs(self):
+            return [type("Output", (), {"name": "output"})()]
+
+        def run(self, output_names, feed):
+            self._run_count += 1
+            batch_size = feed["input"].shape[0]
+            # Fake heatmaps: (B, 17, 72, 96) with known max value
+            heatmaps = np.full((batch_size, 17, 72, 96), self._heatmap_max, dtype=np.float32)
+            return [heatmaps]
+
+    class FakeOnnxRuntime:
+        SessionOptions = FakeSessionOptions
+        GraphOptimizationLevel = FakeGraphOptimizationLevel
+        InferenceSession = FakeInferenceSession
+
+        @staticmethod
+        def get_available_providers():
+            if cuda_available:
+                return ["CUDAExecutionProvider", "CPUExecutionProvider"]
+            return ["CPUExecutionProvider"]
+
+    return FakeOnnxRuntime()

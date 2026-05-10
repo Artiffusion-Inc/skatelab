@@ -212,7 +212,7 @@ def _get_gpu_memory_mb(gpu_id: int) -> int:
         nvmlShutdown()
 
         # Convert bytes to MB
-        return memory_info.total // (1024 * 1024)
+        return int(memory_info.total) // (1024 * 1024)  # type: ignore[operator]
     except Exception:
         return 0
 

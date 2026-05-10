@@ -13,6 +13,7 @@ References:
 """
 
 from dataclasses import dataclass
+from typing import Any
 
 import numpy as np
 from scipy.optimize import curve_fit
@@ -405,7 +406,7 @@ class PhysicsEngine:
         t = np.arange(n_frames) / 30.0  # Assume 30 fps
 
         # Parabolic fit: h(t) = at² + bt + c
-        def parabola(t, a, b, c):
+        def parabola(t: Any, a: float, b: float, c: float) -> Any:
             return a * t**2 + b * t + c
 
         try:
@@ -479,7 +480,7 @@ class PhysicsEngine:
         t = np.arange(n_frames) / 30.0  # Assume 30 fps
 
         # Parabolic fit: h(t) = at² + bt + c
-        def parabola(t, a, b, c):
+        def parabola(t: Any, a: float, b: float, c: float) -> Any:
             return a * t**2 + b * t + c
 
         try:

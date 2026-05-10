@@ -5,7 +5,6 @@ import { getTranslations } from "next-intl/server"
 import { LandingClient } from "@/components/landing/landing-client"
 
 export async function generateMetadata(): Promise<Metadata> {
-  const _t = await getTranslations("landing")
   return {
     title: "SkateLab — AI Тренер по фигурному катанию",
     description:
@@ -73,12 +72,11 @@ export default async function LandingPage() {
 
   return (
     <>
-      {jsonLd.map((schema, i) => (
+      {jsonLd.map(schema => (
         <script
-          // biome-ignore lint/suspicious/noArrayIndexKey: static JSON-LD schemas, order never changes
-          key={i}
+          key={schema["@type"]}
           type="application/ld+json"
-          // biome-ignore lint/security/noDangerouslySetInnerHtml: structured data injection is standard Next.js pattern
+          // biome-ignore lint/security/noDangerouslySetInnerHtml: JSON-LD structured data for SEO
           dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }}
         />
       ))}

@@ -18,7 +18,7 @@ from ..types import NormalizedPose
 
 
 # Numba-jitted core functions (for performance)
-@njit(cache=True, fastmath=True)
+@njit(cache=True, fastmath=True)  # type: ignore[reportUntypedFunctionDecorator]
 def _smoothing_factor_numba(te: float, cutoff: float) -> float:
     """Compute smoothing factor alpha from time interval and cutoff frequency (jitted).
 
@@ -33,7 +33,7 @@ def _smoothing_factor_numba(te: float, cutoff: float) -> float:
     return r / (r + 1.0)
 
 
-@njit(cache=True, fastmath=True)
+@njit(cache=True, fastmath=True)  # type: ignore[reportUntypedFunctionDecorator]
 def _exponential_smoothing_numba(alpha: float, x: float, x_prev: float) -> float:
     """Apply exponential smoothing filter (jitted).
 
@@ -48,7 +48,7 @@ def _exponential_smoothing_numba(alpha: float, x: float, x_prev: float) -> float
     return alpha * x + (1.0 - alpha) * x_prev
 
 
-@njit(cache=True, fastmath=True)
+@njit(cache=True, fastmath=True)  # type: ignore[reportUntypedFunctionDecorator]
 def _one_euro_filter_sequence_numba(
     x: np.ndarray,
     freq: float,
@@ -100,7 +100,7 @@ def _one_euro_filter_sequence_numba(
     return filtered
 
 
-@njit(cache=True, fastmath=True)
+@njit(cache=True, fastmath=True)  # type: ignore[reportUntypedFunctionDecorator]
 def smooth_trajectory_2d_numba(
     trajectory: np.ndarray,
     fps: float,

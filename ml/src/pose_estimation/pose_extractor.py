@@ -10,8 +10,12 @@ Key advantages:
     - Existing tracking/post-processing preserved
 """
 
+import importlib.util
 import logging
+from collections.abc import Callable
 from pathlib import Path
+from types import TracebackType
+from typing import Any
 
 import cv2
 import numpy as np
@@ -42,22 +46,27 @@ def _get_tqdm():
         class _TqdmMock:
             """Minimal tqdm mock for when tqdm is unavailable."""
 
-            def __init__(self, iterable=None, **_):
+            def __init__(self, iterable: Any = None, **_: Any) -> None:
                 self.iterable = iterable
 
-            def update(self, *_a):
+            def update(self, *_a: Any) -> None:
                 pass
 
-            def close(self):
+            def close(self) -> None:
                 pass
 
             def __enter__(self):
                 return self
 
-            def __exit__(self, *_a):
+            def __exit__(
+                self,
+                exc_type: type[BaseException] | None,
+                exc_val: BaseException | None,
+                exc_tb: TracebackType | None,
+            ) -> None:
                 pass
 
-            def __iter__(self):
+            def __iter__(self) -> Any:
                 return iter(self.iterable or [])
 
         return _TqdmMock
@@ -171,7 +180,7 @@ class PoseExtractor:
         self,
         video_path: Path | str,
         person_click: PersonClick | None = None,
-        progress_cb=None,
+        progress_cb: Callable[[float, str], None] | None = None,
         use_batch: bool = True,
         batch_size: int = 8,
     ) -> TrackedExtraction:
@@ -212,7 +221,7 @@ class PoseExtractor:
         self,
         video_path: Path | str,
         person_click: PersonClick | None = None,
-        progress_cb=None,
+        progress_cb: Callable[[float, str], None] | None = None,
     ) -> TrackedExtraction:
         """Per-frame extraction path."""
         video_path = Path(video_path)
@@ -346,7 +355,7 @@ class PoseExtractor:
         self,
         video_path: Path | str,
         person_click: PersonClick | None = None,
-        progress_cb=None,
+        progress_cb: Callable[[float, str], None] | None = None,
     ) -> TrackedExtraction:
         """Batch extraction path: detect all frames, batch infer, then track."""
         video_path = Path(video_path)
@@ -682,7 +691,11 @@ class PoseExtractor:
                 cv2.LINE_AA,
             )
 
-        preview_path = str(Path(tempfile.mktemp(suffix=".jpg")).with_name("person_preview.jpg"))
+        preview_path = str(
+            Path(
+                tempfile.NamedTemporaryFile(suffix=".jpg", delete=False).name  # noqa: SIM115
+            ).with_name("person_preview.jpg")
+        )
         cv2.imwrite(preview_path, preview)
         return preview_path
 
@@ -887,13 +900,13 @@ class PoseExtractor:
         if self._tracking_mode != "auto":
             return self._tracking_mode
         try:
-            import deep_sort_realtime  # noqa: F401
-
-            logger.info("Авто-выбор: DeepSORT (deep-sort-realtime доступен)")
-            return "deepsort"
-        except ImportError:
-            logger.info("Авто-выбор: Sports2D (Венгерский алгоритм)")
-            return "sports2d"
+            if importlib.util.find_spec("deep_sort_realtime") is not None:
+                logger.info("Авто-выбор: DeepSORT (deep-sort-realtime доступен)")
+                return "deepsort"
+        except (ImportError, ModuleNotFoundError):
+            pass
+        logger.info("Авто-выбор: Sports2D (Венгерский алгоритм)")
+        return "sports2d"
 
     def _post_hoc_merge(
         self,
@@ -954,7 +967,12 @@ class PoseExtractor:
         """Context manager entry."""
         return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: TracebackType | None,
+    ) -> None:
         """Context manager exit."""
         self.close()
 

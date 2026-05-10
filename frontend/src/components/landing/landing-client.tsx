@@ -1,6 +1,7 @@
 "use client"
 
-import { useEffect, useLayoutEffect, useRef, useState } from "react"
+import { useLayoutEffect, useRef, useState } from "react"
+import { useMountEffect } from "@/lib/useMountEffect"
 import dynamic from "next/dynamic"
 import gsap from "gsap"
 import { ScrollTrigger } from "gsap/ScrollTrigger"
@@ -41,9 +42,6 @@ export function LandingClient() {
           {
             opacity: 1,
             y: 0,
-            duration: 0.7,
-            stagger: 0.1,
-            ease: "power3.out",
           },
         )
       })
@@ -175,18 +173,18 @@ export function LandingClient() {
     return () => ctx.revert()
   }, [])
 
-  useEffect(() => {
+  useMountEffect(() => {
     const onPageShow = (e: PageTransitionEvent) => {
       if (e.persisted) ScrollTrigger.refresh()
     }
     window.addEventListener("pageshow", onPageShow)
     return () => window.removeEventListener("pageshow", onPageShow)
-  }, [])
+  })
 
-  useEffect(() => {
+  useMountEffect(() => {
     const accepted = localStorage.getItem("consent_accepted")
     if (!accepted) setShowCookieBanner(true)
-  }, [])
+  })
 
   const acceptCookies = () => {
     localStorage.setItem("consent_accepted", "true")

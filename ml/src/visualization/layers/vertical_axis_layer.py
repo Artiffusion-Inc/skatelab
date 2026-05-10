@@ -82,15 +82,15 @@ class VerticalAxisLayer(Layer):
 
     def __init__(
         self,
-        config=None,
-        viz_config=None,
+        config: LayerConfig | None = None,
+        viz_config: VisualizationConfig | None = None,
         *,
-        show_degree_label=True,
-        show_head_alignment=True,
-        good_threshold=5.0,
-        warn_threshold=10.0,
-        arc_radius=20,
-    ):
+        show_degree_label: bool = True,
+        show_head_alignment: bool = True,
+        good_threshold: float = 5.0,
+        warn_threshold: float = 10.0,
+        arc_radius: int = 20,
+    ) -> None:
         super().__init__(config=config or LayerConfig(enabled=True, z_index=5))
         self.viz = viz_config or VisualizationConfig()
         self.show_degree_label = show_degree_label

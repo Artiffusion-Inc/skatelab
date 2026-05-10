@@ -33,7 +33,7 @@ export function HowItWorksSection() {
       id="how-it-works"
       tabIndex={-1}
       aria-label={t("howItWorksTitle")}
-      className="relative mx-auto max-w-5xl px-6 py-16 md:py-24"
+      className="relative mx-auto max-w-5xl px-6 py-20 md:py-28"
     >
       {/* Section opener — left-aligned, asymmetric */}
       <div className="mb-14 md:mb-20">

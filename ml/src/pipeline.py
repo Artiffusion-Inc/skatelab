@@ -32,6 +32,7 @@ if TYPE_CHECKING:
     import numpy as np
 
     from .alignment import MotionAligner, MotionDTWAligner
+    from .analysis.element_defs import ElementDef
     from .analysis.phase_detector import PhaseDetector
     from .analysis.recommender import Recommender
     from .detection import PersonDetector
@@ -105,8 +106,6 @@ class AnalysisPipeline:
         # 1. Lazy-init extractor (model download + ONNX session)
         t0 = time.perf_counter()
         extractor = self._get_pose_2d_extractor()
-        if extractor is None:
-            raise RuntimeError("2D pose extractor not initialized")
         self._profiler.record("extractor_init", time.perf_counter() - t0)
 
         # 2. Tracked extraction (per-frame RTMO inference + tracking)
@@ -498,9 +497,8 @@ class AnalysisPipeline:
             )
 
         # DTW distance
-        if report.dtw_distance is not None:
-            lines.append("\n--- Сходство с референсом ---")
-            lines.append(f"  DTW-расстояние: {report.dtw_distance:.3f} (0 = идеально)")
+        lines.append("\n--- Сходство с референсом ---")
+        lines.append(f"  DTW-расстояние: {report.dtw_distance:.3f} (0 = идеально)")
 
         # Recommendations
         if report.recommendations:
@@ -512,8 +510,7 @@ class AnalysisPipeline:
             lines.append("  Отличное выполнение! Продолжай в том же духе.")
 
         # Overall score
-        if report.overall_score is not None:
-            lines.append(f"\nОбщий балл: {report.overall_score:.1f} / 10")
+        lines.append(f"\nОбщий балл: {report.overall_score:.1f} / 10")
 
         lines.append("=" * 60)
 
@@ -694,7 +691,7 @@ class AnalysisPipeline:
         poses: np.ndarray,
         phases: ElementPhase,
         fps: float,
-        element_def,
+        element_def: ElementDef,
         com_trajectory: np.ndarray | None = None,
     ) -> list:
         """Async biomechanics metrics computation.

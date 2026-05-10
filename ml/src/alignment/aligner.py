@@ -179,7 +179,7 @@ class MotionAligner:
             DTW alignment object.
         """
         # Configure window
-        window_args = {}
+        window_args: dict[str, str | dict[str, int]] = {}
         if self._window_type == "sakoechiba":
             window_size = int(self._window_size * max(len(x), len(y)))
             window_args = {
@@ -197,7 +197,8 @@ class MotionAligner:
             distance_only=False,
             open_end=False,
             open_begin=False,
-            **window_args,
+            step_pattern="symmetric2",  # type: ignore[arg-type]
+            **window_args,  # type: ignore[arg-type]
         )
 
     def _warp_sequence(

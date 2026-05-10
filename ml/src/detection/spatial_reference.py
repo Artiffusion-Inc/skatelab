@@ -168,7 +168,7 @@ class SpatialReferenceDetector:
             minLineLength=w // 4,  # At least 1/4 of frame width
             maxLineGap=20,
         )
-        if lines is not None:
+        if lines is not None:  # type: ignore[reportUnnecessaryComparison]
             for line in lines:
                 x1, y1, x2, y2 = line[0]
                 # Calculate angle
@@ -372,7 +372,7 @@ def detect_horizon_angle(
         hough_max_line_gap=max_line_gap,
         horizon_angle_tolerance=angle_tolerance,
     )
-    pose = detector._estimate_from_horizon(frame)
+    pose = detector._estimate_from_horizon(frame)  # type: ignore[reportPrivateUsage]
     return pose.roll, pose.confidence
 
 

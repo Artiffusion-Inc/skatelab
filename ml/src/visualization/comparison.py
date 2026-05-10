@@ -271,11 +271,11 @@ class ComparisonRenderer:
         cap_a = cv2.VideoCapture(str(athlete_video))
         cap_r = cv2.VideoCapture(str(reference_video))
 
-        if cap_a is None or not cap_a.isOpened():
+        if not cap_a.isOpened():
             logger.error("Cannot open athlete video: %s", athlete_video)
             writer.close()
             return
-        if cap_r is None or not cap_r.isOpened():
+        if not cap_r.isOpened():
             logger.error("Cannot open reference video: %s", reference_video)
             cap_a.release()
             writer.close()
@@ -369,6 +369,8 @@ class ComparisonRenderer:
 
             # Compose output
             if self.config.mode == ComparisonMode.SIDE_BY_SIDE:
+                assert out_buf is not None  # noqa: S101
+                assert divider is not None  # noqa: S101
                 # Assemble side-by-side buffer
                 if pad_a is not None:
                     out_buf[:a_h, :target_w] = frame_a

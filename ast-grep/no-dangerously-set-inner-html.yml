@@ -14,3 +14,6 @@ rule:
     kind: property_identifier
     regex: '^dangerouslySetInnerHTML$'
     stopBy: end
+ignores:
+  - "**/landing/page.tsx"
+  - "**/(landing)/page.tsx"

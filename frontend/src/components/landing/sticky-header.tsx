@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useRef, useCallback } from "react"
+import { useState, useRef, useCallback } from "react"
 import { useTranslations } from "@/i18n"
 import { Menu, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -17,9 +17,26 @@ export function StickyHeader() {
   const [menuOpen, setMenuOpen] = useState(false)
   const hamburgerRef = useRef<HTMLButtonElement>(null)
 
+  const escHandlerRef = useRef<((e: KeyboardEvent) => void) | null>(null)
+
   const closeMenu = useCallback(() => {
     setMenuOpen(false)
+    document.body.style.overflow = ""
+    if (escHandlerRef.current) {
+      window.removeEventListener("keydown", escHandlerRef.current)
+      escHandlerRef.current = null
+    }
   }, [])
+
+  const openMenu = useCallback(() => {
+    setMenuOpen(true)
+    document.body.style.overflow = "hidden"
+    const onEsc = (e: KeyboardEvent) => {
+      if (e.key === "Escape") closeMenu()
+    }
+    escHandlerRef.current = onEsc
+    window.addEventListener("keydown", onEsc)
+  }, [closeMenu])
 
   const handleNavClick = useCallback(
     (href: string) => {
@@ -33,25 +50,6 @@ export function StickyHeader() {
     },
     [closeMenu],
   )
-
-  useEffect(() => {
-    if (menuOpen) {
-      document.body.style.overflow = "hidden"
-    } else {
-      document.body.style.overflow = ""
-    }
-    return () => {
-      document.body.style.overflow = ""
-    }
-  }, [menuOpen])
-
-  useEffect(() => {
-    const onEsc = (e: KeyboardEvent) => {
-      if (e.key === "Escape") closeMenu()
-    }
-    if (menuOpen) window.addEventListener("keydown", onEsc)
-    return () => window.removeEventListener("keydown", onEsc)
-  }, [menuOpen, closeMenu])
 
   return (
     <header className="fixed top-0 left-0 right-0 z-50 pt-[env(safe-area-inset-top)]">
@@ -87,7 +85,7 @@ export function StickyHeader() {
           <button
             type="button"
             ref={hamburgerRef}
-            onClick={() => setMenuOpen(true)}
+            onClick={openMenu}
             className="md:hidden min-h-[44px] min-w-[44px] flex items-center justify-center"
             aria-label="Открыть меню"
             aria-expanded={menuOpen}

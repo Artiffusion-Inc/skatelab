@@ -325,7 +325,7 @@ class MotionDTWAligner:
         Returns:
             DTW alignment object.
         """
-        window_args = {}
+        window_args: dict[str, str | dict[str, int]] = {}
         if self._window_type == "sakoechiba":
             win_size = int(window_size * max(len(x), len(y)))
             window_args = {
@@ -342,7 +342,8 @@ class MotionDTWAligner:
             distance_only=False,
             open_end=False,
             open_begin=False,
-            **window_args,
+            step_pattern="symmetric2",  # type: ignore[arg-type]
+            **window_args,  # type: ignore[arg-type]
         )
 
     def _combine_phase_paths(self, phase_paths: list[np.ndarray]) -> np.ndarray:

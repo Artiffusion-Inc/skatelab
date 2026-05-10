@@ -14,6 +14,11 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
+    from types import TracebackType
 
 import cv2
 import numpy as np
@@ -35,22 +40,27 @@ def _get_tqdm():
         class _TqdmMock:
             """Minimal tqdm mock for when tqdm is unavailable."""
 
-            def __init__(self, iterable=None, **_):
+            def __init__(self, iterable: Any = None, **_: Any) -> None:
                 self.iterable = iterable
 
-            def update(self, *_a):
+            def update(self, *_a: Any) -> None:
                 pass
 
-            def close(self):
+            def close(self) -> None:
                 pass
 
             def __enter__(self):
                 return self
 
-            def __exit__(self, *_a):
+            def __exit__(
+                self,
+                exc_type: type[BaseException] | None,
+                exc_val: BaseException | None,
+                exc_tb: TracebackType | None,
+            ) -> None:
                 pass
 
-            def __iter__(self):
+            def __iter__(self) -> Any:
                 return iter(self.iterable or [])
 
         return _TqdmMock
@@ -142,7 +152,7 @@ class BatchPoseExtractor:
         self,
         video_path: Path | str,
         person_click: PersonClick | None = None,
-        progress_cb=None,
+        progress_cb: Callable[[float, str], None] | None = None,
     ) -> TrackedExtraction:
         """Extract H3.6M poses from video with batched inference.
 
@@ -200,7 +210,7 @@ class BatchPoseExtractor:
                     pass
                 else:
                     keypoints, scores = self._moganet.infer_batch(crops, bboxes)  # type: ignore[reportOptionalMemberAccess]
-                    if keypoints is not None and len(keypoints) > 0:
+                    if len(keypoints) > 0:
                         # Use first detected person (same as old behaviour)
                         kp = keypoints[0].astype(np.float32)  # (17, 2) pixels
                         conf = scores[0].astype(np.float32)  # (17,)
@@ -264,7 +274,12 @@ class BatchPoseExtractor:
         """Context manager entry."""
         return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: TracebackType | None,
+    ) -> None:
         """Context manager exit."""
         self.close()
 

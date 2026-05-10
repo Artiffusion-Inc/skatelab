@@ -11,7 +11,7 @@ import cv2
 import numpy as np
 from numpy.typing import NDArray
 
-from src.types import BladeState3D, MetricResult
+from src.types import BladeState3D, BladeType, MetricResult
 from src.visualization.config import (
     blade_flat_color,
     blade_indicator_size,
@@ -383,7 +383,7 @@ def draw_blade_indicator_hud(
     return frame
 
 
-def _get_blade_color(blade_type) -> tuple[int, int, int]:
+def _get_blade_color(blade_type: BladeType) -> tuple[int, int, int]:
     """Get color for blade type."""
     from src.types import BladeType
 
