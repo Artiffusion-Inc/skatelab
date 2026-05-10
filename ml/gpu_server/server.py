@@ -257,7 +257,7 @@ async def detect(req: DetectRequest):
                 video_local = Path(tmpdir) / "input.mp4"
 
                 logger.info("Downloading video for detection from R2: %s", req.video_r2_key)
-                await s3.download_file(req.r2_bucket, req.video_r2_key, str(video_local))
+                await _s3_download(s3, req.r2_bucket, req.video_r2_key, str(video_local))
 
                 cfg = DeviceConfig.default()
                 extractor = PoseExtractor(
