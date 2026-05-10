@@ -83,7 +83,7 @@ export function DemoSection() {
       id="demo"
       tabIndex={-1}
       ref={sectionRef}
-      className="relative border-y border-hairline bg-canvas-soft"
+      className="relative border-y border-hairline bg-background"
       aria-label={t("demoEyebrow")}
     >
       <div className="relative mx-auto max-w-5xl px-6 py-16 md:py-24">
