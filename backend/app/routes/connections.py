@@ -33,6 +33,7 @@ from app.crud.connection import (
     list_pending_for_user,
 )
 from app.crud.user import get_by_email
+from app.middleware import check_rate_limit
 from app.models.connection import ConnectionStatus, ConnectionType
 from app.schemas import ConnectionListResponse, ConnectionResponse, InviteRequest
 from app.services.email import EmailService
@@ -57,6 +58,8 @@ class ConnectionsController(Controller):
         self, data: InviteRequest, verified_user: VerifiedUser, db: DbDep
     ) -> ConnectionResponse:
         """User invites another user to a connection."""
+        await check_rate_limit(f"invite:{verified_user.id}", max_requests=3, window_seconds=3600)
+
         to_user = await get_by_email(db, data.to_user_email)
         if not to_user:
             raise ClientException(

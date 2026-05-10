@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
+from unittest.mock import patch
 
 import pytest
 import pytest_asyncio
@@ -11,6 +12,10 @@ from app.models.user import User
 
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession
+
+# Patch EmailService so route handlers never send real emails.
+_mock_email = patch("app.routes.connections.EmailService", spec=True)
+_mock_email.start()
 
 
 @pytest_asyncio.fixture
