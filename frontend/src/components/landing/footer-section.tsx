@@ -7,22 +7,24 @@ export function FooterSection() {
 
   return (
     <footer role="contentinfo" className="border-t border-hairline bg-background">
-      <div className="mx-auto max-w-5xl px-6 py-12 md:py-16">
-        <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-4">
-          <div>
-            <p className="sh-heading-lg text-ink">SkateLab</p>
-            <p className="sh-caption text-ink-mute mt-1">{t("footerTagline")}</p>
-            <a
-              href="/register"
-              className="sh-button-cap text-ink underline hover:text-ink-mute mt-2 inline-block min-h-[44px] leading-[44px]"
-            >
-              {t("ctaPrimary")} →
-            </a>
-          </div>
+      <div className="mx-auto max-w-5xl px-6 py-12 md:py-16 lg:grid lg:grid-cols-2 lg:gap-10">
+        <div className="lg:col-span-1">
+          <p className="text-lg font-medium tracking-tight text-foreground">SkateLab</p>
+          <p className="sh-caption text-ink-mute mt-1">{t("footerTagline")}</p>
+          <a
+            href="/register"
+            className="sh-button-cap text-ink underline hover:text-ink-mute mt-2 inline-block min-h-[44px] leading-[44px]"
+          >
+            {t("ctaPrimary")} →
+          </a>
+        </div>
 
+        <div className="mt-8 grid grid-cols-2 gap-6 lg:mt-0">
           <nav aria-label={t("footerProduct")}>
-            <p className="sh-button-cap text-ink-mute mb-3">{t("footerProduct")}</p>
-            <ul className="space-y-2">
+            <p className="mb-2 text-[0.6875rem] font-semibold uppercase tracking-widest text-muted-foreground">
+              {t("footerProduct")}
+            </p>
+            <ul className="flex flex-col gap-1">
               <li>
                 <a
                   href="#how-it-works"
@@ -51,8 +53,10 @@ export function FooterSection() {
           </nav>
 
           <nav aria-label={t("footerLegal")}>
-            <p className="sh-button-cap text-ink-mute mb-3">{t("footerLegal")}</p>
-            <ul className="space-y-2">
+            <p className="mb-2 text-[0.6875rem] font-semibold uppercase tracking-widest text-muted-foreground">
+              {t("footerLegal")}
+            </p>
+            <ul className="flex flex-col gap-1">
               <li>
                 <a
                   href="/privacy"
@@ -89,11 +93,13 @@ export function FooterSection() {
           </nav>
 
           <section aria-label={t("footerContact")}>
-            <p className="sh-button-cap text-ink-mute mb-3">{t("footerContact")}</p>
-            <ul className="space-y-2">
+            <p className="mb-2 text-[0.6875rem] font-semibold uppercase tracking-widest text-muted-foreground">
+              {t("footerContact")}
+            </p>
+            <ul className="flex flex-col gap-1">
               <li>
                 <a
-                  href="https://t.me/SkateLabBot"
+                  href="https://t.me/alyssaabdullina"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="sh-caption text-ink-mute hover:text-ink min-h-[44px] flex items-center"
@@ -101,23 +107,13 @@ export function FooterSection() {
                   Telegram
                 </a>
               </li>
-              <li>
-                <a
-                  href="https://vk.com/skatelab"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="sh-caption text-ink-mute hover:text-ink min-h-[44px] flex items-center"
-                >
-                  VK
-                </a>
-              </li>
             </ul>
           </section>
         </div>
+      </div>
 
-        <div className="mt-8 border-t border-hairline pt-6">
-          <p className="sh-legal text-ink-mute">{t("footerCopyright")}</p>
-        </div>
+      <div className="mx-auto max-w-5xl px-6 border-t border-hairline pt-5 pb-8 flex justify-between items-center">
+        <p className="sh-legal text-ink-mute">{t("footerCopyright")}</p>
       </div>
     </footer>
   )

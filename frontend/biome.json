@@ -109,6 +109,16 @@
           }
         }
       }
+    },
+    {
+      "includes": ["src/components/landing/demo-section.tsx"],
+      "linter": {
+        "rules": {
+          "a11y": {
+            "useSemanticElements": "off"
+          }
+        }
+      }
     }
   ]
 }

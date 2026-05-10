@@ -38,13 +38,10 @@ export function LandingClient() {
 
         gsap.fromTo(
           heroEls,
-          { opacity: 0, y: 20 },
+          { opacity: 0, y: 24 },
           {
             opacity: 1,
             y: 0,
-            duration: 0.8,
-            stagger: 0.12,
-            ease: "power2.out",
           },
         )
       })
@@ -55,11 +52,11 @@ export function LandingClient() {
 
         gsap.fromTo(
           steps,
-          { y: 40 },
+          { y: 50 },
           {
             y: 0,
-            duration: 0.5,
-            stagger: 0.12,
+            duration: 0.6,
+            stagger: 0.08,
             ease: "power2.out",
             scrollTrigger: {
               trigger: steps[0],
@@ -76,11 +73,12 @@ export function LandingClient() {
 
         gsap.fromTo(
           cards,
-          { y: 30 },
+          { opacity: 0, y: 20 },
           {
+            opacity: 1,
             y: 0,
             duration: 0.5,
-            stagger: 0.12,
+            stagger: 0.1,
             ease: "power2.out",
             scrollTrigger: {
               trigger: cards[0],
@@ -97,10 +95,10 @@ export function LandingClient() {
 
         gsap.fromTo(
           faqHeader,
-          { y: 30 },
+          { opacity: 0 },
           {
-            y: 0,
-            duration: 0.6,
+            opacity: 1,
+            duration: 0.5,
             ease: "power2.out",
             scrollTrigger: {
               trigger: faqHeader,
@@ -117,11 +115,11 @@ export function LandingClient() {
 
         gsap.fromTo(
           cta,
-          { y: 30 },
+          { y: 40 },
           {
             y: 0,
-            duration: 0.6,
-            ease: "power2.out",
+            duration: 0.7,
+            ease: "power3.out",
             scrollTrigger: {
               trigger: cta,
               start: "top 85%",
@@ -131,12 +129,14 @@ export function LandingClient() {
         )
       })
 
+      const heroSection = containerRef.current?.querySelector(".hero-section")
       const headerBg = containerRef.current?.querySelector(".header-bg")
       const headerBorder = containerRef.current?.querySelector(".header-border")
-      if (headerBg) {
+
+      if (headerBg && heroSection) {
         gsap.to(headerBg, {
           scrollTrigger: {
-            trigger: containerRef.current,
+            trigger: heroSection,
             start: "top top",
             end: "bottom top",
             scrub: true,
@@ -144,15 +144,28 @@ export function LandingClient() {
           opacity: 1,
         })
       }
-      if (headerBorder) {
+      if (headerBorder && heroSection) {
         gsap.to(headerBorder, {
           scrollTrigger: {
-            trigger: containerRef.current,
+            trigger: heroSection,
             start: "top top",
             end: "bottom top",
             scrub: true,
           },
           opacity: 1,
+        })
+      }
+
+      const navLinks = containerRef.current?.querySelectorAll(".header-nav-link")
+      if (navLinks?.length && heroSection) {
+        gsap.to(navLinks, {
+          scrollTrigger: {
+            trigger: heroSection,
+            start: "top top",
+            end: "bottom top",
+            scrub: true,
+          },
+          color: "lab(47.8% 0 .0000119209)",
         })
       }
     }, containerRef)

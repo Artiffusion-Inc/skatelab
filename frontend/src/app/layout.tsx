@@ -40,9 +40,6 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             <Toaster richColors position="bottom-center" toastOptions={{ duration: 3000 }} />
           </Providers>
         </NextIntlClientProvider>
-        {/* impeccable-live-start */}
-        <script src="http://localhost:8400/live.js"></script>
-        {/* impeccable-live-end */}
       </body>
     </html>
   )
