@@ -52,7 +52,6 @@ export function StickyHeader() {
     <header
       role="banner"
       className="fixed top-0 left-0 right-0 z-50 pt-[env(safe-area-inset-top)]"
-      style={{ backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)" }}
     >
       <div className="header-bg absolute inset-0 bg-background opacity-0" />
       <div className="header-border absolute bottom-0 left-0 right-0 h-px border-b border-hairline opacity-0" />
