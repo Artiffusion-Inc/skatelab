@@ -2,8 +2,8 @@
 
 Run with: uv run python -m app.worker
 
-Dispatches all processing to Vast.ai Serverless GPU.
-No local GPU fallback.
+When VASTAI_API_KEY is set, dispatches to Vast.ai Serverless GPU.
+Otherwise runs locally on GPU (requires CUDA).
 """
 
 from __future__ import annotations
@@ -399,7 +399,11 @@ async def detect_video_task(
     video_key: str,
     tracking: str = "auto",
 ) -> dict[str, Any]:
-    """arq task: detect persons in uploaded video."""
+    """arq task: detect persons in uploaded video.
+
+    Dispatches to Vast.ai Serverless GPU when VASTAI_API_KEY is set,
+    otherwise runs locally on GPU.
+    """
     settings = get_settings()
     valkey = await get_valkey_client()
 
@@ -416,6 +420,53 @@ async def detect_video_task(
             valkey=valkey,
         )
 
+        # --- Remote path (Vast.ai Serverless) ---
+        if settings.vastai.api_key.get_secret_value():
+            from app.vastai.client import detect_video_remote_async
+
+            logger.info(
+                "Dispatching detection task %s to Vast.ai (video_key=%s)", task_id, video_key
+            )
+            await update_progress(task_id, 0.1, "Dispatching to GPU...", valkey=valkey)
+            await publish_task_event(
+                task_id,
+                {"status": "running", "progress": 0.1, "message": "Dispatching to GPU..."},
+                valkey=valkey,
+            )
+
+            if await is_cancelled(task_id, valkey=valkey):
+                await mark_cancelled(task_id, valkey=valkey)
+                return {"status": "cancelled"}
+
+            async with _VASTAI_SEMAPHORE:
+                detect_result = await detect_video_remote_async(
+                    video_key=video_key,
+                    tracking=tracking,
+                )
+
+            result_data = {
+                "persons": [
+                    {
+                        "track_id": p["track_id"],
+                        "hits": p["hits"],
+                        "bbox": p["bbox"],
+                        "mid_hip": p["mid_hip"],
+                    }
+                    for p in detect_result.persons
+                ],
+                "preview_image": detect_result.preview_image,
+                "video_key": detect_result.video_key,
+                "auto_click": detect_result.auto_click,
+                "status": detect_result.status,
+            }
+            await store_result(task_id, result_data, valkey=valkey)
+            await update_progress(task_id, 1.0, "Done", valkey=valkey)
+            await publish_task_event(
+                task_id, {"status": "completed", "progress": 1.0, "message": "Done"}, valkey=valkey
+            )
+            return result_data
+
+        # --- Local path (GPU on this machine) ---
         import tempfile
         from pathlib import Path
 
@@ -468,8 +519,6 @@ async def detect_video_task(
 
         with tempfile.TemporaryDirectory() as tmpdir:
             video_path = Path(tmpdir) / "input.mp4"
-            # TODO: integrate IMU into ML pipeline — session.imu_left_key, session.imu_right_key, session.manifest_key
-            # Currently IMU data is uploaded to R2 but not consumed by the pipeline.
             await asyncio.to_thread(download_file, video_key, str(video_path))
 
             cfg = DeviceConfig.default()
@@ -567,6 +616,9 @@ async def detect_video_task(
             )
         except (OSError, RuntimeError):
             logger.warning("Failed to publish error event for task %s", task_id)
+        error_msg = str(e).lower()
+        if any(term in error_msg for term in ["timeout", "connection", "network"]):
+            raise Retry(defer=ctx.get("job_try", 1) * 10) from e
         raise
     finally:
         await valkey.close()

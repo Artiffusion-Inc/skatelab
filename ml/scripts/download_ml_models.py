@@ -27,9 +27,10 @@ MANIFEST_PATH = MODELS_DIR / "models.manifest.json"
 
 MODELS: dict[str, dict] = {
     "moganet_b": {
-        "source": "manual",
+        "source": "r2",
+        "r2_key": "models/moganet/moganet_b_ap2d_384x288.onnx",
         "local_filename": "moganet/moganet_b_ap2d_384x288.onnx",
-        "size_mb": "~544MB",
+        "size_mb": "~181MB",
         "description": "MogaNet-B pose estimator (AthletePose3D fine-tuned, ONNX)",
     },
     "depth_anything": {
@@ -134,6 +135,52 @@ def download_model(model_id: str) -> None:
         print(
             '      import torch; torch.onnx.export(m, torch.randn(1,3,480,640), \\"data/models/foot_tracker.onnx\\")"'
         )
+        return
+
+    if source == "r2":
+        import os
+
+        import boto3
+
+        dest = MODELS_DIR / info["local_filename"]
+        if dest.exists():
+            print(f"  Already exists: {dest}")
+        else:
+            r2_endpoint = os.environ.get("R2_ENDPOINT_URL") or os.environ.get(
+                "CF_R2_ENDPOINT_URL", ""
+            )
+            r2_key_id = os.environ.get("R2_ACCESS_KEY_ID") or os.environ.get(
+                "CF_R2_ACCESS_KEY_ID", ""
+            )
+            r2_secret = os.environ.get("R2_SECRET_ACCESS_KEY") or os.environ.get(
+                "CF_R2_SECRET_ACCESS_KEY", ""
+            )
+            r2_bucket = os.environ.get("R2_BUCKET") or os.environ.get("CF_R2_BUCKET", "")
+
+            if not all([r2_endpoint, r2_key_id, r2_secret, r2_bucket]):
+                print(
+                    f"  [SKIP] {info['description']} — set R2 credentials (R2_ENDPOINT_URL, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_BUCKET)"
+                )
+                return
+
+            print(f"  Downloading {info['description']} ({info['size_mb']}) from R2...")
+            dest.parent.mkdir(parents=True, exist_ok=True)
+            s3 = boto3.client(
+                "s3",
+                endpoint_url=r2_endpoint,
+                aws_access_key_id=r2_key_id,
+                aws_secret_access_key=r2_secret,
+                region_name="auto",
+            )
+            s3.download_file(r2_bucket, info["r2_key"], str(dest))
+            print(f"  Saved: {dest}")
+        ok = verify_checksum(model_id, dest, manifest)
+        if ok:
+            print("  [OK] SHA256 verified")
+        else:
+            expected = manifest.get("models", {}).get(model_id, {}).get("sha256")
+            actual = compute_sha256(dest)
+            print(f"  [FAIL] SHA256 mismatch! Expected {expected}, got {actual}")
         return
 
     if source == "hf":
@@ -244,6 +291,7 @@ def main() -> None:
                 "hf": "[HuggingFace]",
                 "hf_multi": "[HuggingFace, multi-file]",
                 "url": "[GitHub Release]",
+                "r2": "[R2]",
                 "manual": "[Manual export required]",
             }[src]
             print(f"  {mid}: {info['description']} ({info['size_mb']}) {tag}")
