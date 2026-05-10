@@ -10,7 +10,7 @@ import csv as _csv
 import logging
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Callable
 
 import numpy as np
 
@@ -299,7 +299,7 @@ def prepare_poses(
     tracking: str = "auto",
     model_3d_path: Path | str | None = None,
     device: str = "auto",
-    progress_cb=None,
+    progress_cb: Callable[[float, str], None] | None = None,
 ) -> PreparedPoses:
     """Unified pose preparation pipeline.
 

@@ -6,7 +6,7 @@ Provides functions for:
 - Skeleton line colors
 """
 
-from typing import Final
+from typing import Any, Final
 
 from src.types import H36Key
 from src.visualization.config import (
@@ -95,7 +95,7 @@ def get_skeleton_color(
 def get_joint_color(
     joint_idx: int,
     joint_color: tuple[int, int, int] = color_joint,
-    **kwargs,
+    **kwargs: Any,
 ) -> tuple[int, int, int]:
     """Get color for joint circle.
 
