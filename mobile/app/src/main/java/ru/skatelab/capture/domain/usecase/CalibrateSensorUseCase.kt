@@ -2,10 +2,8 @@ package ru.skatelab.capture.domain.usecase
 
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeout
 import ru.skatelab.capture.AppLogger
@@ -152,87 +150,6 @@ class CalibrateSensorUseCase @Inject constructor(
         }
 
         appLogger.i(TAG, "Total received: LEFT=$leftReceived, RIGHT=$rightReceived; still: LEFT=${leftSamples.size}, RIGHT=${rightSamples.size}")
-    }
-
-    suspend fun invoke(sensorId: SensorId): Result<CalibrationData> {
-        return try {
-            appLogger.i(TAG, "Starting streaming for $sensorId")
-            bleRepository.startStreaming(sensorId).getOrThrow()
-            appLogger.i(TAG, "Streaming started, collecting still samples for $sensorId")
-            val samples = collectStillSamples(sensorId)
-            appLogger.i(TAG, "Collected ${samples.size} still samples for $sensorId")
-            bleRepository.stopStreaming(sensorId)
-
-            if (samples.isEmpty()) {
-                appLogger.w(TAG, "No still samples for $sensorId")
-                Result.failure(IllegalStateException("No still samples collected for $sensorId"))
-            } else {
-                val meanQ = computeMeanQuaternion(samples)
-                Result.success(
-                    CalibrationData(
-                        quatRef = meanQ,
-                        calibratedAt = System.currentTimeMillis(),
-                    )
-                )
-            }
-        } catch (e: CancellationException) {
-            bleRepository.stopStreaming(sensorId)
-            throw e
-        } catch (e: Exception) {
-            appLogger.e(TAG, "Calibration failed for $sensorId: ${e.message}")
-            bleRepository.stopStreaming(sensorId)
-            Result.failure(e)
-        }
-    }
-
-    private suspend fun collectStillSamples(sensorId: SensorId): List<ImuSample> {
-        val stillSamples = mutableListOf<ImuSample>()
-        val startTime = System.currentTimeMillis()
-        var done = false
-        var totalReceived = 0
-
-        coroutineScope {
-            val collectJob = launch {
-                bleRepository.imuSamples
-                    .filter { (id, _) -> id == sensorId }
-                    .collect { (_, sample) ->
-                        if (done) return@collect
-                        totalReceived++
-                        val accMag = sqrt(
-                            (sample.accX * sample.accX +
-                                    sample.accY * sample.accY +
-                                    sample.accZ * sample.accZ).toDouble()
-                        ).toFloat()
-                        // Discard WT901 warm-up zeros: sensor sends ~0 acc/gyro for ~0.5-1 s after streaming starts.
-                        // Threshold matches ImuCollector.kt.
-                        if (accMag < WARMUP_MIN_ACC_MAGNITUDE) return@collect
-                        val gyroMagDegS = sqrt(
-                            (sample.gyroX * sample.gyroX +
-                                    sample.gyroY * sample.gyroY +
-                                    sample.gyroZ * sample.gyroZ).toDouble()
-                        )
-                        if (gyroMagDegS <= ANGULAR_VELOCITY_THRESHOLD_DEG_S) {
-                            stillSamples.add(sample)
-                        }
-                        if (System.currentTimeMillis() - startTime >= COLLECTION_DURATION_MS ||
-                            stillSamples.size >= MAX_STILL_SAMPLES
-                        ) {
-                            done = true
-                        }
-                    }
-            }
-
-            // Wait for collection duration, then cancel the collector
-            withTimeout(COLLECTION_TIMEOUT_MS) {
-                while (!done) {
-                    delay(100L)
-                }
-            }
-            collectJob.cancel()
-        }
-
-        appLogger.i(TAG, "Total IMU received: $totalReceived, still: ${stillSamples.size}")
-        return stillSamples.toList()
     }
 
     private fun computeMeanQuaternion(samples: List<ImuSample>): FloatArray {
