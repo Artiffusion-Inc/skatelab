@@ -692,9 +692,9 @@ class PoseExtractor:
             )
 
         preview_path = str(
-            Path(tempfile.NamedTemporaryFile(suffix=".jpg", delete=False).name).with_name(
-                "person_preview.jpg"
-            )  # noqa: SIM115
+            Path(
+                tempfile.NamedTemporaryFile(suffix=".jpg", delete=False).name  # noqa: SIM115
+            ).with_name("person_preview.jpg")
         )
         cv2.imwrite(preview_path, preview)
         return preview_path
