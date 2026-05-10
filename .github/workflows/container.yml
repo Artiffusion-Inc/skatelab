@@ -38,7 +38,7 @@ jobs:
 
       - name: Download ML models from HuggingFace
         run: |
-          uv run --with huggingface_hub \
+          uv run --with huggingface_hub --with boto3 \
             python ml/scripts/download_ml_models.py --all
 
       - name: Download ONNX models from R2
