@@ -31,16 +31,6 @@ export function HeroSection() {
               {t("subtitle")}
             </p>
 
-            {/* Coaching-outcome stat */}
-            <div className="hero-cta mt-3 flex items-baseline gap-2">
-              <span className="sh-display-lg text-surface-violet-soft">
-                {t("heroStatValue")}
-              </span>
-              <span className="sh-caption text-on-dark-mute">
-                {t("heroStatLabel")}
-              </span>
-            </div>
-
             <div className="hero-cta mt-8 flex flex-col items-start gap-3 sm:flex-row sm:items-center">
               <Button
                 variant="on-dark-pill"
