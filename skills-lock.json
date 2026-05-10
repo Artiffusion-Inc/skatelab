@@ -1,6 +1,36 @@
 {
   "version": 1,
   "skills": {
+    "android-clean-architecture": {
+      "source": "affaan-m/everything-claude-code",
+      "sourceType": "github",
+      "skillPath": "skills/android-clean-architecture/SKILL.md",
+      "computedHash": "877b63dfe31ec4d864c0a09ead442029a236def32fd2a7fd374083a27b4fa5ba"
+    },
+    "android-development": {
+      "source": "flixclusiveorg/Flixclusive",
+      "sourceType": "github",
+      "skillPath": ".github/skills/android-development/SKILL.md",
+      "computedHash": "b590d34ca2ff6bb7c517e44567219742b46b981d5531152ea9c4f05646e83418"
+    },
+    "android-kotlin": {
+      "source": "alinaqi/claude-bootstrap",
+      "sourceType": "github",
+      "skillPath": "skills/android-kotlin/SKILL.md",
+      "computedHash": "0bb451490ccb9e02daed97d9cd2e84071a874ba46ed5ecf5a491c2fa27f0828f"
+    },
+    "android-kotlin-compose": {
+      "source": "Drjacky/MVVMTemplate",
+      "sourceType": "github",
+      "skillPath": ".claude/skills/android-kotlin-compose/SKILL.md",
+      "computedHash": "828f5073a1bcfc954c0ff979aad8a5a02d4233d9128cb76d37e59c73abbaccb1"
+    },
+    "android-native-dev": {
+      "source": "MiniMax-AI/skills",
+      "sourceType": "github",
+      "skillPath": "skills/android-native-dev/SKILL.md",
+      "computedHash": "684fcc00a9c41bc9c148a2f7df705eeb777ec1f0555d6d00d30eeb5939f3195d"
+    },
     "blacksmith-testbox": {
       "source": "openclaw/clawhub",
       "sourceType": "github",
@@ -31,6 +61,18 @@
       "skillPath": "examples/openclaw-plugin/skills/install-openviking-memory/SKILL.md",
       "computedHash": "5a457eed1b0f308180d318a269e7b2b0e8cae0328f12f98b4b2331dfc4896b45"
     },
+    "landing-page-generator": {
+      "source": "sickn33/antigravity-awesome-skills",
+      "sourceType": "github",
+      "skillPath": "skills/landing-page-generator/SKILL.md",
+      "computedHash": "749028608fd236b417406eac18c1c75c646eb088f3ee1b91f0cf31c9b080a83e"
+    },
+    "mobile-developer": {
+      "source": "sickn33/antigravity-awesome-skills",
+      "sourceType": "github",
+      "skillPath": "skills/mobile-developer/SKILL.md",
+      "computedHash": "f708d655e9c9d5c484f054474c51df2815c434e8193c713bbd179efcb65c0b8d"
+    },
     "resend-cli": {
       "source": "resend/resend-cli",
       "sourceType": "github",
@@ -42,6 +84,12 @@
       "sourceType": "github",
       "skillPath": "skills/saas-mvp-launcher/SKILL.md",
       "computedHash": "367186d594e8690794aa36bc88cc60b8e4c4e5edf97cb5713bb91367738f4aa4"
+    },
+    "sentry": {
+      "source": "openai/skills",
+      "sourceType": "github",
+      "skillPath": "skills/.curated/sentry/SKILL.md",
+      "computedHash": "ac32ffd194fee6dfc777e8d16b85ea7f9c5975cf4c7488d2616dc3e5dfa07386"
     },
     "shadcn-ui-flutter": {
       "source": "nank1ro/flutter-shadcn-ui",

@@ -1,0 +1,26 @@
+id: no-hardcoded-strings-dart
+language: dart
+message: |
+  Don't hardcode user-facing text in widgets. Use slang i18n: t.category.key.
+
+  Instead of:  Text("Ошибка подключения")
+  Use:         Text(t.errors.connectionFailed)
+
+  Instead of:  const Text("Settings")
+  Use:         Text(t.settings.title)
+severity: warning
+note: |
+  Allowed: technical strings (semantics labels, data keys, debug messages),
+  empty strings, single-char separators, generated code (.g.dart, .pb.dart),
+  test files, string constants in theme/config files.
+rule:
+  kind: string_literal_double_quotes
+  regex: '[А-яёA-Za-z]{3,}'
+ignores:
+  - "mobile/**/*.g.dart"
+  - "mobile/**/*.pb.dart"
+  - "mobile/**/test/**"
+  - "mobile/**/test_*.dart"
+  - "mobile/lib/i18n/**"
+  - "mobile/lib/theme/**"
+  - "mobile/lib/config/**"

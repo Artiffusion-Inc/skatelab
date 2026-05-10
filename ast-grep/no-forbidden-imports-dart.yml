@@ -1,0 +1,18 @@
+id: no-forbidden-imports-dart
+language: dart
+message: |
+  Forbidden import detected. Mobile app must not import backend or ML internals.
+  Use the API client or protobuf definitions instead.
+
+  Architecture: mobile → backend API → ML pipeline
+  Mobile should only communicate with backend via HTTP API, not import its code.
+severity: error
+note: |
+  Generated protobuf files (mobile/lib/export/protobuf_gen/) are allowed.
+rule:
+  any:
+    - pattern: import "package:backend/$$$NAMES"
+    - pattern: import "package:ml/$$$NAMES"
+    - pattern: import "package:skatelab/$$$NAMES"
+ignores:
+  - "mobile/lib/export/protobuf_gen/**"

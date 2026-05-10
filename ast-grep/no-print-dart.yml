@@ -1,0 +1,21 @@
+id: no-print-dart
+language: dart
+message: |
+  Don't use print() in production code. Use debugPrint() for debugging
+  (stripped in release builds) or a proper logging package.
+
+  Instead of:  print("result: $x")
+  Use:         debugPrint("result: $x")
+  Or:          final log = Logger('MyClass'); log.info("result", x);
+severity: warning
+note: |
+  Allowed in scripts, tools, and test files.
+  debugPrint is acceptable — it's throttled and stripped in release builds.
+rule:
+  kind: identifier
+  regex: '^print$'
+ignores:
+  - "mobile/**/*.g.dart"
+  - "mobile/**/*.pb.dart"
+  - "mobile/**/test/**"
+  - "mobile/**/test_*.dart"

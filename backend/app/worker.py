@@ -404,7 +404,7 @@ async def detect_video_task(
     """arq task: detect persons in uploaded video.
 
     Dispatches to Vast.ai Serverless GPU when VASTAI_API_KEY is set,
-    otherwise runs locally on GPU (requires CUDA).
+    otherwise runs locally on GPU.
     """
     settings = get_settings()
     valkey = await get_valkey_client()
@@ -422,11 +422,13 @@ async def detect_video_task(
             valkey=valkey,
         )
 
-        # ── Vast.ai Serverless GPU path ──
+        # --- Remote path (Vast.ai Serverless) ---
         if settings.vastai.api_key.get_secret_value():
             from app.vastai.client import detect_video_remote_async
 
-            logger.info("Dispatching detect task %s to Vast.ai (video_key=%s)", task_id, video_key)
+            logger.info(
+                "Dispatching detection task %s to Vast.ai (video_key=%s)", task_id, video_key
+            )
             await update_progress(task_id, 0.1, "Dispatching to GPU...", valkey=valkey)
             await publish_task_event(
                 task_id,
@@ -439,7 +441,7 @@ async def detect_video_task(
                 return {"status": "cancelled"}
 
             async with _VASTAI_SEMAPHORE:
-                vast_detect = await detect_video_remote_async(
+                detect_result = await detect_video_remote_async(
                     video_key=video_key,
                     tracking=tracking,
                 )
@@ -452,12 +454,12 @@ async def detect_video_task(
                         "bbox": p["bbox"],
                         "mid_hip": p["mid_hip"],
                     }
-                    for p in vast_detect.persons
+                    for p in detect_result.persons
                 ],
-                "preview_image": vast_detect.preview_image,
-                "video_key": vast_detect.video_key,
-                "auto_click": vast_detect.auto_click,
-                "status": vast_detect.status,
+                "preview_image": detect_result.preview_image,
+                "video_key": detect_result.video_key,
+                "auto_click": detect_result.auto_click,
+                "status": detect_result.status,
             }
             await store_result(task_id, result_data, valkey=valkey)
             await update_progress(task_id, 1.0, "Done", valkey=valkey)
@@ -466,7 +468,7 @@ async def detect_video_task(
             )
             return result_data
 
-        # ── Local GPU path ──
+        # --- Local path (GPU on this machine) ---
         import tempfile
         from pathlib import Path
 
@@ -623,6 +625,9 @@ async def detect_video_task(
             )
         except (OSError, RuntimeError):
             logger.warning("Failed to publish error event for task %s", task_id)
+        error_msg = str(e).lower()
+        if any(term in error_msg for term in ["timeout", "connection", "network"]):
+            raise Retry(defer=ctx.get("job_try", 1) * 10) from e
         raise
     finally:
         await valkey.close()

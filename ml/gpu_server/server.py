@@ -44,22 +44,52 @@ ACTIVE_REQUESTS = Gauge(
 os.environ.setdefault("PROJECT_ROOT", "/app")
 
 MOGANET_MODEL_PATH = Path("data/models/moganet/moganet_b_ap2d_384x288.onnx")
+MOGANET_R2_KEY = "models/moganet/moganet_b_ap2d_384x288.onnx"
 
-# Async session for R2 (video I/O only)
+# Async session for R2
 _async_session = aiobotocore.session.get_session()
 
 
-@app.on_event("startup")
-async def warmup_gpu():
-    """Pre-warm CUDA/cuDNN to eliminate cold-start latency."""
-    if not MOGANET_MODEL_PATH.exists():
-        logger.warning("MogaNet ONNX not found: %s", MOGANET_MODEL_PATH)
-    else:
+async def _download_model_if_missing():
+    """Download MogaNet ONNX from R2 if not already in the image."""
+    if MOGANET_MODEL_PATH.exists():
         logger.info(
             "MogaNet ONNX found: %s (%.1f MB)",
             MOGANET_MODEL_PATH,
             MOGANET_MODEL_PATH.stat().st_size / 1e6,
         )
+        return
+
+    r2_endpoint = os.environ.get("R2_ENDPOINT_URL", "")
+    r2_key = os.environ.get("R2_ACCESS_KEY_ID", "")
+    r2_secret = os.environ.get("R2_SECRET_ACCESS_KEY", "")
+    r2_bucket = os.environ.get("R2_BUCKET", "")
+
+    if not all([r2_endpoint, r2_key, r2_secret, r2_bucket]):
+        logger.warning("MogaNet ONNX missing and R2 credentials not set — model download skipped")
+        return
+
+    logger.info("MogaNet ONNX not found, downloading from R2: %s", MOGANET_R2_KEY)
+    MOGANET_MODEL_PATH.parent.mkdir(parents=True, exist_ok=True)
+    async with _async_session.create_client(
+        "s3",
+        endpoint_url=r2_endpoint,
+        aws_access_key_id=r2_key,
+        aws_secret_access_key=r2_secret,
+        region_name="auto",
+    ) as s3:
+        await s3.download_file(r2_bucket, MOGANET_R2_KEY, str(MOGANET_MODEL_PATH))
+    logger.info(
+        "MogaNet ONNX downloaded: %s (%.1f MB)",
+        MOGANET_MODEL_PATH,
+        MOGANET_MODEL_PATH.stat().st_size / 1e6,
+    )
+
+
+@app.on_event("startup")
+async def warmup_gpu():
+    """Pre-warm CUDA/cuDNN and download missing models from R2."""
+    await _download_model_if_missing()
 
     from src.device import DeviceConfig
 
@@ -90,7 +120,7 @@ async def ready():
         if "CUDAExecutionProvider" not in providers:
             return Response(status_code=503, content='{"status": "no_cuda"}')
         return {"status": "ready"}
-    except Exception:
+    except (ImportError, RuntimeError, OSError):
         return Response(status_code=503, content='{"status": "unhealthy"}')
 
 
@@ -210,16 +240,16 @@ async def detect(req: DetectRequest):
     ACTIVE_REQUESTS.inc()
     start = time.perf_counter()
     try:
-        async with _s3(req) as s3:
+        async with await _s3(req) as s3:
             with tempfile.TemporaryDirectory() as tmpdir:
                 video_local = Path(tmpdir) / "input.mp4"
 
                 logger.info("Downloading video for detection from R2: %s", req.video_r2_key)
-                await _s3_download(s3, req.r2_bucket, req.video_r2_key, str(video_local))
+                await s3.download_file(req.r2_bucket, req.video_r2_key, str(video_local))
 
                 cfg = DeviceConfig.default()
                 extractor = PoseExtractor(
-                    model_path="data/models/moganet/moganet_b_ap2d_384x288.onnx",
+                    model_path=str(MOGANET_MODEL_PATH),
                     tracking_backend="custom",
                     tracking_mode=req.tracking,
                     conf_threshold=0.3,
@@ -242,6 +272,7 @@ async def detect(req: DetectRequest):
                 meta = get_video_meta(video_local)
                 w, h = meta.width, meta.height
 
+                # Render preview with bounding boxes
                 cap = cv2.VideoCapture(str(video_local))
                 ret, frame = cap.read()
                 cap.release()
@@ -254,6 +285,7 @@ async def detect(req: DetectRequest):
                     raise RuntimeError("Failed to encode preview image")
                 preview_b64 = base64.b64encode(buf).decode("ascii")
 
+                # Auto-click: if only 1 person, select automatically
                 auto_click = None
                 status_msg: str
                 if len(persons) == 1:
