@@ -41,7 +41,7 @@ export function HeroSection() {
               </span>
             </div>
 
-            <div className="hero-cta mt-8 flex flex-col items-start gap-4 sm:flex-row">
+            <div className="hero-cta mt-8 flex flex-col items-start gap-3 sm:flex-row sm:items-center">
               <Button
                 variant="on-dark-pill"
                 size="lg"
@@ -50,16 +50,12 @@ export function HeroSection() {
               >
                 <a href="/register">{t("ctaPrimary")}</a>
               </Button>
-              <Button
-                variant="ghost"
-                size="lg"
-                className="h-14 rounded-full px-8 text-base text-on-dark-mute hover:text-primary-foreground"
-                asChild
+              <a
+                href="#demo"
+                className="min-h-[44px] flex items-center sh-body-md text-on-dark-mute underline underline-offset-4 hover:text-primary-foreground transition-colors"
               >
-                <a href="#demo">
-                  {t("ctaSecondary")}
-                </a>
-              </Button>
+                {t("ctaSecondary")}
+              </a>
             </div>
           </div>
 
