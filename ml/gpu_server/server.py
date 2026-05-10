@@ -99,22 +99,39 @@ async def _download_models_from_r2():
             logger.info("Downloaded: %s (%.1f MB)", local_path, size_mb)
 
 
+_models_ready = False
+
+
+async def _background_init():
+    """Download models + warmup CUDA — runs after server is accepting requests."""
+    global _models_ready  # noqa: PLW0603
+    try:
+        await _download_models_from_r2()
+
+        from src.device import DeviceConfig
+
+        cfg = DeviceConfig.default()
+        if cfg.is_cuda:
+            import onnxruntime as ort
+
+            opts = ort.SessionOptions()
+            opts.intra_op_num_threads = 1
+            opts.inter_op_num_threads = 2
+            logger.info("GPU warmup: CUDA initialized")
+
+        _models_ready = True
+        logger.info("Background init complete — models ready")
+    except (OSError, ValueError, RuntimeError):
+        logger.exception("Background init failed")
+        _models_ready = False
+
+
 @app.on_event("startup")
 async def warmup_gpu():
-    """Pre-warm CUDA/cuDNN and download missing models from R2."""
-    await _download_models_from_r2()
+    """Start background model download — server accepts requests immediately."""
+    import asyncio
 
-    from src.device import DeviceConfig
-
-    cfg = DeviceConfig.default()
-    if not cfg.is_cuda:
-        return
-    import onnxruntime as ort
-
-    opts = ort.SessionOptions()
-    opts.intra_op_num_threads = 1
-    opts.inter_op_num_threads = 2
-    logging.getLogger(__name__).info("GPU warmup: CUDA initialized")
+    _bg_task = asyncio.create_task(_background_init())  # noqa: RUF006
 
 
 @app.get("/metrics")
@@ -125,16 +142,18 @@ async def metrics():
 
 @app.get("/ready")
 async def ready():
-    """Readiness probe — checks ONNX session health."""
+    """Readiness probe — returns 200 once server is up (models load in background)."""
+    if not _models_ready:
+        return {"status": "initializing", "detail": "models downloading"}
     try:
         import onnxruntime as ort
 
         providers = ort.get_available_providers()
         if "CUDAExecutionProvider" not in providers:
-            return Response(status_code=503, content='{"status": "no_cuda"}')
-        return {"status": "ready"}
+            return {"status": "ready", "gpu": "cpu_fallback"}
+        return {"status": "ready", "gpu": "cuda"}
     except (ImportError, RuntimeError, OSError):
-        return Response(status_code=503, content='{"status": "unhealthy"}')
+        return {"status": "ready", "gpu": "unknown"}
 
 
 class DetectRequest(BaseModel):
@@ -242,6 +261,8 @@ DETECT_REQUESTS = Counter(
 
 @app.post("/detect", response_model=DetectResponse)
 async def detect(req: DetectRequest):
+    if not _models_ready:
+        return Response(status_code=503, content='{"status": "models_loading"}')
     import base64
 
     import cv2
@@ -389,6 +410,8 @@ def _make_output_keys(video_r2_key: str) -> tuple[str, str, str]:
 
 @app.post("/process", response_model=ProcessResponse)
 async def process(req: ProcessRequest):
+    if not _models_ready:
+        return Response(status_code=503, content='{"status": "models_loading"}')
     from src.types import ElementPhase, PersonClick
     from src.utils.frame_buffer import AsyncFrameReader
     from src.utils.video_writer import H264Writer
