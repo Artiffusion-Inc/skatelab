@@ -247,9 +247,7 @@ class ProcessRequest(BaseModel):
     video_key: str
     person_click: PersonClick
     frame_skip: int = 1
-    layer: int = 3
     tracking: str = "auto"
-    export: bool = True
     session_id: str | None = None
     depth: bool = False
     optical_flow: bool = False
