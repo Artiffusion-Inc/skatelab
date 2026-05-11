@@ -20,22 +20,22 @@ export function useVideoCompression() {
       const worker = new Worker(new URL("./video-compression.worker.ts", import.meta.url))
       workerRef.current = worker
 
-      let blob: Blob | null = null
-      let meta: { originalSize: number; compressedSize: number } | null = null
+      let resultBlob: Blob | null = null
+      let resultMeta: { originalSize: number; compressedSize: number } | null = null
 
       worker.onmessage = e => {
         const data = e.data
         if (data.type === "progress") {
           setState({ status: "compressing", percent: data.percent })
         } else if (data.type === "result") {
-          meta = data.result
+          resultMeta = data.result
         } else if (data.type === "blob") {
-          blob = data.blob as Blob
-          if (meta) {
+          resultBlob = data.blob
+          if (resultMeta && resultBlob) {
             const result: CompressResult = {
-              blob: blob as Blob,
-              originalSize: meta.originalSize,
-              compressedSize: meta.compressedSize,
+              blob: resultBlob,
+              originalSize: resultMeta.originalSize,
+              compressedSize: resultMeta.compressedSize,
             }
             setState({ status: "done", result })
             worker.terminate()

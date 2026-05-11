@@ -12,8 +12,8 @@ import { enqueueProcess } from "@/lib/api/process"
 import { parseZip, isZipFile, type ZipContents } from "@/lib/zip-parser"
 import { DropZone } from "@/components/upload/drop-zone"
 import { FilePreview } from "@/components/upload/file-preview"
-import { useVideoCompression, type CompressionState } from "@/lib/use-video-compression"
-import { shouldCompress } from "@/lib/video-compression"
+import { useVideoCompression } from "@/lib/use-video-compression"
+import { shouldCompress, COMPRESSION_TIMEOUT_MS } from "@/lib/video-compression"
 
 type Step = "idle" | "parsing" | "picked" | "compressing" | "uploading" | "done"
 
@@ -99,7 +99,7 @@ export default function UploadPage() {
           const result = await Promise.race([
             compress(videoFile),
             new Promise<never>((_, reject) =>
-              setTimeout(() => reject(new Error("Compression timeout")), 60_000),
+              setTimeout(() => reject(new Error("Compression timeout")), COMPRESSION_TIMEOUT_MS),
             ),
           ])
           compressedFile = new File([result.blob], "compressed.mp4", { type: "video/mp4" })

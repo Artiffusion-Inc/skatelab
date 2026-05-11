@@ -33,10 +33,12 @@ const DEFAULT_OPTIONS: Required<CompressOptions> = {
   onProgress: () => {},
 }
 
-/** Skip files under 10 MB — already small enough. */
+const SKIP_THRESHOLD = 10 * 1024 * 1024 // 10 MB — files below skip compression
+export const COMPRESSION_TIMEOUT_MS = 60_000 // 60s — skip compression on timeout
+
+/** Skip files under threshold — already small enough. */
 export function shouldCompress(file: File): boolean {
-  if (file.size < 10 * 1024 * 1024) return false
-  return true
+  return file.size >= SKIP_THRESHOLD
 }
 
 /** Check WebCodecs API availability. */
@@ -171,18 +173,11 @@ export async function compressVideoWebCodecs(
   }
 }
 
-/** Extract video duration in seconds for progress tracking. */
+/** Extract video duration in seconds for ffmpeg.wasm progress tracking. */
 function getVideoDuration(file: File): Promise<number> {
-  return new Promise(resolve => {
-    const video = document.createElement("video")
-    video.preload = "metadata"
-    video.onloadedmetadata = () => {
-      URL.revokeObjectURL(video.src)
-      resolve(video.duration || 0)
-    }
-    video.onerror = () => resolve(0)
-    video.src = URL.createObjectURL(file)
-  })
+  return getVideoMetadata(file)
+    .then(m => m.duration)
+    .catch(() => 0)
 }
 
 /**
