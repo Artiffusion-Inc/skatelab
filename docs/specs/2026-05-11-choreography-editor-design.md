@@ -310,3 +310,5 @@ ELEMENTS = load_elements(Path(__file__).parent / "data" / "isu_2026_27.json")
 ---
 
 *Spec status: draft. Pending user review before implementation plan.*
+
+**Related:** [Async & Parallel Design](2026-05-11-choreography-editor-async-design.md) — consolidated report from 4 parallel domain agents (backend, frontend, architecture, QA).
