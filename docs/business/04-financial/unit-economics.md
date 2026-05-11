@@ -17,7 +17,7 @@
 
 > **Pricing update (CustDev-validated):** Спортсмен (МС) готов платить до 500–600 ₽/мес. Тренер готов при доказанной эффективности. Sweet spot для спортсменов: 490–990 ₽. Для тренеров: 1,500–3,500 ₽.
 
-### EdgeSense Hardware (IMU) — Отдельный продукт
+### IMU Hardware — Отдельный продукт
 
 | Комплект | Цена (₽) | Сегмент |
 |----------|---------|---------|
@@ -27,7 +27,7 @@
 | Coach (3–5 athlete sets) | 80,000–150,000 | Pro coaches |
 | Academy (групповой набор + планшет) | 250,000–500,000 | Schools/Academies |
 
-> **Примечание:** EdgeSense (IMU hardware) — концепт Алисы. SkateLab — SaaS. Возможна интеграция: IMU data → SkateLab pipeline.
+> **Примечание:** IMU hardware — концепт Алисы. SkateLab — SaaS. Возможна интеграция: IMU data → SkateLab pipeline.
 
 ### Bundled Pricing (Hardware + SaaS)
 

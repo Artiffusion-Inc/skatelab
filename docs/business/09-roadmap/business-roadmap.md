@@ -38,7 +38,7 @@
 - [ ] Seed round preparation
 - [ ] 300+ платящих
 - [ ] B2B pipeline: 5–10 клубов
-- [ ] EdgeSense IMU → SkateLab integration product
+- [ ] IMU hardware → SkateLab integration product
 - [ ] Reference database v1 (100+ эталонов)
 
 ### Q2–Q4 — Scale
@@ -93,5 +93,5 @@
 | Startup Night feedback | Pitch iteration, expert intros | 2026-05-07 |
 | Legal документы | Публичный запуск | Не начат |
 | Dataset лицензии | Коммерческое использование | Нужен аудит |
-| IMU крепление | EdgeSense hardware PoC | В разработке (3D print) |
+| IMU крепление | IMU hardware PoC | В разработке (3D print) |
 | Seed round | Scale (Y2) | Не начат |

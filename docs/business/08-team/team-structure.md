@@ -7,7 +7,7 @@
 | Founder / ML Engineer | Бодарев Михаил Артёмович (ФТМИ ИТМО, @xpos587) | ML pipeline, backend, infra, GPU optimization | TBD |
 | Co-Founder / Business | Абдуллина Алиса Рустемовна (ФТМИ ИТМО, МС по фигурному катанию) | CustDev, продажи, partnerships, IMU experiments, pitching | TBD |
 
-> **Alisa's credentials:** Мастер спорта по фигурному катанию, 16+ лет опыта. Автор концепции EdgeSense (IMU sensors + AI). Проводит CustDev, презентовала проект комиссии ITMO. Контакты с DUSSH/Федерациями, доступ к льду (Кронверкский пр., Туполевская 4) для экспериментов.
+> **Alisa's credentials:** Мастер спорта по фигурному катанию, 16+ лет опыта. Автор концепции IMU-трекеров (IMU sensors + AI). Проводит CustDev, презентовала проект комиссии ITMO. Контакты с DUSSH/Федерациями, доступ к льду (Кронверкский пр., Туполевская 4) для экспериментов.
 
 ## Team Needs
 

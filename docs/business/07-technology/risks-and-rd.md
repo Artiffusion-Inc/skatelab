@@ -67,7 +67,7 @@
 | Next.js major version break | Низкая | Низкое | Pin version, gradual upgrades |
 | Vast.ai availability | Средняя | Низкое | Local GPU fallback (RTX 3050 Ti) |
 
-## IMU Sensor Integration (EdgeSense)
+## IMU Sensor Integration (SkateLab)
 
 > **Status:** Experimental. Alisa проводит тесты с IMU-датчиками на льду.
 

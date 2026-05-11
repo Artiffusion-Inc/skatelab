@@ -49,7 +49,7 @@ The current competitive landscape document covers 6 direct and 3 indirect compet
 | Strengths | 3D kinematics without cameras, real-time data, used in sports science labs |
 | Weaknesses | High cost ($1,000–$5,000+), requires wearable sensors, not SaaS, no skating-specific software |
 | Pricing | Hardware $1,000–$5,000+; software often bundled |
-| Threat level | **Low-Medium** — EdgeSense IMU concept overlaps here. If Noitom creates a skating-specific SDK or partners with a software vendor, SkateLab's hardware+SaaS bundle faces a technically superior but more expensive rival. |
+| Threat level | **Low-Medium** — IMU hardware concept overlaps here. If Noitom creates a skating-specific SDK or partners with a software vendor, SkateLab's hardware+SaaS bundle faces a technically superior but more expensive rival. |
 
 **Why these matter:** All three are active, funded, or have large communities. The current landscape focuses on academic/GitHub projects with minimal traction, while ignoring tools coaches actually use today.
 
@@ -79,7 +79,7 @@ The current matrix includes: SkateLab, Omega, Pose2Sim, Strava, HUDL, Coach's Ey
 | White-label / B2B custom branding | Academy/Federation tiers need this. Dartfish and HUDL offer it. |
 | Bulk upload / batch processing | Coaches have 10–30 videos per session. Current matrix does not compare batch capability. |
 | Social sharing / athlete feed | Strava's moat is social. SkateLab explicitly says "social layer is not our value" — correct, but the matrix should flag this as a deliberate trade-off, not an omission. |
-| Force/pressure data integration | EdgeSense IMU is conceptual. No competitor in the matrix captures blade pressure or jump force. |
+| Force/pressure data integration | IMU hardware is conceptual. No competitor in the matrix captures blade pressure or jump force. |
 | Historical trend analysis / longitudinal tracking | Critical for coach dashboard value prop. Not explicitly compared in matrix. |
 
 **Recommendation:** Rebuild the matrix with all 9+ competitors and 15+ capability rows. Use a compact format (checkmarks + notes) to keep it readable.
@@ -97,7 +97,7 @@ The current matrix includes: SkateLab, Omega, Pose2Sim, Strava, HUDL, Coach's Ey
 | Coach | 1,500–3,500 ₽/mo | A1 coaches |
 | Choreo | 3,000 ₽/mo | B1 choreographers |
 | Club | 5,000–25,000 ₽/mo | C2 clubs |
-| EdgeSense (HW) | 9,900–500,000 ₽ | B2C / B2B hardware |
+| SkateLab (HW) | 9,900–500,000 ₽ | B2C / B2B hardware |
 
 ### 4.2 Competitor Pricing Context
 
@@ -125,7 +125,7 @@ The current matrix includes: SkateLab, Omega, Pose2Sim, Strava, HUDL, Coach's Ey
 **Gaps:**
 - **No annual plan pricing displayed** in landscape.md. Unit economics mention "annual plans with discount" as a churn mitigation tactic, but landscape does not show how annual pricing compares to competitors.
 - **No freemium competitor pressure analysis.** Pose2Sim and Sports2D are free and open-source. A technical coach could stitch together Sports2D + Kinovea + a spreadsheet for $0. SkateLab must articulate why 990 ₽/mo is worth it vs. free DIY.
-- **EdgeSense pricing is conceptual.** No competitor hardware pricing comparison exists. The positioning doc says "Wearable systems: $600–2000+" — but this is an estimate, not a sourced comparison. A real competitive audit needs sourced hardware pricing (Noitom Perception Neuron starts at ~$1,500; XSens DOT ~$500 per sensor; Dartfish video license ~$2,500).
+- **IMU hardware pricing is conceptual.** No competitor hardware pricing comparison exists. The positioning doc says "Wearable systems: $600–2000+" — but this is an estimate, not a sourced comparison. A real competitive audit needs sourced hardware pricing (Noitom Perception Neuron starts at ~$1,500; XSens DOT ~$500 per sensor; Dartfish video license ~$2,500).
 
 ---
 
@@ -176,7 +176,7 @@ Opportunities not occupied by any competitor in the current landscape:
 |---|--------|-------|----------|
 | 1 | **Add Kinovea, Dartfish, and Noitom to competitive landscape** with full parameter tables and threat ratings. | Product/Marketing | High |
 | 2 | **Rebuild feature comparison matrix** to include all 9+ competitors and 15+ capabilities (mobile, offline, API, white-label, batch, social, force integration, trends). | Product | High |
-| 3 | **Add sourced hardware pricing** for EdgeSense competitors (Noitom, XSens, force plates) with URLs or datasheets. | Business Analyst | Medium |
+| 3 | **Add sourced hardware pricing** for IMU hardware competitors (Noitom, XSens, force plates) with URLs or datasheets. | Business Analyst | Medium |
 | 4 | **Write "Why not free?" positioning** — one-page comparison of SkateLab Pro vs. Sports2D + KinoveA DIY stack. | Marketing | Medium |
 | 5 | **Stress-test moats** — document which are public/replicable vs. proprietary. Create plan to convert tactical advantages into switching costs (data export friction, team workflows, federation integrations). | Product/Strategy | High |
 | 6 | **Evaluate white space #1 (mobile real-time)** for technical feasibility with on-device ONNX Runtime (mobile GPU/NPU). | Engineering | Medium |
