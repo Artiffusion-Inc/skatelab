@@ -38,7 +38,7 @@ backend/app/services/choreography/
 ├── score_calculator.py          # TES + GOE + PCS calculation
 ├── music_analyzer.py            # madmom + MSAF wrapper
 ├── csp_solver.py                # Random search (v1.2: OR-Tools)
-├── rink_renderer.py             # Server-side SVG generation
+├── rink_renderer.py             # ~~Server-side SVG generation~~ → CLI fallback only; hot path moved client-side
 └── fingerprint.py               # Audio deduplication
 
 frontend/src/components/choreography/
@@ -221,7 +221,7 @@ interface TimelineElement {
 | POST | `/choreography/programs` | Create new program |
 | GET | `/choreography/programs/{id}` | Load program |
 | PUT | `/choreography/programs/{id}` | Save program |
-| POST | `/choreography/programs/{id}/export` | Export SVG/JSON |
+| POST | `/choreography/programs/{id}/export` | Export program JSON (client renders SVG via `rink-renderer.ts`) |
 
 ---
 

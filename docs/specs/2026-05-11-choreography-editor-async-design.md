@@ -17,8 +17,8 @@ This report consolidates findings from four parallel analysis agents into a sing
 | 1 | Fix partial-commit and pagination bugs before any parallel work — data loss risk | Backend | P0 | Backend audit |
 | 2 | Consolidate element library into a single backend `GET /elements/registry` endpoint | Backend / Frontend | P0 | Architecture + Frontend |
 | 3 | Use imperative DOM updates (`setAttribute`) during rink drag; sync to Zustand only on `pointerup` | Frontend | P0 | Frontend |
-| 4 | Activate existing Batch RTMO, CUDA Graph, and IO Binding code — 2.5-4x inference speedup with ~1 day of integration work | ML Pipeline | P0 | Backend audit |
-| 5 | Implement patch-based undo/redo with Immer `produceWithPatches` on the main thread | Frontend | P1 | Frontend + Architecture |
+| 4 | Fix N+1 presigned URLs with singleton aiobotocore client + `asyncio.gather` | Backend | P0 | Backend audit |
+| 5 | Implement patch-based undo/redo with Immer `produceWithPatches` on the main thread (v1.1, outside MVP) | Frontend | P1 | Frontend + Architecture |
 | 6 | Add SSE progress endpoint for async music analysis and switch frontend from polling | Backend / Frontend | P1 | Architecture + Backend audit |
 | 7 | Fix N+1 presigned URL generation with singleton aiobotocore client + `asyncio.gather` | Backend | P1 | Backend audit |
 | 8 | Align ISU validation rules between frontend TES bar and backend `rules_engine.py` via the canonical registry | Cross-cutting | P1 | Architecture |
@@ -60,21 +60,7 @@ The backend audit identified four bugs that break functionality or corrupt data.
 | arq pool per enqueue | Create/close per request | Lifespan singleton pool | 1 h |
 | `session_saver` N+1 metrics | 12 queries per save | Batch query for current best values | 2-3 h |
 
-### 2.3 ML Pipeline Optimizations (~25 hours total)
-
-| Opportunity | Speedup | Effort | Note |
-|-------------|---------|--------|------|
-| Batch RTMO inference (`BatchPoseExtractor`) | 2.5-4x | 2-3 days | Tracking missing in batch extractor; keep sequential tracking post-process |
-| Double buffering (`AsyncFrameReader`) | ~0.7 s net | 4-6 h | Already exists in `frame_buffer.py`; wire into `pose_extractor.py` |
-| ONNX SessionOptions tuning | 10-20% | 2-3 h | `graph_optimization_level=ORT_ENABLE_ALL` |
-| IO Binding switch | Zero-copy GPU transfer | 2-3 h | `infer_batch_iobinding()` already implemented in `rtmo_batch.py:362` |
-| CUDA Graph enable | 5-15% kernel launch | 1-2 h | `_enable_cuda_graph()` already implemented in `rtmo_batch.py:258` |
-| PoseExtractor in worker startup | Eliminates ~1-2 s cold start | 1 h | Init in `startup(ctx)`, reuse per job |
-| Redundant CoM computation | Minor pipeline overhead | 1-2 h | Compute once, pass through pipeline context |
-| `curve_fit` -> `np.polyfit` | ~50x for parabolic fit | 30 min | `physics_engine.py:412,486` |
-| ComparisonRenderer parallel | ~2x for dual-video | 2-3 h | `asyncio.gather` or `ThreadPoolExecutor` for two extracts |
-
-### 2.4 Choreography-Specific Backend Gaps
+### 2.3 Choreography-Specific Backend Gaps
 
 | Gap | Effort | Risk | Dependency |
 |-----|--------|------|------------|
