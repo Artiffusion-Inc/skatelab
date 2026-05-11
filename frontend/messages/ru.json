@@ -319,13 +319,13 @@
     "retake": "Перезаписать",
     "dropHint": "Перетащите ZIP или видео",
     "dropOrClick": "или нажмите для выбора файла",
-    "maxSize": "до 500 МБ",
+    "maxSize": "до 50 МБ",
     "parsingZip": "Распаковка архива...",
     "uploadingImu": "Загрузка сенсоров...",
     "startingAnalysis": "Запуск анализа...",
     "cancelUpload": "Отменить",
     "invalidFile": "Неподдерживаемый формат файла",
-    "fileTooLarge": "Файл слишком большой (макс. 500 МБ)",
+    "fileTooLarge": "Файл слишком большой (макс. 50 МБ)",
     "zipReadError": "Не удалось прочитать ZIP-архив",
     "noVideoInZip": "В ZIP не найдено видео",
     "imuUploadWarning": "Данные сенсоров не загружены, анализ только по видео",
@@ -333,7 +333,11 @@
     "imuInfo": "IMU: {sensorCount} сенсор(ов)",
     "manifestOk": "Манифест: ✓",
     "manifestMissing": "Манифест: отсутствует",
-    "remove": "Удалить"
+    "remove": "Удалить",
+    "compressing": "Сжатие видео... {percent}%",
+    "compressionDone": "Сжато: {original} → {compressed}",
+    "compressionError": "Ошибка сжатия видео",
+    "compressionSkip": "Пропустить сжатие"
   },
   "connections": {
     "title": "Связи",
