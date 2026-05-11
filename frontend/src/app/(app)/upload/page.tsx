@@ -12,8 +12,10 @@ import { enqueueProcess } from "@/lib/api/process"
 import { parseZip, isZipFile, type ZipContents } from "@/lib/zip-parser"
 import { DropZone } from "@/components/upload/drop-zone"
 import { FilePreview } from "@/components/upload/file-preview"
+import { useVideoCompression, type CompressionState } from "@/lib/use-video-compression"
+import { shouldCompress } from "@/lib/video-compression"
 
-type Step = "idle" | "parsing" | "picked" | "uploading" | "done"
+type Step = "idle" | "parsing" | "picked" | "compressing" | "uploading" | "done"
 
 export default function UploadPage() {
   const router = useRouter()
@@ -28,6 +30,7 @@ export default function UploadPage() {
   const [progress, setProgress] = useState(0)
   const [uploadPhase, setUploadPhase] = useState("")
   const uploaderRef = useRef<ChunkedUploader | null>(null)
+  const { state: compressionState, compress, abort: abortCompression } = useVideoCompression()
 
   useMountEffect(() => {
     return () => {
@@ -82,11 +85,39 @@ export default function UploadPage() {
 
   async function handleUpload() {
     if (!file) return
-    setStep("uploading")
+    setStep("compressing")
     setProgress(0)
 
     try {
+      // Phase 0: Compress video before upload
+      // Extract video from ZIP if needed, then compress if > 10 MB
       const videoFile = zipContents?.video ?? file
+
+      let compressedFile: File = videoFile
+      if (shouldCompress(videoFile)) {
+        try {
+          const result = await Promise.race([
+            compress(videoFile),
+            new Promise<never>((_, reject) =>
+              setTimeout(() => reject(new Error("Compression timeout")), 60_000),
+            ),
+          ])
+          compressedFile = new File([result.blob], "compressed.mp4", { type: "video/mp4" })
+          toast.success(
+            t("compressionDone", {
+              original: `${(result.originalSize / 1e6).toFixed(1)} MB`,
+              compressed: `${(result.compressedSize / 1e6).toFixed(1)} MB`,
+            }),
+          )
+        } catch {
+          // Timeout or error — skip compression, upload original
+          toast.info(t("compressionSkip"))
+        }
+      }
+
+      setStep("uploading")
+      setProgress(0)
+
       let imuLeftKey: string | null = null
       let imuRightKey: string | null = null
       let manifestKey: string | null = null
@@ -119,15 +150,15 @@ export default function UploadPage() {
         }
       }
 
-      // Phase 2: Upload video via ChunkedUploader
+      // Phase 2: Upload compressed video via ChunkedUploader
       setUploadPhase(t("uploadingVideo"))
-      const uploader = new ChunkedUploader(videoFile, (loaded, total) => {
+      const uploader = new ChunkedUploader(compressedFile, (loaded, total) => {
         setProgress(Math.round((loaded / total) * 100))
       })
       uploaderRef.current = uploader
       const videoKey = await uploader.upload()
 
-      // Phase 3: Create session with ALL keys (atomic, no race)
+      // Phase 3: Create session with ALL keys
       setUploadPhase(t("startingAnalysis"))
       setProgress(100)
       const session = await createSession.mutateAsync({
@@ -185,6 +216,39 @@ export default function UploadPage() {
         <div className="text-center">
           <Loader2 className="mx-auto h-8 w-8 animate-spin text-primary" />
           <p className="mt-3 sh-display-md">{t("parsingZip")}</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (step === "compressing") {
+    const percent = compressionState.status === "compressing" ? compressionState.percent : 0
+    return (
+      <div className="mx-auto max-w-lg space-y-5 px-4 py-20">
+        <div className="text-center">
+          <Loader2 className="mx-auto h-8 w-8 animate-spin text-primary" />
+          <p className="mt-3 sh-display-md">{t("compressing", { percent })}</p>
+        </div>
+        <div className="space-y-2">
+          <div className="h-2 overflow-hidden rounded-full bg-muted">
+            <div
+              className="h-full rounded-full bg-primary transition-all duration-300"
+              style={{ width: `${percent}%` }}
+            />
+          </div>
+        </div>
+        <div className="flex justify-center">
+          <button
+            type="button"
+            onClick={() => {
+              abortCompression()
+              setStep("picked")
+            }}
+            className="flex items-center gap-2 rounded-2xl border border-hairline px-4 py-2 text-sm text-ink-mute transition-colors hover:bg-accent"
+          >
+            <X className="h-4 w-4" />
+            {t("cancelUpload")}
+          </button>
         </div>
       </div>
     )
