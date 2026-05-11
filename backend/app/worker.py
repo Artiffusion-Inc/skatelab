@@ -336,7 +336,8 @@ async def process_video_task(
                 logger.warning("Failed to prepare pose data: %s", pose_err)
 
         response_data = {
-            "video_path": vast_result.video_key,
+            "poses_key": vast_result.poses_key or "",
+            "metrics_key": vast_result.metrics_key or "",
             "stats": vast_result.stats,
             "status": "Analysis complete!",
         }
