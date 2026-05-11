@@ -121,17 +121,32 @@ tasks:
     cmd: task ci
 
   # Vast.ai Serverless tasks
+  vastai-presign:
+    desc: Generate pre-signed R2 URLs for model embedding (requires R2 env vars)
+    dir: ml
+    cmds:
+      - uv run python scripts/generate_model_presigned_urls.py --output /tmp/model_urls.json
+      - jq -r .moganet /tmp/model_urls.json > /tmp/moganet_url.txt
+      - jq -r .yolo /tmp/model_urls.json > /tmp/yolo_url.txt
+
   vastai-build:
-    desc: Build GPU worker image for Vast.ai Serverless
-    cmd: podman build -f ml/gpu_server/Containerfile -t ghcr.io/Artiffusion-Inc/skatelab-worker:latest .
+    desc: Build GPU worker image with embedded models (run vastai-presign first)
+    cmds:
+      - podman build
+          --secret id=moganet_url,src=/tmp/moganet_url.txt
+          --secret id=yolo_url,src=/tmp/yolo_url.txt
+          -f ml/gpu_server/Containerfile
+          -t ghcr.io/Artiffusion-Inc/skatelab-worker:latest
+          .
 
   vastai-push:
     desc: Push GPU worker image to ghcr.io
     cmd: podman push ghcr.io/Artiffusion-Inc/skatelab-worker:latest
 
   vastai-deploy:
-    desc: Build and push GPU worker image
+    desc: Generate URLs, build and push GPU worker image
     cmds:
+      - task: vastai-presign
       - task: vastai-build
       - task: vastai-push
 
