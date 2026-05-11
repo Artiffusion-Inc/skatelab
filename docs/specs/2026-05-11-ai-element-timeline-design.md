@@ -265,6 +265,120 @@ Reuse existing DAW timeline editor from choreography planner:
 
 ---
 
+---
+
+## Async & Parallel Execution Strategy
+
+This section was synthesized from 5 specialized agents (Pipeline Architect, Training & Data, GPU Offloading, Backend Integration, Frontend Renderer).
+
+### Conflicts Resolved
+
+**Where TAS physically runs**
+- Pipeline Architect proposed double-buffered producer-consumer on local GPU.
+- GPU Optimizer proposed running inside Vast.ai `/process` endpoint.
+- Backend Integrator proposed embedding in `process_video_task`.
+- **Resolution:** All three are correct at different layers. The GPU server's `/process` endpoint runs TAS alongside biomechanics after `prepare_poses()`. The backend's `process_video_task` dispatches a single GPU job and receives unified results. Double-buffering is a P1 optimization for local batch workers, not the primary Vast.ai B=1 flow.
+
+**Streaming results vs polling**
+- GPU Optimizer: do not stream — TAS total < 1s, Vast.ai round-trip (~200ms) exceeds compute.
+- Frontend Renderer: reuse existing `useSession` polling.
+- **Resolution:** Standard request/response within `/process` JSON. Frontend polls via `useSession` every 3-5s while `segmentation_status` is pending. No SSE, no WebSocket.
+
+**ONNX export for BiGRU**
+- GPU Optimizer: ONNX possible but requires refactoring `pack_padded_sequence`.
+- Pipeline Architect: skip TorchScript — effort/speedup ratio poor for small model.
+- **Resolution:** Do **not** export BiGRU to ONNX. Install PyTorch in the GPU image. The model is <1MB; ONNX refactoring complexity outweighs the gain.
+
+### Prioritized Recommendations
+
+#### P0 — Must implement (>2x speedup or architectural requirement)
+
+1. **TAS Integration Architecture**
+   Run TAS inside the GPU server's `/process` endpoint, immediately after `prepare_poses()`, concurrently with biomechanics analysis. The backend's `process_video_task` consumes a unified response with both metrics and segments. No separate arq job for TAS.
+
+2. **Training Data Loading Overhaul**
+   Pre-load MCFS `.npy` into RAM at `Dataset.__init__` (dataset ~488MB). Cache converted/normalized H3.6M arrays to eliminate per-epoch conversion. GPU utilization is currently near 0% because data loading takes **0.769s/batch** while forward takes <0.05s.
+
+3. **Async Database Writes**
+   Batch insert `session_elements` in a single transaction using async SQLAlchemy. This prevents blocking the arq worker event loop when inserting 10-20 segments.
+
+#### P1 — High impact (20-100% speedup or UX)
+
+4. **Batch RF Predictions**
+   Run a single `predict_proba` call across all segments of a video (`n_jobs=-1`). A 3-segment video drops from ~450ms to ~180ms.
+
+5. **torch.compile BiGRU**
+   Add `torch.compile(mode="reduce-overhead")` after `model.eval()` in `TASElementSegmenter.__init__`. Estimated 10-20% latency reduction on the BiGRU forward pass.
+
+6. **Training: Sequence-Length Bucketing**
+   Implement `BucketBatchSampler` with 500-frame bins. Padding waste drops from 20-35% to <5%, allowing batch_size increase from 8 to 12-16.
+
+7. **Training: DataLoader Config**
+   `num_workers=4`, `pin_memory=True`, `prefetch_factor=4`, `persistent_workers=True`.
+
+8. **Frontend: Progressive Rendering**
+   Show segments immediately with confidence-based visual states (solid for >0.8, dashed for <0.5). Extend `useSession` with conditional `refetchInterval: 5000` while `segmentation_status` is pending.
+
+#### P2 — Nice to have (<20% speedup or future)
+
+9. **Double-Buffered Producer-Consumer**
+   GPU Stream A runs BiGRU on video N while CPU thread runs extraction + RF on video N-1. 2x throughput for local batch workers.
+
+10. **Two-Pass Overlapping CUDA Streams**
+    3fps coarse on primary stream, 30fps boundary refinement on secondary stream. Only useful if boundary refiner CNN is added later.
+
+11. **Fallback Rule-Based Segmenter**
+    If Vast.ai fails, run local `ElementSegmenter` as fallback. Product decision required.
+
+### Async Architecture Diagram
+
+```
+Frontend (Next.js)          Backend (FastAPI + arq)       GPU Server (Vast.ai / Local)
+     |                              |                               |
+     | POST /sessions/{id}/process  |                               |
+     |----------------------------->|                               |
+     |                              | enqueue process_video_task    |
+     |                              |------------------------------>|
+     |                              |                               |
+     |  202 Accepted                |                         prepare_poses()
+     |<-----------------------------|                               |
+     |                              |                               |
+     |                              |                    +----------+----------+
+     |                              |                    |                     |
+     |                              |              Biomechanics         TAS Pipeline
+     |                              |              (CPU/GPU)            (BiGRU + RF)
+     |                              |                    |                     |
+     |                              |              (concurrent on GPU)          |
+     |                              |                    |                     |
+     |                              |                    +----------+----------+
+     |                              |                               |
+     |                              |<------------------------------|
+     |                              |   {metrics, segments} JSON    |
+     |                              |                               |
+     |<-----------------------------|  200 OK (batch_insert done)   |
+     |                              |                               |
+     | [useSession poll 3-5s]       |                               |
+     |<----------------------------->|                               |
+```
+
+**Flow:**
+1. User uploads video → backend queues `process_video_task`.
+2. Worker dispatches to GPU `/process`.
+3. GPU server extracts poses, then runs biomechanics and TAS **concurrently**.
+4. GPU returns unified JSON with `metrics` and `segments`.
+5. Worker batch inserts `session_elements` via async SQLAlchemy.
+6. Frontend polls `GET /sessions/{id}`; when `segmentation_status == "done"`, renders timeline with progressive confidence states.
+
+### Open Questions
+
+1. **Concurrent GPU safety.** Biomechanics (ONNX Runtime) and TAS (PyTorch) on the same GPU in the same process. Do they share the CUDA context safely, or do they need separate `torch.cuda.Stream`?
+2. **Partial results.** Should the frontend show coarse BiGRU segments before RF classification completes? This would require streaming or backend-to-frontend push, contradicting the "no streaming" decision. Product call needed.
+3. **Fallback strategy.** If Vast.ai `/process` fails, do we run local rule-based `ElementSegmenter` or simply mark `segmentation_status = "failed"`?
+4. **Dataset growth.** MCFS is ~488MB today. If training dataset grows beyond RAM (e.g. FineFS 1167 videos), what is the paging strategy? `memmap` or lazy loading?
+5. **Biomechanics dependency.** `BiomechanicsAnalyzer` may use poses that TAS also needs. If both run concurrently, do we need a shared `poses_norm` buffer or can both read independently?
+
+---
+
 ## Appendix: Mirror Augmentation Decision
 
 **Disabled for direction-sensitive elements.** Experiments in `experiments/README.md` proved mirror flip harmful (-4.1pp) because:
@@ -272,4 +386,4 @@ Reuse existing DAW timeline editor from choreography planner:
 - Counter-clockwise vs clockwise spin entry
 - Approach edge (inside vs outside) is direction-dependent
 
-Mirror augmentation remains enabled only for non-directional classes ( upright spins, generic step sequences).
+Mirror augmentation remains enabled only for non-directional classes (upright spins, generic step sequences).
