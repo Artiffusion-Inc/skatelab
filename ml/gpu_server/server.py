@@ -57,65 +57,21 @@ _PROJECT_ROOT = Path(os.environ.get("PROJECT_ROOT", "/app"))
 MOGANET_MODEL_PATH = _PROJECT_ROOT / "data/models/moganet/moganet_b_ap2d_384x288.onnx"
 YOLO_MODEL_PATH = _PROJECT_ROOT / "data/models/yolov8n.onnx"
 
-# R2 keys for each model
-_R2_MODELS: list[tuple[Path, str]] = [
-    (MOGANET_MODEL_PATH, "models/moganet/moganet_b_ap2d_384x288.onnx"),
-    (YOLO_MODEL_PATH, "models/yolov8n.onnx"),
-]
-
 # Async session for R2
 _async_session = aiobotocore.session.get_session()
-
-
-async def _download_models_from_r2():
-    """Download ONNX models from R2 if missing locally."""
-    r2_endpoint = os.environ.get("R2_ENDPOINT_URL", "")
-    r2_access_key = os.environ.get("R2_ACCESS_KEY_ID", "")
-    r2_secret = os.environ.get("R2_SECRET_ACCESS_KEY", "")
-    r2_bucket = os.environ.get("R2_BUCKET", "")
-
-    if not all([r2_endpoint, r2_access_key, r2_secret, r2_bucket]):
-        logger.warning("R2 credentials not set — skipping model downloads")
-        return
-
-    import botocore.config
-
-    boto_config = botocore.config.Config(
-        connect_timeout=10,
-        read_timeout=300,
-        retries={"max_attempts": 3, "mode": "adaptive"},
-    )
-    async with _async_session.create_client(
-        "s3",
-        endpoint_url=r2_endpoint,
-        aws_access_key_id=r2_access_key,
-        aws_secret_access_key=r2_secret,
-        region_name="auto",
-        config=boto_config,
-    ) as s3:
-        for local_path, r2_key in _R2_MODELS:
-            if local_path.exists():
-                size_mb = local_path.stat().st_size / 1e6
-                logger.info("Model found: %s (%.1f MB)", local_path, size_mb)
-                continue
-
-            logger.info("Downloading model from R2: %s → %s", r2_key, local_path)
-            local_path.parent.mkdir(parents=True, exist_ok=True)
-            resp = await s3.get_object(Bucket=r2_bucket, Key=r2_key)
-            body = await resp["Body"].read()
-            local_path.write_bytes(body)
-            size_mb = len(body) / 1e6
-            logger.info("Downloaded: %s (%.1f MB)", local_path, size_mb)
 
 
 _models_ready = False
 
 
 async def _background_init():
-    """Download models + warmup CUDA — runs after server is accepting requests."""
+    """Verify models exist + warmup CUDA — runs after server is accepting requests."""
     global _models_ready  # noqa: PLW0603
     try:
-        await _download_models_from_r2()
+        if not MOGANET_MODEL_PATH.exists():
+            raise OSError(f"Model not found: {MOGANET_MODEL_PATH}")
+        if not YOLO_MODEL_PATH.exists():
+            raise OSError(f"Model not found: {YOLO_MODEL_PATH}")
 
         from src.device import DeviceConfig
 
@@ -137,7 +93,7 @@ async def _background_init():
 
 @app.on_event("startup")
 async def warmup_gpu():
-    """Start background model download — server accepts requests immediately."""
+    """Start background model verification — server accepts requests immediately."""
     import asyncio
 
     _bg_task = asyncio.create_task(_background_init())  # noqa: RUF006
@@ -153,7 +109,7 @@ async def metrics():
 async def ready():
     """Readiness probe — returns 200 once server is up (models load in background)."""
     if not _models_ready:
-        return {"status": "initializing", "detail": "models downloading"}
+        return {"status": "initializing", "detail": "models initializing"}
     try:
         import onnxruntime as ort
 
