@@ -42,6 +42,19 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
+      - name: Generate pre-signed R2 URLs for models
+        id: presign
+        run: |
+          pip install boto3
+          python ml/scripts/generate_model_presigned_urls.py --output /tmp/model_urls.json
+          echo "moganet_url=$(jq -r .moganet /tmp/model_urls.json)" >> "$GITHUB_OUTPUT"
+          echo "yolo_url=$(jq -r .yolo /tmp/model_urls.json)" >> "$GITHUB_OUTPUT"
+        env:
+          R2_ENDPOINT_URL: ${{ secrets.CF_R2_ENDPOINT_URL }}
+          R2_ACCESS_KEY_ID: ${{ secrets.CF_R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.CF_R2_SECRET_ACCESS_KEY }}
+          R2_BUCKET: ${{ secrets.CF_R2_BUCKET }}
+
       - name: Build and push
         id: build
         uses: docker/build-push-action@v6
@@ -52,6 +65,9 @@ jobs:
           tags: |
             ghcr.io/${{ steps.ghcr.outputs.owner }}/skatelab-worker:latest
             ghcr.io/${{ steps.ghcr.outputs.owner }}/skatelab-worker:${{ github.sha }}
+          secrets: |
+            moganet_url=${{ steps.presign.outputs.moganet_url }}
+            yolo_url=${{ steps.presign.outputs.yolo_url }}
 
       - name: Build summary
         if: always()
