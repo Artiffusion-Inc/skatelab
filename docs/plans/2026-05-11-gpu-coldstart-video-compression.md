@@ -4,9 +4,9 @@
 
 **Goal:** Eliminate R2 model download from GPU worker cold start, compress video on frontend before upload.
 
-**Architecture:** (1) Frontend compresses video via WebCodecs API (Chrome/Edge) with ffmpeg.wasm fallback (Firefox/Safari) before ChunkedUploader sends it to R2. (2) Docker image embeds ONNX models at build time via pre-signed R2 URLs. (3) GPU server removes `_download_models_from_r2()`, simplifies `_background_init()`.
+**Architecture:** (1) Frontend compresses video via WebCodecs API (Chrome 94+, Edge 94+, Firefox 130+, Safari 16.4+) with ffmpeg.wasm fallback (Firefox Android, runtime failures) before ChunkedUploader sends it to R2. Compression uses `mediabunny` for demux+mux pipeline. (2) Docker image embeds ONNX models at build time via Docker secrets + cache mounts (no cache invalidation, no URL in image metadata). (3) GPU server removes `_download_models_from_r2()`, simplifies `_background_init()`.
 
-**Tech Stack:** WebCodecs API, @ffmpeg/ffmpeg (WASM), H.264/AVC, Python boto3 (pre-signed URL script), podman multi-stage build, FastAPI, pytest, vitest
+**Tech Stack:** WebCodecs API, mediabunny (demux+mux), @ffmpeg/ffmpeg (WASM, single-thread only), H.264/AVC (High Profile + Baseline fallback), Python boto3 (pre-signed URL script), podman multi-stage build with --mount=type=secret+cache, FastAPI, pytest, vitest
 
 ---
 
@@ -14,7 +14,7 @@
 
 | Action | File | Responsibility |
 |--------|------|----------------|
-| Create | `frontend/src/lib/video-compression.ts` | WebCodecs + ffmpeg.wasm compression logic |
+| Create | `frontend/src/lib/video-compression.ts` | WebCodecs (mediabunny) + ffmpeg.wasm compression logic |
 | Create | `frontend/src/lib/video-compression.worker.ts` | Web Worker for off-main-thread compression |
 | Modify | `frontend/src/components/upload/drop-zone.tsx` | Update MAX_SIZE 500→50 MB |
 | Modify | `frontend/src/app/(app)/upload/page.tsx` | Add compression step between file pick and upload |
@@ -135,6 +135,8 @@ Delete:
 
 Keep unchanged: `MOGANET_MODEL_PATH`, `YOLO_MODEL_PATH`, `_async_session`, `_models_ready`, `_s3()`, `_s3_download()`, `_s3_upload()`, all endpoints.
 
+Also change `/ready` endpoint detail text: `"models downloading"` → `"models initializing"` (server.py line ~156).
+
 - [ ] **Step 4: Run test to verify it passes**
 
 Run: `cd ml && uv run python -m pytest tests/gpu_server/test_background_init.py -v`
@@ -155,27 +157,36 @@ git commit -m "refactor(gpu_server): remove R2 model download, simplify _backgro
 
 - Modify: `ml/gpu_server/Containerfile`
 
-- [ ] **Step 1: Add model_fetch stage and COPY to runtime stage**
+- [ ] **Step 1: Add model_fetch stage with Docker secrets + cache mounts**
 
 After the `builder` stage (line 55), add a new stage:
 
 ```dockerfile
 # Stage 2: model download (new stage)
+# Uses Docker secrets for pre-signed URLs (not in image metadata)
+# Uses cache mount to persist model files across builds
 FROM docker.io/python:3.11-slim AS model_fetch
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
-# Pre-signed URLs — generated at build time, expire in 1h
-ARG MOGANET_MODEL_URL
-ARG YOLO_MODEL_URL
-
-RUN mkdir -p /models/moganet /models/yolo && \
-    curl -sS --fail -o /models/moganet/moganet_b_ap2d_384x288.onnx \
-      "${MOGANET_MODEL_URL}" && \
-    curl -sS --fail -o /models/yolo/yolov8n.onnx \
-      "${YOLO_MODEL_URL}"
+# Secret files containing pre-signed URLs (one URL per file)
+# Cache mount persists downloads across builds — no re-download on URL rotation
+RUN --mount=type=secret,id=moganet_url \
+    --mount=type=secret,id=yolo_url \
+    --mount=type=cache,target=/model-cache \
+    mkdir -p /models/moganet && \
+    MOGANET_URL=$(cat /run/secrets/moganet_url) && \
+    if [ ! -f /model-cache/moganet_b_ap2d_384x288.onnx ]; then \
+      curl -sS --fail -o /model-cache/moganet_b_ap2d_384x288.onnx "$MOGANET_URL"; \
+    fi && \
+    cp /model-cache/moganet_b_ap2d_384x288.onnx /models/moganet/ && \
+    YOLO_URL=$(cat /run/secrets/yolo_url) && \
+    if [ ! -f /model-cache/yolov8n.onnx ]; then \
+      curl -sS --fail -o /model-cache/yolov8n.onnx "$YOLO_URL"; \
+    fi && \
+    cp /model-cache/yolov8n.onnx /models/
 ```
 
 In the runtime stage, replace the `mkdir` line (line 83):
@@ -186,7 +197,7 @@ RUN mkdir -p /app/data/models && chown appuser:appuser /app /app/data /app/data/
 COPY --from=model_fetch --chown=appuser:appuser /models/ /app/data/models/
 ```
 
-Note: `--fail` added to curl so build fails on HTTP errors (expired URL, 403, etc).
+Note: `--mount=type=secret` keeps URLs out of image metadata. `--mount=type=cache` persists 300 MB models across builds — no re-download when URLs rotate. YOLO model goes to `/models/yolov8n.onnx` (flat, matching `server.py` path `data/models/yolov8n.onnx`).
 
 - [ ] **Step 2: Verify Containerfile syntax**
 
@@ -320,13 +331,16 @@ Replace lines 124-136:
     dir: ml
     cmds:
       - uv run python scripts/generate_model_presigned_urls.py --output /tmp/model_urls.json
+      # Write URLs to individual files for Docker secrets
+      - jq -r .moganet /tmp/model_urls.json > /tmp/moganet_url.txt
+      - jq -r .yolo /tmp/model_urls.json > /tmp/yolo_url.txt
 
   vastai-build:
     desc: Build GPU worker image with embedded models (run vastai-presign first)
     cmds:
       - podman build
-          --build-arg MOGANET_MODEL_URL=$(jq -r .moganet /tmp/model_urls.json)
-          --build-arg YOLO_MODEL_URL=$(jq -r .yolo /tmp/model_urls.json)
+          --secret id=moganet_url,src=/tmp/moganet_url.txt
+          --secret id=yolo_url,src=/tmp/yolo_url.txt
           -f ml/gpu_server/Containerfile
           -t ghcr.io/Artiffusion-Inc/skatelab-worker:latest
           .
@@ -371,10 +385,14 @@ git commit -m "feat(ci): update vastai-build with pre-signed URL model embedding
 /**
  * Frontend video compression — reduces upload size 6-10x.
  *
- * Primary: WebCodecs API (Chrome 94+, Edge 94+)
- * Fallback: @ffmpeg/ffmpeg WASM (Firefox, Safari)
+ * Primary: WebCodecs API (Chrome 94+, Edge 94+, Firefox 130+, Safari 16.4+)
+ * Fallback: @ffmpeg/ffmpeg WASM (Firefox Android, runtime failures)
  *
  * Output: H.264, max 1280px, 30fps, CRF ~28, yuv420p, no audio.
+ *
+ * NOTE: Use @ffmpeg/core (single-thread) only. @ffmpeg/core-mt hangs on
+ * Safari/Chromium with -vf scale. No SharedArrayBuffer headers needed.
+ * GPL-2.0-or-later license applies to @ffmpeg/core (includes libx264).
  */
 
 export interface CompressOptions {
@@ -399,13 +417,21 @@ const DEFAULT_OPTIONS: Required<CompressOptions> = {
   onProgress: () => {},
 }
 
+/** Check if file should be compressed (skip small or already-optimal videos). */
+export function shouldCompress(file: File): boolean {
+  // Skip files under 10 MB — already small enough
+  if (file.size < 10 * 1024 * 1024) return false
+  return true
+}
+
 export function isWebCodecsSupported(): boolean {
   return typeof VideoDecoder !== "undefined" && typeof VideoEncoder !== "undefined"
 }
 
 /**
- * Compress video using WebCodecs API (Chrome/Edge).
- * Demux → decode → resize → re-encode → mux into MP4.
+ * Compress video using WebCodecs API.
+ * Demux → decode → resize → re-encode → mux into MP4 via mediabunny.
+ * Falls back to Baseline profile if High Profile not supported.
  */
 export async function compressVideoWebCodecs(
   file: File,
@@ -413,29 +439,44 @@ export async function compressVideoWebCodecs(
 ): Promise<CompressResult> {
   const options = { ...DEFAULT_OPTIONS, ...opts }
 
-  // Dynamic import — ffmpeg.wasm only loaded when needed
-  const { Muxer, ArrayBufferTarget } = await import("mp4-muxer")
+  // Dynamic import — mediabunny handles demux + mux
+  const { Muxer, ArrayBufferTarget, Demuxer, FileDataSource } = await import("mediabunny")
 
-  const { demux } = await import("mp4-demuxer")
+  // Determine output dimensions from video metadata
+  const video = document.createElement("video")
+  video.src = URL.createObjectURL(file)
+  await new Promise((resolve, reject) => {
+    video.onloadedmetadata = resolve
+    video.onerror = reject
+  })
+  const srcW = video.videoWidth
+  const srcH = video.videoHeight
+  URL.revokeObjectURL(video.src)
 
-  let compressedSize = 0
-  const chunks: Uint8Array[] = []
+  // Check 4K guard — WebCodecs may OOM on very large inputs
+  if (srcW > 3840 || srcH > 2160) {
+    throw new Error("Video resolution too high for browser compression. Please use a lower-resolution recording.")
+  }
 
-  // Demux input
-  const demuxer = new demux.Demuxer(new demux.FileDataSource(file))
-
-  const videoTrack = demuxer.videoTracks[0]
-  if (!videoTrack) throw new Error("No video track found")
-
-  const { codec, trackNumber, description } = await demuxer.initialize(videoTrack)
-
-  // Determine output dimensions (preserve aspect ratio)
-  const { width: srcW, height: srcH } = videoTrack
   const scale = Math.min(options.maxWidth / srcW, options.maxHeight / srcH, 1)
   const outW = Math.round(srcW * scale / 2) * 2  // even dimensions for H.264
   const outH = Math.round(srcH * scale / 2) * 2
 
+  // Check codec support — fall back to Baseline if High not supported
+  const preferredCodec = "avc1.64001F"  // High Profile, Level 3.1
+  const fallbackCodec = "avc1.42001E"   // Baseline Profile, Level 3
+
+  const codecSupport = await VideoEncoder.isConfigSupported({
+    codec: preferredCodec,
+    width: outW,
+    height: outH,
+    bitrate: options.bitrate,
+    framerate: options.fps,
+  })
+  const codec = codecSupport.supported ? preferredCodec : fallbackCodec
+
   // Muxer for output MP4
+  const chunks: Uint8Array[] = []
   const muxer = new Muxer({
     target: new ArrayBufferTarget(),
     video: {
@@ -451,13 +492,12 @@ export async function compressVideoWebCodecs(
     output: (chunk, meta) => {
       muxer.addVideoChunk(chunk, meta)
       chunks.push(new Uint8Array(chunk.byteLength))
-      compressedSize += chunk.byteLength
     },
     error: (e) => { throw e },
   })
 
   encoder.configure({
-    codec: "avc1.64001F",
+    codec,
     width: outW,
     height: outH,
     bitrate: options.bitrate,
@@ -465,23 +505,29 @@ export async function compressVideoWebCodecs(
     latencyMode: "quality",
   })
 
-  // Decoder
+  // Demux + decode input
+  const demuxer = new Demuxer(new FileDataSource(file))
+  const videoTrack = demuxer.videoTracks[0]
+  if (!videoTrack) throw new Error("No video track found")
+
+  const { codec: inputCodec, trackNumber, description } = await demuxer.initialize(videoTrack)
+
   let frameCount = 0
-  const totalFrames = Math.ceil(demuxer.duration * options.fps)
+  const totalFrames = Math.ceil(demuxer.duration * options.fps) || 1
 
   const decoder = new VideoDecoder({
     output: (frame) => {
-      if (frame.duration) {
-        encoder.encode(frame, { keyFrame: frameCount % 30 === 0 })
-      }
+      // Assign minimum duration for very short videos (duration=0 frames)
+      const duration = frame.duration || (1_000_000 / options.fps)
+      encoder.encode(frame, { keyFrame: frameCount % 30 === 0 })
       frame.close()
       frameCount++
-      options.onProgress(Math.min(Math.round((frameCount / (totalFrames || 1)) * 100), 99))
+      options.onProgress(Math.min(Math.round((frameCount / totalFrames) * 100), 99))
     },
     error: (e) => { throw e },
   })
 
-  decoder.configure({ codec, description })
+  decoder.configure({ codec: inputCodec, description })
 
   // Feed samples from demuxer to decoder
   while (true) {
@@ -514,8 +560,10 @@ export async function compressVideoWebCodecs(
 }
 
 /**
- * Compress video using ffmpeg.wasm (Firefox/Safari fallback).
- * Loads ~25 MB WASM on first call.
+ * Compress video using ffmpeg.wasm (fallback).
+ * Loads ~30.7 MB WASM on first call (~8-12 MB compressed transfer).
+ * Uses single-thread @ffmpeg/core only — multi-thread hangs with -vf scale.
+ * Cross-origin loads via toBlobURL to avoid Worker security restrictions.
  */
 export async function compressVideoFFmpeg(
   file: File,
@@ -524,15 +572,25 @@ export async function compressVideoFFmpeg(
   const options = { ...DEFAULT_OPTIONS, ...opts }
 
   const { FFmpeg } = await import("@ffmpeg/ffmpeg")
-  const { fetchFile } = await import("@ffmpeg/util")
+  const { fetchFile, toBlobURL } = await import("@ffmpeg/util")
 
   const ffmpeg = new FFmpeg()
-  await ffmpeg.load()
+  const baseURL = "https://unpkg.com/@ffmpeg/core@0.12.6/dist/umd"
+  await ffmpeg.load({
+    coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, "text/javascript"),
+    wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, "application/wasm"),
+    workerURL: await toBlobURL(`${baseURL}/ffmpeg-core.worker.js`, "text/javascript"),
+  })
 
   await ffmpeg.writeFile("input.mp4", await fetchFile(file))
 
-  ffmpeg.on("progress", ({ progress }) => {
-    options.onProgress(Math.round(progress * 100))
+  // Use time-based progress — ratio-based progress is inaccurate with resampling
+  const inputDuration = await getVideoDuration(file)
+  ffmpeg.on("progress", ({ time }) => {
+    if (inputDuration > 0) {
+      const percent = Math.min(Math.round((time / 1e6 / inputDuration) * 100), 99)
+      options.onProgress(percent)
+    }
   })
 
   await ffmpeg.exec([
@@ -556,16 +614,34 @@ export async function compressVideoFFmpeg(
   }
 }
 
+/** Extract video duration in seconds for progress tracking. */
+function getVideoDuration(file: File): Promise<number> {
+  return new Promise((resolve) => {
+    const video = document.createElement("video")
+    video.preload = "metadata"
+    video.onloadedmetadata = () => {
+      URL.revokeObjectURL(video.src)
+      resolve(video.duration || 0)
+    }
+    video.onerror = () => resolve(0)
+    video.src = URL.createObjectURL(file)
+  })
+}
+
 /**
- * Auto-select best compression method.
- * WebCodecs if available, ffmpeg.wasm otherwise.
+ * Auto-select best compression method with runtime fallback.
+ * Tries WebCodecs first; on failure, falls back to ffmpeg.wasm.
  */
 export async function compressVideo(
   file: File,
   opts: CompressOptions = {},
 ): Promise<CompressResult> {
   if (isWebCodecsSupported()) {
-    return compressVideoWebCodecs(file, opts)
+    try {
+      return await compressVideoWebCodecs(file, opts)
+    } catch (e) {
+      console.warn("WebCodecs compression failed, falling back to ffmpeg.wasm:", e)
+    }
   }
   return compressVideoFFmpeg(file, opts)
 }
@@ -573,9 +649,9 @@ export async function compressVideo(
 
 - [ ] **Step 2: Install dependencies**
 
-Run: `cd frontend && bun add mp4-muxer mp4-demuxer @ffmpeg/ffmpeg @ffmpeg/util`
+Run: `cd frontend && bun add mediabunny @ffmpeg/ffmpeg @ffmpeg/util`
 
-Note: `mp4-muxer` and `mp4-demuxer` are lightweight (~15 KB) packages for WebCodecs muxing/demuxing. `@ffmpeg/ffmpeg` and `@ffmpeg/util` are the WASM fallback.
+Note: `mediabunny` replaces both `mp4-muxer` and the fictional `mp4-demuxer`. `@ffmpeg/ffmpeg` and `@ffmpeg/util` are the WASM fallback. **Use `@ffmpeg/core` (single-thread) only — do NOT use `@ffmpeg/core-mt`.**
 
 - [ ] **Step 3: Verify TypeScript compiles**
 
@@ -586,7 +662,7 @@ Expected: no errors in `video-compression.ts`
 
 ```bash
 git add frontend/src/lib/video-compression.ts frontend/package.json frontend/bun.lock
-git commit -m "feat(frontend): add video compression module (WebCodecs + ffmpeg.wasm)"
+git commit -m "feat(frontend): add video compression module (WebCodecs via mediabunny + ffmpeg.wasm fallback)"
 ```
 
 ---
@@ -842,6 +918,7 @@ import { parseZip, isZipFile, type ZipContents } from "@/lib/zip-parser"
 import { DropZone } from "@/components/upload/drop-zone"
 import { FilePreview } from "@/components/upload/file-preview"
 import { useVideoCompression, type CompressionState } from "@/lib/use-video-compression"
+import { shouldCompress } from "@/lib/video-compression"
 
 type Step = "idle" | "parsing" | "picked" | "compressing" | "uploading" | "done"
 ```
@@ -855,6 +932,7 @@ In the component, add the hook:
 ```
 
 Replace `handleUpload` function. Add compression phase before Phase 1 (IMU upload):
+Compression includes: skip heuristic (< 10 MB), 60-second timeout, and ZIP video extraction.
 
 ```typescript
   async function handleUpload() {
@@ -864,21 +942,31 @@ Replace `handleUpload` function. Add compression phase before Phase 1 (IMU uploa
 
     try {
       // Phase 0: Compress video before upload
+      // Extract video from ZIP if needed, then compress if > 10 MB
       const videoFile = zipContents?.video ?? file
 
-      // Only compress raw video files (not ZIP-extracted which may already be small)
       let compressedFile: File = videoFile
-      if (!isZipFile(file)) {
-        const result = await compress(videoFile)
-        const ext = videoFile.name.split(".").pop() ?? "mp4"
-        compressedFile = new File([result.blob], `compressed.${ext}`, { type: "video/mp4" })
-
-        toast.success(
-          t("compressionDone", {
-            original: `${(result.originalSize / 1e6).toFixed(1)} MB`,
-            compressed: `${(result.compressedSize / 1e6).toFixed(1)} MB`,
-          }),
-        )
+      if (shouldCompress(videoFile)) {
+        try {
+          const result = await Promise.race([
+            compress(videoFile, {
+              onProgress: (percent) => setProgress(percent),
+            }),
+            new Promise<never>((_, reject) =>
+              setTimeout(() => reject(new Error("Compression timeout")), 60_000),
+            ),
+          ])
+          compressedFile = new File([result.blob], "compressed.mp4", { type: "video/mp4" })
+          toast.success(
+            t("compressionDone", {
+              original: `${(result.originalSize / 1e6).toFixed(1)} MB`,
+              compressed: `${(result.compressedSize / 1e6).toFixed(1)} MB`,
+            }),
+          )
+        } catch {
+          // Timeout or error — skip compression, upload original
+          toast.info(t("compressionSkip"))
+        }
       }
 
       setStep("uploading")
@@ -1055,3 +1143,13 @@ If any fixes were needed during verification, commit them.
 **Placeholder scan:** No TBD/TODO/fill-in-later patterns found.
 
 **Type consistency:** `CompressResult` defined in Task 5, used identically in Task 6 and Task 9. `CompressOptions` defined in Task 5, used in Tasks 6 and 9. `_background_init()` signature matches spec. `MOGANET_MODEL_PATH`/`YOLO_MODEL_PATH` remain unchanged.
+
+**Review revisions applied:**
+1. ✓ `mp4-demuxer` + `mp4-muxer` → `mediabunny` (single package)
+2. ✓ YOLO path: `/models/yolov8n.onnx` (flat, matching server.py)
+3. ✓ Docker `--mount=type=secret` + `--mount=type=cache` instead of ARG (no cache invalidation)
+4. ✓ `avc1.64001F` → `isConfigSupported()` check + Baseline fallback
+5. ✓ `compressVideo()` try/catch → ffmpeg.wasm runtime fallback
+6. ✓ Skip heuristic (< 10 MB), 60s timeout, ZIP video extraction
+7. ✓ ffmpeg.wasm `load()` with `toBlobURL()` + time-based progress
+8. ✓ `/ready` detail text "models initializing"

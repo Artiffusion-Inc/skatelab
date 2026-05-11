@@ -1,7 +1,7 @@
 # GPU Cold Start + Video Compression Design
 
 **Date:** 2026-05-11
-**Status:** Draft
+**Status:** Revised (see review: `docs/specs/2026-05-11-gpu-coldstart-video-compression-review.md`)
 
 ## Problem
 
@@ -11,8 +11,8 @@
 
 ## Solution Overview
 
-1. **Frontend compression** — compress video before upload (WebCodecs API, ffmpeg.wasm fallback)
-2. **Models in Docker image** — embed ONNX models at build time, no R2 download at startup
+1. **Frontend compression** — compress video before upload (WebCodecs API via `mediabunny`, ffmpeg.wasm fallback with runtime failover)
+2. **Models in Docker image** — embed ONNX models at build time via Docker secrets + cache mounts, no R2 download at startup
 3. **Clean up GPU server** — remove model download code, simplify startup
 
 ## Section 1: Frontend Video Compression
@@ -38,43 +38,71 @@
 
 ### Implementation: WebCodecs API (primary)
 
-Supported: Chrome 94+, Edge 94+. Not supported: Firefox, Safari.
+Supported: Chrome 94+, Edge 94+, Firefox 130+, Safari 16.4+. Fallback: ffmpeg.wasm for Firefox Android and runtime failures.
+
+Uses `mediabunny` package for demux + mux pipeline (replaces deprecated `mp4-muxer` and non-existent `mp4-demuxer`).
 
 ```typescript
 // Pseudocode — frontend compression
 async function compressVideo(file: File, options: CompressOptions): Promise<Blob> {
+  // Check codec support — fall back to Baseline if High not supported
+  const codec = (await VideoEncoder.isConfigSupported({
+    codec: 'avc1.64001F', width: outW, height: outH, bitrate: options.bitrate, framerate: 30
+  })).supported ? 'avc1.64001F' : 'avc1.42001E'
+
   const decoder = new VideoDecoder({ output: onFrame, error: onError });
   const encoder = new VideoEncoder({ output: onChunk, error: onError });
 
   encoder.configure({
-    codec: 'avc1.64001F',  // H.264 High profile
+    codec,
     width: options.maxWidth,
     height: options.maxHeight,
     bitrate: 2_000_000,    // 2 Mbps target
     framerate: 30,
   });
 
-  // Demux → decode → resize → encode → mux
+  // Demux → decode → resize → encode → mux (via mediabunny)
   // Output: MP4 container with H.264
+}
+
+// Runtime fallback: WebCodecs failure → ffmpeg.wasm automatically
+async function compressVideo(file, opts) {
+  if (isWebCodecsSupported()) {
+    try { return await compressVideoWebCodecs(file, opts) }
+    catch { /* fall through to ffmpeg.wasm */ }
+  }
+  return compressVideoFFmpeg(file, opts)
 }
 ```
 
+### Skip heuristic
+
+Skip compression for files under 10 MB (already within target size). Compress ZIP-extracted video, not the ZIP itself.
+
 ### Implementation: ffmpeg.wasm (fallback)
 
-For Firefox/Safari. Load on-demand (~25 MB WASM).
+For Firefox Android and runtime WebCodecs failures. Load on-demand (~30.7 MB WASM, ~8-12 MB compressed transfer).
 
 ```typescript
 async function compressVideoFFmpeg(file: File): Promise<Blob> {
   const ffmpeg = new FFmpeg();
-  await ffmpeg.load();
+  // Load via toBlobURL — avoids cross-origin Worker restrictions
+  const baseURL = "https://unpkg.com/@ffmpeg/core@0.12.6/dist/umd"
+  await ffmpeg.load({
+    coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, "text/javascript"),
+    wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, "application/wasm"),
+    workerURL: await toBlobURL(`${baseURL}/ffmpeg-core.worker.js`, "text/javascript"),
+  });
   await ffmpeg.writeFile('input.mp4', await fetchFile(file));
+  // Use time-based progress — ratio is inaccurate with resampling
+  ffmpeg.on("progress", ({ time }) => { /* time/1e6/inputDuration */ });
   await ffmpeg.exec([
     '-i', 'input.mp4',
     '-vf', 'scale=1280:-2',
     '-r', '30',
     '-c:v', 'libx264',
     '-crf', '28',
-    '-an',          // strip audio
+    '-an',
     '-pix_fmt', 'yuv420p',
     'output.mp4',
   ]);
@@ -82,20 +110,24 @@ async function compressVideoFFmpeg(file: File): Promise<Blob> {
 }
 ```
 
+**Important:** Use `@ffmpeg/core` (single-thread) only. `@ffmpeg/core-mt` hangs on Safari/Chromium with `-vf scale`. GPL-2.0-or-later license applies (includes libx264).
+
 ### Decision logic
 
 ```
-if (typeof VideoDecoder !== 'undefined') → WebCodecs
+if (WebCodecs supported) → try WebCodecs → on failure → ffmpeg.wasm
 else → ffmpeg.wasm
 ```
 
 ### Upload flow changes
 
 1. User selects file in DropZone
-2. Frontend compresses (progress bar shown)
-3. Compressed file sent via existing ChunkedUploader
-4. Original file NOT stored — only compressed version in R2
-5. Max upload size reduced: 500 MB → 50 MB (compressed)
+2. Frontend compresses (progress bar shown) — skip if < 10 MB
+3. 60-second timeout with skip fallback (toast: "Пропустить сжатие")
+4. Compressed file sent via existing ChunkedUploader
+5. Original file NOT stored — only compressed version in R2
+6. Max upload size reduced: 500 MB → 50 MB (compressed)
+7. ZIP-extracted video is compressed (not the ZIP itself)
 
 ### Existing normalize_video.py
 
@@ -119,7 +151,7 @@ PyWorker creates container → uvicorn starts → _background_init()
 ### New flow (fast)
 
 ```
-docker build → models downloaded from R2 (build-time, Docker secret)
+docker build → models from cache mount (first build downloads from R2, subsequent reuse cache)
 PyWorker creates container → uvicorn starts → _background_init()
   → verify models exist (stat, <1ms)
   → CUDA warmup
@@ -128,7 +160,7 @@ PyWorker creates container → uvicorn starts → _background_init()
 
 ### Containerfile changes
 
-Uses **pre-signed URLs** (Option C). CI generates time-limited URLs, passes as build args. No R2 credentials in image, no AWS CLI needed.
+Uses **Docker secrets** + **cache mounts**. Pre-signed URLs passed as secrets (not in image metadata). Cache mount persists 300 MB models across builds — no re-download on URL rotation.
 
 ```dockerfile
 # Stage 1: builder — unchanged (deps install)
@@ -140,15 +172,22 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     curl ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
-# Pre-signed URLs — generated at build time, expire in 1h
-ARG MOGANET_MODEL_URL
-ARG YOLO_MODEL_URL
-
-RUN mkdir -p /models/moganet /models/yolo && \
-    curl -sS -o /models/moganet/moganet_b_ap2d_384x288.onnx \
-      "${MOGANET_MODEL_URL}" && \
-    curl -sS -o /models/yolo/yolov8n.onnx \
-      "${YOLO_MODEL_URL}"
+# Secret files containing pre-signed URLs (one URL per file)
+# Cache mount persists models across builds — no re-download on URL rotation
+RUN --mount=type=secret,id=moganet_url \
+    --mount=type=secret,id=yolo_url \
+    --mount=type=cache,target=/model-cache \
+    mkdir -p /models/moganet && \
+    MOGANET_URL=$(cat /run/secrets/moganet_url) && \
+    if [ ! -f /model-cache/moganet_b_ap2d_384x288.onnx ]; then \
+      curl -sS --fail -o /model-cache/moganet_b_ap2d_384x288.onnx "$MOGANET_URL"; \
+    fi && \
+    cp /model-cache/moganet_b_ap2d_384x288.onnx /models/moganet/ && \
+    YOLO_URL=$(cat /run/secrets/yolo_url) && \
+    if [ ! -f /model-cache/yolov8n.onnx ]; then \
+      curl -sS --fail -o /model-cache/yolov8n.onnx "$YOLO_URL"; \
+    fi && \
+    cp /model-cache/yolov8n.onnx /models/
 
 # Stage 3: runtime
 FROM docker.io/python:3.11-slim
@@ -157,6 +196,8 @@ FROM docker.io/python:3.11-slim
 # Copy models from fetch stage
 COPY --from=model_fetch --chown=appuser:appuser /models/ /app/data/models/
 ```
+
+Note: YOLO model path is `/models/yolov8n.onnx` (flat), matching `server.py`'s `data/models/yolov8n.onnx`.
 
 ### server.py changes
 
@@ -234,16 +275,20 @@ async def _background_init():
 
 ## Section 4: Build Pipeline
 
-### How to build with pre-signed URLs
+### How to build with Docker secrets
 
 ```bash
 # 1. Generate pre-signed URLs (CI script, expires in 1h)
-python scripts/generate_model_presigned_urls.py --output urls.json
+python scripts/generate_model_presigned_urls.py --output /tmp/model_urls.json
 
-# 2. Build with URLs as build args
+# 2. Write URLs to individual files for Docker secrets
+jq -r .moganet /tmp/model_urls.json > /tmp/moganet_url.txt
+jq -r .yolo /tmp/model_urls.json > /tmp/yolo_url.txt
+
+# 3. Build with secrets + cache
 podman build \
-  --build-arg MOGANET_MODEL_URL=$(jq -r .moganet urls.json) \
-  --build-arg YOLO_MODEL_URL=$(jq -r .yolo urls.json) \
+  --secret id=moganet_url,src=/tmp/moganet_url.txt \
+  --secret id=yolo_url,src=/tmp/yolo_url.txt \
   -t ghcr.io/artiffusion-inc/skatelab-worker:latest \
   -f ml/gpu_server/Containerfile .
 ```
@@ -253,28 +298,37 @@ podman build \
 Add to `Taskfile.yaml`:
 
 ```yaml
-vastai-build:
-  desc: "Build GPU worker image with embedded models"
+vastai-presign:
+  desc: "Generate pre-signed R2 URLs for model embedding"
+  dir: ml
   cmds:
-    - python scripts/generate_model_presigned_urls.py --output /tmp/model_urls.json
+    - uv run python scripts/generate_model_presigned_urls.py --output /tmp/model_urls.json
+    - jq -r .moganet /tmp/model_urls.json > /tmp/moganet_url.txt
+    - jq -r .yolo /tmp/model_urls.json > /tmp/yolo_url.txt
+
+vastai-build:
+  desc: "Build GPU worker image with embedded models (run vastai-presign first)"
+  cmds:
     - podman build
-        --build-arg MOGANET_MODEL_URL=$(jq -r .moganet /tmp/model_urls.json)
-        --build-arg YOLO_MODEL_URL=$(jq -r .yolo /tmp/model_urls.json)
-        -t ghcr.io/artiffusion-inc/skatelab-worker:latest
-        -f ml/gpu_server/Containerfile .
+        --secret id=moganet_url,src=/tmp/moganet_url.txt
+        --secret id=yolo_url,src=/tmp/yolo_url.txt
+        -f ml/gpu_server/Containerfile
+        -t ghcr.io/Artiffusion-Inc/skatelab-worker:latest
+        .
 ```
 
 ## Summary of Changes
 
 | Component | Change | Impact |
 |-----------|--------|--------|
-| Frontend (DropZone) | Add video compression before upload | 6-10x smaller uploads |
+| Frontend (DropZone) | Add video compression before upload (mediabunny + ffmpeg.wasm) | 6-10x smaller uploads |
+| Frontend (DropZone) | Skip compression for < 10 MB, 60s timeout | Fast path for small files |
 | Frontend (DropZone) | Reduce max upload size 500→50 MB | Faster uploads |
-| Containerfile | Add model_fetch stage, embed ONNX models | +300 MB image, -15 sec cold start |
+| Containerfile | Add model_fetch stage with secrets + cache mounts | +300 MB image, -15 sec cold start, no cache invalidation |
 | Containerfile | Remove R2 model-download env vars | Cleaner config |
 | server.py | Remove `_download_models_from_r2()` | Simpler startup |
-| server.py | Simplify `_background_init()` | Faster startup |
-| Build pipeline | New task `vastai-build` with pre-signed URLs | Reproducible builds |
+| server.py | Simplify `_background_init()`, fix `/ready` detail text | Faster startup |
+| Build pipeline | New tasks `vastai-presign` + `vastai-build` with Docker secrets | Reproducible builds |
 
 ## Out of Scope
 
