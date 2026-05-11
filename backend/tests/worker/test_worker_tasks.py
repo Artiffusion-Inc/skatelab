@@ -33,9 +33,8 @@ sys.modules["aiobotocore.session"] = _mock_aiobotocore_session
 def _make_vast_result(**overrides):
     """Build a mock VastResult with sensible defaults."""
     result = MagicMock()
-    result.video_key = "output/video.mp4"
     result.poses_key = None
-    result.csv_key = None
+    result.metrics_key = None
     result.stats = {"fps": 30}
     result.metrics = None
     result.phases = None
@@ -69,7 +68,7 @@ class TestProcessVideoTask:
 
     @pytest.mark.asyncio
     async def test_success_basic(self, mock_valkey):
-        """Successful processing returns 'Analysis complete!' with video_key."""
+        """Successful processing returns 'Analysis complete!' with R2 keys."""
         from app.worker import process_video_task
 
         with (
@@ -93,7 +92,8 @@ class TestProcessVideoTask:
             )
 
         assert result["status"] == "Analysis complete!"
-        assert result["video_path"] == "output/video.mp4"
+        assert result["poses_key"] == ""
+        assert result["metrics_key"] == ""
         assert result["stats"] == {"fps": 30}
 
     @pytest.mark.asyncio

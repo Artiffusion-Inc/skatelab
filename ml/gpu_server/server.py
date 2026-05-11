@@ -2,6 +2,8 @@
 
 Runs on the remote GPU. Receives R2 keys, processes video, returns results.
 R2 credentials are passed per-request so the worker does not store cloud credentials.
+
+Output: poses (.npy) + metrics (.json) — no video render.
 """
 
 from __future__ import annotations
@@ -16,7 +18,6 @@ from pathlib import Path
 import aiobotocore.session
 import numpy as np
 from fastapi import FastAPI
-from prometheus_client import CONTENT_TYPE_LATEST, Counter, Gauge, Histogram, generate_latest
 from pydantic import BaseModel
 from starlette.responses import Response
 
@@ -32,6 +33,8 @@ logging.getLogger().addHandler(_fh)
 app = FastAPI(title="Skating ML GPU Worker")
 
 # Prometheus metrics
+from prometheus_client import CONTENT_TYPE_LATEST, Counter, Gauge, Histogram, generate_latest
+
 INFERENCE_DURATION = Histogram(
     "inference_duration_seconds",
     "Time spent processing a video",
@@ -195,7 +198,6 @@ class ProcessRequest(BaseModel):
     frame_skip: int = 1
     layer: int = 3
     tracking: str = "auto"
-    export: bool = True
     ml_flags: dict[str, bool] = {}
     element_type: str | None = None
     # R2 credentials passed per-request (worker doesn't store them)
@@ -206,9 +208,8 @@ class ProcessRequest(BaseModel):
 
 
 class ProcessResponse(BaseModel):
-    video_r2_key: str
     poses_r2_key: str | None = None
-    csv_r2_key: str | None = None
+    metrics_r2_key: str | None = None
     stats: dict
     metrics: list | None = None
     phases: object | None = None
@@ -398,30 +399,27 @@ def _render_person_preview(frame, persons, selected_idx=None):
     return annotated
 
 
-def _make_output_keys(video_r2_key: str) -> tuple[str, str, str]:
-    """Generate R2 output keys: (video_key, poses_key, csv_key).
+def _make_output_keys(video_r2_key: str) -> tuple[str, str]:
+    """Generate R2 output keys: (poses_key, metrics_key).
 
-    'uploads/abc/input.mp4' → 'uploads/abc/output.mp4'
-    'uploads/test/waltz.mp4' → 'output/uploads/test/waltz.mp4'
+    'uploads/abc/input.mp4' → poses='uploads/abc/output_poses.npy', metrics='uploads/abc/output_metrics.json'
+    'uploads/test/waltz.mp4' → poses='output/uploads/test/waltz_poses.npy', metrics='output/uploads/test/waltz_metrics.json'
     """
     p = Path(video_r2_key)
     if p.stem == "input":
-        out_video = str(p.with_name("output" + p.suffix))
+        base = str(p.with_name("output"))
     else:
-        out_video = f"output/{video_r2_key}"
+        base = f"output/{video_r2_key.rsplit('.', 1)[0]}"
 
-    base = out_video.rsplit(".", 1)[0]
-    return out_video, f"{base}_poses.npy", f"{base}_metrics.json"
+    return f"{base}_poses.npy", f"{base}_metrics.json"
 
 
 @app.post("/process", response_model=ProcessResponse)
 async def process(req: ProcessRequest):
     if not _models_ready:
         return Response(status_code=503, content='{"status": "models_loading"}')
+    from src.pose_preparation import prepare_poses
     from src.types import ElementPhase, PersonClick
-    from src.utils.frame_buffer import AsyncFrameReader
-    from src.utils.video_writer import H264Writer
-    from src.visualization.pipeline import VizPipeline, prepare_poses
 
     ACTIVE_REQUESTS.inc()
     start = time.perf_counter()
@@ -429,7 +427,6 @@ async def process(req: ProcessRequest):
         async with _s3(req) as s3:
             with tempfile.TemporaryDirectory() as tmpdir:
                 video_local = Path(tmpdir) / "input.mp4"
-                output_local = Path(tmpdir) / "output.mp4"
 
                 logger.info("Downloading video from R2: %s", req.video_r2_key)
                 await _s3_download(s3, req.r2_bucket, req.video_r2_key, str(video_local))
@@ -451,7 +448,7 @@ async def process(req: ProcessRequest):
                     progress_cb=None,
                 )
 
-                # --- Biomechanics analysis (after pose extraction, before render) ---
+                # --- Biomechanics analysis ---
                 metrics: list = []
                 phases: ElementPhase | None = None
                 recommendations: list = []
@@ -476,41 +473,11 @@ async def process(req: ProcessRequest):
                         recommender = Recommender()
                         recommendations = recommender.recommend(metrics, req.element_type)
 
-                # --- Render video with skeleton overlay ---
-                pipe = VizPipeline(
-                    meta=prepared.meta,
-                    poses_norm=prepared.poses_norm,
-                    poses_px=prepared.poses_px,
-                    poses_3d=prepared.poses_3d,
-                    layer=req.layer,
-                    confs=prepared.confs,
-                    frame_indices=prepared.frame_indices,
-                )
-
-                meta = prepared.meta
-                writer = H264Writer(output_local, meta.width, meta.height, meta.fps)
-                reader = AsyncFrameReader(video_local, buffer_size=16, frame_skip=1)
-                reader.start()
-
-                pose_idx = 0
-                while True:
-                    result = reader.get_frame()
-                    if result is None:
-                        break
-                    fi, frame = result
-                    current_pose_idx, pose_idx = pipe.find_pose_idx(fi, pose_idx)
-                    frame, _ = pipe.render_frame(frame, fi, current_pose_idx)
-                    pipe.draw_frame_counter(frame, fi)
-                    writer.write(frame)
-
-                reader.join(timeout=5)
-                writer.close()
-
                 # --- Upload results to R2 ---
-                out_video_key, poses_key, csv_key = _make_output_keys(req.video_r2_key)
-                logger.info("Uploading results to R2: %s", out_video_key)
+                poses_key, metrics_key = _make_output_keys(req.video_r2_key)
+                upload_tasks = []
 
-                upload_tasks = [_s3_upload(s3, req.r2_bucket, out_video_key, str(output_local))]
+                logger.info("Uploading poses + metrics to R2")
 
                 # Save poses as .npy
                 poses_local = Path(tmpdir) / "poses.npy"
@@ -523,10 +490,10 @@ async def process(req: ProcessRequest):
                 metrics_json = Path(tmpdir) / "metrics.json"
                 metrics_data = {
                     "stats": {
-                        "total_frames": meta.num_frames,
+                        "total_frames": prepared.meta.num_frames,
                         "valid_frames": prepared.n_valid,
-                        "fps": meta.fps,
-                        "resolution": f"{meta.width}x{meta.height}",
+                        "fps": prepared.meta.fps,
+                        "resolution": f"{prepared.meta.width}x{prepared.meta.height}",
                     },
                     "metrics": [
                         {"name": m.name, "value": m.value, "unit": m.unit, "is_good": m.is_good}
@@ -537,15 +504,14 @@ async def process(req: ProcessRequest):
                     "element_type": req.element_type,
                 }
                 metrics_json.write_text(_json.dumps(metrics_data, ensure_ascii=False, indent=2))
-                upload_tasks.append(_s3_upload(s3, req.r2_bucket, csv_key, str(metrics_json)))
+                upload_tasks.append(_s3_upload(s3, req.r2_bucket, metrics_key, str(metrics_json)))
 
                 await asyncio.gather(*upload_tasks)
 
                 INFERENCE_REQUESTS.labels(status="success").inc()
                 return ProcessResponse(
-                    video_r2_key=out_video_key,
                     poses_r2_key=poses_key,
-                    csv_r2_key=csv_key,
+                    metrics_r2_key=metrics_key,
                     stats=metrics_data["stats"],
                     metrics=metrics_data["metrics"],
                     phases=metrics_data["phases"],

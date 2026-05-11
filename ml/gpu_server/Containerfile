@@ -33,8 +33,6 @@ RUN --mount=type=cache,target=/root/.cache/uv \
     opencv-python-headless==4.10.0.84 \
     "numpy>=1.24,<2.3" \
     scipy==1.17.1 \
-    pillow==12.1.1 \
-    av==17.0.0 \
     numba==0.61.2 \
     fastapi==0.135.2 \
     "uvicorn[standard]==0.42.0" \
