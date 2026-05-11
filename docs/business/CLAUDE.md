@@ -7,7 +7,7 @@
 
 ```
 docs/business/
-├── INDEX.md                      ← Вы здесь
+├── CLAUDE.md                     ← Вы здесь
 ├── 01-product/
 │   └── vision.md                 # Продуктовое видение, mission, ценность
 ├── 02-market/
