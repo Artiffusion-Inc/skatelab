@@ -1,6 +1,4 @@
 import type { Metadata } from "next"
-import { cookies } from "next/headers"
-import { redirect } from "next/navigation"
 import { getTranslations } from "next-intl/server"
 import { LandingClient } from "@/components/landing/landing-client"
 
@@ -30,9 +28,6 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function LandingPage() {
-  const hasAuth = (await cookies()).get("sb_auth")?.value
-  if (hasAuth) redirect("/feed")
-
   const t = await getTranslations("landing")
 
   const faqItems = [

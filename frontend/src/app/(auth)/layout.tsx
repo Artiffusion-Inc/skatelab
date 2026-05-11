@@ -1,14 +1,9 @@
 import { Activity } from "lucide-react"
-import { cookies } from "next/headers"
 import Link from "next/link"
-import { redirect } from "next/navigation"
 import { getTranslations } from "next-intl/server"
 
 export default async function AuthLayout({ children }: { children: React.ReactNode }) {
   const t = await getTranslations("app")
-
-  const hasAuth = (await cookies()).get("sb_auth")?.value
-  if (hasAuth) redirect("/feed")
 
   return (
     <div className="flex min-h-[dvh] flex-col">

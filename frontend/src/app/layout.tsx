@@ -29,13 +29,13 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const [locale, messages] = await Promise.all([getLocale(), getMessages()])
-  const _nonce = (await headers()).get("x-nonce") ?? ""
+  const nonce = (await headers()).get("x-nonce") ?? ""
 
   return (
     <html lang={locale} suppressHydrationWarning className={inter.variable}>
       <body className="min-h-screen bg-background text-foreground">
         <NextIntlClientProvider messages={messages}>
-          <Providers>
+          <Providers nonce={nonce}>
             {children}
             <Toaster richColors position="bottom-center" toastOptions={{ duration: 3000 }} />
           </Providers>
