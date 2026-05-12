@@ -67,6 +67,9 @@ interface ChoreographyEditorState {
   setCurrentTime: (time: number) => void
   setIsPlaying: (playing: boolean) => void
   setPixelsPerSecond: (pps: number) => void
+  zoomIn: () => void
+  zoomOut: () => void
+  resetZoom: () => void
   setSnapMode: (mode: SnapMode) => void
 
   // Actions — rink
@@ -193,6 +196,9 @@ export const useChoreographyEditor = create<ChoreographyEditorState>((set, get) 
   setCurrentTime: time => set({ currentTime: time }),
   setIsPlaying: playing => set({ isPlaying: playing }),
   setPixelsPerSecond: pps => set({ pixelsPerSecond: Math.max(2, Math.min(60, pps)) }),
+  zoomIn: () => set(s => ({ pixelsPerSecond: Math.min(s.pixelsPerSecond * 1.2, 60) })),
+  zoomOut: () => set(s => ({ pixelsPerSecond: Math.max(s.pixelsPerSecond / 1.2, 2) })),
+  resetZoom: () => set({ pixelsPerSecond: 15 }),
   setSnapMode: mode => set({ snapMode: mode }),
 
   setRinkPreset: (preset, width, height) => {
