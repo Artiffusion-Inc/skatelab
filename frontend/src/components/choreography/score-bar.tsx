@@ -20,7 +20,12 @@ export function ScoreBar({ layout, discipline, segment }: ScoreBarProps) {
     const bvMap = new Map(registry?.elements.map(e => [e.code, e.base_value]) ?? [])
     const typeMap = new Map(registry?.elements.map(e => [e.code, e.type]) ?? [])
 
-    const jumpCount = elements.filter(e => typeMap.get(e.code) === "jump").length
+    const jumpPassIndices = new Set(
+      elements
+        .filter(e => typeMap.get(e.code) === "jump" && e.jump_pass_index != null)
+        .map(e => e.jump_pass_index),
+    )
+    const jumpCount = jumpPassIndices.size
     const spinCount = elements.filter(e => typeMap.get(e.code) === "spin").length
     const hasStSq = elements.some(e => e.code.startsWith("StSq"))
     const hasChSq = elements.some(e => e.code.startsWith("ChSq"))
@@ -34,7 +39,7 @@ export function ScoreBar({ layout, discipline, segment }: ScoreBarProps) {
   }, [layout, registry])
 
   const maxJumps = segment === "short_program" ? 3 : 7
-  const maxSpins = 3
+  const maxSpins = segment === "short_program" ? 2 : 3
 
   const duration = segment === "short_program" ? "2:40" : "4:10"
 
