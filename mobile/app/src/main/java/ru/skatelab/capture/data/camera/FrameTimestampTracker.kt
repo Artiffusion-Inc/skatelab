@@ -2,26 +2,31 @@ package ru.skatelab.capture.data.camera
 
 import java.io.File
 import java.io.FileWriter
-import java.util.concurrent.Executors
+import java.util.concurrent.LinkedBlockingQueue
 import java.util.concurrent.TimeUnit
 import kotlin.math.roundToInt
 
 /**
  * Tracks frame timestamps and writes them to a CSV file on a background thread.
  *
+ * Uses a [LinkedBlockingQueue] for buffering to avoid executor overhead.
  * CSV format: `frame_index,timestamp_ns` header + one line per frame.
  */
 class FrameTimestampTracker {
 
     private var writer: FileWriter? = null
-    private val executor = Executors.newSingleThreadExecutor()
-    private var frameCount = 0
-    private var firstFrameNs: Long = 0L
-    private var lastFrameNs: Long = 0L
-    private var framesSinceFlush = 0
+    private val queue = LinkedBlockingQueue<Pair<Int, Long>>(1000)
+    private var writerThread: Thread? = null
+    @Volatile private var isRunning = false
+
+    @Volatile private var frameCount = 0
+    @Volatile private var firstFrameNs: Long = 0L
+    @Volatile private var lastFrameNs: Long = 0L
+    @Volatile private var framesSinceFlush = 0
 
     /**
      * Opens [file] for writing and writes the CSV header.
+     * Starts the background writer thread.
      * Must be called before [onFrame].
      */
     fun open(file: File) {
@@ -29,12 +34,26 @@ class FrameTimestampTracker {
             write("frame_index,timestamp_ns\n")
             flush()
         }
+        isRunning = true
+        writerThread = Thread({
+            val w = writer ?: return@Thread
+            while (isRunning || !queue.isEmpty()) {
+                val entry = queue.poll(100, TimeUnit.MILLISECONDS) ?: continue
+                val (index, timestampNs) = entry
+                w.write("$index,$timestampNs\n")
+                framesSinceFlush++
+                if (framesSinceFlush >= 30) {
+                    w.flush()
+                    framesSinceFlush = 0
+                }
+            }
+        }, "FrameTimestampWriter").apply { start() }
     }
 
     /**
      * Records a frame with the given [timestampNs] (nanoseconds).
-     * The CSV line is written asynchronously on a background thread.
-     * Flushes every 30 frames (~0.5s at 60fps) instead of every frame.
+     * The CSV line is enqueued for background writing.
+     * If the queue is full, the entry is dropped (lossy backpressure).
      */
     fun onFrame(timestampNs: Long) {
         val index = frameCount
@@ -44,24 +63,16 @@ class FrameTimestampTracker {
         lastFrameNs = timestampNs
         frameCount++
 
-        val w = writer ?: return
-        executor.submit {
-            w.write("$index,$timestampNs\n")
-            framesSinceFlush++
-            if (framesSinceFlush >= 30) {
-                w.flush()
-                framesSinceFlush = 0
-            }
-        }
+        queue.offer(index to timestampNs)
     }
 
     /**
      * Flushes pending writes and closes the file.
-     * Blocks until all queued writes complete.
+     * Signals the writer thread to stop, waits for queue drain.
      */
     fun close() {
-        executor.shutdown()
-        executor.awaitTermination(5, TimeUnit.SECONDS)
+        isRunning = false
+        writerThread?.join(5000L)
         writer?.close()
         writer = null
     }

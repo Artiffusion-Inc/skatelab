@@ -13,7 +13,9 @@ import android.os.HandlerThread
 import android.os.SystemClock
 import android.util.Range
 import android.view.Surface
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.withTimeout
 import ru.skatelab.capture.domain.repository.CameraRepository
 import java.io.File
 import kotlin.coroutines.resume
@@ -35,6 +37,9 @@ class Camera2Recorder(
     private var cameraId: String? = null
     private var tStartCalledNs: Long = 0L
     private var targetFps: Int = 60
+
+    @Volatile
+    private var isRecording = false
 
     @SuppressLint("MissingPermission")
     suspend fun openCamera(): String {
@@ -110,6 +115,9 @@ class Camera2Recorder(
 
     @SuppressLint("MissingPermission")
     suspend fun startRecording(): CameraRepository.RecordingStartResult {
+        if (isRecording) throw IllegalStateException("Recording already in progress")
+        isRecording = true
+
         val device = cameraDevice ?: throw IllegalStateException("Camera not prepared")
         val recorder = mediaRecorder ?: throw IllegalStateException("MediaRecorder not prepared")
 
@@ -153,8 +161,7 @@ class Camera2Recorder(
                 CaptureRequest.LENS_OPTICAL_STABILIZATION_MODE_OFF)
         }
 
-        var firstFrameCaptured = false
-        var tFirstFrameNs = 0L
+        val firstFrameDeferred = CompletableDeferred<Long>()
 
         captureSession!!.setRepeatingRequest(builder.build(), object : CameraCaptureSession.CaptureCallback() {
             override fun onCaptureStarted(
@@ -163,21 +170,16 @@ class Camera2Recorder(
                 timestamp: Long,
                 frameNumber: Long,
             ) {
-                // Record every frame timestamp via tracker
                 timestampTracker?.onFrame(timestamp)
-                if (!firstFrameCaptured) {
-                    firstFrameCaptured = true
-                    tFirstFrameNs = timestamp
+                if (!firstFrameDeferred.isCompleted) {
+                    firstFrameDeferred.complete(timestamp)
                 }
             }
         }, callbackHandler)
 
-        // Wait briefly for first frame timestamp
-        val deadline = SystemClock.elapsedRealtimeNanos() + 2_000_000_000L // 2s timeout
-        while (!firstFrameCaptured && SystemClock.elapsedRealtimeNanos() < deadline) {
-            Thread.sleep(10L)
-        }
-        if (!firstFrameCaptured) {
+        val tFirstFrameNs = try {
+            withTimeout(2_000L) { firstFrameDeferred.await() }
+        } catch (_: Exception) {
             throw IllegalStateException("No first frame received within 2s")
         }
 
@@ -192,6 +194,7 @@ class Camera2Recorder(
     }
 
     fun stopRecording(): CameraRepository.RecordingStopResult {
+        isRecording = false
         captureSession?.stopRepeating()
         captureSession?.close()
         mediaRecorder?.stop()
@@ -203,6 +206,7 @@ class Camera2Recorder(
     }
 
     fun release() {
+        isRecording = false
         captureSession?.close()
         cameraDevice?.close()
         mediaRecorder?.release()

@@ -74,6 +74,13 @@ class ImuStreamWriter @Inject constructor() {
         record.writeDelimitedTo(s)
     }
 
+    /** Flush buffered data to the OS without closing the stream. */
+    @Synchronized
+    fun flush() {
+        val s = stream ?: return
+        s.flush()
+    }
+
     /** Flush, fsync, and close the stream. Guarantees durability. */
     @Synchronized
     fun close() {
