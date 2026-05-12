@@ -2,6 +2,8 @@ package ru.skatelab.capture.data.sync
 
 import ru.skatelab.capture.domain.model.SensorId
 import ru.skatelab.capture.domain.repository.BleRepository
+import java.util.Collections
+import java.util.concurrent.ConcurrentHashMap
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -15,35 +17,36 @@ class TimeSyncManager @Inject constructor(
         private const val EMA_ALPHA = 0.3f
     }
 
-    private val offsets = mutableMapOf<SensorId, Long>()
-    private val initialSamples = mutableMapOf<SensorId, MutableList<Long>>()
+    private val offsets = ConcurrentHashMap<SensorId, Long>()
+    private val initialSamples = ConcurrentHashMap<SensorId, MutableList<Long>>()
 
     /** Record a BLE packet arrival for initial offset calculation. */
     fun recordPacketArrival(sensorId: SensorId, androidNs: Long, chipTimeMs: Long) {
-        val samples = initialSamples.getOrPut(sensorId) { mutableListOf() }
-        if (samples.size < INITIAL_SAMPLE_COUNT) {
-            val offsetNs = chipTimeMs * 1_000_000L - androidNs
-            samples.add(offsetNs)
+        val samples = initialSamples.getOrPut(sensorId) {
+            Collections.synchronizedList(mutableListOf())
         }
-        if (samples.size >= INITIAL_SAMPLE_COUNT && sensorId !in offsets) {
-            offsets[sensorId] = median(samples)
+        synchronized(samples) {
+            if (samples.size < INITIAL_SAMPLE_COUNT) {
+                val offsetNs = chipTimeMs * 1_000_000L - androidNs
+                samples.add(offsetNs)
+            }
+            if (samples.size >= INITIAL_SAMPLE_COUNT && !offsets.containsKey(sensorId)) {
+                offsets[sensorId] = median(samples)
+            }
         }
     }
 
-    /** Update offset with periodic 0x50 register read. EMA smoothing. */
+    /** Update offset with periodic 0x50 register read. EMA smoothing. Atomic RMW. */
     fun updatePeriodicOffset(sensorId: SensorId, androidNs: Long, chipTimeMs: Long) {
         val newOffsetNs = chipTimeMs * 1_000_000L - androidNs
-        val current = offsets[sensorId]
-        if (current != null) {
-            offsets[sensorId] = (EMA_ALPHA * newOffsetNs + (1 - EMA_ALPHA) * current).toLong()
-        } else {
-            offsets[sensorId] = newOffsetNs
+        offsets.merge(sensorId, newOffsetNs) { current, _ ->
+            (EMA_ALPHA * newOffsetNs + (1 - EMA_ALPHA) * current).toLong()
         }
     }
 
     fun getOffset(sensorId: SensorId): Long = offsets[sensorId] ?: 0L
 
-    fun isInitialized(sensorId: SensorId): Boolean = sensorId in offsets
+    fun isInitialized(sensorId: SensorId): Boolean = offsets.containsKey(sensorId)
 
     private fun median(values: List<Long>): Long {
         val sorted = values.sorted()

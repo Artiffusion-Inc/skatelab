@@ -1,9 +1,12 @@
 package ru.skatelab.capture.data.sync
 
 import android.os.SystemClock
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 import ru.skatelab.capture.AppLogger
 import ru.skatelab.capture.domain.model.SensorId
 import ru.skatelab.capture.domain.repository.BleRepository
@@ -40,9 +43,10 @@ class PeriodicTimeSync @Inject constructor(
     fun sync(scope: CoroutineScope) {
         stop()
         job = scope.launch {
-            for (sensorId in listOf(SensorId.LEFT, SensorId.RIGHT)) {
-                performRead(sensorId)
-            }
+            val leftDeferred = async { withTimeoutOrNull(3_000L) { performRead(SensorId.LEFT) } }
+            val rightDeferred = async { withTimeoutOrNull(3_000L) { performRead(SensorId.RIGHT) } }
+            leftDeferred.await()
+            rightDeferred.await()
         }
     }
 
