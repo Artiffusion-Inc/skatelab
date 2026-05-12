@@ -4,15 +4,14 @@
 
 ### Q2 (May–June) — CURRENT
 
-- [x] Startup Night ITMO — регистрация, подготовка pitch
-- [ ] Pitch deck + demo подготовка (к 7 мая вечер)
+- [x] Startup Night ITMO — pitch + demo (2026-05-07)
 - [ ] CustDev продолжение (Alisa)
 - [ ] IMU эксперименты на льду (Кронверкский пр., Туполевская 4)
 - [ ] 3D-printed кейс для IMU датчиков
-- [ ] GPU optimization внедрение ($0.01/hr)
 - [ ] Пилот: 3–5 школ в СПб
+- [ ] Первые 10 продаж IMU-трекеров
 
-### Q3 (July–September) — Пилот
+### Q3 (July–September) — Pilot
 
 - [ ] Пилотные результаты: метрики, NPS, retention
 - [ ] IMU + video synchronization PoC
@@ -25,9 +24,9 @@
 ### Q4 (October–December) — Public Beta
 
 - [ ] Public launch (Beta)
-- [ ] 100–200 платящих пользователей
+- [ ] 30 проданных комплектов
 - [ ] Coach Dashboard финализация
-- [ ] Choreography Planner v2 (по фидбеку хореографов)
+- [ ] Choreography Planner v2
 - [ ] Annual plans launch
 - [ ] Начало переговоров с ФФКР
 
@@ -36,15 +35,14 @@
 ### Q1 (January–March) — Seed
 
 - [ ] Seed round preparation
-- [ ] 300+ платящих
+- [ ] 60+ проданных комплектов
 - [ ] B2B pipeline: 5–10 клубов
-- [ ] IMU hardware → SkateLab integration product
 - [ ] Reference database v1 (100+ эталонов)
 
 ### Q2–Q4 — Scale
 
 - [ ] Seed round close
-- [ ] 500+ платящих
+- [ ] 100+ проданных комплектов
 - [ ] Mobile app public launch
 - [ ] ФФКР partnership
 - [ ] Federation pilot
@@ -54,35 +52,15 @@
 
 | Дата | Milestone | Критерий успеха |
 |------|-----------|----------------|
-| 2026-05-07 | Startup Night ITMO | Pitch + demo, expert feedback |
-| 2026 Q3 | PMF подтверждён | NPS >40, 30d retention >40% |
-| 2026 Q4 | 100 платящих | MRR > 100K ₽ |
-| 2027 Q1 | Break-even близко | MRR > 300K ₽ |
-| 2027 Q4 | Scale | 500+ платящих, MRR > 1M ₽ |
+| 2026-05-07 | Startup Night ITMO | Pitch + demo, expert feedback ✅ |
+| 2026 Q3 | PMF подтверждён | NPS >40, retention >40% |
+| 2026 Q4 | 30 комплектов | MRR > 30K ₽ |
+| 2027 Q1 | Break-even (реалистичный) | 15+ комплектов/мес |
+| 2027 Q4 | Scale | 100+ комплектов, MRR > 500K ₽ |
 
-## Immediate: Startup Night Pitch (2026-05-07)
+## Архив: Startup Night (2026-05-07)
 
-**Что:** ITMO Startup Night, начало 19:00, эксперты из финансов, IP, product, marketing.
-
-**Pitch structure:**
-1. Знакомство: МС по фигурному катанию (Alisa) + ML engineer (Michael)
-2. Проблема: субъективность, дорого, нет русского
-3. Решение: SkateLab — AI-тренер (+ IMU для edge detection)
-4. Демо: загрузить видео → получить анализ за 12с
-5. Бизнес-модель: SaaS подписка + B2B
-6. Traction: MVP 100%, pilot в 3–5 школах
-
-**Эксперты из жюри** (https://startupnight.itmo.ru/#juri):
-- Финансы / Инвестиции
-- Интеллектуальная собственность
-- Управление продуктом
-- Маркетинг
-
-**Фокус для экспертов:**
-- Финансы: юнит-экономика (GPU cost $0.01/analysis, break-even 200 users)
-- IP: proprietary ML pipeline + dataset moat
-- Product: MMA (massive market, affordable, accessible)
-- Marketing: тренерская сеть → word of mouth
+Событие завершено. Результаты: [experts-and-events.md](../appendix/experts-and-events.md).
 
 ## Dependencies
 
@@ -90,8 +68,7 @@
 |-------------|-------------|--------|
 | CustDev результаты | Pricing, messaging | В процессе (Alisa) |
 | Пилотные школы | PMF валидация | Контакты есть (Alisa) |
-| Startup Night feedback | Pitch iteration, expert intros | 2026-05-07 |
-| Legal документы | Публичный запуск | Не начат |
-| Dataset лицензии | Коммерческое использование | Нужен аудит |
-| IMU крепление | IMU hardware PoC | В разработке (3D print) |
+| Seed round prep | Текущий этап | Не начат |
+| 3D-printed кейс | IMU-трекеры MVP | В разработке (ИТМО) |
+| IMU mobile app | Real-time data collection | В разработке |
 | Seed round | Scale (Y2) | Не начат |

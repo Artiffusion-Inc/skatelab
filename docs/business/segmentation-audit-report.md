@@ -6,7 +6,7 @@
 
 ## Executive Summary
 
-The current segmentation is **directionally sound** but contains **material gaps in sizing consistency, missing segments, and prioritization nuance**. ABCDX methodology is applied correctly at the qualitative level. The biggest risk: bottom-up TAM ($79.5M) and SAM ($70–$140M) are almost equal, implying the product has near-zero addressability outside Russian-speaking markets. This is either a strategic constraint that must be stated explicitly, or a sizing error.
+The current segmentation is **directionally sound** but contains **material gaps in sizing consistency, missing segments, and prioritization nuance**. ABCDX methodology is applied correctly at the qualitative level. The biggest risk: TAM ($36.1M bottom-up) is calculated for all markets but heavily weighted toward Russian-speaking skaters (SAM ~$3M), implying limited non-Russian validation. This is a strategic constraint (Russian-first) that must be stated explicitly.
 
 ---
 
@@ -64,14 +64,14 @@ Actionability = clarity of offer + reachable channel + product readiness + case 
 
 #### 3.1 TAM/SAM Inversion
 
-- Bottom-up TAM (global): **$79.5M** at 100% penetration (`tam-calculation.md`).
-- SAM (Russian-speaking only): **$70M–$140M** (`segmentation.md`).
+- Bottom-up TAM (global): **$36.1M** at 100% penetration (`tam-calculation.md`).
+- SAM (Russian-speaking only): **~$3M** (`segmentation.md`).
 
-**Problem:** SAM cannot be 90–175% of TAM. If the product is truly limited to Russian speakers, the global TAM should be much larger (US, Canada, Japan, Korea, Europe) and SAM a fraction of it. If the product is global, SAM should be larger than TAM? No — the bottom-up TAM is simply too low for a global sport.
+**Problem:** SAM is ~8% of TAM, which is plausible for a Russian-first product. However, the bottom-up TAM may still undercount global markets (US, Canada, Japan, Korea, Europe) where figure skating is larger but SkateLab has no localization or distribution.
 
 **Likely root cause:** The bottom-up detailed calculation silently counts only segments SkateLab currently considers, not all global active figure skaters. The summary table’s 500K active skaters is plausible globally, but the revenue math only adds up to 355K + 20K coaches + 3K academies.
 
-**Recommendation:** Recalculate TAM with full 500K skaters + 50K coaches + 5K clubs. If the product is Russian-first, rename the $79.5M figure to **SAM** and calculate a true global TAM (including non-Russian markets) as $200M+.
+**Recommendation:** The $36.1M bottom-up TAM is plausible for a Russian-first product with limited global distribution. If expanding globally, recalculate TAM with full 500K skaters + 50K coaches + 5K clubs across all markets (US, Canada, Japan, Korea, Europe) — likely $200M+.
 
 #### 3.2 ARPU Realism
 
@@ -122,7 +122,7 @@ Current priority list is mostly correct, but **A2 should rank above A1** for MVP
 
 | # | Action | Owner | Deadline | Success Metric |
 |---|--------|-------|----------|----------------|
-| 1 | **Fix TAM/SAM inversion**: Recalculate global TAM including non-Russian markets; clearly label $79.5M as SAM if Russian-only. | BizDev / Analyst | 2026-05-14 | One consistent TAM/SAM/SOM table |
+| 1 | **Fix TAM/SAM inversion**: Recalculate global TAM including non-Russian markets; clearly label $36.1M as SAM if Russian-only. | BizDev / Analyst | 2026-05-14 | One consistent TAM/SAM/SOM table |
 | 2 | **Validate A2 ARPU**: Price sensitivity survey with 20+ advanced skaters; test $5 vs $10 vs $20/mo. | Product / Marketing | 2026-05-21 | Price-demand curve; revised ARPU |
 | 3 | **CustDev for B2 (Parents)**: 5 interviews with parents of skaters 6–14y. Validate WTP and channel. | CustDev lead | 2026-05-28 | Interview notes; go/no-go for P4 |
 | 4 | **Define channels for B2**: If CustDev positive, document acquisition channel (parent Telegram/FB groups, club partnerships). | Marketing | 2026-06-04 | Channel CAC estimate |
