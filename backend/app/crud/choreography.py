@@ -78,12 +78,14 @@ async def create_program(
     user_id: str,
     discipline: str,
     segment: str,
+    music_analysis_id: str | None = None,
     **kwargs: Any,
 ) -> ChoreographyProgram:
     program = ChoreographyProgram(
         user_id=user_id,
         discipline=discipline,
         segment=segment,
+        music_analysis_id=music_analysis_id,
         **kwargs,
     )
     db.add(program)
