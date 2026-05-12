@@ -58,21 +58,9 @@
 | 2027 Q1 | Break-even (реалистичный) | 15+ комплектов/мес |
 | 2027 Q4 | Scale | 100+ комплектов, MRR > 500K ₽ |
 
-## Startup Night Feedback (2026-05-07)
+## Архив: Startup Night (2026-05-07)
 
-**Pitch structure:**
-1. Знакомство: МС по фигурному катанию (Alisa) + ML engineer (Michael)
-2. Проблема: субъективность, дорого, нет русского
-3. Решение: IMU-трекеры + SkateLab AI-платформа
-4. Демо: показать трекер → получить данные
-5. Бизнес-модель: Hardware-first, LTV/CAC TBD
-6. Traction: MVP в разработке, пилот в 3–5 школах
-
-**Фокус для экспертов:**
-- Финансы: юнит-экономика (маржа TBD, break-even математический TBD, реалистичный TBD)
-- IP: proprietary ML pipeline + IMU-трекеры
-- Product: MMA (massive market, affordable, accessible)
-- Marketing: тренерская сеть → word of mouth
+Событие завершено. Результаты: [experts-and-events.md](../appendix/experts-and-events.md).
 
 ## Dependencies
 
@@ -80,7 +68,7 @@
 |-------------|-------------|--------|
 | CustDev результаты | Pricing, messaging | В процессе (Alisa) |
 | Пилотные школы | PMF валидация | Контакты есть (Alisa) |
-| Startup Night feedback | Pitch iteration | 2026-05-07 |
+| Seed round prep | Текущий этап | Не начат |
 | 3D-printed кейс | IMU-трекеры MVP | В разработке (ИТМО) |
 | IMU mobile app | Real-time data collection | В разработке |
 | Seed round | Scale (Y2) | Не начат |

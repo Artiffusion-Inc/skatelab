@@ -54,8 +54,8 @@ docs/business/
 - [Технические риски + IMU](07-technology/risks-and-rd.md)
 - [IP и лицензии](05-ip-legal/ip-assets.md)
 
-### Для Startup Night
-- [Эксперты и мероприятия](appendix/experts-and-events.md)
+### Архив
+- [Эксперты и мероприятия](appendix/experts-and-events.md) — Startup Night (2026-05-07, завершён)
 - [IMU hardware](appendix/hardware-concept.md)
 
 ## Key Numbers
