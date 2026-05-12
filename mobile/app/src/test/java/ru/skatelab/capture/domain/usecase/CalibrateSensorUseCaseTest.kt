@@ -1,16 +1,10 @@
 package ru.skatelab.capture.domain.usecase
 
-import io.mockk.coEvery
-import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.delay
+import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableSharedFlow
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.test.StandardTestDispatcher
-import kotlinx.coroutines.test.TestScope
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
@@ -28,16 +22,14 @@ import kotlin.math.sqrt
 
 class CalibrateSensorUseCaseTest {
 
-    private val testDispatcher = StandardTestDispatcher()
-    private val testScope = TestScope(testDispatcher)
-
+    private val testDispatcher = UnconfinedTestDispatcher()
     private lateinit var bleRepository: BleRepository
     private lateinit var appLogger: AppLogger
     private lateinit var useCase: CalibrateSensorUseCase
 
     private val imuSamplesFlow = MutableSharedFlow<Pair<SensorId, ImuSample>>(
-        replay = 600,
-        extraBufferCapacity = 0,
+        replay = 0,
+        extraBufferCapacity = 1024,
     )
 
     @Before
@@ -46,8 +38,6 @@ class CalibrateSensorUseCaseTest {
         appLogger = mockk(relaxed = true)
 
         every { bleRepository.imuSamples } returns imuSamplesFlow
-        coEvery { bleRepository.startStreaming(any()) } returns Result.success(Unit)
-        coEvery { bleRepository.stopStreaming(any()) } returns Result.success(Unit)
 
         useCase = CalibrateSensorUseCase(bleRepository, appLogger)
     }
@@ -68,142 +58,117 @@ class CalibrateSensorUseCaseTest {
     private fun movingSample(timestampNs: Long) = ImuSample(
         timestampNs = timestampNs,
         accX = 0f, accY = 0f, accZ = 9.81f,
-        gyroX = 1.0f, gyroY = 1.0f, gyroZ = 1.0f,
+        gyroX = 10.0f, gyroY = 10.0f, gyroZ = 10.0f,
         quatW = 1f, quatX = 0f, quatY = 0f, quatZ = 0f,
     )
 
     private fun warmupZeroSample(timestampNs: Long) = ImuSample(
         timestampNs = timestampNs,
-        accX = 0f, accY = 0f, accZ = 0f,  // Below 1.0 m/s² threshold
+        accX = 0f, accY = 0f, accZ = 0f,
         gyroX = 0f, gyroY = 0f, gyroZ = 0f,
         quatW = 1f, quatX = 0f, quatY = 0f, quatZ = 0f,
     )
 
-    private fun CoroutineScope.launchCalibrationWithSamples(
-        samples: List<Pair<SensorId, ImuSample>>,
-    ): Pair<Job, Job> {
-        val emitterJob = launch {
-            delay(1L)
-            for (sample in samples) {
-                imuSamplesFlow.emit(sample)
-                delay(1L)
-            }
-        }
-        val calibrationJob = launch {
-            useCase.invokeBoth()
-        }
-        return Pair(emitterJob, calibrationJob)
-    }
-
     @Test
-    fun invokeBoth_bothSensors_returnsBothCalibrations() = testScope.runTest {
-        val samples = List(500) { i ->
-            if (i % 2 == 0) SensorId.LEFT to stillSample(i.toLong())
-            else SensorId.RIGHT to stillSample(i.toLong())
-        }
-        val (emitterJob, calibrationJob) = launchCalibrationWithSamples(samples)
+    fun invokeBoth_bothSensors_returnsBothCalibrations() = runTest(testDispatcher) {
+        val calibrationDeferred = async { useCase.invokeBoth() }
 
-        advanceUntilIdle()
-        emitterJob.join()
-        calibrationJob.join()
-
-        coVerify { bleRepository.startStreaming(SensorId.LEFT) }
-        coVerify { bleRepository.startStreaming(SensorId.RIGHT) }
-        coVerify { bleRepository.stopStreaming(SensorId.LEFT) }
-        coVerify { bleRepository.stopStreaming(SensorId.RIGHT) }
-    }
-
-    @Test
-    fun invokeBoth_startStreamingFailure_returnsFailure() = testScope.runTest {
-        coEvery { bleRepository.startStreaming(SensorId.LEFT) } returns
-            Result.failure(IllegalStateException("BLE connection lost"))
-
-        val result = useCase.invokeBoth()
-
-        assertTrue("Expected failure", result.isFailure)
-        coVerify { bleRepository.startStreaming(SensorId.LEFT) }
-        coVerify { bleRepository.stopStreaming(SensorId.LEFT) }
-        coVerify { bleRepository.stopStreaming(SensorId.RIGHT) }
-    }
-
-    @Test
-    fun invokeBoth_noStillSamples_returnsFailure() = testScope.runTest {
-        val job = testScope.backgroundScope.launch {
-            try {
-                useCase.invokeBoth()
-            } catch (_: kotlinx.coroutines.CancellationException) { }
+        // UnconfinedTestDispatcher dispatches immediately, so collector starts at once.
+        // Emit samples synchronously — they go into SharedFlow buffer.
+        repeat(500) { i ->
+            imuSamplesFlow.emit(SensorId.LEFT to stillSample(i.toLong()))
+            imuSamplesFlow.emit(SensorId.RIGHT to stillSample(i.toLong()))
         }
 
+        // Advance past collection duration so the while-loop's delay completes
+        advanceTimeBy(11_000L)
         advanceUntilIdle()
 
-        repeat(10) { i ->
+        val result = calibrationDeferred.await()
+        assertTrue("Expected success, got: ${result.exceptionOrNull()?.message}", result.isSuccess)
+        val calMap = result.getOrThrow()
+        assertTrue("LEFT should be calibrated", calMap.containsKey(SensorId.LEFT))
+        assertTrue("RIGHT should be calibrated", calMap.containsKey(SensorId.RIGHT))
+    }
+
+    @Test
+    fun invokeBoth_noStillSamples_returnsFailure() = runTest(testDispatcher) {
+        val calibrationDeferred = async { useCase.invokeBoth() }
+
+        // Emit only moving samples (filtered by gyro threshold)
+        repeat(20) { i ->
             imuSamplesFlow.emit(SensorId.LEFT to movingSample(i.toLong()))
             imuSamplesFlow.emit(SensorId.RIGHT to movingSample(i.toLong()))
         }
 
-        advanceTimeBy(12_001L)
+        // Advance past timeout
+        advanceTimeBy(13_000L)
         advanceUntilIdle()
 
-        assertTrue("Job should be completed", job.isCompleted)
-        coVerify { bleRepository.stopStreaming(SensorId.LEFT) }
-        coVerify { bleRepository.stopStreaming(SensorId.RIGHT) }
+        val result = calibrationDeferred.await()
+        assertTrue("Expected failure", result.isFailure)
     }
 
     @Test
-    fun invokeBoth_warmupZerosFiltered() = testScope.runTest {
-        val samples = mutableListOf<Pair<SensorId, ImuSample>>()
-        // Warm-up zeros first (should be discarded)
+    fun invokeBoth_warmupZerosFiltered() = runTest(testDispatcher) {
+        val calibrationDeferred = async { useCase.invokeBoth() }
+
+        // Warm-up zeros (filtered by acc magnitude check)
         repeat(10) { i ->
-            samples.add(SensorId.LEFT to warmupZeroSample(i.toLong()))
-            samples.add(SensorId.RIGHT to warmupZeroSample(i.toLong()))
+            imuSamplesFlow.emit(SensorId.LEFT to warmupZeroSample(i.toLong()))
+            imuSamplesFlow.emit(SensorId.RIGHT to warmupZeroSample(i.toLong()))
         }
-        // Then real still samples
+        // Real still samples
         repeat(500) { i ->
-            samples.add(SensorId.LEFT to stillSample((10 + i).toLong()))
-            samples.add(SensorId.RIGHT to stillSample((10 + i).toLong()))
+            imuSamplesFlow.emit(SensorId.LEFT to stillSample((10 + i).toLong()))
+            imuSamplesFlow.emit(SensorId.RIGHT to stillSample((10 + i).toLong()))
         }
-        val (emitterJob, calibrationJob) = launchCalibrationWithSamples(samples)
 
+        advanceTimeBy(11_000L)
         advanceUntilIdle()
-        emitterJob.join()
-        calibrationJob.join()
 
-        coVerify { bleRepository.stopStreaming(SensorId.LEFT) }
-        coVerify { bleRepository.stopStreaming(SensorId.RIGHT) }
+        val result = calibrationDeferred.await()
+        assertTrue("Expected success, got: ${result.exceptionOrNull()?.message}", result.isSuccess)
+        val calMap = result.getOrThrow()
+        assertTrue(calMap.containsKey(SensorId.LEFT))
+        assertTrue(calMap.containsKey(SensorId.RIGHT))
     }
 
     @Test
-    fun invokeBoth_partialResult_oneSensorStill() = testScope.runTest {
-        val samples = mutableListOf<Pair<SensorId, ImuSample>>()
-        // LEFT gets still samples, RIGHT gets only moving
+    fun invokeBoth_partialResult_oneSensorStill() = runTest(testDispatcher) {
+        val calibrationDeferred = async { useCase.invokeBoth() }
+
         repeat(500) { i ->
-            samples.add(SensorId.LEFT to stillSample(i.toLong()))
-            samples.add(SensorId.RIGHT to movingSample(i.toLong()))
+            imuSamplesFlow.emit(SensorId.LEFT to stillSample(i.toLong()))
+            imuSamplesFlow.emit(SensorId.RIGHT to movingSample(i.toLong()))
         }
-        val (emitterJob, calibrationJob) = launchCalibrationWithSamples(samples)
 
+        advanceTimeBy(11_000L)
         advanceUntilIdle()
-        emitterJob.join()
-        calibrationJob.join()
 
-        coVerify { bleRepository.stopStreaming(SensorId.LEFT) }
-        coVerify { bleRepository.stopStreaming(SensorId.RIGHT) }
+        val result = calibrationDeferred.await()
+        assertTrue("Expected success, got: ${result.exceptionOrNull()?.message}", result.isSuccess)
+        val calMap = result.getOrThrow()
+        assertTrue(calMap.containsKey(SensorId.LEFT))
+        assertTrue("RIGHT should not be calibrated with moving samples", !calMap.containsKey(SensorId.RIGHT))
     }
 
     @Test
-    fun invokeBoth_stopsStreamingOnSuccess() = testScope.runTest {
-        val samples = List(500) { i ->
-            if (i % 2 == 0) SensorId.LEFT to stillSample(i.toLong())
-            else SensorId.RIGHT to stillSample(i.toLong())
+    fun invokeBoth_progressCallback_invoked() = runTest(testDispatcher) {
+        val progressValues = mutableListOf<Int>()
+        val calibrationDeferred = async { useCase.invokeBoth { progressValues.add(it) } }
+
+        repeat(500) { i ->
+            imuSamplesFlow.emit(SensorId.LEFT to stillSample(i.toLong()))
+            imuSamplesFlow.emit(SensorId.RIGHT to stillSample(i.toLong()))
         }
-        val (emitterJob, calibrationJob) = launchCalibrationWithSamples(samples)
 
+        advanceTimeBy(11_000L)
         advanceUntilIdle()
-        emitterJob.join()
-        calibrationJob.join()
 
-        coVerify { bleRepository.stopStreaming(SensorId.LEFT) }
-        coVerify { bleRepository.stopStreaming(SensorId.RIGHT) }
+        calibrationDeferred.await()
+        assertTrue("Progress should have been reported", progressValues.isNotEmpty())
+        assertEquals(100, progressValues.last())
     }
 
     @Test

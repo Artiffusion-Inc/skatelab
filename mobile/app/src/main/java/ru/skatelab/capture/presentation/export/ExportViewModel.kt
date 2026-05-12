@@ -10,6 +10,7 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 import ru.skatelab.capture.domain.repository.SessionRepository
 import ru.skatelab.capture.domain.usecase.ExportSessionUseCase
@@ -40,26 +41,31 @@ class ExportViewModel @Inject constructor(
             _isExporting.value = true
             _error.value = null
 
-            val session = sessionRepository.getSession(sessionId)
-            if (session == null) {
-                _error.value = "Session not found: $sessionId"
-                _isExporting.value = false
-                return@launch
-            }
-
-            val outputZip = File(outputDir, "${session.id}.zip")
-            exportSessionUseCase.invoke(session, outputZip)
-                .onSuccess {
-                    _exportPath.value = it.absolutePath
-                    _shareUri.value = FileProvider.getUriForFile(
-                        appContext,
-                        "${appContext.packageName}.fileprovider",
-                        it,
-                    )
+            try {
+                val session = sessionRepository.getSession(sessionId)
+                if (session == null) {
+                    _error.value = "Session not found: $sessionId"
+                    return@launch
                 }
-                .onFailure { _error.value = it.message }
 
-            _isExporting.value = false
+                val outputZip = File(outputDir, "${session.id}.zip")
+                exportSessionUseCase.invoke(session, outputZip)
+                    .onSuccess {
+                        _exportPath.value = it.absolutePath
+                        _shareUri.value = FileProvider.getUriForFile(
+                            appContext,
+                            "${appContext.packageName}.fileprovider",
+                            it,
+                        )
+                    }
+                    .onFailure { _error.value = it.message }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                _error.value = e.message ?: "Export failed"
+            } finally {
+                _isExporting.value = false
+            }
         }
     }
 

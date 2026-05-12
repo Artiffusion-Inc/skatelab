@@ -11,6 +11,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.withContext
 import ru.skatelab.capture.AppLogger
 import ru.skatelab.capture.data.recording.ImuCollector
@@ -42,6 +44,7 @@ class RecordingViewModel @Inject constructor(
     private val timeSyncManager: TimeSyncManager,
     private val periodicTimeSync: PeriodicTimeSync,
     private val appLogger: AppLogger,
+    @ApplicationContext private val appContext: Context,
 ) : ViewModel() {
 
     companion object {
@@ -240,11 +243,18 @@ class RecordingViewModel @Inject constructor(
                     appLogger.w(TAG, "Stop use case partial failure: ${it.message}")
                 }
 
+            val imuCounts = try {
+                withContext(Dispatchers.IO) { imuCollector.stop() }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                appLogger.e(TAG, "IMU stop failed: ${e.message}")
+                null
+            }
+            appLogger.i(TAG, "IMU samples: $imuCounts")
+
             _isRecording.value = false
             stopForegroundService(context)
-
-            val imuCounts = withContext(Dispatchers.IO) { imuCollector.stop() }
-            appLogger.i(TAG, "IMU samples: $imuCounts")
 
             val clockOffsets = mapOf(
                 SensorId.LEFT to timeSyncManager.getOffset(SensorId.LEFT),
@@ -309,6 +319,16 @@ class RecordingViewModel @Inject constructor(
         super.onCleared()
         periodicTimeSync.stop()
         runBlocking(Dispatchers.IO) {
+            try {
+                imuCollector.stop()
+            } catch (e: Exception) {
+                appLogger.e(TAG, "onCleared IMU stop failed: ${e.message}")
+            }
+            try {
+                stopForegroundService(appContext)
+            } catch (e: Exception) {
+                appLogger.e(TAG, "onCleared service stop failed: ${e.message}")
+            }
             // If recording never completed, clean up the current capture directory
             // (no .mp4 means recording was never finalized successfully)
             currentOutputDir?.let { dir ->
@@ -318,7 +338,11 @@ class RecordingViewModel @Inject constructor(
                     appLogger.i(TAG, "Cleaned up incomplete capture dir on clear: ${dir.name}")
                 }
             }
-            cameraRepository.release()
+            try {
+                cameraRepository.release()
+            } catch (e: Exception) {
+                appLogger.e(TAG, "onCleared camera release failed: ${e.message}")
+            }
         }
     }
 }

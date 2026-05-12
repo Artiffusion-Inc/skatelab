@@ -39,9 +39,9 @@ class SessionRepositoryImpl @Inject constructor(
         }
     }
 
-    override suspend fun getSessions(): List<CaptureSession> {
-        if (!sessionsDir.exists()) return emptyList()
-        return sessionsDir.listFiles()
+    override suspend fun getSessions(): List<CaptureSession> = withContext(Dispatchers.IO) {
+        if (!sessionsDir.exists()) return@withContext emptyList()
+        sessionsDir.listFiles()
             ?.filter { it.isDirectory }
             ?.mapNotNull { dir ->
                 val metaFile = File(dir, META_FILE)
@@ -50,16 +50,18 @@ class SessionRepositoryImpl @Inject constructor(
             ?: emptyList()
     }
 
-    override suspend fun getSession(id: String): CaptureSession? {
+    override suspend fun getSession(id: String): CaptureSession? = withContext(Dispatchers.IO) {
         val dir = File(sessionsDir, id)
         val metaFile = File(dir, META_FILE)
-        if (!metaFile.exists()) return null
-        return jsonToSession(metaFile.readText(), dir)
+        if (!metaFile.exists()) return@withContext null
+        jsonToSession(metaFile.readText(), dir)
     }
 
     override suspend fun deleteSession(id: String): Result<Unit> = runCatching {
-        val dir = File(sessionsDir, id)
-        if (dir.exists()) dir.deleteRecursively()
+        withContext(Dispatchers.IO) {
+            val dir = File(sessionsDir, id)
+            if (dir.exists()) dir.deleteRecursively()
+        }
     }
 
     private fun sessionToJson(s: CaptureSession): String {

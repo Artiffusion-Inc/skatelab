@@ -19,9 +19,11 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import ru.skatelab.capture.domain.model.ImuSample
 import ru.skatelab.capture.domain.model.SensorId
 import java.util.UUID
+import java.util.Collections
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
 
@@ -71,7 +73,7 @@ class BleManager(private val context: Context, private val logger: ru.skatelab.c
     private val _connectionState = MutableStateFlow<Map<SensorId, ConnectionState>>(emptyMap())
     val connectionState: Flow<Map<SensorId, ConnectionState>> = _connectionState.asStateFlow()
 
-    private val _imuSamples = MutableSharedFlow<Pair<SensorId, ImuSample>>(extraBufferCapacity = 256)
+    private val _imuSamples = MutableSharedFlow<Pair<SensorId, ImuSample>>(extraBufferCapacity = 1024)
     val imuSamples: Flow<Pair<SensorId, ImuSample>> = _imuSamples.asSharedFlow()
 
     // Register read responses: (sensorAddress, RegisterReadResult)
@@ -82,11 +84,14 @@ class BleManager(private val context: Context, private val logger: ru.skatelab.c
     val reconnectEvents: Flow<SensorId> = _reconnectEvents.asSharedFlow()
 
     /** Per-sensor recording state. Set by BleRepositoryImpl. */
-    private val recordingSensors = mutableSetOf<SensorId>()
+    private val recordingSensors: MutableSet<SensorId> = ConcurrentHashMap.newKeySet()
 
     fun markRecording(sensorId: SensorId) { recordingSensors.add(sensorId) }
     fun markStopped(sensorId: SensorId) { recordingSensors.remove(sensorId) }
     fun isRecording(sensorId: SensorId): Boolean = sensorId in recordingSensors
+
+    @Volatile
+    private var activeScanCallback: android.bluetooth.le.ScanCallback? = null
 
     // Map sensor address to SensorId (assigned by user during scan)
     private val addressToSensorId = ConcurrentHashMap<String, SensorId>()
@@ -102,6 +107,9 @@ class BleManager(private val context: Context, private val logger: ru.skatelab.c
         val scanner = adapter.bluetoothLeScanner ?: run { loge("No BLE scanner"); return }
         logi("Starting BLE scan with filter $SERVICE_UUID")
 
+        // Clear previous results so UI shows fresh scan
+        _scanResults.value = emptyList()
+
         val filter = android.bluetooth.le.ScanFilter.Builder()
             .setServiceUuid(android.os.ParcelUuid.fromString(SERVICE_UUID.toString()))
             .build()
@@ -110,29 +118,35 @@ class BleManager(private val context: Context, private val logger: ru.skatelab.c
             .setScanMode(android.bluetooth.le.ScanSettings.SCAN_MODE_LOW_LATENCY)
             .build()
 
-        val foundDevices = mutableMapOf<String, ScanResult>()
+        val foundDevices = Collections.synchronizedMap(mutableMapOf<String, ScanResult>())
 
-        scanner.startScan(listOf(filter), settings, object : android.bluetooth.le.ScanCallback() {
+        val callback = object : android.bluetooth.le.ScanCallback() {
             override fun onScanResult(callbackType: Int, result: android.bluetooth.le.ScanResult) {
-                val device = result.device
-                logi("Scan result: ${device.name} @ ${device.address} RSSI=${result.rssi}")
-                val name = device.name ?: "WT901"
-                val address = device.address
-                foundDevices[address] = ScanResult(name, address, result.rssi)
-                _scanResults.value = foundDevices.values.toList()
+                try {
+                    val device = result.device
+                    logi("Scan result: ${device.name} @ ${device.address} RSSI=${result.rssi}")
+                    val name = device.name ?: "WT901"
+                    val address = device.address
+                    foundDevices[address] = ScanResult(name, address, result.rssi)
+                    _scanResults.value = foundDevices.values.toList()
+                } catch (e: Exception) {
+                    loge("ScanCallback onScanResult error: ${e.message}")
+                }
             }
 
             override fun onScanFailed(errorCode: Int) {
                 loge("BLE scan failed: errorCode=$errorCode")
             }
-        })
+        }
+        activeScanCallback = callback
+        scanner.startScan(listOf(filter), settings, callback)
     }
 
     @SuppressLint("MissingPermission")
     fun stopScan() {
-        bluetoothAdapter?.bluetoothLeScanner?.stopScan(object : android.bluetooth.le.ScanCallback() {
-            override fun onScanResult(callbackType: Int, result: android.bluetooth.le.ScanResult) {}
-        })
+        val callback = activeScanCallback ?: return
+        bluetoothAdapter?.bluetoothLeScanner?.stopScan(callback)
+        activeScanCallback = null
     }
 
     // --- Connection ---
@@ -393,9 +407,9 @@ class BleManager(private val context: Context, private val logger: ru.skatelab.c
     }
 
     private fun updateConnectionState(sensorId: SensorId, state: ConnectionState) {
-        val current = _connectionState.value.toMutableMap()
-        current[sensorId] = state
-        _connectionState.value = current
+        _connectionState.update { current ->
+            current.toMutableMap().apply { put(sensorId, state) }
+        }
     }
 
     // --- Inner types ---

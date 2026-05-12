@@ -38,6 +38,9 @@ class CalibrationViewModel @Inject constructor(
     private val _isCalibrating = MutableStateFlow(false)
     val isCalibrating: StateFlow<Boolean> = _isCalibrating
 
+    private val _calibrationProgress = MutableStateFlow(0)
+    val calibrationProgress: StateFlow<Int> = _calibrationProgress
+
     private val _error = MutableStateFlow<String?>(null)
     val error: StateFlow<String?> = _error
 
@@ -87,11 +90,13 @@ class CalibrationViewModel @Inject constructor(
         viewModelScope.launch {
             _isCalibrating.value = true
             _error.value = null
+            _calibrationProgress.value = 0
             // Pause preview collection — invokeBoth needs exclusive access to imuSamples
-            // and will stop/start streaming itself
             pausePreview()
             try {
-                calibrateSensorUseCase.invokeBoth()
+                calibrateSensorUseCase.invokeBoth { progress ->
+                    _calibrationProgress.value = progress
+                }
                     .onSuccess { calMap ->
                         calMap[SensorId.LEFT]?.let { _leftCalibration.value = it }
                         calMap[SensorId.RIGHT]?.let { _rightCalibration.value = it }
@@ -100,6 +105,7 @@ class CalibrationViewModel @Inject constructor(
                     .onFailure { _error.value = it.message }
             } finally {
                 _isCalibrating.value = false
+                _calibrationProgress.value = 100
                 // Resume preview after calibration
                 resumePreview()
             }

@@ -4,6 +4,7 @@ import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
+import io.mockk.slot
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.test.StandardTestDispatcher
@@ -56,7 +57,7 @@ class CalibrationViewModelTest {
     fun calibrateBoth_setsBothCalibrations() = testScope.runTest {
         val leftData = CalibrationData(floatArrayOf(1f, 0f, 0f, 0f), 1000L)
         val rightData = CalibrationData(floatArrayOf(0f, 1f, 0f, 0f), 2000L)
-        coEvery { calibrateUseCase.invokeBoth() } returns Result.success(
+        coEvery { calibrateUseCase.invokeBoth(any()) } returns Result.success(
             mapOf(SensorId.LEFT to leftData, SensorId.RIGHT to rightData)
         )
 
@@ -70,7 +71,7 @@ class CalibrationViewModelTest {
 
     @Test
     fun calibrateBoth_failure_setsError() = testScope.runTest {
-        coEvery { calibrateUseCase.invokeBoth() } returns
+        coEvery { calibrateUseCase.invokeBoth(any()) } returns
             Result.failure(IllegalStateException("No still samples"))
 
         viewModel.calibrateBoth()
@@ -85,7 +86,7 @@ class CalibrationViewModelTest {
     fun calibrateBoth_updatesSessionState() = testScope.runTest {
         val leftData = CalibrationData(floatArrayOf(1f, 0f, 0f, 0f), 1000L)
         val rightData = CalibrationData(floatArrayOf(0f, 1f, 0f, 0f), 2000L)
-        coEvery { calibrateUseCase.invokeBoth() } returns Result.success(
+        coEvery { calibrateUseCase.invokeBoth(any()) } returns Result.success(
             mapOf(SensorId.LEFT to leftData, SensorId.RIGHT to rightData)
         )
 
@@ -99,7 +100,7 @@ class CalibrationViewModelTest {
 
     @Test
     fun isCalibrating_resetsAfterCompletion() = testScope.runTest {
-        coEvery { calibrateUseCase.invokeBoth() } returns Result.success(
+        coEvery { calibrateUseCase.invokeBoth(any()) } returns Result.success(
             mapOf(SensorId.LEFT to CalibrationData(floatArrayOf(1f, 0f, 0f, 0f), 1000L))
         )
 
@@ -135,7 +136,7 @@ class CalibrationViewModelTest {
     @Test
     fun calibrateBoth_partialResult_setsAvailableCalibrations() = testScope.runTest {
         val leftData = CalibrationData(floatArrayOf(1f, 0f, 0f, 0f), 1000L)
-        coEvery { calibrateUseCase.invokeBoth() } returns Result.success(
+        coEvery { calibrateUseCase.invokeBoth(any()) } returns Result.success(
             mapOf(SensorId.LEFT to leftData)
         )
 

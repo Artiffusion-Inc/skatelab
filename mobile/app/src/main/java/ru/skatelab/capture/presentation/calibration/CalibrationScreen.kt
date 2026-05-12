@@ -12,6 +12,8 @@ import java.util.Locale
 import ru.skatelab.capture.R
 import ru.skatelab.capture.domain.model.SensorId
 
+private const val CALIBRATION_SECONDS = 10
+
 @Composable
 fun CalibrationScreen(
     viewModel: CalibrationViewModel,
@@ -20,6 +22,7 @@ fun CalibrationScreen(
     val leftCal by viewModel.leftCalibration.collectAsState()
     val rightCal by viewModel.rightCalibration.collectAsState()
     val isCalibrating by viewModel.isCalibrating.collectAsState()
+    val calibrationProgress by viewModel.calibrationProgress.collectAsState()
     val error by viewModel.error.collectAsState()
     val leftQuat by viewModel.leftQuat.collectAsState()
     val rightQuat by viewModel.rightQuat.collectAsState()
@@ -57,19 +60,24 @@ fun CalibrationScreen(
         }
 
         Spacer(modifier = Modifier.height(24.dp))
+        if (isCalibrating) {
+            val secondsLeft = CALIBRATION_SECONDS - (calibrationProgress * CALIBRATION_SECONDS / 100)
+            LinearProgressIndicator(
+                progress = { calibrationProgress / 100f },
+                modifier = Modifier.fillMaxWidth(),
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = "${secondsLeft} с",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
         Button(
             onClick = { viewModel.calibrateBoth() },
             enabled = !isCalibrating,
             modifier = Modifier.fillMaxWidth(),
         ) {
-            if (isCalibrating) {
-                CircularProgressIndicator(
-                    modifier = Modifier.size(20.dp),
-                    strokeWidth = 2.dp,
-                    color = MaterialTheme.colorScheme.onPrimary,
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-            }
             Text(stringResource(R.string.calibration_calibrate_both))
         }
 
