@@ -36,6 +36,8 @@ from app.crud.choreography import (
 )
 from app.schemas import (
     ChoreographyProgramResponse,
+    ElementDefResponse,
+    ElementRegistryResponse,
     ExportRequest,
     GenerateRequest,
     GenerateResponse,
@@ -265,6 +267,31 @@ class ChoreographyController(Controller):
             rink_height=data.rink_height,
         )
         return {"svg": svg}
+
+    # -----------------------------------------------------------------------
+    # Element registry
+    # -----------------------------------------------------------------------
+
+    @get("/elements/registry")
+    async def get_elements_registry(self) -> ElementRegistryResponse:
+        from app.services.choreography.elements_db import ELEMENTS
+
+        elements = [
+            ElementDefResponse(
+                code=el.code,
+                name=el.name,
+                type=el.type.value,
+                base_value=el.base_value,
+                rotations=el.rotations,
+                has_toe_pick=el.has_toe_pick,
+                entry_edge=el.entry_edge,
+                exit_edge=el.exit_edge,
+                combo_eligible=el.combo_eligible,
+                short_program_eligible=el.short_program_eligible,
+            )
+            for el in ELEMENTS.values()
+        ]
+        return ElementRegistryResponse(elements=elements, season="2025_26")
 
     # -----------------------------------------------------------------------
     # Program CRUD
