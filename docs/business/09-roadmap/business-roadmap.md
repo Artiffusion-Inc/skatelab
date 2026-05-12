@@ -4,8 +4,7 @@
 
 ### Q2 (May–June) — CURRENT
 
-- [x] Startup Night ITMO — регистрация, подготовка pitch
-- [ ] Pitch deck + demo подготовка (к 7 мая вечер)
+- [x] Startup Night ITMO — pitch + demo (2026-05-07)
 - [ ] CustDev продолжение (Alisa)
 - [ ] IMU эксперименты на льду (Кронверкский пр., Туполевская 4)
 - [ ] 3D-printed кейс для IMU датчиков
@@ -53,22 +52,20 @@
 
 | Дата | Milestone | Критерий успеха |
 |------|-----------|----------------|
-| 2026-05-07 | Startup Night ITMO | Pitch + demo, expert feedback |
+| 2026-05-07 | Startup Night ITMO | Pitch + demo, expert feedback ✅ |
 | 2026 Q3 | PMF подтверждён | NPS >40, retention >40% |
 | 2026 Q4 | 30 комплектов | MRR > 30K ₽ |
 | 2027 Q1 | Break-even (реалистичный) | 15+ комплектов/мес |
 | 2027 Q4 | Scale | 100+ комплектов, MRR > 500K ₽ |
 
-## Immediate: Startup Night Pitch (2026-05-07)
-
-**Что:** ITMO Startup Night, начало 19:00, эксперты из финансов, IP, product, marketing.
+## Startup Night Feedback (2026-05-07)
 
 **Pitch structure:**
 1. Знакомство: МС по фигурному катанию (Alisa) + ML engineer (Michael)
 2. Проблема: субъективность, дорого, нет русского
 3. Решение: IMU-трекеры + SkateLab AI-платформа
 4. Демо: показать трекер → получить данные
-5. Бизнес-модель: Hardware-first, LTV/CAC ~6x
+5. Бизнес-модель: Hardware-first, LTV/CAC TBD
 6. Traction: MVP в разработке, пилот в 3–5 школах
 
 **Фокус для экспертов:**
