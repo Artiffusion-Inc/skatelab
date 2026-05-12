@@ -1,0 +1,8 @@
+- generic [active] [ref=e1]:
+  - heading "Video Compression Test" [level=1] [ref=e2]
+  - button "Choose File" [ref=e3]
+  - button "Compress" [ref=e4] [cursor=pointer]
+  - generic [ref=e6]:
+    - text: "=== Compression Start === File: Waltz.mp4 (2.8 MB) Importing mediabunny... mediabunny loaded: Conversion=true, BlobSource=true Reading video metadata... Source: 1280x720, 12.6s Output: 1280x720 (scale 1.000) Selecting codec... Codec: avc Initializing conversion... Conversion valid, starting encode... === RESULTS === Original: 2.8 MB Compressed: 2.9 MB Ratio: 0.9x smaller Time: 1.1s SUCCESS"
+    - link "Download compressed file (2.9 MB)" [ref=e8] [cursor=pointer]:
+      - /url: blob:http://localhost:8766/d2e180ac-4e57-408e-a781-91864257e586

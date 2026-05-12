@@ -1,0 +1,5 @@
+- generic [active] [ref=e1]:
+  - heading "Video Compression Test" [level=1] [ref=e2]
+  - button "Choose File" [ref=e3]
+  - button "Compress" [ref=e4] [cursor=pointer]
+  - generic [ref=e6]: "=== Compression Start === File: Waltz.mp4 (2.8 MB) Importing mediabunny... ERROR: Failed to fetch dynamically imported module: https://esm.sh/mediabunny@1.2.2 TypeError: Failed to fetch dynamically imported module: https://esm.sh/mediabunny@1.2.2"

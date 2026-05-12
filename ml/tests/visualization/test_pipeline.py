@@ -8,7 +8,8 @@ from unittest import mock
 import numpy as np
 import pytest
 
-from src.visualization.pipeline import PreparedPoses, VizPipeline, _resolve_model_3d, prepare_poses
+from src.pose_preparation import PreparedPoses, _resolve_model_3d, prepare_poses
+from src.visualization.pipeline import VizPipeline
 
 # ---------------------------------------------------------------------------
 # Fixtures

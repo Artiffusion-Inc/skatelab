@@ -242,4 +242,4 @@ class VizPipeline:
 # Unified pose preparation — re-exported from core module
 # ------------------------------------------------------------------
 
-from src.pose_preparation import PreparedPoses, _resolve_model_3d, prepare_poses  # noqa: F401
+# Import pose_preparation helpers directly when needed (unused re-exports removed)

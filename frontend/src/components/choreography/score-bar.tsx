@@ -46,7 +46,11 @@ export function ScoreBar({ layout, discipline: _discipline, segment }: ScoreBarP
   return (
     <div className="flex items-center gap-4 overflow-x-auto text-sm sm:gap-6">
       <Stat label={t("score.tes")} value={stats.tes.toFixed(2)} highlight />
-      <Stat label={t("score.total")} value={stats.tes > 0 ? (stats.tes * 1.4).toFixed(2) : "0.00"} highlight />
+      <Stat
+        label={t("score.total")}
+        value={stats.tes > 0 ? (stats.tes * 1.4).toFixed(2) : "0.00"}
+        highlight
+      />
       <div className="h-4 w-px shrink-0 bg-border" />
       <Stat label={t("score.duration")} value={duration} />
       <Stat
@@ -59,16 +63,8 @@ export function ScoreBar({ layout, discipline: _discipline, segment }: ScoreBarP
         value={`${stats.spinCount}/${maxSpins}`}
         warn={stats.spinCount > maxSpins}
       />
-      <Stat
-        label={t("score.steps")}
-        value={`${stats.hasStSq ? 1 : 0}/1`}
-        warn={!stats.hasStSq}
-      />
-      <Stat
-        label={t("score.choreo")}
-        value={`${stats.hasChSq ? 1 : 0}/1`}
-        warn={!stats.hasChSq}
-      />
+      <Stat label={t("score.steps")} value={`${stats.hasStSq ? 1 : 0}/1`} warn={!stats.hasStSq} />
+      <Stat label={t("score.choreo")} value={`${stats.hasChSq ? 1 : 0}/1`} warn={!stats.hasChSq} />
     </div>
   )
 }

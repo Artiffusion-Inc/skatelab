@@ -1,0 +1,5 @@
+- generic [ref=e1]:
+  - heading "Video Compression Test" [level=1] [ref=e2]
+  - button "Choose File" [active] [ref=e3]
+  - button "Compress" [ref=e4] [cursor=pointer]
+  - generic [ref=e6]: "WebCodecs: available Selected: Waltz.mp4 (2.8 MB, type: video/mp4) Skip threshold: BELOW (would skip) Selected: Waltz.mp4 (2.8 MB, type: video/mp4) Skip threshold: BELOW (would skip)"

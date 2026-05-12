@@ -20,9 +20,9 @@ from ..types import (
     TimeSeries,
 )
 from ..utils.geometry import (
-    _angle_3pt_rad,
     angle_3pt,
     angle_3pt_batch,
+    angle_3pt_rad,
     calculate_com_trajectory,
     calculate_com_trajectory_2d,
 )
@@ -31,7 +31,7 @@ if TYPE_CHECKING:
     from .element_defs import ElementDef
 
 
-@njit(cache=True, fastmath=True)
+@njit(cache=True, fastmath=True)  # type: ignore[reportUntypedFunctionDecorator]
 def _compute_knee_angle_series_numba(
     poses: np.ndarray,
     hip_idx: int,
@@ -59,13 +59,13 @@ def _compute_knee_angle_series_numba(
         knee = pose[knee_idx]
         foot = pose[foot_idx]
 
-        angle_rad = _angle_3pt_rad(hip, knee, foot)
+        angle_rad = angle_3pt_rad(hip, knee, foot)
         angles[i] = angle_rad * rad2deg
 
     return angles
 
 
-@njit(cache=True, fastmath=True)
+@njit(cache=True, fastmath=True)  # type: ignore[reportUntypedFunctionDecorator]
 def _compute_trunk_lean_series_numba(poses: np.ndarray) -> np.ndarray:
     """Compute trunk lean angle series (jitted).
 

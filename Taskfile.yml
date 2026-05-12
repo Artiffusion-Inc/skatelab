@@ -15,7 +15,7 @@ tasks:
   py-test:
     desc: Run pytest tests (excluding slow tests)
     dir: .
-    cmd: "{{.UV_RUN}} pytest backend/tests/ ml/tests/ -v -m \"not slow\" --tb=short"
+    cmd: "{{.UV_RUN}} pytest backend/tests/ ml/tests/ -v -m \"not slow\" --tb=short --import-mode=importlib"
 
   py-typecheck:
     desc: Run basedpyright type checker on backend/app and ml/src
@@ -58,7 +58,7 @@ tasks:
   fe-test:
     desc: Run vitest tests
     dir: frontend
-    cmd: "bun test --run"
+    cmd: "bun run vitest run"
 
   fe-typecheck:
     desc: Run TypeScript type checker

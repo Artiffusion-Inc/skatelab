@@ -1,0 +1,6 @@
+- generic [active] [ref=e1]:
+  - heading "Video Compression Test" [level=1] [ref=e2]
+  - button "Choose File" [ref=e3]
+  - button "Load IMG_4019.MOV (38 MB)" [ref=e4] [cursor=pointer]
+  - button "Compress" [disabled] [ref=e5]
+  - generic [ref=e7]: "WebCodecs: available"

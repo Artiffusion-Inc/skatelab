@@ -115,7 +115,9 @@ export function renderRink(elements: RinkElement[], options?: { width?: number }
 
   // Blue lines
   parts.push(`<line x1="0" y1="8.5" x2="${RINK_W}" y2="8.5" stroke="#2563eb" stroke-width="0.1"/>`)
-  parts.push(`<line x1="0" y1="52.5" x2="${RINK_W}" y2="52.5" stroke="#2563eb" stroke-width="0.1"/>`)
+  parts.push(
+    `<line x1="0" y1="52.5" x2="${RINK_W}" y2="52.5" stroke="#2563eb" stroke-width="0.1"/>`,
+  )
 
   // End lines
   parts.push(`<line x1="0" y1="4" x2="${RINK_W}" y2="4" stroke="#dc2626" stroke-width="0.1"/>`)

@@ -15,6 +15,8 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from collections.abc import Callable
 
+    from src.types import PersonClick
+
 import numpy as np
 
 from src.utils.video import get_video_meta
@@ -68,7 +70,7 @@ def _resolve_model_3d(path: Path | str | None = None) -> Path | None:
 
 def prepare_poses(
     video_path: Path | str,
-    person_click: object | None = None,
+    person_click: PersonClick | None = None,
     *,
     frame_skip: int = 1,
     tracking: str = "auto",

@@ -143,25 +143,25 @@ export function RinkDiagram({
     [select],
   )
 
-  const onPointerMove = useCallback(
-    (e: React.PointerEvent) => {
-      if (!dragRef.current || !svgRef.current) return
-      const rect = svgRef.current.getBoundingClientRect()
-      const scaleX = VW / rect.width
-      const scaleY = VH / rect.height
-      const dx = (e.clientX - dragRef.current.sx) * scaleX
-      const dy = (e.clientY - dragRef.current.sy) * scaleY
-      const nx = Math.max(PAD, Math.min(VW - PAD, dragRef.current.ox + dx))
-      const ny = Math.max(PAD, Math.min(VH - PAD, dragRef.current.oy + dy))
+  const onPointerMove = useCallback((e: React.PointerEvent) => {
+    if (!dragRef.current || !svgRef.current) return
+    const rect = svgRef.current.getBoundingClientRect()
+    const scaleX = VW / rect.width
+    const scaleY = VH / rect.height
+    const dx = (e.clientX - dragRef.current.sx) * scaleX
+    const dy = (e.clientY - dragRef.current.sy) * scaleY
+    const nx = Math.max(PAD, Math.min(VW - PAD, dragRef.current.ox + dx))
+    const ny = Math.max(PAD, Math.min(VH - PAD, dragRef.current.oy + dy))
 
-      // Imperative DOM update — no React re-render
-      const g = svgRef.current.querySelector(`[data-el-id="${dragRef.current.id}"]`)
-      if (g) {
-        g.setAttribute("transform", `translate(${nx - dragRef.current.ox}, ${ny - dragRef.current.oy})`)
-      }
-    },
-    [],
-  )
+    // Imperative DOM update — no React re-render
+    const g = svgRef.current.querySelector(`[data-el-id="${dragRef.current.id}"]`)
+    if (g) {
+      g.setAttribute(
+        "transform",
+        `translate(${nx - dragRef.current.ox}, ${ny - dragRef.current.oy})`,
+      )
+    }
+  }, [])
 
   const onPointerUp = useCallback(
     (e: React.PointerEvent) => {
@@ -227,14 +227,7 @@ export function RinkDiagram({
         />
 
         {/* Centre line */}
-        <line
-          x1="0"
-          y1={VH / 2}
-          x2={VW}
-          y2={VH / 2}
-          stroke="#dc2626"
-          strokeWidth={0.12}
-        />
+        <line x1="0" y1={VH / 2} x2={VW} y2={VH / 2} stroke="#dc2626" strokeWidth={0.12} />
 
         {/* Blue lines */}
         <line x1="0" y1={8.5} x2={VW} y2={8.5} stroke="#2563eb" strokeWidth={0.1} />
@@ -245,14 +238,7 @@ export function RinkDiagram({
         <line x1="0" y1={57} x2={VW} y2={57} stroke="#dc2626" strokeWidth={0.1} />
 
         {/* Centre circle */}
-        <circle
-          cx={VW / 2}
-          cy={VH / 2}
-          r={1.5}
-          fill="none"
-          stroke="#dc2626"
-          strokeWidth={0.1}
-        />
+        <circle cx={VW / 2} cy={VH / 2} r={1.5} fill="none" stroke="#dc2626" strokeWidth={0.1} />
         <circle cx={VW / 2} cy={VH / 2} r={0.12} fill="#dc2626" />
 
         {/* Face-off circles (4) */}
@@ -290,7 +276,7 @@ export function RinkDiagram({
           { x: VW, y: 0, start: 90, end: 180 },
           { x: 0, y: VH, start: 270, end: 360 },
           { x: VW, y: VH, start: 180, end: 270 },
-        ].map((c, i) => {
+        ].map(c => {
           const r = 1.8
           const largeArcFlag = 0
           const sweepFlag = 1
