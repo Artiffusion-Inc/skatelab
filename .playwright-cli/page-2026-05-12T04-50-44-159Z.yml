@@ -1,6 +1,0 @@
-- generic [active] [ref=e1]:
-  - heading "Video Compression Test" [level=1] [ref=e2]
-  - button "Choose File" [ref=e3]
-  - button "Load IMG_4019.MOV (38 MB)" [ref=e4] [cursor=pointer]
-  - button "Compress" [ref=e5] [cursor=pointer]
-  - generic [ref=e7]: "=== Compression Start === File: IMG_4019.MOV (37.3 MB) Importing mediabunny... mediabunny loaded: Conversion=true, BlobSource=true Reading video metadata... videoWidth=0, probing container headers... Probed from container: 1920x1080 Source: 1920x1080, 23.1s Output: 1280x720 (scale 0.667) Selecting codec... Codec: avc Initializing conversion... ERROR: Conversion invalid — discarded: discarded_by_user, undecodable_source_codec Error: Conversion invalid — discarded: discarded_by_user, undecodable_source_codec at HTMLButtonElement.<anonymous> (http://localhost:8768/test-compression.html:170:17)"

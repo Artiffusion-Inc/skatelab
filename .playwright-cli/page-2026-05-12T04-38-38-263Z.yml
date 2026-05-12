@@ -1,6 +1,0 @@
-- generic [ref=e1]:
-  - heading "Video Compression Test" [level=1] [ref=e2]
-  - button "Choose File" [ref=e3]
-  - button "Load IMG_4019.MOV (38 MB)" [active] [ref=e4] [cursor=pointer]
-  - button "Compress" [ref=e5] [cursor=pointer]
-  - generic [ref=e7]: "WebCodecs: available Fetching IMG_4019.MOV (38 MB)... Selected: IMG_4019.MOV (37.3 MB, type: video/quicktime) Skip threshold: ABOVE (would compress) File loaded into input!"

@@ -1,3 +1,0 @@
-- generic [active] [ref=e1]:
-  - heading "Сжатый результат (ffmpeg CRF 28, 1280x720, H.264)" [level=2] [ref=e2]
-  - paragraph [ref=e4]: "Оригинал: 37.3 MB (HEVC 1920x1080) → Сжатый: 4.6 MB (H.264 1280x720), 8x сжатие"

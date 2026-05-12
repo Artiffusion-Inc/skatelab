@@ -1,5 +1,0 @@
-- generic [active] [ref=e1]:
-  - heading "Video Compression Test" [level=1] [ref=e2]
-  - button "Choose File" [ref=e3]
-  - button "Compress" [disabled] [ref=e4]
-  - generic [ref=e6]: "WebCodecs: available"
