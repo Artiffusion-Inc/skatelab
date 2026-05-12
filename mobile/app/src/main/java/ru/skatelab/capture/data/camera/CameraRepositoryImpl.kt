@@ -31,7 +31,13 @@ class CameraRepositoryImpl @Inject constructor(
     override val previewSurface: StateFlow<Surface?> = _previewSurface.asStateFlow()
 
     override fun setPreviewSurface(surface: Surface?) {
+        val prev = _previewSurface.value
         _previewSurface.value = surface
+
+        // If surface was destroyed, close camera session to prevent BufferQueue abandoned errors
+        if (surface == null && prev != null) {
+            recorder?.closeSession()
+        }
     }
 
     override suspend fun prepare(outputFile: File, timestampsFile: File): Result<Unit> = runCatching {
@@ -44,6 +50,11 @@ class CameraRepositoryImpl @Inject constructor(
             previewSurface = _previewSurface.value,
         )
         recorder = rec
+    }
+
+    override suspend fun restartPreview(): Result<Unit> = runCatching {
+        val rec = recorder ?: throw IllegalStateException("Camera not prepared")
+        rec.startPreview(_previewSurface.value)
     }
 
     override suspend fun startRecording(): Result<CameraRepository.RecordingStartResult> = runCatching {

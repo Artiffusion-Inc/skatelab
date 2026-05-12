@@ -111,6 +111,58 @@ class Camera2Recorder(
                 }
             }, callbackHandler)
         }
+
+        // Start preview-only session so the SurfaceView shows camera feed immediately
+        startPreview()
+    }
+
+    /**
+     * Create a preview-only capture session (suspend).
+     * Used in prepare() and when surface is recreated.
+     */
+    suspend fun startPreview(surface: Surface? = previewSurface) {
+        val device = cameraDevice ?: return
+        val s = surface ?: return
+
+        // Close any existing session first
+        captureSession?.close()
+        captureSession = null
+
+        captureSession = suspendCancellableCoroutine { cont ->
+            device.createCaptureSession(listOf(s), object : CameraCaptureSession.StateCallback() {
+                override fun onConfigured(session: CameraCaptureSession) { cont.resume(session) }
+                override fun onConfigureFailed(session: CameraCaptureSession) {
+                    cont.resumeWithException(Exception("Preview session config failed"))
+                }
+            }, callbackHandler)
+        }
+
+        val builder = device.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW)
+        builder.addTarget(s)
+        captureSession!!.setRepeatingRequest(builder.build(), null, callbackHandler)
+        this.previewSurface = surface
+    }
+
+    /**
+     * Create a preview-only capture session (blocking, best-effort).
+     * Used after stopRecording() to restore camera preview.
+     */
+    private fun startPreviewBlocking() {
+        val device = cameraDevice ?: return
+        val surface = previewSurface ?: return
+        val handler = callbackHandler ?: return
+
+        device.createCaptureSession(listOf(surface), object : CameraCaptureSession.StateCallback() {
+            override fun onConfigured(session: CameraCaptureSession) {
+                try {
+                    val builder = device.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW)
+                    builder.addTarget(surface)
+                    session.setRepeatingRequest(builder.build(), null, handler)
+                    captureSession = session
+                } catch (_: Exception) { }
+            }
+            override fun onConfigureFailed(session: CameraCaptureSession) { }
+        }, handler)
     }
 
     @SuppressLint("MissingPermission")
@@ -120,6 +172,11 @@ class Camera2Recorder(
 
         val device = cameraDevice ?: throw IllegalStateException("Camera not prepared")
         val recorder = mediaRecorder ?: throw IllegalStateException("MediaRecorder not prepared")
+
+        // Close preview session before creating recording session
+        // (Camera2 forbids two concurrent sessions on the same device)
+        captureSession?.close()
+        captureSession = null
 
         timestampTracker?.open(timestampsFile!!)
 
@@ -197,12 +254,27 @@ class Camera2Recorder(
         isRecording = false
         captureSession?.stopRepeating()
         captureSession?.close()
+        captureSession = null
         mediaRecorder?.stop()
         timestampTracker?.close()
+
+        // Re-create preview-only session so camera stays visible after recording stops
+        startPreviewBlocking()
+
         return CameraRepository.RecordingStopResult(
             actualFps = 0,
             fpsVerified = false,
         )
+    }
+
+    /**
+     * Close the current capture session (preview or recording).
+     * Called when the preview surface is destroyed.
+     */
+    fun closeSession() {
+        captureSession?.stopRepeating()
+        captureSession?.close()
+        captureSession = null
     }
 
     fun release() {

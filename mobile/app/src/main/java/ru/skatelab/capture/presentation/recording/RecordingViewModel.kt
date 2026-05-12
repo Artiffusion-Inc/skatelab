@@ -299,6 +299,13 @@ class RecordingViewModel @Inject constructor(
         cameraRepository.setPreviewSurface(surface)
     }
 
+    fun restartPreview() {
+        viewModelScope.launch {
+            cameraRepository.restartPreview()
+                .onFailure { appLogger.w(TAG, "Preview restart failed: ${it.message}") }
+        }
+    }
+
     private fun startForegroundService(context: Context) {
         val intent = Intent(context, SensorRecordingService::class.java).apply {
             action = SensorRecordingService.ACTION_START

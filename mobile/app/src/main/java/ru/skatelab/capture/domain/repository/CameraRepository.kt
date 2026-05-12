@@ -16,6 +16,7 @@ interface CameraRepository {
     fun setPreviewSurface(surface: Surface?)
 
     suspend fun prepare(outputFile: File, timestampsFile: File): Result<Unit>
+    suspend fun restartPreview(): Result<Unit>
     suspend fun startRecording(): Result<RecordingStartResult>
     suspend fun stopRecording(): Result<RecordingStopResult>
     suspend fun release()

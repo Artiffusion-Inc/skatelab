@@ -51,9 +51,9 @@ fun RecordingScreen(
     val reconnectingSensor by viewModel.reconnectingSensor.collectAsState()
     val elapsedMs by viewModel.elapsedMs.collectAsState()
 
-    // Track whether the SurfaceView surface has been provided to the ViewModel,
-    // so we only call prepareCamera once after the surface is available.
-    var surfaceProvided by remember { mutableStateOf(false) }
+    // Track whether prepareCamera has been called (camera open + MediaRecorder setup).
+    // Preview session is restarted automatically when surface changes.
+    var cameraPrepared by remember { mutableStateOf(false) }
 
     // Navigate on completion
     LaunchedEffect(sessionId) {
@@ -75,9 +75,11 @@ fun RecordingScreen(
                 reconnectingSensor = reconnectingSensor,
                 elapsedMs = elapsedMs,
                 onSurfaceReady = {
-                    if (!surfaceProvided) {
-                        surfaceProvided = true
+                    if (!cameraPrepared) {
+                        cameraPrepared = true
                         viewModel.prepareCamera(outputDir)
+                    } else {
+                        viewModel.restartPreview()
                     }
                 },
             )
