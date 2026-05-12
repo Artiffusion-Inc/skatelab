@@ -108,7 +108,7 @@
 
 ## Pricing Strategy
 
-1. **Hardware-first** — 15 500 ₽ комплект (основной)
+1. **Hardware-first** — TBD ₽ комплект (основной)
 2. **Subscription** — 490 ₽/мес (дополнительный)
 3. **Annual (20% скидка)** — для продвинутых. Снижает churn летом.
 4. **B2B contract** — Volume discount для клубов.

@@ -70,7 +70,7 @@
 |-----------|----------|-------------|------|
 | Фигуристов в мире | ~733K (Uplifter) | Rink density / federation data | Нет официальных цифр |
 | Русскоязычные (SAM) | 85K–115K | Факт-чек: 283K завышено в 2.5–3x | Основной рынок Y1–Y2 |
-| Hardware ARPU | $170 (15 500 ₽) | CustDev: спортсмен готов до 10 000 ₽ | Проверить после пилота |
+| Hardware ARPU | $170 (TBD ₽) | CustDev: спортсмен готов до 10 000 ₽ | Проверить после пилота |
 | SaaS ARPU | $3–7/мес | Entry 490 ₽, Pro 990 ₽ | Зависит от adoption |
 | Churn SaaS | 5–8%/мес | SaaS benchmark | Сезонность → выше летом |
 | Hardware replacement | 2–3 года | Wearable lifecycle | Может быть дольше |

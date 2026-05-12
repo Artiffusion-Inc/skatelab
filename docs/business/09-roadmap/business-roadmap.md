@@ -72,7 +72,7 @@
 6. Traction: MVP в разработке, пилот в 3–5 школах
 
 **Фокус для экспертов:**
-- Финансы: юнит-экономика (маржа 67%, break-even математический 1.6, реалистичный ~15/мес)
+- Финансы: юнит-экономика (маржа TBD, break-even математический TBD, реалистичный TBD)
 - IP: proprietary ML pipeline + IMU-трекеры
 - Product: MMA (massive market, affordable, accessible)
 - Marketing: тренерская сеть → word of mouth
