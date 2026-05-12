@@ -1,6 +1,6 @@
 "use client"
 
-import { Plus } from "lucide-react"
+import { Minus, Plus } from "lucide-react"
 import { useMemo, useRef, useState } from "react"
 import { useTranslations } from "@/i18n"
 import type { TrackType } from "@/types/choreography"
@@ -25,6 +25,8 @@ export function TrackRow({ type }: { type: TrackType }) {
     editorBpm,
     addElement,
     setSelectedElement,
+    zoomIn,
+    zoomOut,
   } = store
 
   const [pickerPos, setPickerPos] = useState<{ x: number; y: number; ts: number } | null>(null)
@@ -118,6 +120,33 @@ export function TrackRow({ type }: { type: TrackType }) {
             aria-label={t("timeline.addElement")}
           >
             <Plus className="h-3 w-3" />
+          </button>
+        </div>
+        <div className="mt-1 flex items-center gap-0.5">
+          <button
+            type="button"
+            onClick={e => {
+              e.stopPropagation()
+              zoomOut()
+            }}
+            className="flex h-4 w-4 items-center justify-center rounded text-[9px] text-muted-foreground/40 hover:bg-muted/60 hover:text-foreground"
+            aria-label="Zoom out"
+          >
+            <Minus className="h-2.5 w-2.5" />
+          </button>
+          <span className="min-w-[3ch] text-center text-[9px] tabular-nums text-muted-foreground/50">
+            {Math.round(pixelsPerSecond)}
+          </span>
+          <button
+            type="button"
+            onClick={e => {
+              e.stopPropagation()
+              zoomIn()
+            }}
+            className="flex h-4 w-4 items-center justify-center rounded text-[9px] text-muted-foreground/40 hover:bg-muted/60 hover:text-foreground"
+            aria-label="Zoom in"
+          >
+            <Plus className="h-2.5 w-2.5" />
           </button>
         </div>
       </div>

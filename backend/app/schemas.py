@@ -621,3 +621,21 @@ class SaveProgramRequest(BaseModel):
 
 class ExportRequest(BaseModel):
     format: str = Field(pattern=r"^(svg|pdf|json)$")
+
+
+class ElementDefResponse(BaseModel):
+    code: str
+    name: str
+    type: str  # "jump" | "spin" | "step_sequence" | "choreo_sequence"
+    base_value: float
+    rotations: float
+    has_toe_pick: bool
+    entry_edge: str
+    exit_edge: str
+    combo_eligible: bool
+    short_program_eligible: bool
+
+
+class ElementRegistryResponse(BaseModel):
+    elements: list[ElementDefResponse]
+    season: str
