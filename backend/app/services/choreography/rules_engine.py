@@ -126,11 +126,49 @@ def validate_layout(layout: dict) -> ValidationResult:
     if not has_choreo_seq:
         result.add_error("Missing choreographic sequence (ChSq)")
 
+    # ---- C_combo_count: max 3 combinations/sequences ----
+    combo_count = sum(1 for jp in jump_passes if len(jp) > 1)
+    if combo_count > 3:
+        result.add_error(f"Too many jump combinations/sequences: {combo_count} (max 3)")
+
+    # ---- C_combo_triple: max 1 three-jump combination ----
+    triple_combos = sum(1 for jp in jump_passes if len(jp) >= 3)
+    if triple_combos > 1:
+        result.add_error(f"Too many three-jump combinations: {triple_combos} (max 1)")
+
+    # ---- C_euler: Euler (1Eu) max once ----
+    euler_count = sum(1 for jp in jump_passes for code in jp if code == "1Eu")
+    if euler_count > 1:
+        result.add_error(f"Euler (1Eu) used {euler_count} times (max 1)")
+
     # ---- C_axel: at least 1 Axel-type jump ----
     all_jump_codes = [code for jp in jump_passes for code in jp]
     has_axel = any(_is_axel(c) for c in all_jump_codes)
     if not has_axel:
         result.add_warning("No Axel-type jump — ISU requires at least one")
+
+    # ---- C_spin_types: all different spin families ----
+    if segment == "free_skate" and num_spins > 0:
+        spin_types: set[str] = set()
+        for code in spin_codes:
+            if "SpB" in code:
+                spin_types.add("camel")
+            elif code.startswith("CSp"):
+                spin_types.add("combo")
+            elif code.startswith("FSp"):
+                spin_types.add("flying")
+            elif code.startswith("LSp"):
+                spin_types.add("layback")
+            elif code.startswith("USp"):
+                spin_types.add("upright")
+            else:
+                spin_types.add("other")
+        if len(spin_types) < num_spins:
+            result.add_warning(
+                f"Duplicate spin types: {len(spin_types)} unique out of {num_spins} spins"
+            )
+    elif segment == "short_program" and num_spins > 2:
+        result.add_error(f"Too many spins for Short Program: {num_spins} (max 2)")
 
     # ---- C_zayak: jumps with 3+ rotations max 2 attempts ----
     jump_counts: dict[str, int] = {}
