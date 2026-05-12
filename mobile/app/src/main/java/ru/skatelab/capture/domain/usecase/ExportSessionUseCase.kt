@@ -1,5 +1,7 @@
 package ru.skatelab.capture.domain.usecase
 
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import ru.skatelab.capture.data.export.ManifestBuilder
 import ru.skatelab.capture.data.export.ZipExporter
 import ru.skatelab.capture.domain.model.CaptureSession
@@ -15,19 +17,21 @@ class ExportSessionUseCase @Inject constructor(
     private val zipExporter: ZipExporter,
     private val manifestBuilder: ManifestBuilder,
 ) {
-    fun invoke(session: CaptureSession, outputZip: File): Result<File> = runCatching {
-        // Build manifest JSON
-        val manifest = buildManifest(session)
-        val manifestFile = File(session.videoFile.parentFile, "manifest.json")
-        manifestFile.writeText(manifest)
+    suspend fun invoke(session: CaptureSession, outputZip: File): Result<File> = withContext(Dispatchers.IO) {
+        runCatching {
+            // Build manifest JSON
+            val manifest = buildManifest(session)
+            val manifestFile = File(session.videoFile.parentFile, "manifest.json")
+            manifestFile.writeText(manifest)
 
-        // Update session manifest file reference
-        val sessionWithManifest = session.copy(manifestFile = manifestFile)
+            // Update session manifest file reference
+            val sessionWithManifest = session.copy(manifestFile = manifestFile)
 
-        // Export ZIP
-        zipExporter.export(sessionWithManifest, outputZip)
+            // Export ZIP
+            zipExporter.export(sessionWithManifest, outputZip)
 
-        outputZip
+            outputZip
+        }
     }
 
     private fun buildManifest(session: CaptureSession): String =

@@ -6,14 +6,12 @@ import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.asCoroutineDispatcher
 import ru.skatelab.capture.data.ble.BleRepositoryImpl
 import ru.skatelab.capture.data.export.ZipExporter
 import ru.skatelab.capture.data.repository.SessionRepositoryImpl
 import ru.skatelab.capture.domain.repository.BleRepository
 import ru.skatelab.capture.domain.repository.SessionRepository
 import android.os.SystemClock
-import java.util.concurrent.Executors
 import javax.inject.Named
 import javax.inject.Singleton
 
@@ -42,7 +40,7 @@ abstract class AppModule {
         @Named("ImuIo")
         @Singleton
         fun provideImuIoDispatcher(): CoroutineDispatcher =
-            Executors.newSingleThreadExecutor().asCoroutineDispatcher()
+            Dispatchers.IO.limitedParallelism(4)
 
         @dagger.Provides
         @Named("clockNanos")

@@ -1,5 +1,7 @@
 package ru.skatelab.capture.data.export
 
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import ru.skatelab.capture.domain.model.CaptureSession
 import java.io.BufferedInputStream
 import java.io.BufferedOutputStream
@@ -31,7 +33,7 @@ class ZipExporter @Inject constructor() {
      * @param session the capture session with file references
      * @param zipFile the output ZIP file
      */
-    fun export(session: CaptureSession, zipFile: File) {
+    suspend fun export(session: CaptureSession, zipFile: File) = withContext(Dispatchers.IO) {
         val entries = listOf(
             session.videoFile,
             session.imuLeftFile,

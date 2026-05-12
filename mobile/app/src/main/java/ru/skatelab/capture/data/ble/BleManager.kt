@@ -11,6 +11,7 @@ import android.bluetooth.BluetoothGattDescriptor
 import android.bluetooth.BluetoothProfile
 import android.content.Context
 import android.os.SystemClock
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
@@ -98,6 +99,10 @@ class BleManager(private val context: Context, private val logger: ru.skatelab.c
 
     // Re-priority timer per sensor
     private val repriorityTimers = ConcurrentHashMap<String, Long>()
+
+    // GATT write queue per sensor — serializes write operations
+    private val writeQueues = ConcurrentHashMap<String, MutableList<GattWriteEntry>>()
+    private val writeInProgress = ConcurrentHashMap<String, Boolean>()
 
     // --- Scanning ---
 
@@ -306,6 +311,17 @@ class BleManager(private val context: Context, private val logger: ru.skatelab.c
             }
         }
 
+        override fun onCharacteristicWrite(gatt: BluetoothGatt, characteristic: BluetoothGattCharacteristic, status: Int) {
+            val entryDeferred = synchronized(writeQueues.getOrPut(address) { mutableListOf() }) {
+                if (this@BleManager.writeQueues[address]?.isNotEmpty() == true) {
+                    this@BleManager.writeQueues[address]?.removeAt(0)?.deferred
+                } else null
+            }
+            entryDeferred?.complete(status == BluetoothGatt.GATT_SUCCESS)
+            // Post drain to handler thread to avoid recursive Binder thread calls
+            handlerThreads[address]?.handler?.postDelayed({ drainWriteQueue(address) }, 10L)
+        }
+
         override fun onDescriptorWrite(gatt: BluetoothGatt, descriptor: BluetoothGattDescriptor, status: Int) {
             logi("onDescriptorWrite: $address uuid=${descriptor.uuid} status=$status")
             if (descriptor.uuid.toString().startsWith("00002902")) {
@@ -370,10 +386,40 @@ class BleManager(private val context: Context, private val logger: ru.skatelab.c
         val char = writeCharacteristics[address] ?: run {
             logw("sendCommand: no write char for $address"); return
         }
-        char.value = bytes
-        val success = gatt.writeCharacteristic(char)
-        logi("writeCharacteristic $sensorId: ${bytes.joinToString("") { "%02x".format(it) }} success=$success")
+
+        // GATT write must be serialized — queue the write
+        val queue = writeQueues.getOrPut(address) { mutableListOf() }
+        synchronized(queue) {
+            queue.add(GattWriteEntry(bytes, char, gatt))
+            if (writeInProgress[address] != true) {
+                writeInProgress[address] = true
+                drainWriteQueue(address)
+            }
+        }
     }
+
+    @SuppressLint("MissingPermission")
+    private fun drainWriteQueue(address: String) {
+        val queue = writeQueues[address] ?: return
+        val entry: GattWriteEntry
+        synchronized(queue) {
+            if (queue.isEmpty()) {
+                writeInProgress[address] = false
+                return
+            }
+            entry = queue.removeAt(0)
+        }
+        entry.char.value = entry.bytes
+        val success = entry.gatt.writeCharacteristic(entry.char)
+        if (!success) {
+            loge("writeCharacteristic failed immediately for $address")
+            // Re-queue for retry
+            synchronized(queue) { queue.add(0, entry) }
+            handlerThreads[address]?.handler?.postDelayed({ drainWriteQueue(address) }, 50L)
+        }
+        logi("writeCharacteristic $address: ${entry.bytes.joinToString("") { "%02x".format(it) }} success=$success")
+    }
+
 
     /**
      * Send a sequence of command steps with inter-command delays.
@@ -386,7 +432,22 @@ class BleManager(private val context: Context, private val logger: ru.skatelab.c
         logi("sendSequence: $sensorId steps=${steps.size}")
         kotlinx.coroutines.delay(100L)
         for ((index, step) in steps.withIndex()) {
-            sendCommand(sensorId, step.bytes)
+            val char = writeCharacteristics[address]
+            val gatt = gattConnections[address]
+            if (char == null || gatt == null) {
+                logw("sendSequence: missing char or gatt for $address"); continue
+            }
+            val deferred = CompletableDeferred<Boolean>()
+            val queue = writeQueues.getOrPut(address) { mutableListOf() }
+            synchronized(queue) {
+                queue.add(GattWriteEntry(step.bytes, char, gatt, deferred))
+                if (writeInProgress[address] != true) {
+                    writeInProgress[address] = true
+                    drainWriteQueue(address)
+                }
+            }
+            // Wait for onCharacteristicWrite before next step
+            deferred.await()
             if (step.delayAfterMs > 0) {
                 kotlinx.coroutines.delay(step.delayAfterMs)
             }
@@ -413,6 +474,13 @@ class BleManager(private val context: Context, private val logger: ru.skatelab.c
     }
 
     // --- Inner types ---
+
+    private data class GattWriteEntry(
+        val bytes: ByteArray,
+        val char: BluetoothGattCharacteristic,
+        val gatt: BluetoothGatt,
+        val deferred: CompletableDeferred<Boolean>? = null,
+    )
 
     data class ScanResult(val name: String, val address: String, val rssi: Int)
 
