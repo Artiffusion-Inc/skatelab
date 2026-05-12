@@ -24,6 +24,7 @@ class CalibrateSensorUseCase @Inject constructor(
         private const val COLLECTION_DURATION_MS = 10_000L
         private const val MAX_STILL_SAMPLES = 500
         private const val ANGULAR_VELOCITY_THRESHOLD_DEG_S = 10.0
+        private const val WARMUP_MS = 1_000L
         private const val WARMUP_MIN_ACC_MAGNITUDE = 1.0f
     }
 
@@ -88,7 +89,9 @@ class CalibrateSensorUseCase @Inject constructor(
 
         coroutineScope {
             val collectJob = launch {
+                val skipUntil = System.currentTimeMillis() + WARMUP_MS
                 bleRepository.imuSamples.collect { (sensorId, sample) ->
+                    if (System.currentTimeMillis() < skipUntil) return@collect
                     val accMag = sqrt(
                         (sample.accX * sample.accX +
                                 sample.accY * sample.accY +

@@ -8,6 +8,7 @@ import ru.skatelab.capture.domain.model.ImuSample
 import ru.skatelab.capture.domain.model.SensorId
 import ru.skatelab.capture.domain.repository.BleRepository
 import ru.skatelab.capture.domain.repository.ScanDevice
+import java.util.concurrent.ConcurrentHashMap
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -18,7 +19,7 @@ class BleRepositoryImpl @Inject constructor(
 ) : BleRepository {
 
     private val bleManager = BleManager(context, appLogger)
-    private val _addressMap = mutableMapOf<SensorId, String>()
+    private val _addressMap = ConcurrentHashMap<SensorId, String>()
 
     override val scanResults: Flow<List<ScanDevice>> = bleManager.scanResults.map { results ->
         results.map { ScanDevice(name = it.name, address = it.address, rssi = it.rssi) }

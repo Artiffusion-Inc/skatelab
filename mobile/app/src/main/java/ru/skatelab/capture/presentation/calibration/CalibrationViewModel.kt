@@ -7,6 +7,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.sample
 import kotlinx.coroutines.launch
 import ru.skatelab.capture.domain.model.CalibrationData
 import ru.skatelab.capture.domain.model.ImuSample
@@ -64,7 +65,7 @@ class CalibrationViewModel @Inject constructor(
 
         if (previewJob?.isActive != true) {
             previewJob = viewModelScope.launch {
-                bleRepository.imuSamples.collect { (id, sample) ->
+                bleRepository.imuSamples.sample(100L).collect { (id, sample) ->
                     when (id) {
                         SensorId.LEFT -> _leftQuat.value = sample.toQuaternionPreview()
                         SensorId.RIGHT -> _rightQuat.value = sample.toQuaternionPreview()
