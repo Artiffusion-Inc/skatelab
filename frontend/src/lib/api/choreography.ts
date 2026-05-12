@@ -106,6 +106,36 @@ const ProgramListResponseSchema = z.object({
   total: z.number(),
 })
 
+export const ElementDefSchema = z.object({
+  code: z.string(),
+  name: z.string(),
+  type: z.enum(["jump", "spin", "step_sequence", "choreo_sequence"]),
+  base_value: z.number(),
+  rotations: z.number(),
+  has_toe_pick: z.boolean(),
+  entry_edge: z.string(),
+  exit_edge: z.string(),
+  combo_eligible: z.boolean(),
+  short_program_eligible: z.boolean(),
+})
+
+export const ElementRegistryResponseSchema = z.object({
+  elements: z.array(ElementDefSchema),
+  season: z.string(),
+})
+
+// ---------------------------------------------------------------------------
+// Hooks — Element Registry
+// ---------------------------------------------------------------------------
+
+export function useElementsRegistry() {
+  return useQuery({
+    queryKey: ["elements-registry"],
+    queryFn: () => apiFetch("/choreography/elements/registry", ElementRegistryResponseSchema),
+    staleTime: Infinity,
+  })
+}
+
 // ---------------------------------------------------------------------------
 // Hooks — Music Analysis
 // ---------------------------------------------------------------------------
