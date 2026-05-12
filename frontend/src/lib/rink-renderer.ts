@@ -5,8 +5,9 @@ interface RinkElement {
   is_jump_pass?: boolean
 }
 
-const _RINK_W = 60
-const _RINK_H = 30
+const RINK_W = 30
+const RINK_H = 61
+const PAD = 0.5
 
 function elementColor(code: string): string {
   if (code.includes("Sp")) return "#7c3aed"
@@ -38,46 +39,100 @@ function elementMarker(el: RinkElement, x: number, y: number): string {
   return `<circle cx="${x}" cy="${y}" r="0.7" fill="${color}" opacity="0.85"/>`
 }
 
+function _faceOffCircles(): string[] {
+  const parts: string[] = []
+  const cx0 = RINK_W / 2
+  const cy0 = RINK_H / 2
+  const positions = [
+    [cx0 - 6, cy0 - 11],
+    [cx0 + 6, cy0 - 11],
+    [cx0 - 6, cy0 + 11],
+    [cx0 + 6, cy0 + 11],
+  ]
+  for (const [cx, cy] of positions) {
+    parts.push(
+      `<circle cx="${cx}" cy="${cy}" r="3" fill="none" stroke="#dc2626" stroke-width="0.08"/>`,
+    )
+  }
+  return parts
+}
+
+function _faceOffDots(): string[] {
+  const parts: string[] = []
+  const cx0 = RINK_W / 2
+  const cy0 = RINK_H / 2
+  const positions = [
+    [cx0, cy0],
+    [cx0 - 6, cy0 - 11],
+    [cx0 + 6, cy0 - 11],
+    [cx0 - 6, cy0 + 11],
+    [cx0 + 6, cy0 + 11],
+  ]
+  for (const [cx, cy] of positions) {
+    parts.push(`<circle cx="${cx}" cy="${cy}" r="0.15" fill="#dc2626"/>`)
+  }
+  return parts
+}
+
+function _cornerCreases(): string[] {
+  const parts: string[] = []
+  const r = 1.8
+  const configs = [
+    { x: 0, y: 0, x1: r, y1: 0, x2: 0, y2: r },
+    { x: RINK_W, y: 0, x1: RINK_W - r, y1: 0, x2: RINK_W, y2: r },
+    { x: 0, y: RINK_H, x1: r, y1: RINK_H, x2: 0, y2: RINK_H - r },
+    { x: RINK_W, y: RINK_H, x1: RINK_W - r, y1: RINK_H, x2: RINK_W, y2: RINK_H - r },
+  ]
+  for (const c of configs) {
+    parts.push(
+      `<path d="M ${c.x1} ${c.y1} A ${r} ${r} 0 0 1 ${c.x2} ${c.y2}" fill="none" stroke="#dc2626" stroke-width="0.08"/>`,
+    )
+  }
+  return parts
+}
+
 export function renderRink(elements: RinkElement[], options?: { width?: number }): string {
   const maxW = options?.width ?? 1200
 
   const parts: string[] = []
 
   parts.push(
-    `<svg xmlns="http://www.w3.org/2000/svg" width="100%" viewBox="0 0 60 30" style="max-width:${maxW}px">`,
+    `<svg xmlns="http://www.w3.org/2000/svg" width="100%" viewBox="0 0 ${RINK_W} ${RINK_H}" style="max-width:${maxW}px">`,
   )
 
   // Ice surface
-  parts.push(`<rect x="0" y="0" width="60" height="30" fill="#e8f0fe" rx="1"/>`)
+  parts.push(`<rect x="0" y="0" width="${RINK_W}" height="${RINK_H}" fill="#e8f0fe"/>`)
+
+  // Boundary
   parts.push(
-    `<rect x="1" y="1" width="58" height="28" fill="none" stroke="#2563eb" stroke-width="0.15" rx="0.5"/>`,
+    `<rect x="0" y="0" width="${RINK_W}" height="${RINK_H}" rx="7.5" fill="none" stroke="#dc2626" stroke-width="0.15"/>`,
   )
 
-  // Center line
+  // Centre line (horizontal at mid-height)
   parts.push(
-    `<line x1="30" y1="1" x2="30" y2="29" stroke="#dc2626" stroke-width="0.08" stroke-dasharray="0.5,0.5"/>`,
+    `<line x1="0" y1="${RINK_H / 2}" x2="${RINK_W}" y2="${RINK_H / 2}" stroke="#dc2626" stroke-width="0.12"/>`,
   )
 
-  // Center circle
-  parts.push(`<circle cx="30" cy="15" r="4.5" fill="none" stroke="#dc2626" stroke-width="0.08"/>`)
-  parts.push(`<circle cx="30" cy="15" r="0.15" fill="#dc2626"/>`)
+  // Blue lines
+  parts.push(`<line x1="0" y1="8.5" x2="${RINK_W}" y2="8.5" stroke="#2563eb" stroke-width="0.1"/>`)
+  parts.push(`<line x1="0" y1="52.5" x2="${RINK_W}" y2="52.5" stroke="#2563eb" stroke-width="0.1"/>`)
 
-  // Zone lines
-  parts.push(`<line x1="5" y1="1" x2="5" y2="29" stroke="#2563eb" stroke-width="0.06"/>`)
-  parts.push(`<line x1="55" y1="1" x2="55" y2="29" stroke="#2563eb" stroke-width="0.06"/>`)
+  // End lines
+  parts.push(`<line x1="0" y1="4" x2="${RINK_W}" y2="4" stroke="#dc2626" stroke-width="0.1"/>`)
+  parts.push(`<line x1="0" y1="57" x2="${RINK_W}" y2="57" stroke="#dc2626" stroke-width="0.1"/>`)
 
-  // Corner circles
-  for (const [cx, cy] of [
-    [10, 7.5],
-    [10, 22.5],
-    [50, 7.5],
-    [50, 22.5],
-  ]) {
-    parts.push(
-      `<circle cx="${cx}" cy="${cy}" r="3" fill="none" stroke="#2563eb" stroke-width="0.06"/>`,
-    )
-    parts.push(`<circle cx="${cx}" cy="${cy}" r="0.15" fill="#dc2626"/>`)
-  }
+  // Centre circle + dot
+  parts.push(
+    `<circle cx="${RINK_W / 2}" cy="${RINK_H / 2}" r="1.5" fill="none" stroke="#dc2626" stroke-width="0.1"/>`,
+  )
+  parts.push(`<circle cx="${RINK_W / 2}" cy="${RINK_H / 2}" r="0.12" fill="#dc2626"/>`)
+
+  // Face-off circles and dots
+  parts.push(..._faceOffCircles())
+  parts.push(..._faceOffDots())
+
+  // Corner creases
+  parts.push(..._cornerCreases())
 
   // Flow lines: connect elements in chronological order (by timestamp)
   const sorted = elements
@@ -88,7 +143,6 @@ export function renderRink(elements: RinkElement[], options?: { width?: number }
     const from = sorted[i].position
     const to = sorted[i + 1].position
     if (!from || !to) continue
-    // Only draw if distance > threshold (skip very close elements)
     const dx = to.x - from.x
     const dy = to.y - from.y
     const dist = Math.sqrt(dx * dx + dy * dy)
@@ -97,7 +151,6 @@ export function renderRink(elements: RinkElement[], options?: { width?: number }
     parts.push(
       `<line x1="${from.x}" y1="${from.y}" x2="${to.x}" y2="${to.y}" stroke="#94a3b8" stroke-width="0.08" stroke-dasharray="0.6,0.4" opacity="0.5"/>`,
     )
-    // Small arrow at midpoint
     const mx = (from.x + to.x) / 2
     const my = (from.y + to.y) / 2
     const angle = Math.atan2(dy, dx)
@@ -123,7 +176,7 @@ export function renderRink(elements: RinkElement[], options?: { width?: number }
 
     parts.push(elementMarker(el, x, y))
 
-    // Number badge — white circle with number
+    // Number badge
     parts.push(
       `<circle cx="${x + 1.2}" cy="${y - 1.0}" r="0.7" fill="white" stroke="${color}" stroke-width="0.12"/>`,
     )
@@ -138,21 +191,21 @@ export function renderRink(elements: RinkElement[], options?: { width?: number }
   }
 
   // Legend
-  const ly = 28.5
+  const ly = RINK_H - 2
   const legendItems = [
     { code: "3Lz", label: "Прыжок" },
     { code: "CSp4", label: "Вращение" },
     { code: "StSq4", label: "Шаговая" },
     { code: "ChSq1", label: "Хорео" },
   ]
-  let lx = 2
+  let lx = PAD + 1
   for (const item of legendItems) {
     const _color = elementColor(item.code)
     parts.push(elementMarker({ code: item.code } as RinkElement, lx + 0.4, ly))
     parts.push(
       `<text x="${lx + 1.6}" y="${ly + 0.35}" font-size="0.7" fill="#64748b">${item.label}</text>`,
     )
-    lx += 12
+    lx += 6
   }
 
   parts.push("</svg>")
