@@ -52,20 +52,41 @@ function getVideoMetadata(
 ): Promise<{ width: number; height: number; duration: number }> {
   return new Promise((resolve, reject) => {
     const video = document.createElement("video")
-    video.preload = "metadata"
-    video.onloadedmetadata = () => {
+    video.preload = "auto"
+    const cleanup = () => URL.revokeObjectURL(video.src)
+
+    const onError = () => {
+      cleanup()
+      reject(new Error("Failed to load video metadata"))
+    }
+
+    // loadedmetadata fires first but videoWidth may be 0 for HEVC/unsupported codecs.
+    // Wait for loadeddata (first frame decoded) for reliable dimensions.
+    video.onloadeddata = () => {
       const meta = {
         width: video.videoWidth,
         height: video.videoHeight,
         duration: video.duration || 0,
       }
-      URL.revokeObjectURL(video.src)
+      cleanup()
       resolve(meta)
     }
-    video.onerror = () => {
-      URL.revokeObjectURL(video.src)
-      reject(new Error("Failed to load video metadata"))
+
+    // Fallback: some browsers fire loadedmetadata with dimensions but skip loadeddata
+    video.onloadedmetadata = () => {
+      if (video.videoWidth > 0 && video.videoHeight > 0) {
+        const meta = {
+          width: video.videoWidth,
+          height: video.videoHeight,
+          duration: video.duration || 0,
+        }
+        cleanup()
+        resolve(meta)
+      }
+      // else: wait for loadeddata
     }
+
+    video.onerror = onError
     video.src = URL.createObjectURL(file)
   })
 }
@@ -89,11 +110,31 @@ export async function compressVideoWebCodecs(
     BufferTarget,
     Mp4OutputFormat,
     Mp4InputFormat,
+    QuickTimeInputFormat,
     getFirstEncodableVideoCodec,
     VIDEO_CODECS,
   } = await import("mediabunny")
 
-  const { width: srcW, height: srcH } = await getVideoMetadata(file)
+  let { width: srcW, height: srcH } = await getVideoMetadata(file)
+
+  // HEVC/MOV fallback: <video> may report 0x0 for unsupported codecs.
+  // Parse container headers via mediabunny Input to get dimensions.
+  if (srcW === 0 || srcH === 0) {
+    const probeInput = new Input({
+      source: new BlobSource(file),
+      formats: [new Mp4InputFormat(), new QuickTimeInputFormat()],
+    })
+    const track = await probeInput.getPrimaryVideoTrack()
+    if (track) {
+      srcW = track.codedWidth || (await track.getCodedWidth()) || 0
+      srcH = track.codedHeight || (await track.getCodedHeight()) || 0
+    }
+    if (srcW === 0 || srcH === 0) {
+      throw new Error(
+        "Cannot determine video dimensions. The codec may not be supported by your browser.",
+      )
+    }
+  }
 
   // 4K guard — WebCodecs may OOM on very large inputs
   if (srcW > 3840 || srcH > 2160) {
@@ -122,7 +163,7 @@ export async function compressVideoWebCodecs(
 
   const input = new Input({
     source: new BlobSource(file),
-    formats: [new Mp4InputFormat()],
+    formats: [new Mp4InputFormat(), new QuickTimeInputFormat()],
   })
 
   const output = new Output({

@@ -2,4 +2,16 @@
     <string name="app_name">SkateLab Capture</string>
     <string name="recording_notification_channel">Sensor Recording</string>
     <string name="recording_notification_title">Recording in progress</string>
+    <string name="session_delete_title">Delete session</string>
+    <string name="session_delete_confirm">Are you sure you want to delete this session?</string>
+    <string name="session_delete_confirm_button">Delete</string>
+    <string name="session_delete_cancel">Cancel</string>
+    <string name="session_new_recording">New recording</string>
+    <string name="session_list_title">Sessions</string>
+    <string name="session_no_sessions">No sessions yet</string>
+    <string name="session_date_format">dd.MM.yyyy HH:mm</string>
+    <string name="session_duration">%1$d s</string>
+    <string name="session_complete">Complete</string>
+    <string name="session_incomplete">Incomplete</string>
+    <string name="session_delete">Delete session</string>
 </resources>
