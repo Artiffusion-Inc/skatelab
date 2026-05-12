@@ -11,7 +11,7 @@ interface ScoreBarProps {
   segment: "short_program" | "free_skate"
 }
 
-export function ScoreBar({ layout, discipline, segment }: ScoreBarProps) {
+export function ScoreBar({ layout, discipline: _discipline, segment }: ScoreBarProps) {
   const t = useTranslations("choreography")
   const { data: registry } = useElementsRegistry()
 

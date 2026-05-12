@@ -116,7 +116,7 @@ export function RinkDiagram({
     return [...withPos, ...auto].sort((a, b) => a.timestamp - b.timestamp)
   }, [isReadonly, propElements, storeElements, musicDuration])
 
-  const toSvg = useCallback((clientX: number, clientY: number) => {
+  const _toSvg = useCallback((clientX: number, clientY: number) => {
     const svg = svgRef.current
     if (!svg) return { x: 0, y: 0 }
     const rect = svg.getBoundingClientRect()
@@ -300,7 +300,7 @@ export function RinkDiagram({
           const y2 = c.y === 0 ? r : c.y - r
           return (
             <path
-              key={`crease-${i}`}
+              key={`crease-${c.x}-${c.y}`}
               d={`M ${x1} ${y1} A ${r} ${r} 0 ${largeArcFlag} ${sweepFlag} ${x2} ${y2}`}
               fill="none"
               stroke="#dc2626"
