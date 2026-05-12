@@ -131,33 +131,63 @@ export function RinkDiagram({
       e.preventDefault()
       e.stopPropagation()
       select(el.id)
-      const pt = toSvg(e.clientX, e.clientY)
       dragRef.current = {
         id: el.id,
         sx: e.clientX,
         sy: e.clientY,
-        ox: pt.x - el.x,
-        oy: pt.y - el.y,
+        ox: el.x,
+        oy: el.y,
       }
       ;(e.target as Element).setPointerCapture(e.pointerId)
     },
-    [select, toSvg],
+    [select],
   )
 
   const onPointerMove = useCallback(
     (e: React.PointerEvent) => {
-      if (!dragRef.current) return
-      const pt = toSvg(e.clientX, e.clientY)
-      const nx = Math.max(PAD, Math.min(VW - PAD, pt.x - dragRef.current.ox))
-      const ny = Math.max(PAD, Math.min(VH - PAD, pt.y - dragRef.current.oy))
-      updatePos(dragRef.current.id, nx, ny)
+      if (!dragRef.current || !svgRef.current) return
+      const rect = svgRef.current.getBoundingClientRect()
+      const scaleX = VW / rect.width
+      const scaleY = VH / rect.height
+      const dx = (e.clientX - dragRef.current.sx) * scaleX
+      const dy = (e.clientY - dragRef.current.sy) * scaleY
+      const nx = Math.max(PAD, Math.min(VW - PAD, dragRef.current.ox + dx))
+      const ny = Math.max(PAD, Math.min(VH - PAD, dragRef.current.oy + dy))
+
+      // Imperative DOM update — no React re-render
+      const g = svgRef.current.querySelector(`[data-el-id="${dragRef.current.id}"]`)
+      if (g) {
+        g.setAttribute("transform", `translate(${nx - dragRef.current.ox}, ${ny - dragRef.current.oy})`)
+      }
     },
-    [toSvg, updatePos],
+    [],
   )
 
-  const onPointerUp = useCallback(() => {
-    dragRef.current = null
-  }, [])
+  const onPointerUp = useCallback(
+    (e: React.PointerEvent) => {
+      if (!dragRef.current || !svgRef.current) return
+      const rect = svgRef.current.getBoundingClientRect()
+      const scaleX = VW / rect.width
+      const scaleY = VH / rect.height
+      const dx = (e.clientX - dragRef.current.sx) * scaleX
+      const dy = (e.clientY - dragRef.current.sy) * scaleY
+      const nx = Math.max(PAD, Math.min(VW - PAD, dragRef.current.ox + dx))
+      const ny = Math.max(PAD, Math.min(VH - PAD, dragRef.current.oy + dy))
+
+      const id = dragRef.current.id
+      dragRef.current = null
+
+      // Sync final position to store ONCE
+      updatePos(id, nx, ny)
+
+      // Clear transform after React re-render so old transform doesn't double-offset
+      queueMicrotask(() => {
+        const g = svgRef.current?.querySelector(`[data-el-id="${id}"]`)
+        g?.removeAttribute("transform")
+      })
+    },
+    [updatePos],
+  )
 
   const onRinkClick = useCallback(
     (e: React.MouseEvent) => {
