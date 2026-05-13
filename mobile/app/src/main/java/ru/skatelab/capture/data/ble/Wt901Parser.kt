@@ -248,8 +248,10 @@ class Wt901Parser {
     }
 
     /** Read signed 16-bit LE from buffer at offset (raw, no scaling). */
-    private fun readInt16Raw(offset: Int): Int =
-        ((buffer[offset + 1].toInt() and 0xFF) shl 8) or (buffer[offset].toInt() and 0xFF)
+    private fun readInt16Raw(offset: Int): Int {
+        val raw = ((buffer[offset + 1].toInt() and 0xFF) shl 8) or (buffer[offset].toInt() and 0xFF)
+        return raw.toShort().toInt()  // sign-extend via Short
+    }
 
     /** Checksum: sum of bytes[0..9] & 0xFF must equal bytes[10]. */
     private fun isChecksumValid(): Boolean {
