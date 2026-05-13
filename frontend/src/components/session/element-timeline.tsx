@@ -21,7 +21,7 @@ const COARSE_COLORS: Record<string, string> = {
 export function ElementTimeline({
   timeline,
   totalFrames,
-  fps = 30,
+  fps: _fps = 30,
   currentFrame,
   onSegmentClick,
 }: ElementTimelineProps) {
@@ -38,27 +38,15 @@ export function ElementTimeline({
   }, [segments])
 
   if (!timeline || timeline.segmentation_status === "pending") {
-    return (
-      <div className="text-sm text-muted-foreground py-2">
-        Segmentation pending...
-      </div>
-    )
+    return <div className="text-sm text-muted-foreground py-2">Segmentation pending...</div>
   }
 
   if (timeline.segmentation_status === "failed") {
-    return (
-      <div className="text-sm text-destructive py-2">
-        Segmentation failed
-      </div>
-    )
+    return <div className="text-sm text-destructive py-2">Segmentation failed</div>
   }
 
   if (segments.length === 0) {
-    return (
-      <div className="text-sm text-muted-foreground py-2">
-        No elements detected
-      </div>
-    )
+    return <div className="text-sm text-muted-foreground py-2">No elements detected</div>
   }
 
   return (
@@ -70,15 +58,17 @@ export function ElementTimeline({
         )}
       </div>
       <div className="relative h-8 bg-muted rounded overflow-hidden">
-        {segments.map((seg) => {
+        {segments.map(seg => {
           const left = (seg.start_frame / totalFrames) * 100
           const width = ((seg.end_frame - seg.start_frame) / totalFrames) * 100
           const colorClass = COARSE_COLORS[seg.element_type] ?? "bg-gray-400"
           const opacity = Math.max(0.3, seg.confidence)
-          const isCurrent = currentFrame != null && currentFrame >= seg.start_frame && currentFrame <= seg.end_frame
+          const isCurrent =
+            currentFrame != null && currentFrame >= seg.start_frame && currentFrame <= seg.end_frame
 
           return (
             <button
+              type="button"
               key={seg.id}
               className={`absolute top-0 bottom-0 ${colorClass} hover:brightness-110 transition-all border border-white/20 ${isCurrent ? "ring-2 ring-white" : ""}`}
               style={{

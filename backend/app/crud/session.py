@@ -8,7 +8,7 @@ import sqlalchemy as sa
 from sqlalchemy import desc, func, select
 from sqlalchemy.orm import selectinload
 
-from app.models.session import Session
+from app.models.session import Session, SessionElement
 
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession
@@ -123,8 +123,6 @@ async def batch_insert_elements(
     segmentation_confidence: float | None = None,
 ) -> list[SessionElement]:
     """Batch insert timeline segments in a single transaction."""
-    from app.models.session import SessionElement
-
     elements = []
     for seg in segments:
         element = SessionElement(

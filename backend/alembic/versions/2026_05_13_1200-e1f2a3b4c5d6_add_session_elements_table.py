@@ -22,17 +22,34 @@ def upgrade() -> None:
     op.create_table(
         "session_elements",
         sa.Column("id", sa.String(36), primary_key=True),
-        sa.Column("session_id", sa.String(36), sa.ForeignKey("sessions.id", ondelete="CASCADE"), index=True, nullable=False),
+        sa.Column(
+            "session_id",
+            sa.String(36),
+            sa.ForeignKey("sessions.id", ondelete="CASCADE"),
+            index=True,
+            nullable=False,
+        ),
         sa.Column("element_type", sa.String(50), nullable=False),
         sa.Column("element_name", sa.String(100), nullable=True),
         sa.Column("start_frame", sa.Integer(), nullable=False),
         sa.Column("end_frame", sa.Integer(), nullable=False),
         sa.Column("confidence", sa.Float(), nullable=False),
         sa.Column("phases_json", sa.JSON(), nullable=True),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
-        sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.func.now(), onupdate=sa.func.now(), nullable=False),
+        sa.Column(
+            "created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False
+        ),
+        sa.Column(
+            "updated_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.func.now(),
+            onupdate=sa.func.now(),
+            nullable=False,
+        ),
     )
-    op.add_column("sessions", sa.Column("segmentation_status", sa.String(20), server_default="pending", nullable=False))
+    op.add_column(
+        "sessions",
+        sa.Column("segmentation_status", sa.String(20), server_default="pending", nullable=False),
+    )
 
 
 def downgrade() -> None:
