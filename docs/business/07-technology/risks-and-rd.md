@@ -6,7 +6,7 @@
 
 | Компонент | Технология | Версия | Зрелость |
 |-----------|-----------|--------|----------|
-| **IMU Hardware** | **IMU (BNO085), BLE 5.0** | — | **Prototype (Кронверкский пр.)** |
+| **IMU Hardware** | **IMU (MPU9250), BLE 5.0** | — | **Prototype** |
 | Mobile App (Hardware) | Kotlin, Android | Latest | WIP (`mobile/lib/`) |
 | ML Pipeline | Python, rtmlib, onnxruntime-gpu | 3.12, latest | MVP complete |
 | Pose Backend | RTMO/Body (COCO 17kp) | rtmlib latest | Production-ready |
@@ -37,7 +37,7 @@
 |------|-----------|-----------|--------|
 | **3D-printed кейс для IMU** | **High** | Medium | **В разработке (ИТМО)** |
 | **Mobile app BLE integration** | **High** | High | **WIP (`mobile/lib/`)** |
-| **IMU + video sync** | **High** | High | **PoC (Кронверкский пр.)** |
+| **IMU + video sync** | **High** | High | **PoC** |
 | GCN element classifier | Medium | High | Research |
 | Reference database expansion | High | Medium | Planned |
 | Real-time pipeline (<1s) | Low | Very High | Research |
@@ -49,7 +49,7 @@
 | Риск | Вероятность | Влияние | Mitigation |
 |------|-----------|---------|-----------|
 | **Hardware production (IMU + кейс)** | **Высокая** | **Высокое** | **3D-printed прототип (ИТМО), локальные поставщики** |
-| **IMU калибровка и точность** | **Высокая** | **Высокое** | **BNO085 (±1°), калибровка per-unit, firmware updates** |
+| **IMU калибровка и точность** | **Высокая** | **Высокое** | **MPU9250 (±1° в статике, динамика TBD), калибровка per-unit, firmware updates** |
 | **GPU cost scaling** | Высокая | Высокое | Vast.ai spot, on-device inference, model quantization |
 | **Dataset licensing** | Высокая | Высокое | Audit all licenses, obtain commercial where needed |
 | **Single-camera blade detection** | Certain | Высокое | OOFSkate proxy features + IMU hybrid |
@@ -92,7 +92,7 @@
 | 3D-printed кейс | TBD | ИТМО |
 | Bluetooth модуль | Вкл. в IMU | BLE 5.0 |
 | Зарядка (USB-C) | Вкл. в IMU | — |
-| **Итого BOM** | **~1 700 ₽** | Без упаковки и логистики |
+| **Итого BOM (только компоненты)** | **~3 030 ₽** | 2 882 (IMU) + 150 (крепление), без упаковки/логистики |
 
 ### Hardware Risks
 
