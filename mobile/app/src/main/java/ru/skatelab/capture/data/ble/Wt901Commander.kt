@@ -174,6 +174,45 @@ object Wt901Commander {
     )
 
     /**
+     * ACC calibration recovery sequence for BLE.
+     * Use when ACC data in 0x61 frame is all zeros (corrupted offset).
+     * Sensor MUST be horizontal and completely still during calibration.
+     *
+     * Sequence: stopCalib → unlock → stopCalib(working mode) → unlock → accCalibrate → save
+     * Two stopCalib calls ensure sensor is in working mode before calibration.
+     * Two unlock calls guard against expired unlock window.
+     * Based on WitMotion official SDK + Arduino forum findings.
+     */
+    fun bleAccCalibrateSequence(): List<CommandStep> = listOf(
+        CommandStep(stopCalibration(), DELAY_BETWEEN_CONFIG_MS),
+        CommandStep(unlock(), DELAY_AFTER_UNLOCK_MS),
+        CommandStep(stopCalibration(), DELAY_ACC_CALIB_MS),  // working mode first (critical!)
+        CommandStep(unlock(), DELAY_AFTER_UNLOCK_MS),
+        CommandStep(accCalibrate(), DELAY_ACC_CALIB_MS),     // start ACC cal — sensor must be STILL
+        CommandStep(save(), DELAY_AFTER_SAVE_MS),
+    )
+
+    /**
+     * Undocumented wake-up sequence (FF F0 F0 F0 F0).
+     * Some WT901 firmware versions require this before unlock works.
+     * Use only if normal unlock+calibrate fails.
+     */
+    fun wakeUp(): ByteArray = byteArrayOf(0xFF.toByte(), 0xF0.toByte(), 0xF0.toByte(), 0xF0.toByte(), 0xF0.toByte())
+
+    /**
+     * ACC calibration with wake-up — for stubborn firmware versions.
+     * Sensor MUST be horizontal and completely still.
+     */
+    fun bleAccCalibrateWithWakeSequence(): List<CommandStep> = listOf(
+        CommandStep(wakeUp(), DELAY_BETWEEN_CONFIG_MS),
+        CommandStep(unlock(), DELAY_AFTER_UNLOCK_MS),
+        CommandStep(stopCalibration(), DELAY_ACC_CALIB_MS),
+        CommandStep(unlock(), DELAY_AFTER_UNLOCK_MS),
+        CommandStep(accCalibrate(), DELAY_ACC_CALIB_MS),
+        CommandStep(save(), DELAY_AFTER_SAVE_MS),
+    )
+
+    /**
      * BLE stop streaming: no-op in BLE mode.
      * The 0x61 frame streams as long as CCCD notifications are enabled.
      * Calling this just saves current state.

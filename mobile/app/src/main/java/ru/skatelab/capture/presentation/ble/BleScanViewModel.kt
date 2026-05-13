@@ -77,6 +77,21 @@ class BleScanViewModel @Inject constructor(
         }
     }
 
+    fun accCalibrateSensor(sensorId: SensorId) {
+        viewModelScope.launch {
+            _factoryResetStatus.value = "Калибровка ACC ${sensorId.name.lowercase()}... Датчик горизонтально!"
+            appLogger.i(tag, "accCalibrateSensor: $sensorId")
+            val result = bleRepository.accCalibrateSensor(sensorId)
+            if (result.isSuccess) {
+                _factoryResetStatus.value = "ACC калибровка ${sensorId.name.lowercase()} OK"
+                appLogger.i(tag, "accCalibrate success: $sensorId")
+            } else {
+                _factoryResetStatus.value = "Ошибка калибровки: ${result.exceptionOrNull()?.message}"
+                appLogger.e(tag, "accCalibrate failed: ${result.exceptionOrNull()?.message}")
+            }
+        }
+    }
+
     override fun onCleared() {
         super.onCleared()
         if (_isScanning) bleRepository.stopScan()

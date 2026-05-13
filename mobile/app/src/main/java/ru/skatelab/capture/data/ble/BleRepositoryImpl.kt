@@ -74,6 +74,10 @@ class BleRepositoryImpl @Inject constructor(
         bleManager.sendSequence(sensorId, Wt901Commander.factoryResetSequence())
     }
 
+    override suspend fun accCalibrateSensor(sensorId: SensorId): Result<Unit> = runCatching {
+        bleManager.sendSequence(sensorId, Wt901Commander.bleAccCalibrateSequence())
+    }
+
     override suspend fun startStreaming(sensorId: SensorId): Result<Unit> {
         val mutex = streamingMutexes.getOrPut(sensorId) { Mutex() }
         return mutex.withLock {

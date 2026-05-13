@@ -23,6 +23,8 @@ interface BleRepository {
     /** UART-only config without ACC cal — DO NOT USE with BLE sensors. */
     suspend fun configureSensorNoAccCal(sensorId: SensorId): Result<Unit>
     suspend fun factoryResetSensor(sensorId: SensorId): Result<Unit>
+    /** ACC hardware calibration via BLE. Sensor must be horizontal and still. */
+    suspend fun accCalibrateSensor(sensorId: SensorId): Result<Unit>
     suspend fun startStreaming(sensorId: SensorId): Result<Unit>
     suspend fun stopStreaming(sensorId: SensorId): Result<Unit>
     suspend fun readBattery(sensorId: SensorId): Result<Int>

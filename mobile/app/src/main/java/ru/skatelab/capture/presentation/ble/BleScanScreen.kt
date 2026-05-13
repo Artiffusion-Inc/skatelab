@@ -49,6 +49,8 @@ fun BleScanScreen(
                     onConnectRight = { viewModel.connectSensor(SensorId.RIGHT, device.address) },
                     onFactoryResetLeft = { viewModel.factoryResetSensor(SensorId.LEFT) },
                     onFactoryResetRight = { viewModel.factoryResetSensor(SensorId.RIGHT) },
+                    onAccCalibrateLeft = { viewModel.accCalibrateSensor(SensorId.LEFT) },
+                    onAccCalibrateRight = { viewModel.accCalibrateSensor(SensorId.RIGHT) },
                 )
             }
         }
@@ -76,6 +78,8 @@ private fun ScanDeviceRow(
     onConnectRight: () -> Unit,
     onFactoryResetLeft: (() -> Unit)? = null,
     onFactoryResetRight: (() -> Unit)? = null,
+    onAccCalibrateLeft: (() -> Unit)? = null,
+    onAccCalibrateRight: (() -> Unit)? = null,
 ) {
     Card(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
         Column(modifier = Modifier.padding(12.dp)) {
@@ -94,7 +98,7 @@ private fun ScanDeviceRow(
                     OutlinedButton(onClick = onConnectRight, enabled = !rightConnected) { Text(stringResource(R.string.ble_right)) }
                 }
             }
-            // Factory reset buttons for connected sensors
+            // Factory reset and ACC calibration buttons for connected sensors
             Row(
                 modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
                 horizontalArrangement = Arrangement.spacedBy(4.dp),
@@ -107,6 +111,16 @@ private fun ScanDeviceRow(
                 if (rightConnected && onFactoryResetRight != null) {
                     TextButton(onClick = onFactoryResetRight) {
                         Text("Сброс прав.", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.labelSmall)
+                    }
+                }
+                if (leftConnected && onAccCalibrateLeft != null) {
+                    TextButton(onClick = onAccCalibrateLeft) {
+                        Text("ACC лев.", color = MaterialTheme.colorScheme.tertiary, style = MaterialTheme.typography.labelSmall)
+                    }
+                }
+                if (rightConnected && onAccCalibrateRight != null) {
+                    TextButton(onClick = onAccCalibrateRight) {
+                        Text("ACC прав.", color = MaterialTheme.colorScheme.tertiary, style = MaterialTheme.typography.labelSmall)
                     }
                 }
             }
