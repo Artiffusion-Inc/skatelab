@@ -27,6 +27,8 @@ import java.util.UUID
 import java.util.Collections
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 /**
  * Manages BLE scanning, connections, and communication with WT901 sensors.
@@ -99,6 +101,9 @@ class BleManager(private val context: Context, private val logger: ru.skatelab.c
 
     // Re-priority timer per sensor
     private val repriorityTimers = ConcurrentHashMap<String, Long>()
+
+    // Per-sensor Mutex — prevents concurrent sendSequence from interleaving commands
+    private val sensorMutexes = ConcurrentHashMap<String, Mutex>()
 
     // GATT write queue per sensor — serializes write operations
     private val writeQueues = ConcurrentHashMap<String, MutableList<GattWriteEntry>>()
@@ -305,19 +310,28 @@ class BleManager(private val context: Context, private val logger: ru.skatelab.c
             // Offload parsing to per-sensor handler thread (arrivalNs captured on Binder thread)
             handlerThreads[address]?.postParsing(bytes, address, arrivalNs) { sample ->
                 if (sample != null) {
-                    val id = addressToSensorId[address] ?: return@postParsing
-                    _imuSamples.tryEmit(id to sample)
+                    val id = addressToSensorId[address]
+                    if (id == null) {
+                        logw("postParsing: no SensorId for address=$address, available=${addressToSensorId.keys}")
+                        return@postParsing
+                    }
+                    val emitted = _imuSamples.tryEmit(id to sample)
+                    if (!emitted) {
+                        logw("tryEmit DROPPED sample for $id — SharedFlow buffer full")
+                    }
                 }
             }
         }
 
         override fun onCharacteristicWrite(gatt: BluetoothGatt, characteristic: BluetoothGattCharacteristic, status: Int) {
-            val entryDeferred = synchronized(writeQueues.getOrPut(address) { mutableListOf() }) {
+            // WRITE_TYPE_NO_RESPONSE may not trigger this callback on some devices.
+            // When it does fire, drain the next queued write.
+            logi("onCharacteristicWrite: $address status=$status")
+            synchronized(writeQueues.getOrPut(address) { mutableListOf() }) {
                 if (this@BleManager.writeQueues[address]?.isNotEmpty() == true) {
-                    this@BleManager.writeQueues[address]?.removeAt(0)?.deferred
-                } else null
+                    this@BleManager.writeQueues[address]?.removeAt(0)?.deferred?.complete(status == BluetoothGatt.GATT_SUCCESS)
+                }
             }
-            entryDeferred?.complete(status == BluetoothGatt.GATT_SUCCESS)
             // Post drain to handler thread to avoid recursive Binder thread calls
             handlerThreads[address]?.handler?.postDelayed({ drainWriteQueue(address) }, 10L)
         }
@@ -423,36 +437,42 @@ class BleManager(private val context: Context, private val logger: ru.skatelab.c
 
     /**
      * Send a sequence of command steps with inter-command delays.
-     * Uses coroutine delay() instead of Thread.sleep to avoid blocking the parsing thread.
+     * Uses delay() between writes because WT901 uses WRITE_TYPE_NO_RESPONSE —
+     * Android does NOT call onCharacteristicWrite for write-without-response,
+     * so CompletableDeferred.await() would hang forever.
+     * Each step's delayAfterMs provides sufficient time for the sensor to process.
+     *
+     * Per-sensor Mutex prevents concurrent sendSequence calls (e.g. configure + startStreaming)
+     * from interleaving commands on the same sensor.
      */
     suspend fun sendSequence(sensorId: SensorId, steps: List<Wt901Commander.CommandStep>) {
         val address = addressToSensorId.entries.find { it.value == sensorId }?.key ?: run {
             logw("sendSequence: no address for $sensorId"); return
         }
-        logi("sendSequence: $sensorId steps=${steps.size}")
-        kotlinx.coroutines.delay(100L)
-        for ((index, step) in steps.withIndex()) {
-            val char = writeCharacteristics[address]
-            val gatt = gattConnections[address]
-            if (char == null || gatt == null) {
-                logw("sendSequence: missing char or gatt for $address"); continue
-            }
-            val deferred = CompletableDeferred<Boolean>()
-            val queue = writeQueues.getOrPut(address) { mutableListOf() }
-            synchronized(queue) {
-                queue.add(GattWriteEntry(step.bytes, char, gatt, deferred))
-                if (writeInProgress[address] != true) {
-                    writeInProgress[address] = true
-                    drainWriteQueue(address)
+        val mutex = sensorMutexes.getOrPut(address) { Mutex() }
+        mutex.withLock {
+            logi("sendSequence: $sensorId steps=${steps.size}")
+            kotlinx.coroutines.delay(100L)
+            for ((index, step) in steps.withIndex()) {
+                val char = writeCharacteristics[address]
+                val gatt = gattConnections[address]
+                if (char == null || gatt == null) {
+                    logw("sendSequence: missing char or gatt for $address at step $index"); continue
                 }
+                val queue = writeQueues.getOrPut(address) { mutableListOf() }
+                synchronized(queue) {
+                    queue.add(GattWriteEntry(step.bytes, char, gatt))
+                    if (writeInProgress[address] != true) {
+                        writeInProgress[address] = true
+                        drainWriteQueue(address)
+                    }
+                }
+                val minGapMs = 30L
+                kotlinx.coroutines.delay(maxOf(step.delayAfterMs, minGapMs))
+                logi("sendSequence step $index/${steps.size} sent: ${step.bytes.joinToString("") { "%02x".format(it) }}")
             }
-            // Wait for onCharacteristicWrite before next step
-            deferred.await()
-            if (step.delayAfterMs > 0) {
-                kotlinx.coroutines.delay(step.delayAfterMs)
-            }
+            logi("sendSequence complete: $sensorId")
         }
-        logi("sendSequence complete: $sensorId")
     }
 
     // --- Priority Management ---

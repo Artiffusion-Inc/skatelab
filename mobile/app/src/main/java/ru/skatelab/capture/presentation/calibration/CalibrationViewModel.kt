@@ -92,8 +92,10 @@ class CalibrationViewModel @Inject constructor(
             _isCalibrating.value = true
             _error.value = null
             _calibrationProgress.value = 0
-            // Pause preview collection — invokeBoth needs exclusive access to imuSamples
-            pausePreview()
+            // Cancel preview collection to free SharedFlow buffer for calibration.
+            // BLE streaming continues — preview just stops consuming from the flow.
+            previewJob?.cancel()
+            previewJob = null
             try {
                 calibrateSensorUseCase.invokeBoth { progress ->
                     _calibrationProgress.value = progress
@@ -107,22 +109,22 @@ class CalibrationViewModel @Inject constructor(
             } finally {
                 _isCalibrating.value = false
                 _calibrationProgress.value = 100
-                // Resume preview after calibration
-                resumePreview()
+                // Restart preview collection (BLE streaming already active)
+                restartPreviewCollection()
             }
         }
     }
 
-    private fun pausePreview() {
-        previewJob?.cancel()
-        previewJob = null
-    }
-
-    private fun resumePreview() {
-        val toRestart = streamingSensors.toList()
-        streamingSensors.clear()
-        for (id in toRestart) {
-            startPreview(id)
+    private fun restartPreviewCollection() {
+        if (previewJob?.isActive == true) return
+        if (streamingSensors.isEmpty()) return
+        previewJob = viewModelScope.launch {
+            bleRepository.imuSamples.sample(100L).collect { (id, sample) ->
+                when (id) {
+                    SensorId.LEFT -> _leftQuat.value = sample.toQuaternionPreview()
+                    SensorId.RIGHT -> _rightQuat.value = sample.toQuaternionPreview()
+                }
+            }
         }
     }
 

@@ -75,7 +75,8 @@ class BleHandlerThread(name: String = "ble-parsing") : HandlerThread(name) {
             val sample = parser.feed(bytes, arrivalNs)
             parseCount++
             if (parseCount % 500 == 0L) {
-                android.util.Log.i("BleParse", "Parsed $parseCount packets from $sensorAddress, last sample: ${sample != null}, dropped: ${parser.droppedPartialCount}")
+                val accInfo = if (sample != null) "acc=[${sample.accX},${sample.accY},${sample.accZ}]" else "null"
+                android.util.Log.i("BleParse", "Parsed $parseCount packets from $sensorAddress, last sample: ${sample != null}, $accInfo, dropped: ${parser.droppedPartialCount}")
             }
             callback(sample)
         }

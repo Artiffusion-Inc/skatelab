@@ -126,6 +126,11 @@ class Wt901Parser {
             // Track frame types for debugging
             frameCounts[frameType] = (frameCounts[frameType] ?: 0) + 1
             logSeq++
+            // Log raw 0x61 frame bytes on first occurrence and every 5000th
+            if (frameType == TYPE_COMBINED && (frameCounts[frameType] == 1 || frameCounts[frameType]!! % 5000 == 0)) {
+                val rawHex = (0 until minOf(COMBINED_FRAME_SIZE, bufferSize)).joinToString(" ") { "%02X".format(buffer[it].toInt() and 0xFF) }
+                Log.i(logTag, "RAW 0x61 frame #${frameCounts[frameType]}: $rawHex")
+            }
             if (logSeq % 200 == 0) {
                 val stats = frameCounts.entries.joinToString(", ") { (k, v) ->
                     "0x%02X=%d".format(k, v)

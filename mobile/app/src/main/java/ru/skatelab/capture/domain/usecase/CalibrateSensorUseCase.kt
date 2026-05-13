@@ -13,6 +13,7 @@ import ru.skatelab.capture.domain.model.SensorId
 import ru.skatelab.capture.domain.repository.BleRepository
 import javax.inject.Inject
 import kotlin.math.sqrt
+import kotlin.math.abs
 
 class CalibrateSensorUseCase @Inject constructor(
     private val bleRepository: BleRepository,
@@ -25,7 +26,6 @@ class CalibrateSensorUseCase @Inject constructor(
         private const val MAX_STILL_SAMPLES = 500
         private const val ANGULAR_VELOCITY_THRESHOLD_DEG_S = 10.0
         private const val WARMUP_MS = 1_000L
-        private const val WARMUP_MIN_ACC_MAGNITUDE = 1.0f
     }
 
     /**
@@ -89,15 +89,15 @@ class CalibrateSensorUseCase @Inject constructor(
 
         coroutineScope {
             val collectJob = launch {
+                var debugCount = 0
                 val skipUntil = System.currentTimeMillis() + WARMUP_MS
                 bleRepository.imuSamples.collect { (sensorId, sample) ->
+                    debugCount++
+                    if (debugCount <= 10 || debugCount % 100 == 0) {
+                        val accMag = sqrt((sample.accX * sample.accX + sample.accY * sample.accY + sample.accZ * sample.accZ).toDouble())
+                        appLogger.i(TAG, "collect #$debugCount: sensorId=$sensorId, accMag=$accMag, gyroMag=${sqrt((sample.gyroX * sample.gyroX + sample.gyroY * sample.gyroY + sample.gyroZ * sample.gyroZ).toDouble())}")
+                    }
                     if (System.currentTimeMillis() < skipUntil) return@collect
-                    val accMag = sqrt(
-                        (sample.accX * sample.accX +
-                                sample.accY * sample.accY +
-                                sample.accZ * sample.accZ).toDouble()
-                    ).toFloat()
-                    if (accMag < WARMUP_MIN_ACC_MAGNITUDE) return@collect
                     val gyroMagDegS = sqrt(
                         (sample.gyroX * sample.gyroX +
                                 sample.gyroY * sample.gyroY +
