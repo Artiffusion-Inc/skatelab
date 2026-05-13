@@ -319,6 +319,24 @@ class SessionMetricResponse(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class ElementSegmentResponse(BaseModel):
+    id: str
+    element_type: str
+    element_name: str | None = None
+    start_frame: int
+    end_frame: int
+    confidence: float
+    phases_json: dict | None = None
+
+    model_config = {"from_attributes": True}
+
+
+class TimelineData(BaseModel):
+    segments: list[ElementSegmentResponse]
+    segmentation_confidence: float | None = None
+    segmentation_status: str = "pending"
+
+
 # Pose and metrics data types (Task 10, 2026-04-16)
 
 
@@ -384,6 +402,8 @@ class SessionResponse(BaseModel):
     manifest_key: str | None = None
     created_at: str
     processed_at: str | None
+    timeline: TimelineData | None = None
+    segmentation_status: str = "pending"
     metrics: list[SessionMetricResponse] = []
 
     model_config = {"from_attributes": True}
