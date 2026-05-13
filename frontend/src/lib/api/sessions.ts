@@ -110,7 +110,7 @@ export function useSession(id: string, opts?: { refetchInterval?: number | false
     queryKey: ["session", id],
     queryFn: () => apiFetch(`/sessions/${id}`, SessionSchema),
     enabled: !!id,
-    refetchInterval: (query) => {
+    refetchInterval: query => {
       const data = query.state.data
       if (data?.segmentation_status === "pending" || data?.status === "processing") {
         return 5000
