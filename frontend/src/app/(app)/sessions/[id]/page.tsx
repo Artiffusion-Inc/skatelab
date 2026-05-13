@@ -113,7 +113,7 @@ export default function SessionDetailPage() {
         )}
 
         {session.pose_data && (
-          <PhaseTimeline totalFrames={totalFrames} phases={session.phases ?? {}} />
+          <PhaseTimeline totalFrames={totalFrames} phases={session.phases} />
         )}
 
         {session.pose_data && session.frame_metrics && (

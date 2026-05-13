@@ -5,11 +5,13 @@ import type { PhasesData } from "@/types"
 
 interface PhaseTimelineProps {
   totalFrames: number
-  phases: PhasesData
+  phases: PhasesData | null | undefined
 }
 
 export function PhaseTimeline({ totalFrames, phases }: PhaseTimelineProps) {
   const { currentFrame, setCurrentFrame } = useAnalysisStore()
+
+  if (!phases) return null
 
   const percentage = (currentFrame / totalFrames) * 100
 
@@ -31,11 +33,11 @@ export function PhaseTimeline({ totalFrames, phases }: PhaseTimelineProps) {
     setCurrentFrame(targetFrame)
   }
 
-  const takeoffPercent = phases.takeoff !== undefined ? (phases.takeoff / totalFrames) * 100 : null
+  const takeoffPercent = phases.takeoff ? (phases.takeoff.frame / totalFrames) * 100 : null
 
-  const peakPercent = phases.peak !== undefined ? (phases.peak / totalFrames) * 100 : null
+  const peakPercent = phases.peak ? (phases.peak.frame / totalFrames) * 100 : null
 
-  const landingPercent = phases.landing !== undefined ? (phases.landing / totalFrames) * 100 : null
+  const landingPercent = phases.landing ? (phases.landing.frame / totalFrames) * 100 : null
 
   return (
     <div

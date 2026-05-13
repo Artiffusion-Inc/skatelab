@@ -31,6 +31,7 @@ class VastResult:
     metrics: list | None
     phases: object | None
     recommendations: list | None
+    segments: list[dict] | None = None
 
 
 @dataclass
@@ -151,6 +152,7 @@ def process_video_remote(
     result = resp.json()
 
     # 3. Return R2 keys directly (no download)
+    segments = result.get("segments")
     return VastResult(
         poses_key=result.get("poses_r2_key"),
         metrics_key=result.get("metrics_r2_key"),
@@ -158,6 +160,7 @@ def process_video_remote(
         metrics=result.get("metrics"),
         phases=result.get("phases"),
         recommendations=result.get("recommendations"),
+        segments=segments,
     )
 
 
@@ -208,6 +211,7 @@ async def process_video_remote_async(
         result = resp.json()
 
     # 3. Return R2 keys directly (no download)
+    segments = result.get("segments")
     return VastResult(
         poses_key=result.get("poses_r2_key"),
         metrics_key=result.get("metrics_r2_key"),
@@ -215,6 +219,7 @@ async def process_video_remote_async(
         metrics=result.get("metrics"),
         phases=result.get("phases"),
         recommendations=result.get("recommendations"),
+        segments=segments,
     )
 
 

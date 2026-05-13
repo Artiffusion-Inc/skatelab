@@ -342,9 +342,13 @@ async def process_video_task(
         await publish_task_event(
             task_id, {"status": "completed", "progress": 1.0, "message": "Done"}, valkey=valkey
         )
-        if session_id and vast_result.metrics:
+        if session_id:
             try:
-                from app.crud.session import update_session_analysis
+                from app.crud.session import (
+                    batch_insert_elements,
+                    get_by_id,
+                    update_session_analysis,
+                )
                 from app.database import async_session  # type: ignore[import-untyped]
                 from app.services.session_saver import save_analysis_results
 
@@ -359,17 +363,40 @@ async def process_video_task(
                             phases=vast_result.phases,  # type: ignore[arg-type]
                         )
 
-                    # Save metrics and recommendations (existing flow)
-                    await save_analysis_results(
-                        db,
-                        session_id=session_id,
-                        metrics=vast_result.metrics,
-                        phases=vast_result.phases,
-                        recommendations=vast_result.recommendations or [],
-                    )
+                    # Save metrics and recommendations
+                    if vast_result.metrics:
+                        await save_analysis_results(
+                            db,
+                            session_id=session_id,
+                            metrics=vast_result.metrics,
+                            phases=vast_result.phases,
+                            recommendations=vast_result.recommendations or [],
+                        )
+
+                    # Save timeline segments (same transaction as metrics)
+                    if vast_result.segments:
+                        seg_confidence = float(
+                            np.mean([s["confidence"] for s in vast_result.segments])
+                        )
+                        await batch_insert_elements(
+                            db,
+                            session_id,
+                            vast_result.segments,
+                            segmentation_confidence=seg_confidence,
+                        )
+
+                    # Update segmentation_status atomically
+                    session_obj = await get_by_id(db, session_id)
+                    if session_obj:
+                        if vast_result.segments is not None:
+                            session_obj.segmentation_status = "done"
+                        else:
+                            session_obj.segmentation_status = "failed"
+
+                    # Single commit for metrics + segments + status
                     await db.commit()
             except (OSError, ValueError, RuntimeError) as save_err:
-                logger.warning("Failed to save session results: %s", save_err)
+                logger.warning("Failed to save session data: %s", save_err)
 
         return response_data
 

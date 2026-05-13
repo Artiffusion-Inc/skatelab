@@ -56,7 +56,17 @@ os.environ.setdefault("PROJECT_ROOT", "/app")
 _PROJECT_ROOT = Path(os.environ.get("PROJECT_ROOT", "/app"))
 MOGANET_MODEL_PATH = _PROJECT_ROOT / "data/models/moganet/moganet_b_ap2d_384x288.onnx"
 YOLO_MODEL_PATH = _PROJECT_ROOT / "data/models/yolov8n.onnx"
+TAS_MODEL_PATH = _PROJECT_ROOT / "data/models/tas/bigr_refiner_best.onnx"
 
+# R2 keys for each model
+_R2_MODELS: list[tuple[Path, str]] = [
+    (MOGANET_MODEL_PATH, "models/moganet/moganet_b_ap2d_384x288.onnx"),
+    (YOLO_MODEL_PATH, "models/yolov8n.onnx"),
+    (TAS_MODEL_PATH, "models/tas/bigr_refiner_best.onnx"),
+]
+
+# TAS segmenter (loaded at startup, None if model unavailable)
+_tas_segmenter = None
 # Async session for R2
 _async_session = aiobotocore.session.get_session()
 
@@ -65,8 +75,8 @@ _models_ready = False
 
 
 async def _background_init():
-    """Verify models exist + warmup CUDA — runs after server is accepting requests."""
-    global _models_ready  # noqa: PLW0603
+    """Download models + warmup CUDA — runs after server is accepting requests."""
+    global _models_ready, _tas_segmenter  # noqa: PLW0603
     try:
         if not MOGANET_MODEL_PATH.exists():
             raise OSError(f"Model not found: {MOGANET_MODEL_PATH}")
@@ -83,6 +93,18 @@ async def _background_init():
             opts.intra_op_num_threads = 1
             opts.inter_op_num_threads = 2
             logger.info("GPU warmup: CUDA initialized")
+
+        # Load TAS segmenter if model exists
+        try:
+            from src.tas.inference import TASElementSegmenter
+
+            if TAS_MODEL_PATH.exists():
+                _tas_segmenter = TASElementSegmenter(model_path=str(TAS_MODEL_PATH))
+                logger.info("TAS segmenter loaded at startup (ONNX)")
+            else:
+                logger.warning("TAS model not found at %s — timeline unavailable", TAS_MODEL_PATH)
+        except (ValueError, RuntimeError, OSError):
+            logger.warning("TAS segmenter not loaded — timeline unavailable", exc_info=True)
 
         _models_ready = True
         logger.info("Background init complete — models ready")
@@ -170,6 +192,7 @@ class ProcessResponse(BaseModel):
     metrics: list | None = None
     phases: object | None = None
     recommendations: list | None = None
+    segments: list[dict] | None = None
 
 
 def _s3(creds: ProcessRequest | DetectRequest):
@@ -404,6 +427,25 @@ async def process(req: ProcessRequest):
                     progress_cb=None,
                 )
 
+                # --- TAS element segmentation (concurrent with biomechanics) ---
+                def _run_tas_sync():
+                    """Blocking TAS ONNX inference — runs in thread pool for true parallelism."""
+                    if _tas_segmenter is None:
+                        return None
+                    segs = _tas_segmenter.segment(prepared.poses_norm, fps=prepared.meta.fps)
+                    return [
+                        {
+                            "element_type": s["element_type"],
+                            "start": s["start"],
+                            "end": s["end"],
+                            "confidence": s["confidence"],
+                        }
+                        for s in segs
+                    ]
+
+                # Offload TAS to thread — asyncio.create_task does NOT parallelize CPU/GPU code
+                segments_coro = asyncio.to_thread(_run_tas_sync)
+
                 # --- Biomechanics analysis ---
                 metrics: list = []
                 phases: ElementPhase | None = None
@@ -429,6 +471,8 @@ async def process(req: ProcessRequest):
                         recommender = Recommender()
                         recommendations = recommender.recommend(metrics, req.element_type)
 
+                # Wait for TAS to finish
+                segments_result = await segments_coro
                 # --- Upload results to R2 ---
                 poses_key, metrics_key = _make_output_keys(req.video_r2_key)
                 upload_tasks = []
@@ -472,6 +516,7 @@ async def process(req: ProcessRequest):
                     metrics=metrics_data["metrics"],
                     phases=metrics_data["phases"],
                     recommendations=recommendations,
+                    segments=segments_result,
                 )
     except Exception:
         INFERENCE_REQUESTS.labels(status="error").inc()

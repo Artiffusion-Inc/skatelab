@@ -61,10 +61,31 @@ export interface FrameMetrics {
   com_height: (number | null)[] // Center of mass height per frame
 }
 
+export interface PhaseFrame {
+  frame: number
+  timestamp?: number
+}
+
 export interface PhasesData {
-  takeoff?: number // Frame index of takeoff
-  peak?: number // Frame index of peak height
-  landing?: number // Frame index of landing
+  takeoff: PhaseFrame
+  peak: PhaseFrame
+  landing: PhaseFrame
+}
+
+export interface ElementSegment {
+  id: string
+  element_type: string
+  element_name?: string | null
+  start_frame: number
+  end_frame: number
+  confidence: number
+  phases_json?: PhasesData | null
+}
+
+export interface TimelineData {
+  segments: ElementSegment[]
+  segmentation_confidence?: number | null
+  segmentation_status: string
 }
 
 // ---------------------------------------------------------------------------
@@ -96,6 +117,8 @@ export interface Session {
   status: string
   error_message: string | null
   phases?: PhasesData | null // Typed phase markers
+  timeline?: TimelineData | null
+  segmentation_status: string
   recommendations: string[] | null
   overall_score: number | null
   created_at: string

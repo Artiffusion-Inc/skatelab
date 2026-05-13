@@ -100,4 +100,35 @@ class OverlapF1:
         return {"f1": f1, "precision": precision, "recall": recall}
 
 
-__all__ = ["OverlapF1", "_extract_segments", "_segment_iou"]
+class MultiOverlapF1:
+    """Evaluate at multiple IoU thresholds simultaneously.
+
+    Returns F1, precision, recall at each threshold.
+    """
+
+    def __init__(self, thresholds: list[float] | None = None, num_classes: int = 4) -> None:
+        self.thresholds = thresholds or [0.10, 0.25, 0.50]
+        self.num_classes = num_classes
+        self.id2label = {i: ID2LABEL.get(i, f"Class{i}") for i in range(num_classes)}
+
+    def compute(
+        self,
+        pred_labels: "NDArray",
+        true_labels: "NDArray",
+    ) -> dict[str, float]:
+        """Compute OverlapF1 at multiple IoU thresholds."""
+        pred_segs = _extract_segments(pred_labels, self.id2label)
+        true_segs = _extract_segments(true_labels, self.id2label)
+
+        result: dict[str, float] = {}
+        for threshold in self.thresholds:
+            tag = str(int(threshold * 100))
+            metric = OverlapF1(iou_threshold=threshold, num_classes=self.num_classes)
+            single = metric.compute(pred_labels, true_labels)
+            result[f"f1@{tag}"] = single["f1"]
+            result[f"precision@{tag}"] = single["precision"]
+            result[f"recall@{tag}"] = single["recall"]
+        return result
+
+
+__all__ = ["MultiOverlapF1", "OverlapF1", "_extract_segments", "_segment_iou"]
