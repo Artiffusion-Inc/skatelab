@@ -205,7 +205,16 @@ class Camera2Recorder(
             builder.addTarget(previewSurface!!)
         }
 
-        val fpsRange = Range(targetFps, targetFps)
+        // Use a wide FPS range supported by the camera hardware.
+        // Range(fps, fps) almost never works — cameras ignore unsupported narrow ranges
+        // and silently fall back to 30fps. Find a range where upper bound >= targetFps.
+        val availableRanges = getAvailableFpsRanges()
+        val fpsRange = availableRanges
+            .filter { it.upper >= targetFps }
+            .minByOrNull { it.upper }
+            ?: availableRanges.maxByOrNull { it.upper }
+            ?: Range(targetFps, targetFps)
+        android.util.Log.i("Camera2Recorder", "Selected FPS range: $fpsRange (target=$targetFps)")
         builder.set(CaptureRequest.CONTROL_AE_TARGET_FPS_RANGE, fpsRange)
 
         builder.set(CaptureRequest.CONTROL_VIDEO_STABILIZATION_MODE,
@@ -261,12 +270,15 @@ class Camera2Recorder(
         captureSession = null
         timestampTracker?.close()
 
+        val actualFps = timestampTracker?.computeFps() ?: 0
+        val frameCount = timestampTracker?.getFrameCount() ?: 0
+
         // Re-create preview-only session so camera stays visible after recording stops
         startPreviewBlocking()
 
         return CameraRepository.RecordingStopResult(
-            actualFps = 0,
-            fpsVerified = false,
+            actualFps = actualFps,
+            fpsVerified = frameCount > 10 && actualFps > 0,
         )
     }
 

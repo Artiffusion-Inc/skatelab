@@ -44,6 +44,8 @@ class CameraRepositoryImpl @Inject constructor(
         val rec = Camera2Recorder(context)
         rec.openCamera()
         _hardwareLevel.value = rec.getHardwareLevel()
+        val fpsRanges = rec.getAvailableFpsRanges()
+        android.util.Log.i("CameraRepo", "Available FPS ranges: $fpsRanges")
         rec.prepare(
             outputFile = outputFile,
             timestampsFile = timestampsFile,
@@ -69,7 +71,7 @@ class CameraRepositoryImpl @Inject constructor(
         val rec = recorder ?: throw IllegalStateException("Camera not recording")
         val result = rec.stopRecording()
         _isRecording.value = false
-        _currentFps.value = 0
+        _currentFps.value = result.actualFps
         result
     }
 

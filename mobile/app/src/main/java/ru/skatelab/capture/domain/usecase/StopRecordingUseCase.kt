@@ -13,18 +13,24 @@ class StopRecordingUseCase @Inject constructor(
     private val bleRepository: BleRepository,
     private val cameraRepository: CameraRepository,
 ) {
+    data class StopResult(
+        val actualFps: Int,
+        val fpsVerified: Boolean,
+    )
+
     /**
      * Stop recording with per-step error handling.
      * All cleanup steps always execute — a failure in one step
      * does not prevent other cleanup from running.
      * BLE stop for LEFT/RIGHT runs in parallel.
      */
-    suspend operator fun invoke(): Result<Unit> {
+    suspend operator fun invoke(): Result<StopResult> {
         val errors = mutableListOf<Throwable>()
+        var stopResult = CameraRepository.RecordingStopResult(actualFps = 0, fpsVerified = false)
 
         try {
             withContext(Dispatchers.Main) {
-                cameraRepository.stopRecording().getOrDefault(Unit)
+                stopResult = cameraRepository.stopRecording().getOrDefault(stopResult)
             }
         } catch (e: Exception) {
             errors.add(e)
@@ -51,6 +57,10 @@ class StopRecordingUseCase @Inject constructor(
             errors.add(e)
         }
 
-        return if (errors.isEmpty()) Result.success(Unit) else Result.failure(errors.first())
+        val result = StopResult(
+            actualFps = stopResult.actualFps,
+            fpsVerified = stopResult.fpsVerified,
+        )
+        return if (errors.isEmpty()) Result.success(result) else Result.failure(errors.first())
     }
 }

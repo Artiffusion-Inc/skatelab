@@ -72,6 +72,7 @@ class RecordingViewModel @Inject constructor(
     private var currentStartInfo: RecordingStartInfo? = null
     private var currentCalibration = mapOf<SensorId, CalibrationData>()
     private var currentOutputDir: File? = null
+    private var actualVideoFps: Int = 60
 
     private var preparedVideoFile: File? = null
     private var preparedFramesFile: File? = null
@@ -239,6 +240,10 @@ class RecordingViewModel @Inject constructor(
             stopTimer()
 
             stopRecordingUseCase()
+                .onSuccess { stopResult ->
+                    actualVideoFps = stopResult.actualFps
+                    appLogger.i(TAG, "Stopped: actualFps=${stopResult.actualFps} verified=${stopResult.fpsVerified}")
+                }
                 .onFailure {
                     appLogger.w(TAG, "Stop use case partial failure: ${it.message}")
                 }
@@ -275,7 +280,7 @@ class RecordingViewModel @Inject constructor(
                 manifestFile = File(outputDir, "manifest.json"),
                 t0Ns = startInfo.t0Ns,
                 durationMs = durationMs,
-                videoFps = 60,
+                videoFps = actualVideoFps,
                 timestampSource = startInfo.timestampSource,
                 videoStartDelayMs = startInfo.videoStartDelayMs,
                 imuStartDelayMs = startInfo.imuStartDelayMs,
