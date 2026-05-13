@@ -61,13 +61,21 @@ class Wt901Parser {
         private const val SCALE_ANGLE = 180f / 32768f           // ±180°
         private const val SCALE_QUAT = 1f / 32768f
 
+        // Plausibility limits for 0x61 frame sync validation
+        // Raw int16 range for ±16g ACC: |raw| ≤ 32767 → ~157 m/s²
+        // Raw int16 range for ±2000°/s GYRO: |raw| ≤ 32767
+        // But real skating values: ACC ≤ 50g raw ≈ 25000, GYRO ≤ 3600°/s raw ≈ 29500
+        private const val ACC_RAW_LIMIT = 31000   // ~15g, well above any real value
+        private const val GYRO_RAW_LIMIT = 32000  // ~1953°/s, well above any real value
+
         // Timeout for incomplete individual-frame cycle
         private const val CYCLE_TIMEOUT_NS = 15_000_000L // 15ms
     }
 
     // Buffer for partial frames across BLE notifications
-    private val buffer = ByteArray(256)
+    private val buffer = ByteArray(512)
     private var bufferSize = 0
+    private var droppedByteCount = 0L
 
     // Individual-frame bitmask grouping state
     private var receivedMask = 0
@@ -144,7 +152,14 @@ class Wt901Parser {
             }
 
             // Validate checksum for individual frames; combined frames have no checksum
-            if (frameType != TYPE_COMBINED && !isChecksumValid()) {
+            // For combined frames, use plausibility check instead (no checksum in protocol)
+            if (frameType == TYPE_COMBINED) {
+                if (!isCombinedFramePlausible()) {
+                    Log.w(logTag, "0x61 frame failed plausibility check — desync likely, skipping 1 byte")
+                    shiftBuffer(1)
+                    continue
+                }
+            } else if (!isChecksumValid()) {
                 shiftBuffer(1)
                 continue
             }
@@ -186,6 +201,13 @@ class Wt901Parser {
 
     private fun appendToBuffer(bytes: ByteArray) {
         val available = buffer.size - bufferSize
+        if (bytes.size > available) {
+            val dropped = bytes.size - available
+            droppedByteCount += dropped
+            if (droppedByteCount % 100 == 0L || dropped > 20) {
+                Log.w(logTag, "Buffer overflow: dropped $dropped bytes (total=$droppedByteCount), incoming=${bytes.size} available=$available")
+            }
+        }
         val toCopy = minOf(bytes.size, available)
         System.arraycopy(bytes, 0, buffer, bufferSize, toCopy)
         bufferSize += toCopy
@@ -205,6 +227,29 @@ class Wt901Parser {
         }
         bufferSize = remaining
     }
+
+    /**
+     * Plausibility check for 0x61 combined frames (no checksum in protocol).
+     * Validates that ACC and GYRO raw int16 values are within physically plausible ranges.
+     * Returns false if any value exceeds limits — likely frame desync.
+     */
+    private fun isCombinedFramePlausible(): Boolean {
+        // ACC raw: bytes 2-7, physically |raw| ≤ 31000 (~15g)
+        for (i in intArrayOf(2, 4, 6)) {
+            val raw = readInt16Raw(i)
+            if (kotlin.math.abs(raw) > ACC_RAW_LIMIT) return false
+        }
+        // GYRO raw: bytes 8-13, physically |raw| ≤ 32000 (~1953°/s)
+        for (i in intArrayOf(8, 10, 12)) {
+            val raw = readInt16Raw(i)
+            if (kotlin.math.abs(raw) > GYRO_RAW_LIMIT) return false
+        }
+        return true
+    }
+
+    /** Read signed 16-bit LE from buffer at offset (raw, no scaling). */
+    private fun readInt16Raw(offset: Int): Int =
+        ((buffer[offset + 1].toInt() and 0xFF) shl 8) or (buffer[offset].toInt() and 0xFF)
 
     /** Checksum: sum of bytes[0..9] & 0xFF must equal bytes[10]. */
     private fun isChecksumValid(): Boolean {

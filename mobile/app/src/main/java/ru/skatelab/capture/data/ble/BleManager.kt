@@ -89,6 +89,9 @@ class BleManager(private val context: Context, private val logger: ru.skatelab.c
     /** Per-sensor recording state. Set by BleRepositoryImpl. */
     private val recordingSensors: MutableSet<SensorId> = ConcurrentHashMap.newKeySet()
 
+    /** Tracks addresses of sensors explicitly disconnected by user (vs auto-disconnect). */
+    private val explicitlyDisconnected: MutableSet<String> = ConcurrentHashMap.newKeySet()
+
     fun markRecording(sensorId: SensorId) { recordingSensors.add(sensorId) }
     fun markStopped(sensorId: SensorId) { recordingSensors.remove(sensorId) }
     fun isRecording(sensorId: SensorId): Boolean = sensorId in recordingSensors
@@ -167,6 +170,8 @@ class BleManager(private val context: Context, private val logger: ru.skatelab.c
         val device = adapter.getRemoteDevice(address) ?: return Result.failure(IllegalArgumentException("Device not found: $address"))
 
         addressToSensorId[address] = sensorId
+        // Clear any stale explicit-disconnect flag from a previous session
+        explicitlyDisconnected.remove(address)
         updateConnectionState(sensorId, ConnectionState.CONNECTING)
 
         // Create per-sensor handler thread to avoid head-of-line blocking
@@ -202,12 +207,17 @@ class BleManager(private val context: Context, private val logger: ru.skatelab.c
 
     @SuppressLint("MissingPermission")
     fun disconnect(sensorId: SensorId, address: String) {
+        // Mark as explicitly disconnected to prevent auto-reconnect
+        explicitlyDisconnected.add(address)
+        // Remove pending reconnect messages on the handler thread
+        handlerThreads[address]?.handler?.removeCallbacksAndMessages(null)
         val gatt = gattConnections.remove(address) ?: return
         writeCharacteristics.remove(address)
         notifyCharacteristics.remove(address)
-        handlerThreads.remove(address)?.let { it.quitSafely() }
+        handlerThreads.remove(address)?.quitSafely()
         addressToSensorId.remove(address)
         repriorityTimers.remove(address)
+        recordingSensors.remove(sensorId)
         gatt.disconnect()
         gatt.close()
         updateConnectionState(sensorId, ConnectionState.DISCONNECTED)
@@ -233,16 +243,27 @@ class BleManager(private val context: Context, private val logger: ru.skatelab.c
 
             if (newState == BluetoothProfile.STATE_CONNECTED) {
                 gattConnections[address] = gatt
-                gatt.requestConnectionPriority(BluetoothGatt.CONNECTION_PRIORITY_HIGH)
-                // Request larger MTU to reduce per-notification overhead.
-                // Default MTU=23 (20 bytes payload) means each 0x61 frame fills exactly one notification.
-                // MTU=247 allows batching multiple frames per notification, reducing CPU wake-ups at 100Hz.
-                gatt.requestMtu(247)
+                // Route GATT setup through HandlerThread for consistent threading
+                handlerThreads[address]?.handler?.post {
+                    gatt.requestConnectionPriority(BluetoothGatt.CONNECTION_PRIORITY_HIGH)
+                    gatt.requestMtu(247)
+                } ?: run {
+                    // Fallback: call directly if handler not available
+                    gatt.requestConnectionPriority(BluetoothGatt.CONNECTION_PRIORITY_HIGH)
+                    gatt.requestMtu(247)
+                }
             } else if (newState == BluetoothProfile.STATE_DISCONNECTED) {
                 // Always close the old GATT object to prevent leaks
                 // (Android has a ~30 GATT limit system-wide before refusing new connections)
                 gattConnections.remove(address)
                 gatt.close()
+
+                // Skip reconnect if user explicitly disconnected
+                if (address in explicitlyDisconnected) {
+                    explicitlyDisconnected.remove(address)
+                    updateConnectionState(sensorId, ConnectionState.DISCONNECTED)
+                    return
+                }
 
                 // Auto-reconnect if sensor was previously connected (not explicit disconnect)
                 if (isRecording(sensorId)) {
@@ -251,6 +272,12 @@ class BleManager(private val context: Context, private val logger: ru.skatelab.c
                     _reconnectEvents.tryEmit(sensorId)
                     // Delayed reconnect on per-sensor handler thread
                     handlerThreads[address]?.handler?.postDelayed({
+                        // Double-check: user may have disconnected during the delay
+                        if (address in explicitlyDisconnected) {
+                            explicitlyDisconnected.remove(address)
+                            updateConnectionState(sensorId, ConnectionState.DISCONNECTED)
+                            return@postDelayed
+                        }
                         try {
                             val device: BluetoothDevice = gatt.device
                             val callback: BluetoothGattCallback = createGattCallback(sensorId, address)
@@ -268,8 +295,10 @@ class BleManager(private val context: Context, private val logger: ru.skatelab.c
 
         override fun onMtuChanged(gatt: BluetoothGatt, mtu: Int, status: Int) {
             logi("MTU changed: address=$address mtu=$mtu status=$status")
-            // Service discovery must happen AFTER MTU negotiation for optimal performance
-            gatt.discoverServices()
+            // Route discoverServices through HandlerThread for consistent GATT threading
+            handlerThreads[address]?.handler?.post {
+                gatt.discoverServices()
+            } ?: gatt.discoverServices()
         }
 
         override fun onServicesDiscovered(gatt: BluetoothGatt, status: Int) {
@@ -400,7 +429,11 @@ class BleManager(private val context: Context, private val logger: ru.skatelab.c
         val address = addressToSensorId.entries.find { it.value == sensorId }?.key
             ?: return Result.failure(IllegalArgumentException("No address for $sensorId"))
 
-        sendCommand(sensorId, Wt901Commander.readRegister(register))
+        // Acquire per-sensor Mutex to prevent interleaving with sendSequence
+        val mutex = sensorMutexes.getOrPut(address) { Mutex() }
+        mutex.withLock {
+            sendCommand(sensorId, Wt901Commander.readRegister(register))
+        }
 
         return try {
             val result = withTimeoutOrNull(timeoutMs) {
@@ -435,13 +468,15 @@ class BleManager(private val context: Context, private val logger: ru.skatelab.c
             logw("sendCommand: no write char for $address"); return
         }
 
-        // GATT write must be serialized — queue the write
+        // GATT write must be serialized — queue the write and drain via HandlerThread
         val queue = writeQueues.getOrPut(address) { mutableListOf() }
         synchronized(queue) {
             queue.add(GattWriteEntry(bytes, char, gatt))
             if (writeInProgress[address] != true) {
                 writeInProgress[address] = true
-                drainWriteQueue(address)
+                // Route drainWriteQueue through HandlerThread for consistent GATT thread
+                handlerThreads[address]?.handler?.post { drainWriteQueue(address) }
+                    ?: drainWriteQueue(address) // fallback if handler gone
             }
         }
     }
@@ -478,6 +513,9 @@ class BleManager(private val context: Context, private val logger: ru.skatelab.c
      *
      * Per-sensor Mutex prevents concurrent sendSequence calls (e.g. configure + startStreaming)
      * from interleaving commands on the same sensor.
+     *
+     * All writeCharacteristic calls are routed through the HandlerThread to ensure
+     * consistent GATT threading (Android requirement).
      */
     suspend fun sendSequence(sensorId: SensorId, steps: List<Wt901Commander.CommandStep>) {
         val address = addressToSensorId.entries.find { it.value == sensorId }?.key ?: run {
@@ -498,7 +536,9 @@ class BleManager(private val context: Context, private val logger: ru.skatelab.c
                     queue.add(GattWriteEntry(step.bytes, char, gatt))
                     if (writeInProgress[address] != true) {
                         writeInProgress[address] = true
-                        drainWriteQueue(address)
+                        // Route drainWriteQueue through HandlerThread for consistent GATT thread
+                        handlerThreads[address]?.handler?.post { drainWriteQueue(address) }
+                            ?: drainWriteQueue(address) // fallback if handler gone
                     }
                 }
                 val minGapMs = 30L

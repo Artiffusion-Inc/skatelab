@@ -4,6 +4,8 @@ import android.content.Context
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import ru.skatelab.capture.domain.model.ImuSample
 import ru.skatelab.capture.domain.model.SensorId
 import ru.skatelab.capture.domain.repository.BleRepository
@@ -20,6 +22,7 @@ class BleRepositoryImpl @Inject constructor(
 
     private val bleManager = BleManager(context, appLogger)
     private val _addressMap = ConcurrentHashMap<SensorId, String>()
+    private val streamingMutexes = ConcurrentHashMap<SensorId, Mutex>()
 
     override val scanResults: Flow<List<ScanDevice>> = bleManager.scanResults.map { results ->
         results.map { ScanDevice(name = it.name, address = it.address, rssi = it.rssi) }
@@ -71,19 +74,27 @@ class BleRepositoryImpl @Inject constructor(
         bleManager.sendSequence(sensorId, Wt901Commander.factoryResetSequence())
     }
 
-    override suspend fun startStreaming(sensorId: SensorId): Result<Unit> = runCatching {
-        bleManager.markRecording(sensorId)
-        bleManager.sendSequence(sensorId, Wt901Commander.startStreamingSequence())
+    override suspend fun startStreaming(sensorId: SensorId): Result<Unit> {
+        val mutex = streamingMutexes.getOrPut(sensorId) { Mutex() }
+        return mutex.withLock {
+            bleManager.markRecording(sensorId)
+            runCatching {
+                bleManager.sendSequence(sensorId, Wt901Commander.startStreamingSequence())
+            }
+        }
     }
 
     override suspend fun stopStreaming(sensorId: SensorId): Result<Unit> {
-        val result = runCatching {
-            bleManager.sendSequence(sensorId, Wt901Commander.stopStreamingSequence())
+        val mutex = streamingMutexes.getOrPut(sensorId) { Mutex() }
+        return mutex.withLock {
+            val result = runCatching {
+                bleManager.sendSequence(sensorId, Wt901Commander.stopStreamingSequence())
+            }
+            if (result.isSuccess) {
+                bleManager.markStopped(sensorId)
+            }
+            result
         }
-        if (result.isSuccess) {
-            bleManager.markStopped(sensorId)
-        }
-        return result
     }
 
     override suspend fun readBattery(sensorId: SensorId): Result<Int> {
