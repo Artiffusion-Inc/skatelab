@@ -11,7 +11,7 @@ import numpy as np
 import torch
 from torch.utils.data import Dataset
 
-from ..pose_estimation.h36m import coco_to_h36m
+from ..pose_estimation.h36m import coco_to_h36m_batch
 
 if TYPE_CHECKING:
     from numpy.typing import NDArray
@@ -106,6 +106,7 @@ class MCFSCoarseDataset(Dataset):
         features_dir: Path,
         labels_dir: Path,
         normalize: bool = True,
+        preload: bool = True,
     ) -> None:
         self.features_dir = features_dir
         self.labels_dir = labels_dir
@@ -116,11 +117,21 @@ class MCFSCoarseDataset(Dataset):
         self.samples = sorted(set(feature_files.keys()) & set(label_files.keys()))
         self.feature_paths = {s: feature_files[s] for s in self.samples}
         self.label_paths = {s: label_files[s] for s in self.samples}
+        # Pre-load all samples into RAM if requested
+        self._cache: dict[int, tuple] = {}
+        if preload:
+            for idx in range(len(self.samples)):
+                self._cache[idx] = self._load_sample(idx)
 
     def __len__(self) -> int:
         return len(self.samples)
 
     def __getitem__(self, idx: int) -> tuple["NDArray[np.float32]", "NDArray[np.int64]", int]:
+        if idx in self._cache:
+            return self._cache[idx]
+        return self._load_sample(idx)
+
+    def _load_sample(self, idx: int) -> tuple["NDArray[np.float32]", "NDArray[np.int64]", int]:
         stem = self.samples[idx]
         # Load poses: (T, 25, 3) OP25
         poses_op25 = np.load(self.feature_paths[stem])  # (T, 25, 3)
@@ -128,8 +139,8 @@ class MCFSCoarseDataset(Dataset):
         fine_labels = [line.strip() for line in self.label_paths[stem].read_text().splitlines()]
         # Convert OP25 -> COCO17
         poses_coco17 = op25_to_coco17(poses_op25)  # (T, 17, 2)
-        # Convert COCO17 -> H3.6M
-        poses_h36m = np.stack([coco_to_h36m(p) for p in poses_coco17])  # (T, 17, 2)
+        # Convert COCO17 -> H3.6M (vectorized)
+        poses_h36m = coco_to_h36m_batch(poses_coco17)  # (T, 17, 2)
         # Coarse labels
         coarse = np.array([coarse_label(label) for label in fine_labels], dtype=np.int64)
         # Normalize
@@ -163,7 +174,64 @@ def pad_collate(batch: list[tuple]) -> tuple[torch.Tensor, torch.Tensor, torch.T
     return poses_padded, labels_padded, lengths_tensor
 
 
+class BucketBatchSampler:
+    """Batch sampler that groups similar-length samples into bins for efficient padding.
+
+    Uses epoch-aware shuffling via set_epoch() to produce different orderings
+    across training epochs, compatible with PyTorch's distributed training pattern.
+    """
+
+    def __init__(
+        self,
+        lengths: list[int],
+        batch_size: int = 8,
+        bin_size: int = 50,
+        shuffle: bool = True,
+        seed: int = 42,
+    ) -> None:
+        self.lengths = lengths
+        self.batch_size = batch_size
+        self.bin_size = bin_size
+        self.shuffle = shuffle
+        self.seed = seed
+        self.epoch = 0
+        self._build_bins()
+
+    def _build_bins(self) -> None:
+        """Group sample indices into bins by sequence length."""
+        self.bins: dict[int, list[int]] = {}
+        for idx, length in enumerate(self.lengths):
+            bin_key = length // self.bin_size
+            if bin_key not in self.bins:
+                self.bins[bin_key] = []
+            self.bins[bin_key].append(idx)
+
+    def set_epoch(self, epoch: int) -> None:
+        """Set the epoch for deterministic shuffling across epochs."""
+        self.epoch = epoch
+
+    def __iter__(self):  # type: ignore[override]
+        rng = np.random.default_rng(self.seed + self.epoch)
+        # Flatten all bins, optionally shuffling within each bin
+        indices: list[int] = []
+        for bin_key in sorted(self.bins.keys()):
+            bin_indices = list(self.bins[bin_key])
+            if self.shuffle:
+                rng.shuffle(bin_indices)
+            indices.extend(bin_indices)
+        # Shuffle globally across bins too
+        if self.shuffle:
+            rng.shuffle(indices)
+        # Batch
+        for i in range(0, len(indices), self.batch_size):
+            yield indices[i : i + self.batch_size]
+
+    def __len__(self) -> int:
+        return (len(self.lengths) + self.batch_size - 1) // self.batch_size
+
+
 __all__ = [
+    "BucketBatchSampler",
     "MCFSCoarseDataset",
     "coarse_label",
     "normalize_poses",
