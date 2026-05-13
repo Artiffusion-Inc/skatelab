@@ -59,6 +59,14 @@ class BleRepositoryImpl @Inject constructor(
         bleManager.sendSequence(sensorId, Wt901Commander.configureSequence())
     }
 
+    override suspend fun configureSensorNoAccCal(sensorId: SensorId): Result<Unit> = runCatching {
+        bleManager.sendSequence(sensorId, Wt901Commander.configureSequenceNoAccCal())
+    }
+
+    override suspend fun factoryResetSensor(sensorId: SensorId): Result<Unit> = runCatching {
+        bleManager.sendSequence(sensorId, Wt901Commander.factoryResetSequence())
+    }
+
     override suspend fun startStreaming(sensorId: SensorId): Result<Unit> = runCatching {
         bleManager.markRecording(sensorId)
         bleManager.sendSequence(sensorId, Wt901Commander.startStreamingSequence())

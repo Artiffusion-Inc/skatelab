@@ -20,6 +20,7 @@ fun BleScanScreen(
 ) {
     val scanResults by viewModel.scanResults.collectAsState()
     val connectionState by viewModel.connectionState.collectAsState()
+    val factoryResetStatus by viewModel.factoryResetStatus.collectAsState()
 
     LaunchedEffect(Unit) { viewModel.startScan() }
 
@@ -46,6 +47,8 @@ fun BleScanScreen(
                         connectionState[SensorId.RIGHT] != ru.skatelab.capture.domain.repository.BleRepository.ConnectionState.DISCONNECTED,
                     onConnectLeft = { viewModel.connectSensor(SensorId.LEFT, device.address) },
                     onConnectRight = { viewModel.connectSensor(SensorId.RIGHT, device.address) },
+                    onFactoryResetLeft = { viewModel.factoryResetSensor(SensorId.LEFT) },
+                    onFactoryResetRight = { viewModel.factoryResetSensor(SensorId.RIGHT) },
                 )
             }
         }
@@ -55,6 +58,11 @@ fun BleScanScreen(
 
         Button(onClick = onProceed, enabled = anyConnected) {
             Text(stringResource(R.string.ble_proceed_calibration))
+        }
+
+        factoryResetStatus?.let {
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
         }
     }
 }
@@ -66,21 +74,41 @@ private fun ScanDeviceRow(
     rightConnected: Boolean,
     onConnectLeft: () -> Unit,
     onConnectRight: () -> Unit,
+    onFactoryResetLeft: (() -> Unit)? = null,
+    onFactoryResetRight: (() -> Unit)? = null,
 ) {
     Card(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
-        Row(
-            modifier = Modifier.padding(12.dp).fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Column {
-                Text(device.name, style = MaterialTheme.typography.bodyLarge)
-                Text(device.address, style = MaterialTheme.typography.bodySmall)
-                Text("RSSI: ${device.rssi}", style = MaterialTheme.typography.bodySmall)
+        Column(modifier = Modifier.padding(12.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column {
+                    Text(device.name, style = MaterialTheme.typography.bodyLarge)
+                    Text(device.address, style = MaterialTheme.typography.bodySmall)
+                    Text("RSSI: ${device.rssi}", style = MaterialTheme.typography.bodySmall)
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    OutlinedButton(onClick = onConnectLeft, enabled = !leftConnected) { Text(stringResource(R.string.ble_left)) }
+                    OutlinedButton(onClick = onConnectRight, enabled = !rightConnected) { Text(stringResource(R.string.ble_right)) }
+                }
             }
-            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                OutlinedButton(onClick = onConnectLeft, enabled = !leftConnected) { Text(stringResource(R.string.ble_left)) }
-                OutlinedButton(onClick = onConnectRight, enabled = !rightConnected) { Text(stringResource(R.string.ble_right)) }
+            // Factory reset buttons for connected sensors
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
+                if (leftConnected && onFactoryResetLeft != null) {
+                    TextButton(onClick = onFactoryResetLeft) {
+                        Text("Сброс лев.", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.labelSmall)
+                    }
+                }
+                if (rightConnected && onFactoryResetRight != null) {
+                    TextButton(onClick = onFactoryResetRight) {
+                        Text("Сброс прав.", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.labelSmall)
+                    }
+                }
             }
         }
     }

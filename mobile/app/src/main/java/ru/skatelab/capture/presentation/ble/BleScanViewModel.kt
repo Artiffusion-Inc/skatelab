@@ -4,8 +4,10 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import android.util.Log
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import ru.skatelab.capture.AppLogger
@@ -30,6 +32,9 @@ class BleScanViewModel @Inject constructor(
     val connectionState = bleRepository.connectionState
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyMap())
 
+    private val _factoryResetStatus = MutableStateFlow<String?>(null)
+    val factoryResetStatus: StateFlow<String?> = _factoryResetStatus.asStateFlow()
+
     private var _isScanning = false
     val isScanning: Boolean get() = _isScanning
 
@@ -53,6 +58,21 @@ class BleScanViewModel @Inject constructor(
                 appLogger.e(tag, "connectSensor failed: ${result.exceptionOrNull()?.message}")
             } else {
                 appLogger.i(tag, "connectSensor success: $sensorId")
+            }
+        }
+    }
+
+    fun factoryResetSensor(sensorId: SensorId) {
+        viewModelScope.launch {
+            _factoryResetStatus.value = "Сброс ${sensorId.name.lowercase()}..."
+            appLogger.i(tag, "factoryResetSensor: $sensorId")
+            val result = bleRepository.factoryResetSensor(sensorId)
+            if (result.isSuccess) {
+                _factoryResetStatus.value = "Сброс ${sensorId.name.lowercase()} OK"
+                appLogger.i(tag, "factoryReset success: $sensorId")
+            } else {
+                _factoryResetStatus.value = "Ошибка сброса: ${result.exceptionOrNull()?.message}"
+                appLogger.e(tag, "factoryReset failed: ${result.exceptionOrNull()?.message}")
             }
         }
     }

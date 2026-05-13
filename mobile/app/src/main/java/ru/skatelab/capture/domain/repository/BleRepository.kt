@@ -17,6 +17,8 @@ interface BleRepository {
     suspend fun connect(sensorId: SensorId, address: String): Result<Unit>
     suspend fun disconnect(sensorId: SensorId): Result<Unit>
     suspend fun configureSensor(sensorId: SensorId): Result<Unit>
+    suspend fun configureSensorNoAccCal(sensorId: SensorId): Result<Unit>
+    suspend fun factoryResetSensor(sensorId: SensorId): Result<Unit>
     suspend fun startStreaming(sensorId: SensorId): Result<Unit>
     suspend fun stopStreaming(sensorId: SensorId): Result<Unit>
     suspend fun readBattery(sensorId: SensorId): Result<Int>

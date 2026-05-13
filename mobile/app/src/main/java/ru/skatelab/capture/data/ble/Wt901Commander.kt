@@ -16,6 +16,9 @@ object Wt901Commander {
     private const val REG_OUTPUT_RATE: Byte = 0x03
     private const val REG_READ_OPCODE: Byte = 0x27
 
+    // Calibration commands (WitMotion WT901 protocol)
+    private const val CMD_ACC_CALIB: Byte = 0x01
+
     // Command prefix
     private const val CMD_PREFIX_0: Byte = 0xFF.toByte()
     private const val CMD_PREFIX_1: Byte = 0xAA.toByte()
@@ -24,6 +27,7 @@ object Wt901Commander {
     private const val DELAY_AFTER_UNLOCK_MS = 50L
     private const val DELAY_BETWEEN_CONFIG_MS = 100L
     private const val DELAY_AFTER_SAVE_MS = 500L
+    private const val DELAY_ACC_CALIB_MS = 2000L
 
     /** A single command step with bytes to send and a delay after sending. */
     data class CommandStep(
@@ -48,6 +52,12 @@ object Wt901Commander {
     /** Unlock the sensor for configuration (opens 10-second window). */
     fun unlock(): ByteArray = byteArrayOf(CMD_PREFIX_0, CMD_PREFIX_1, 0x69, 0x88.toByte(), 0xB5.toByte())
 
+    /** Start accelerometer hardware calibration — sensor must be still and level. */
+    fun accCalibrate(): ByteArray = byteArrayOf(CMD_PREFIX_0, CMD_PREFIX_1, CMD_ACC_CALIB, 0x01, 0x00)
+
+    /** Stop active calibration (ACC or MAG). */
+    fun stopCalibration(): ByteArray = byteArrayOf(CMD_PREFIX_0, CMD_PREFIX_1, CMD_ACC_CALIB, 0x00, 0x00)
+
     /**
      * Set OutputContent register (0x02).
      * @param value Bitmask of output types to enable (XAMLCORP SDK flags).
@@ -66,6 +76,9 @@ object Wt901Commander {
     fun setOutputRate(value: Int): ByteArray =
         byteArrayOf(CMD_PREFIX_0, CMD_PREFIX_1, REG_OUTPUT_RATE, value.toByte(), 0x00)
 
+    /** Factory reset — restores all registers to defaults. */
+    fun factoryReset(): ByteArray = byteArrayOf(CMD_PREFIX_0, CMD_PREFIX_1, 0x00, 0xFF.toByte(), 0x00)
+
     /** Save configuration to EEPROM (causes output mode switch). */
     fun save(): ByteArray = byteArrayOf(CMD_PREFIX_0, CMD_PREFIX_1, 0x00, 0x00, 0x00)
 
@@ -79,10 +92,42 @@ object Wt901Commander {
     // --- Command sequences ---
 
     /**
-     * Full configuration sequence: Unlock → OutputContent → OutputRate → Save.
-     * Run once after initial connection, before recording.
+     * Full configuration sequence:
+     * 1. Unlock → OutputContent(0x0046) → OutputRate(100Hz) → Save
+     * 2. Unlock → ACC Calibrate → wait 2s → Save
+     * Run once after initial connection. Sensor must be still during step 2.
+     *
+     * WARNING: accCalibrate() can corrupt ACC offset on some sensors.
+     * Use configureSequenceNoAccCal() for sensors with ACC issues.
      */
     fun configureSequence(): List<CommandStep> = listOf(
+        CommandStep(unlock(), DELAY_AFTER_UNLOCK_MS),
+        CommandStep(setOutputContent(0x0046), DELAY_BETWEEN_CONFIG_MS),
+        CommandStep(setOutputRate(0x09), DELAY_BETWEEN_CONFIG_MS),
+        CommandStep(save(), DELAY_AFTER_SAVE_MS),
+        CommandStep(unlock(), DELAY_AFTER_UNLOCK_MS),
+        CommandStep(accCalibrate(), DELAY_ACC_CALIB_MS),
+        CommandStep(save(), DELAY_AFTER_SAVE_MS),
+    )
+
+    /**
+     * Configuration without ACC calibration.
+     * Use for sensors where accCalibrate() corrupted the ACC offset.
+     */
+    fun configureSequenceNoAccCal(): List<CommandStep> = listOf(
+        CommandStep(unlock(), DELAY_AFTER_UNLOCK_MS),
+        CommandStep(setOutputContent(0x0046), DELAY_BETWEEN_CONFIG_MS),
+        CommandStep(setOutputRate(0x09), DELAY_BETWEEN_CONFIG_MS),
+        CommandStep(save(), DELAY_AFTER_SAVE_MS),
+    )
+
+    /**
+     * Factory reset then reconfigure without ACC calibration.
+     * Use to recover a sensor with corrupted ACC offset.
+     */
+    fun factoryResetSequence(): List<CommandStep> = listOf(
+        CommandStep(stopCalibration(), DELAY_BETWEEN_CONFIG_MS),
+        CommandStep(factoryReset(), 2000L),
         CommandStep(unlock(), DELAY_AFTER_UNLOCK_MS),
         CommandStep(setOutputContent(0x0046), DELAY_BETWEEN_CONFIG_MS),
         CommandStep(setOutputRate(0x09), DELAY_BETWEEN_CONFIG_MS),
