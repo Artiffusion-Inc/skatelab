@@ -20,34 +20,40 @@ export interface AnalysisState {
   reset: () => void
 }
 
-export const useAnalysisStore = create<AnalysisState>((set: (partial: Partial<AnalysisState> | ((state: AnalysisState) => Partial<AnalysisState>)) => void) => ({
-  currentFrame: 0,
-  isPlaying: false,
-  playbackSpeed: 1.0,
-  selectedJoint: null,
-  hoveredJoint: null,
-  cameraPreset: "front",
-  renderMode: "wireframe",
+export const useAnalysisStore = create<AnalysisState>(
+  (
+    set: (
+      partial: Partial<AnalysisState> | ((state: AnalysisState) => Partial<AnalysisState>),
+    ) => void,
+  ) => ({
+    currentFrame: 0,
+    isPlaying: false,
+    playbackSpeed: 1.0,
+    selectedJoint: null,
+    hoveredJoint: null,
+    cameraPreset: "front",
+    renderMode: "wireframe",
 
-  setCurrentFrame: (frame: number | ((prev: number) => number)) =>
-    set((state: AnalysisState) => ({
-      currentFrame: typeof frame === "function" ? frame(state.currentFrame) : frame,
-    })),
-  setIsPlaying: (playing: boolean) => set({ isPlaying: playing }),
-  setPlaybackSpeed: (speed: number) => set({ playbackSpeed: speed }),
-  setSelectedJoint: (joint: number | null) => set({ selectedJoint: joint }),
-  setHoveredJoint: (joint: number | null) => set({ hoveredJoint: joint }),
-  setCameraPreset: (preset: "front" | "side" | "top") => set({ cameraPreset: preset }),
-  setRenderMode: (mode: "wireframe" | "solid") => set({ renderMode: mode }),
+    setCurrentFrame: (frame: number | ((prev: number) => number)) =>
+      set((state: AnalysisState) => ({
+        currentFrame: typeof frame === "function" ? frame(state.currentFrame) : frame,
+      })),
+    setIsPlaying: (playing: boolean) => set({ isPlaying: playing }),
+    setPlaybackSpeed: (speed: number) => set({ playbackSpeed: speed }),
+    setSelectedJoint: (joint: number | null) => set({ selectedJoint: joint }),
+    setHoveredJoint: (joint: number | null) => set({ hoveredJoint: joint }),
+    setCameraPreset: (preset: "front" | "side" | "top") => set({ cameraPreset: preset }),
+    setRenderMode: (mode: "wireframe" | "solid") => set({ renderMode: mode }),
 
-  reset: () =>
-    set({
-      currentFrame: 0,
-      isPlaying: false,
-      playbackSpeed: 1.0,
-      selectedJoint: null,
-      hoveredJoint: null,
-      cameraPreset: "front",
-      renderMode: "wireframe",
-    }),
-}))
+    reset: () =>
+      set({
+        currentFrame: 0,
+        isPlaying: false,
+        playbackSpeed: 1.0,
+        selectedJoint: null,
+        hoveredJoint: null,
+        cameraPreset: "front",
+        renderMode: "wireframe",
+      }),
+  }),
+)
