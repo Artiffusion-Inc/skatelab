@@ -44,7 +44,7 @@ class ImuCollector @Inject constructor(
     private val collectJobs = mutableMapOf<SensorId, Job>()
     private var reconnectJob: Job? = null
     private var flushJob: Job? = null
-    private var streamingJob: Job? = null
+    private val streamingJobs = ConcurrentHashMap<SensorId, Job>()
 
     fun start(scope: CoroutineScope, files: Map<SensorId, File>) {
         files.forEach { (sensorId, file) ->
@@ -80,8 +80,8 @@ class ImuCollector @Inject constructor(
                     warmedUp[sensorId] = false
                     appLogger.w(TAG, "BLE reconnect gap #$seq for $sensorId, lastNs=$lastNs")
 
-                    streamingJob?.cancel()
-                    streamingJob = scope.launch(ioDispatcher) {
+                    streamingJobs[sensorId]?.cancel()
+                    streamingJobs[sensorId] = scope.launch(ioDispatcher) {
                         try {
                             bleRepository.connectionState
                                 .first { it[sensorId] == BleRepository.ConnectionState.CONNECTED }
@@ -142,8 +142,8 @@ class ImuCollector @Inject constructor(
         collectJobs.clear()
         reconnectJob?.cancel()
         reconnectJob = null
-        streamingJob?.cancel()
-        streamingJob = null
+        streamingJobs.values.forEach { it.cancel() }
+        streamingJobs.clear()
         flushJob?.cancel()
         flushJob = null
 

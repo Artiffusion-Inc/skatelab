@@ -96,7 +96,6 @@ class Wt901Parser {
      * @param arrivalNs Monotonic timestamp from [SystemClock.elapsedRealtimeNanos].
      * @return A complete [ImuSample] when enough data parsed, or null.
      */
-    @Synchronized
     fun feed(bytes: ByteArray, arrivalNs: Long): ImuSample? {
         appendToBuffer(bytes)
 
