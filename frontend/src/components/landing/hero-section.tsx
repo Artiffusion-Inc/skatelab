@@ -28,9 +28,13 @@ export function HeroSection() {
 
       <div className="relative z-10 mx-auto w-full max-w-5xl px-6 py-16 sm:py-20 lg:py-24">
         <div className="max-w-2xl">
-          <p className="hero-eyebrow mb-5 sh-caption text-ink-mute">{t("eyebrow")}</p>
+          <p className="hero-eyebrow mb-5 sh-caption text-ink-mute">
+            {t("eyebrow")}
+          </p>
 
-          <h1 className="hero-headline sh-display-xxl text-ink">{t("headline")}</h1>
+          <h1 className="hero-headline sh-display-xxl text-ink">
+            {t("headline")}
+          </h1>
 
           <p className="hero-subtitle mt-5 max-w-[65ch] sh-body-lg text-ink-mute leading-relaxed">
             {t("subtitle")}
@@ -54,7 +58,11 @@ export function HeroSection() {
               className="min-h-[44px] h-14 px-10 text-base sh-button-cap"
               asChild
             >
-              <a href="https://t.me/SkateLabPro" target="_blank" rel="noopener noreferrer">
+              <a
+                href="https://t.me/SkateLabPro"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
                 {t("ctaPrimary")}
               </a>
             </Button>

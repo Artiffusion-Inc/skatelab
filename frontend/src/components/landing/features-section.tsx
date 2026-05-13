@@ -34,7 +34,7 @@ export function FeaturesSection() {
       className="relative mx-auto max-w-5xl px-6 py-20 md:py-28"
     >
       <div className="mb-14 md:mb-20">
-        <p className="mb-4 sh-micro uppercase tracking-[0.3em] text-ink-mute">
+        <p className="mb-4 sh-caption text-ink-mute">
           {t("featuresTitle")}
         </p>
         <h2 className="sh-display-xl text-ink max-w-xl">{t("featuresHeadline")}</h2>
@@ -50,10 +50,10 @@ export function FeaturesSection() {
           </div>
           <div className="flex-1">
             <h3 className="sh-display-md mb-3 text-ink">{features[0].title}</h3>
-            <p className="sh-body-md max-w-lg text-ink-mute">{features[0].description}</p>
+            <p className="sh-body-md max-w-[65ch] text-ink-mute">{features[0].description}</p>
             <p className="mt-4 sh-caption text-primary">{features[0].accent}</p>
           </div>
-          <div className="hidden lg:block w-72 h-48 rounded-md bg-canvas-soft border border-hairline flex items-center justify-center">
+          <div className="hidden lg:block w-72 h-48 rounded-md bg-muted flex items-center justify-center">
             <span className="sh-caption text-ink-mute">{t("visualVideoLabel")}</span>
           </div>
         </div>
@@ -68,7 +68,7 @@ export function FeaturesSection() {
             })()}
           </div>
           <h3 className="sh-heading-lg mb-2 text-ink">{features[1].title}</h3>
-          <p className="sh-caption text-ink-mute">{features[1].description}</p>
+          <p className="sh-caption text-ink-mute max-w-md">{features[1].description}</p>
           <p className="mt-3 sh-caption text-primary">{features[1].accent}</p>
         </div>
 
@@ -80,7 +80,7 @@ export function FeaturesSection() {
             })()}
           </div>
           <h3 className="sh-heading-lg mb-2 text-ink">{features[2].title}</h3>
-          <p className="sh-body-md text-ink-mute">{features[2].description}</p>
+          <p className="sh-body-md text-ink-mute max-w-md">{features[2].description}</p>
           <p className="mt-4 sh-caption text-primary">{features[2].accent}</p>
         </div>
       </div>

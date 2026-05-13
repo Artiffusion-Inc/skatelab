@@ -9,7 +9,7 @@ export function FooterSection() {
     <footer role="contentinfo" className="border-t border-hairline bg-background">
       <div className="mx-auto max-w-5xl px-6 py-12 md:py-16 lg:grid lg:grid-cols-2 lg:gap-10">
         <div className="lg:col-span-1">
-          <p className="text-lg font-medium tracking-tight text-foreground">SkateLab</p>
+          <p className="sh-display-md text-ink">SkateLab</p>
           <p className="sh-caption text-ink-mute mt-1">{t("footerTagline")}</p>
           <a
             href="https://t.me/SkateLabPro"
@@ -23,9 +23,9 @@ export function FooterSection() {
 
         <div className="mt-8 grid grid-cols-2 gap-6 lg:mt-0">
           <nav aria-label={t("footerProduct")}>
-            <p className="mb-2 text-[0.6875rem] font-semibold uppercase tracking-widest text-muted-foreground">
+            <h3 className="mb-2 sh-caption text-muted-foreground">
               {t("footerProduct")}
-            </p>
+            </h3>
             <ul className="flex flex-col gap-1">
               <li>
                 <a
@@ -63,9 +63,9 @@ export function FooterSection() {
           </nav>
 
           <nav aria-label={t("footerLegal")}>
-            <p className="mb-2 text-[0.6875rem] font-semibold uppercase tracking-widest text-muted-foreground">
+            <h3 className="mb-2 sh-caption text-muted-foreground">
               {t("footerLegal")}
-            </p>
+            </h3>
             <ul className="flex flex-col gap-1">
               <li>
                 <a
@@ -103,9 +103,9 @@ export function FooterSection() {
           </nav>
 
           <section aria-label={t("footerContact")}>
-            <p className="mb-2 text-[0.6875rem] font-semibold uppercase tracking-widest text-muted-foreground">
+            <h3 className="mb-2 sh-caption text-muted-foreground">
               {t("footerContact")}
-            </p>
+            </h3>
             <ul className="flex flex-col gap-1">
               <li>
                 <a
@@ -123,7 +123,7 @@ export function FooterSection() {
       </div>
 
       <div className="mx-auto max-w-5xl px-6 border-t border-hairline pt-5 pb-8 flex justify-between items-center">
-        <p className="sh-legal text-ink-mute">{t("footerCopyright")}</p>
+        <p className="sh-caption text-ink-mute">{t("footerCopyright")}</p>
       </div>
     </footer>
   )

@@ -33,10 +33,10 @@ export function HowItWorksSection() {
       id="how-it-works"
       tabIndex={-1}
       aria-label={t("howItWorksTitle")}
-      className="relative mx-auto max-w-5xl px-6 py-20 md:py-28"
+      className="relative mx-auto max-w-5xl px-6 py-24 md:py-32"
     >
       <div className="mb-14 md:mb-20">
-        <p className="mb-4 sh-micro uppercase tracking-[0.3em] text-ink-mute">
+        <p className="mb-4 sh-caption text-ink-mute">
           {t("howItWorksTitle")}
         </p>
         <h2 className="sh-display-xl text-ink max-w-xl">{t("howItWorksHeadline")}</h2>
@@ -50,7 +50,7 @@ export function HowItWorksSection() {
           </div>
           <div>
             <h3 className="sh-display-md mb-3 text-ink">{steps[0].title}</h3>
-            <p className="sh-body-md max-w-lg text-ink-mute">{steps[0].description}</p>
+            <p className="sh-body-md max-w-[65ch] text-ink-mute">{steps[0].description}</p>
             <p className="mt-4 sh-caption text-primary">{steps[0].accent}</p>
           </div>
         </div>
@@ -67,7 +67,7 @@ export function HowItWorksSection() {
               })()}
             </div>
             <h3 className="sh-heading-lg mb-2 text-ink">{steps[1].title}</h3>
-            <p className="sh-caption text-ink-mute">{steps[1].description}</p>
+            <p className="sh-caption text-ink-mute max-w-md">{steps[1].description}</p>
             <p className="mt-3 sh-caption text-primary">{steps[1].accent}</p>
           </div>
         </div>
@@ -76,7 +76,7 @@ export function HowItWorksSection() {
           <span className="step-watermark">03</span>
           <div className="relative z-10">
             <h3 className="sh-heading-lg mb-2 text-ink">{steps[2].title}</h3>
-            <p className="sh-body-md text-ink-mute">{steps[2].description}</p>
+            <p className="sh-body-md text-ink-mute max-w-[65ch]">{steps[2].description}</p>
             <p className="mt-4 sh-caption text-primary">{steps[2].accent}</p>
           </div>
         </div>
