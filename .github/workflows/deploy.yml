@@ -26,6 +26,7 @@ jobs:
     with:
       python-version: "3.11"
       skip-docker: true
+      run-all: true
     secrets: inherit
 
   build-frontend:
