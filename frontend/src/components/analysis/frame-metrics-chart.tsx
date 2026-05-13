@@ -82,23 +82,23 @@ export function FrameMetricsChart({ poseData, frameMetrics, phases, totalFrames 
               labelStyle={{ color: "oklch(var(--foreground))" }}
               itemStyle={{ fontSize: 11 }}
             />
-            {phases?.takeoff !== undefined && (
+            {phases?.takeoff && (
               <ReferenceLine
-                x={phases.takeoff}
+                x={phases.takeoff.frame}
                 stroke="oklch(var(--score-good))"
                 strokeDasharray="3 3"
               />
             )}
-            {phases?.peak !== undefined && (
+            {phases?.peak && (
               <ReferenceLine
-                x={phases.peak}
+                x={phases.peak.frame}
                 stroke="oklch(var(--score-mid))"
                 strokeDasharray="3 3"
               />
             )}
-            {phases?.landing !== undefined && (
+            {phases?.landing && (
               <ReferenceLine
-                x={phases.landing}
+                x={phases.landing.frame}
                 stroke="oklch(var(--score-bad))"
                 strokeDasharray="3 3"
               />

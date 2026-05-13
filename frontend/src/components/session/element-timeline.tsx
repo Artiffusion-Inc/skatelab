@@ -1,26 +1,7 @@
 "use client"
 
 import { useMemo } from "react"
-
-interface ElementSegment {
-  id: string
-  element_type: string
-  element_name: string | null
-  start_frame: number
-  end_frame: number
-  confidence: number
-  phases_json?: {
-    takeoff: { frame: number }
-    peak: { frame: number }
-    landing: { frame: number }
-  } | null
-}
-
-interface TimelineData {
-  segments: ElementSegment[]
-  segmentation_confidence: number | null
-  segmentation_status: string
-}
+import type { ElementSegment, TimelineData } from "@/types"
 
 interface ElementTimelineProps {
   timeline: TimelineData | null | undefined

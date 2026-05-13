@@ -12,9 +12,9 @@ export function PhaseLabels({ phases, currentFrame, width }: PhaseLabelsProps) {
   if (!phases.takeoff && !phases.peak && !phases.landing) return null
 
   // Calculate label positions (normalized 0-1)
-  const takeoffX = phases.takeoff !== undefined ? (phases.takeoff / currentFrame) * width : null
-  const peakX = phases.peak !== undefined ? (phases.peak / currentFrame) * width : null
-  const landingX = phases.landing !== undefined ? (phases.landing / currentFrame) * width : null
+  const takeoffX = phases.takeoff ? (phases.takeoff.frame / currentFrame) * width : null
+  const peakX = phases.peak ? (phases.peak.frame / currentFrame) * width : null
+  const landingX = phases.landing ? (phases.landing.frame / currentFrame) * width : null
 
   return (
     <div className="absolute top-2 left-0 right-0 flex justify-between px-4">

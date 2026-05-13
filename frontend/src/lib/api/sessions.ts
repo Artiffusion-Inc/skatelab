@@ -36,10 +36,31 @@ const FrameMetricsSchema = z.object({
   com_height: z.array(z.number().nullable()),
 })
 
+const PhaseFrameSchema = z.object({
+  frame: z.number(),
+  timestamp: z.number().optional(),
+})
+
 const PhasesDataSchema = z.object({
-  takeoff: z.number().optional(),
-  peak: z.number().optional(),
-  landing: z.number().optional(),
+  takeoff: PhaseFrameSchema,
+  peak: PhaseFrameSchema,
+  landing: PhaseFrameSchema,
+})
+
+const ElementSegmentSchema = z.object({
+  id: z.string(),
+  element_type: z.string(),
+  element_name: z.string().nullable().optional(),
+  start_frame: z.number(),
+  end_frame: z.number(),
+  confidence: z.number(),
+  phases_json: PhasesDataSchema.nullable().optional(),
+})
+
+const TimelineDataSchema = z.object({
+  segments: z.array(ElementSegmentSchema),
+  segmentation_confidence: z.number().nullable().optional(),
+  segmentation_status: z.string().default("pending"),
 })
 
 const SessionSchema = z.object({
@@ -66,6 +87,8 @@ const SessionSchema = z.object({
   created_at: z.string(),
   processed_at: z.string().nullable(),
   metrics: z.array(SessionMetricSchema),
+  timeline: TimelineDataSchema.optional().nullable(),
+  segmentation_status: z.string().default("pending"),
 })
 
 const SessionListSchema = z.object({ sessions: z.array(SessionSchema), total: z.number() })
@@ -87,7 +110,13 @@ export function useSession(id: string, opts?: Pick<UseQueryOptions<Session>, "re
     queryKey: ["session", id],
     queryFn: () => apiFetch(`/sessions/${id}`, SessionSchema),
     enabled: !!id,
-    refetchInterval: opts?.refetchInterval,
+    refetchInterval: (query) => {
+      const data = query.state.data
+      if (data?.segmentation_status === "pending" || data?.status === "processing") {
+        return 5000
+      }
+      return opts?.refetchInterval ?? false
+    },
   })
 }
 
