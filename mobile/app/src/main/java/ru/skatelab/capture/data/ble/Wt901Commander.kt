@@ -76,10 +76,13 @@ object Wt901Commander {
     fun setOutputRate(value: Int): ByteArray =
         byteArrayOf(CMD_PREFIX_0, CMD_PREFIX_1, REG_OUTPUT_RATE, value.toByte(), 0x00)
 
-    /** Factory reset — restores all registers to defaults. */
-    fun factoryReset(): ByteArray = byteArrayOf(CMD_PREFIX_0, CMD_PREFIX_1, 0x00, 0xFF.toByte(), 0x00)
+    /** Restart sensor — reboots without changing stored config. Drops GATT connection. */
+    fun restart(): ByteArray = byteArrayOf(CMD_PREFIX_0, CMD_PREFIX_1, 0x00, 0xFF.toByte(), 0x00)
 
-    /** Save configuration to EEPROM (causes output mode switch). */
+    /** Factory reset — restores all registers to defaults and reboots. Drops GATT connection. */
+    fun factoryReset(): ByteArray = byteArrayOf(CMD_PREFIX_0, CMD_PREFIX_1, 0x00, 0x01, 0x00)
+
+    /** Save configuration to flash (no reboot). Must send after any config write. */
     fun save(): ByteArray = byteArrayOf(CMD_PREFIX_0, CMD_PREFIX_1, 0x00, 0x00, 0x00)
 
     /**
