@@ -11,6 +11,10 @@ on:
         required: false
         default: false
         type: boolean
+      run-all:
+        required: false
+        default: false
+        type: boolean
     outputs:
       ci-passed:
         description: "Whether all CI checks passed"
@@ -53,7 +57,7 @@ jobs:
   lint:
     name: Lint (ruff)
     needs: [changes]
-    if: needs.changes.outputs.python == 'true'
+    if: inputs.run-all || needs.changes.outputs.python == 'true'
     runs-on: blacksmith-2vcpu-ubuntu-2404
     steps:
       - uses: actions/checkout@v6
@@ -73,7 +77,7 @@ jobs:
   typecheck:
     name: Type Check (basedpyright)
     needs: [changes]
-    if: needs.changes.outputs.python == 'true'
+    if: inputs.run-all || needs.changes.outputs.python == 'true'
     runs-on: blacksmith-2vcpu-ubuntu-2404
     steps:
       - uses: actions/checkout@v6
@@ -91,7 +95,7 @@ jobs:
   ast-grep:
     name: Lint (ast-grep)
     needs: [changes]
-    if: needs.changes.outputs.python == 'true' || needs.changes.outputs.frontend == 'true'
+    if: inputs.run-all || needs.changes.outputs.python == 'true' || needs.changes.outputs.frontend == 'true'
     runs-on: blacksmith-2vcpu-ubuntu-2404
     steps:
       - uses: actions/checkout@v6
@@ -103,7 +107,7 @@ jobs:
   test:
     name: Tests
     needs: [changes, lint]
-    if: needs.changes.outputs.python == 'true'
+    if: inputs.run-all || needs.changes.outputs.python == 'true'
     runs-on: blacksmith-2vcpu-ubuntu-2404
     steps:
       - uses: actions/checkout@v6
@@ -148,7 +152,7 @@ jobs:
   smoke:
     name: Smoke Tests (ML inference)
     needs: [changes, test]
-    if: needs.changes.outputs.ml == 'true'
+    if: inputs.run-all || needs.changes.outputs.ml == 'true'
     runs-on: blacksmith-4vcpu-ubuntu-2404
     steps:
       - uses: actions/checkout@v6
@@ -166,7 +170,7 @@ jobs:
   fe-lint:
     name: Lint (Biome)
     needs: [changes]
-    if: needs.changes.outputs.frontend == 'true'
+    if: inputs.run-all || needs.changes.outputs.frontend == 'true'
     runs-on: blacksmith-2vcpu-ubuntu-2404
     steps:
       - uses: actions/checkout@v6
@@ -181,7 +185,7 @@ jobs:
   fe-typecheck:
     name: Type Check (tsc)
     needs: [changes]
-    if: needs.changes.outputs.frontend == 'true'
+    if: inputs.run-all || needs.changes.outputs.frontend == 'true'
     runs-on: blacksmith-2vcpu-ubuntu-2404
     steps:
       - uses: actions/checkout@v6
@@ -196,7 +200,7 @@ jobs:
   fe-build:
     name: Build (Next.js)
     needs: [changes, fe-lint, fe-typecheck]
-    if: needs.changes.outputs.frontend == 'true'
+    if: inputs.run-all || needs.changes.outputs.frontend == 'true'
     runs-on: blacksmith-4vcpu-ubuntu-2404
     steps:
       - uses: actions/checkout@v6
@@ -226,7 +230,7 @@ jobs:
   fe-test:
     name: Tests (Vitest)
     needs: [changes, fe-lint]
-    if: needs.changes.outputs.frontend == 'true'
+    if: inputs.run-all || needs.changes.outputs.frontend == 'true'
     runs-on: blacksmith-2vcpu-ubuntu-2404
     steps:
       - uses: actions/checkout@v6
@@ -255,7 +259,7 @@ jobs:
   docker-backend:
     name: Docker Build (Backend)
     needs: [changes, lint, typecheck, test]
-    if: ${{ !inputs.skip-docker && needs.changes.outputs.docker == 'true' }}
+    if: ${{ !inputs.skip-docker && (inputs.run-all || needs.changes.outputs.docker == 'true') }}
     runs-on: blacksmith-4vcpu-ubuntu-2404
     steps:
       - uses: actions/checkout@v6
@@ -272,7 +276,7 @@ jobs:
   docker-frontend:
     name: Docker Build (Frontend)
     needs: [changes, fe-lint, fe-typecheck, fe-build]
-    if: ${{ !inputs.skip-docker && needs.changes.outputs.docker == 'true' }}
+    if: ${{ !inputs.skip-docker && (inputs.run-all || needs.changes.outputs.docker == 'true') }}
     runs-on: blacksmith-4vcpu-ubuntu-2404
     steps:
       - uses: actions/checkout@v6
