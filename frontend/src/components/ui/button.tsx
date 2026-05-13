@@ -17,8 +17,8 @@ const buttonVariants = cva(
           "bg-destructive/10 text-destructive hover:bg-destructive/20 focus-visible:border-destructive/40 focus-visible:ring-destructive/20 dark:bg-destructive/20 dark:hover:bg-destructive/30 dark:focus-visible:ring-destructive/40",
         link: "text-link underline-offset-4 hover:underline",
         "on-dark-pill":
-          "bg-surface-violet-soft text-primary hover:bg-surface-violet-soft/80 rounded-full",
-        "on-teal": "bg-background text-surface-teal-deep hover:bg-canvas-soft",
+          "bg-primary-foreground text-primary hover:bg-primary-foreground/90 rounded-full",
+        "on-teal": "bg-background text-primary-foreground hover:bg-canvas-soft",
       },
       size: {
         default: "h-10 gap-1.5 px-5",
