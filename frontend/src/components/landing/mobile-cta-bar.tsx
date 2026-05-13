@@ -19,11 +19,7 @@ export function MobileCTABar({ hidden }: MobileCTABarProps) {
     >
       <div className="flex items-center justify-center px-4 py-3">
         <Button size="lg" className="min-h-[44px] w-full max-w-md" asChild>
-          <a
-            href="https://t.me/SkateLabPro"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
+          <a href="https://t.me/SkateLabPro" target="_blank" rel="noopener noreferrer">
             {t("ctaPrimary")}
           </a>
         </Button>
