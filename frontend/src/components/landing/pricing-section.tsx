@@ -60,7 +60,7 @@ export function PricingSection() {
             key={tier.name}
             className={`pricing-card relative rounded-lg p-8 ${
               tier.highlighted
-                ? "bg-primary text-primary-foreground border border-primary"
+                ? "bg-primary-foreground text-primary border border-primary-foreground"
                 : "border border-hairline bg-background text-ink"
             }`}
           >
