@@ -54,11 +54,20 @@ class Session(TimestampMixin, Base):
     imu_right_key: Mapped[str | None] = mapped_column(String(500), nullable=True)
     manifest_key: Mapped[str | None] = mapped_column(String(500), nullable=True)
 
-    # Relationship to metrics
+    # Relationships
     metrics: Mapped[list[SessionMetric]] = relationship(
         "SessionMetric",
         back_populates="session",
         cascade="all, delete-orphan",
+    )
+    elements: Mapped[list[SessionElement]] = relationship(
+        "SessionElement",
+        back_populates="session",
+        cascade="all, delete-orphan",
+    )
+
+    segmentation_status: Mapped[str] = mapped_column(
+        String(20), server_default="pending", nullable=False,
     )
 
     __table_args__ = (
@@ -98,3 +107,28 @@ class SessionMetric(TimestampMixin, Base):
         # Unique constraint on (session_id, metric_name)
         Index("uq_session_metric_name", "session_id", "metric_name", unique=True),
     )
+
+
+class SessionElement(TimestampMixin, Base):
+    """Detected skating element from automatic timeline segmentation."""
+
+    __tablename__ = "session_elements"
+
+    id: Mapped[str] = mapped_column(
+        String(36),
+        primary_key=True,
+        default=lambda: str(uuid.uuid4()),
+    )
+    session_id: Mapped[str] = mapped_column(
+        String(36),
+        ForeignKey("sessions.id", ondelete="CASCADE"),
+        index=True,
+    )
+    element_type: Mapped[str] = mapped_column(String(50))
+    element_name: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    start_frame: Mapped[int] = mapped_column()
+    end_frame: Mapped[int] = mapped_column()
+    confidence: Mapped[float] = mapped_column(Float)
+    phases_json: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+
+    session: Mapped[Session] = relationship("Session", back_populates="elements")

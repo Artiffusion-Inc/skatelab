@@ -5,7 +5,7 @@ from app.models.choreography import ChoreographyProgram, MusicAnalysis
 from app.models.connection import Connection
 from app.models.password_reset_token import PasswordResetToken
 from app.models.refresh_token import RefreshToken
-from app.models.session import Session, SessionMetric
+from app.models.session import Session, SessionElement, SessionMetric
 from app.models.user import User
 from app.models.verification_token import VerificationToken
 from app.models.workspace import Subscription, Workspace, WorkspaceMember
@@ -18,6 +18,7 @@ __all__ = [
     "PasswordResetToken",
     "RefreshToken",
     "Session",
+    "SessionElement",
     "SessionMetric",
     "Subscription",
     "User",
