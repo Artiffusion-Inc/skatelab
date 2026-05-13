@@ -22,28 +22,27 @@ class StopRecordingUseCase @Inject constructor(
      * Stop recording with per-step error handling.
      * All cleanup steps always execute — a failure in one step
      * does not prevent other cleanup from running.
-     * BLE stop for LEFT/RIGHT runs in parallel.
+     * Camera stop + BLE stop for LEFT/RIGHT run in parallel.
      */
     suspend operator fun invoke(): Result<StopResult> {
         val errors = mutableListOf<Throwable>()
         var stopResult = CameraRepository.RecordingStopResult(actualFps = 0, fpsVerified = false)
 
-        try {
-            withContext(Dispatchers.Main) {
-                stopResult = cameraRepository.stopRecording().getOrDefault(stopResult)
-            }
-        } catch (e: Exception) {
-            errors.add(e)
-        }
-
+        // Camera stop + BLE stop in parallel — they're independent
         try {
             coroutineScope {
-                withContext(Dispatchers.IO) {
-                    val left = async { bleRepository.stopStreaming(SensorId.LEFT) }
-                    val right = async { bleRepository.stopStreaming(SensorId.RIGHT) }
-                    left.await().getOrDefault(Unit)
-                    right.await().getOrDefault(Unit)
+                val cameraDeferred = async(Dispatchers.Main) {
+                    cameraRepository.stopRecording().getOrDefault(stopResult)
                 }
+                val leftDeferred = async(Dispatchers.IO) {
+                    bleRepository.stopStreaming(SensorId.LEFT).getOrDefault(Unit)
+                }
+                val rightDeferred = async(Dispatchers.IO) {
+                    bleRepository.stopStreaming(SensorId.RIGHT).getOrDefault(Unit)
+                }
+                stopResult = cameraDeferred.await()
+                leftDeferred.await()
+                rightDeferred.await()
             }
         } catch (e: Exception) {
             errors.add(e)
