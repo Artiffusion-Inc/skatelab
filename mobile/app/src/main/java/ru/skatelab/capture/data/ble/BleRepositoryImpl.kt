@@ -55,6 +55,10 @@ class BleRepositoryImpl @Inject constructor(
         bleManager.disconnect(sensorId, address)
     }
 
+    override suspend fun bleConfigure(sensorId: SensorId): Result<Unit> = runCatching {
+        bleManager.sendSequence(sensorId, Wt901Commander.bleConfigureSequence())
+    }
+
     override suspend fun configureSensor(sensorId: SensorId): Result<Unit> = runCatching {
         bleManager.sendSequence(sensorId, Wt901Commander.configureSequence())
     }

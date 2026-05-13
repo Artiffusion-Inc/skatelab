@@ -92,13 +92,40 @@ object Wt901Commander {
     // --- Command sequences ---
 
     /**
-     * Full configuration sequence:
+     * BLE configuration sequence.
+     * WT901 BLE protocol ALWAYS outputs 0x61 combined frame (ACC+GYRO+Euler).
+     * RSW register (0x02) is UART-only — writing it in BLE mode is a no-op or undefined.
+     *
+     * This sequence: stop any active calibration → unlock → set output rate 100Hz → save.
+     * No OutputContent (RSW) write — UART-only register, ignored in BLE mode.
+     * No ACC calibration — can corrupt ACC offset.
+     * No factory reset — causes sensor reboot which drops GATT connection.
+     */
+    fun bleConfigureSequence(): List<CommandStep> = listOf(
+        CommandStep(stopCalibration(), DELAY_BETWEEN_CONFIG_MS),
+        CommandStep(unlock(), DELAY_AFTER_UNLOCK_MS),
+        CommandStep(setOutputRate(0x09), DELAY_BETWEEN_CONFIG_MS),
+        CommandStep(save(), DELAY_AFTER_SAVE_MS),
+    )
+
+    /**
+     * Factory reset sequence for BLE — use ONLY when ACC/GYRO offsets are corrupted.
+     * CAUTION: factory reset causes sensor reboot, dropping GATT connection.
+     * After calling this, wait for GATT reconnect before sending more commands.
+     */
+    fun bleFactoryResetSequence(): List<CommandStep> = listOf(
+        CommandStep(stopCalibration(), DELAY_BETWEEN_CONFIG_MS),
+        CommandStep(factoryReset(), 2000L),
+        // No further commands — sensor will reboot after factory reset.
+        // Must reconnect GATT before sending more commands.
+    )
+
+    /**
+     * Full UART configuration sequence (for non-BLE connections).
+     * DO NOT USE with BLE — RSW register (0x02) is reserved in BLE protocol.
+     *
      * 1. Unlock → OutputContent(0x0046) → OutputRate(100Hz) → Save
      * 2. Unlock → ACC Calibrate → wait 2s → Save
-     * Run once after initial connection. Sensor must be still during step 2.
-     *
-     * WARNING: accCalibrate() can corrupt ACC offset on some sensors.
-     * Use configureSequenceNoAccCal() for sensors with ACC issues.
      */
     fun configureSequence(): List<CommandStep> = listOf(
         CommandStep(unlock(), DELAY_AFTER_UNLOCK_MS),
@@ -111,8 +138,8 @@ object Wt901Commander {
     )
 
     /**
-     * Configuration without ACC calibration.
-     * Use for sensors where accCalibrate() corrupted the ACC offset.
+     * UART configuration without ACC calibration.
+     * DO NOT USE with BLE — RSW register (0x02) is reserved in BLE protocol.
      */
     fun configureSequenceNoAccCal(): List<CommandStep> = listOf(
         CommandStep(unlock(), DELAY_AFTER_UNLOCK_MS),
@@ -122,8 +149,8 @@ object Wt901Commander {
     )
 
     /**
-     * Factory reset then reconfigure without ACC calibration.
-     * Use to recover a sensor with corrupted ACC offset.
+     * Factory reset then UART reconfigure without ACC calibration.
+     * DO NOT USE with BLE — RSW register (0x02) is reserved in BLE protocol.
      */
     fun factoryResetSequence(): List<CommandStep> = listOf(
         CommandStep(stopCalibration(), DELAY_BETWEEN_CONFIG_MS),
@@ -135,22 +162,20 @@ object Wt901Commander {
     )
 
     /**
-     * Start streaming: Unlock → OutputContent 0x0046 → Save.
-     * Sends at recording start. ~750ms total.
+     * BLE start streaming: save() to restart output after any configuration.
+     * In BLE mode, the 0x61 frame streams automatically when CCCD is enabled.
+     * RSW register (OutputContent) is UART-only and does nothing in BLE mode.
      */
     fun startStreamingSequence(): List<CommandStep> = listOf(
-        CommandStep(unlock(), DELAY_AFTER_UNLOCK_MS),
-        CommandStep(setOutputContent(0x0046), DELAY_BETWEEN_CONFIG_MS),
         CommandStep(save(), DELAY_AFTER_SAVE_MS),
     )
 
     /**
-     * Stop streaming: Unlock → OutputContent 0x0000 → Save.
-     * Sends at recording end. ~750ms total.
+     * BLE stop streaming: no-op in BLE mode.
+     * The 0x61 frame streams as long as CCCD notifications are enabled.
+     * Calling this just saves current state.
      */
     fun stopStreamingSequence(): List<CommandStep> = listOf(
-        CommandStep(unlock(), DELAY_AFTER_UNLOCK_MS),
-        CommandStep(setOutputContent(0x0000), DELAY_BETWEEN_CONFIG_MS),
         CommandStep(save(), DELAY_AFTER_SAVE_MS),
     )
 }
