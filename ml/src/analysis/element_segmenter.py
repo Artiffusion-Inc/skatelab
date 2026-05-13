@@ -4,6 +4,7 @@ Detects element boundaries using motion energy analysis and classifies
 each segment using rule-based heuristics.
 
 ML backend: set `tas_model_path` to use BiGRU+RF instead of rules.
+Method "tas_ml_v2" uses BiGRUTASRefiner + Skeleton1DCNN v2 pipeline.
 """
 
 from pathlib import Path
@@ -31,7 +32,9 @@ class ElementSegmenter:
     Uses motion energy analysis to detect stillness periods between elements,
     then classifies each segment using rule-based heuristics.
 
-    ML backend: set `tas_model_path` to use BiGRU+RF instead of rules.
+    ML backends:
+        - set `tas_model_path` to use BiGRU+RF (tas_ml) or v2 pipeline (tas_ml_v2).
+        - "tas_ml_v2" is preferred when model path is set.
     """
 
     def __init__(
@@ -89,12 +92,23 @@ class ElementSegmenter:
             poses: NormalizedPose sequence (num_frames, 33, 2).
             video_path: Path to original video file.
             video_meta: Video metadata.
-            method: Segmentation strategy ("adaptive", "motion_energy", "tas_ml").
+            method: Segmentation strategy. One of:
+                "adaptive" — try tas_ml_v2, then rule-based (default).
+                "motion_energy" — rule-based only.
+                "tas_ml" — v1 ML backend (BiGRU+RF).
+                "tas_ml_v2" — v2 ML backend (BiGRUTASRefiner + Skeleton1DCNN).
 
         Returns:
             SegmentationResult with detected segments.
         """
-        # ML backend if requested
+        # ML v2 backend (preferred when model path is set)
+        if method in ("adaptive", "tas_ml_v2") and self._tas_model_path is not None:
+            result = self._segment_with_tas_v2(poses, video_meta.fps, video_meta)
+            if result is not None:
+                return result
+            # Fallback if v2 fails
+
+        # ML v1 backend
         if method == "tas_ml":
             tas = self._get_tas_segmenter()
             if tas is not None:
@@ -157,6 +171,57 @@ class ElementSegmenter:
             confidence=float(np.mean([s.confidence for s in element_segs]))
             if element_segs
             else 0.0,
+        )
+
+    def _segment_with_tas_v2(
+        self,
+        poses: NormalizedPose,
+        fps: float,
+        video_meta: "VideoMeta",
+    ) -> SegmentationResult | None:
+        """Segment using BiGRUTASRefiner + Skeleton1DCNN v2 pipeline."""
+
+        segmenter = self._get_tas_segmenter()
+        if segmenter is None:
+            return None
+
+        raw_segments = segmenter.segment(poses, fps=fps)
+        if not raw_segments:
+            return None
+
+        segments: list[ElementSegment] = []
+        for seg in raw_segments:
+            phases = None
+            seg_poses = poses[seg["start"] : seg["end"] + 1]
+            # Try rule-based PhaseDetector for jump elements
+            if seg["element_type"] == "Jump" and len(seg_poses) > 10:
+                try:
+                    from ..analysis.phase_detector import PhaseDetector
+
+                    pd = PhaseDetector()
+                    phase_result = pd.detect_phases(seg_poses, fps, seg["element_type"])
+                    if phase_result and phase_result.phases:
+                        phases = phase_result.phases
+                except (ValueError, RuntimeError):
+                    pass
+
+            segments.append(
+                ElementSegment(
+                    element_type=seg["element_type"],
+                    start=seg["start"],
+                    end=seg["end"],
+                    confidence=seg["confidence"],
+                    phases=phases,
+                    metadata={"coarse_type": seg["element_type"]},
+                )
+            )
+
+        return SegmentationResult(
+            segments=segments,
+            video_path=video_meta.path,
+            video_meta=video_meta,
+            method="tas_ml_v2",
+            confidence=float(np.mean([s.confidence for s in segments])),
         )
 
     def _compute_motion_energy(self, poses: NormalizedPose) -> NDArray[np.float32]:
