@@ -55,7 +55,9 @@ export function PricingSection() {
       aria-labelledby="pricing-heading"
     >
       <div className="mb-14 md:mb-20">
-        <p className="mb-4 sh-caption text-ink-mute">{t("pricingTitle")}</p>
+        <p className="mb-4 sh-micro uppercase tracking-[0.3em] text-ink-mute">
+          {t("pricingTitle")}
+        </p>
         <h2 id="pricing-heading" className="sh-display-xl text-ink">
           {t("pricingHeadline")}
         </h2>
@@ -70,7 +72,7 @@ export function PricingSection() {
                 {hardware.price}
               </span>
             </div>
-            <p className="sh-body-md text-ink-mute max-w-[65ch]">{hardware.desc}</p>
+            <p className="sh-body-md text-ink-mute">{hardware.desc}</p>
             <ul className="mt-6 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
               {hardware.features.map(f => (
                 <li key={f} className="flex items-center gap-2 sh-caption text-ink-mute">
@@ -80,8 +82,17 @@ export function PricingSection() {
               ))}
             </ul>
           </div>
-          <Button variant="default" size="lg" className="min-h-[44px] px-8 shrink-0" asChild>
-            <a href={hardware.href} target="_blank" rel="noopener noreferrer">
+          <Button
+            variant="default"
+            size="lg"
+            className="min-h-[44px] px-8 shrink-0"
+            asChild
+          >
+            <a
+              href={hardware.href}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
               {hardware.cta}
             </a>
           </Button>
@@ -110,7 +121,10 @@ export function PricingSection() {
             <p className="mt-2 sh-caption text-ink-mute">{tier.desc}</p>
             <ul className="mt-6 space-y-3">
               {tier.features.map(f => (
-                <li key={f} className="flex items-start gap-2 sh-caption text-ink-mute">
+                <li
+                  key={f}
+                  className="flex items-start gap-2 sh-caption text-ink-mute"
+                >
                   <Check
                     className={`h-4 w-4 mt-0.5 shrink-0 ${tier.highlighted ? "text-primary" : "text-score-good"}`}
                   />
@@ -136,7 +150,7 @@ export function PricingSection() {
         ))}
       </ul>
 
-      <p className="mt-8 text-center sh-caption text-ink-mute max-w-2xl mx-auto">
+      <p className="mt-8 text-center sh-legal text-ink-mute">
         {t("pricingHardwareNote")}
       </p>
     </section>

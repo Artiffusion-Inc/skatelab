@@ -53,8 +53,8 @@ export function FeaturesSection() {
             <p className="sh-body-md max-w-lg text-ink-mute">{features[0].description}</p>
             <p className="mt-4 sh-caption text-primary">{features[0].accent}</p>
           </div>
-          <div className="hidden lg:block w-72 h-48 rounded-md bg-ice-surface border border-hairline flex items-center justify-center">
-            <span className="sh-caption text-ink-faint">{t("visualVideoLabel")}</span>
+          <div className="hidden lg:block w-72 h-48 rounded-md bg-canvas-soft border border-hairline flex items-center justify-center">
+            <span className="sh-caption text-ink-mute">{t("visualVideoLabel")}</span>
           </div>
         </div>
       </div>

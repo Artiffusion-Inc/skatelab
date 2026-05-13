@@ -18,7 +18,7 @@ const buttonVariants = cva(
         link: "text-link underline-offset-4 hover:underline",
         "on-dark-pill":
           "bg-primary-foreground text-primary hover:bg-primary-foreground/90 rounded-full",
-        "on-teal": "bg-background text-primary-foreground hover:bg-canvas-soft",
+        "on-teal": "bg-background text-ink hover:bg-canvas-soft",
       },
       size: {
         default: "h-10 gap-1.5 px-5",
