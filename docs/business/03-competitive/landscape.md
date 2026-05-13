@@ -9,7 +9,7 @@
 | Что | 3D pose + IMU для определения ошибки лезвия |
 | Технология | IMU-датчики на ботинках + 3D pose estimation |
 | Статус | Исследовательский проект (4 stars на GitHub) |
-| Слабость | Требует.IMU-датчики → оборудование, не масштабируется |
+| Слабость | Требует IMU-датчики → оборудование, не масштабируется |
 | Угроза | Низкая. IMU = аппаратное решение, не SaaS |
 
 ### 2. OOFSkate (MIT / NBC Sports)
@@ -80,7 +80,7 @@
 |--------|---------|
 | Что | Video analysis для спорта (американский футбол, бейсбол) |
 | Модель | B2B продажа клубам и федерациям |
-| Разница |.Template-based annotation, не ML. SkateLab = automated ML analysis |
+| Разница | Template-based annotation, не ML. SkateLab = automated ML analysis |
 | Урок | B2B2C модель работает в спортивном видео-анализе |
 
 ### 9. Dartfish (Swiss, Olympic-grade)
@@ -116,7 +116,7 @@
 | Objective metrics | ✅ | ✅ | ⚠️ | ❌ | ❌ | ⚠️ | ❌ |
 | Coach dashboard | ✅ | ❌ | ❌ | ❌ | ✅ | ✅ | ✅ |
 | Сравнение с эталоном | ✅ | ❌ | ❌ | ❌ | ❌ | ⚠️ | ⚠️ |
-| Цена (масс-маркет) | **~$170** (hardware) | N/A (TV-only) | Free | $12 | $50+ | €7–120/мес | $5 |
+| Цена (масс-маркет) | **TBD** (hardware) | N/A (TV-only) | Free | $12 | $50+ | €7–120/мес | $5 |
 
 ## Competitive Moats
 

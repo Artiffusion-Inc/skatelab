@@ -49,6 +49,42 @@ Video → RTMPose (rtmlib, CUDA) → HALPE26 (26kp) → H3.6M (17kp)
 | **Physics** | CoM trajectory, Dempster anthropometric tables |
 | **GPU** | CUDA via onnxruntime-gpu (7.1x speedup) |
 
+## Business Validation Status
+
+> **Обновлено:** 2026-05-13. Аудит бизнес-документации.
+
+### CustDev
+
+| Сегмент | Интервью | Статус |
+|---------|----------|--------|
+| Тренеры (A1) | 2 | ✅ Подтверждена боль (субъективность оценки, споры с учениками). WTP условный («если докажут»). |
+| Спортсмены (A2) | 1 | ✅ Подтверждена боль (медленный прогресс). WTP до 10K разово, 500–600 ₽/мес. |
+| Хореографы (B1) | 0 | ⚠️ Боль описана, но не валидирована. Цифры «5–10 часов» — с потолка. |
+| Родители (B2) | 0 | ⚠️ Боль правдоподобна, но WTP не подтверждена. 35K/мес — стоимость тренировок, не ущерб от отсутствия данных. |
+| Клубы (C2) | 0 | ❌ Hold. Боль «отток из-за аналитики» — надуманна. CustDev = 0. |
+| Федерации (D1) | 0 | ❌ Рано. «Ущерб высокий, но не осознают» — противоречие. |
+
+### Pricing (невалидированные гипотезы)
+
+| Продукт | Цена | Источник | Валидация |
+|---------|------|----------|-----------|
+| Individual hardware | TBD (оценка: 8–12K ₽) | Cost-plus | ❌ Никто не называл цену |
+| SaaS Entry | 490 ₽/мес | Оценка | ⚠️ Вписан в WTP спортсмена |
+| SaaS Pro | 990 ₽/мес | Оценка | ❌ **Выше WTP 500–600 ₽/мес** |
+| SaaS Coach | 1 500–3 500 ₽/мес | Оценка | ❌ Тренер WTP = «если докажут» |
+
+**Единственная валидированная цифра:** WTP спортсмена 500–600 ₽/мес + до 10 000 ₽ разово (1 респондент).
+
+**BOM:** ~3 230 ₽/комплект. Cost-плюс наценка 3x = 9 690 ₽ (вписан в WTP до 10K).
+
+### Critical Gaps (P0)
+
+1. **Прототип не тестирован с реальными пользователями** — CustDev был без прототипа
+2. **Нет валидации точности ML** — нет бенчмарка против ground truth
+3. **Pro tier превышает WTP** — 990₽ > 500–600₽ WTP спортсмена
+
+Подробности: `docs/business/04-financial/unit-economics.md`, `docs/business/02-market/abcd-segmentation.md`
+
 ## Project Structure
 
 ```
@@ -68,9 +104,10 @@ skatelab/
 │   ├── scripts/           # Standalone scripts
 │   └── pyproject.toml     # ML dependencies
 ├── docs/                  # Documentation
-│   ├── research/            # Research findings
-│   ├── plans/               # Implementation plans
-│   └── specs/               # Design documents
+│   ├── business/          # Business knowledge base
+│   ├── research/          # Research findings
+│   ├── plans/             # Implementation plans
+│   └── specs/             # Design documents
 ├── infra/                 # Infrastructure (Containerfile, Caddyfile)
 ├── data/                  # Data files (datasets, references)
 └── experiments/           # Jupyter notebooks
