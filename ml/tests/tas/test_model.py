@@ -48,6 +48,27 @@ def test_bigru_backward():
     assert not torch.isnan(poses.grad).any()
 
 
+def test_boundary_refiner_forward():
+    from src.tas.model import BoundaryRefinerCNN
+
+    refiner = BoundaryRefinerCNN(input_channels=38)
+    x = torch.randn(2, 100, 38)
+    out = refiner(x)
+    assert out.shape == (2, 100, 4)
+
+
+def test_boundary_refiner_gradient():
+    from src.tas.model import BoundaryRefinerCNN
+
+    refiner = BoundaryRefinerCNN(input_channels=38)
+    x = torch.randn(2, 50, 38, requires_grad=True)
+    out = refiner(x)
+    loss = out.mean()
+    loss.backward()
+    assert x.grad is not None
+    assert not torch.isnan(x.grad).any()
+
+
 if __name__ == "__main__":
     test_bigru_forward()
     print("✓ bigru_forward OK")
