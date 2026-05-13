@@ -84,6 +84,32 @@ def test_overlapf1_wrong_label():
     assert result["recall"] == 0.0
 
 
+def test_multi_overlap_f1():
+    from ml.src.tas.metrics import MultiOverlapF1
+
+    metric = MultiOverlapF1(thresholds=[0.10, 0.25, 0.50])
+    pred = np.array([0, 0, 1, 1, 1, 0, 2, 2])
+    true = np.array([0, 0, 1, 1, 1, 0, 2, 2])
+    result = metric.compute(pred, true)
+    assert "f1@10" in result
+    assert "f1@25" in result
+    assert "f1@50" in result
+    assert result["f1@10"] == 1.0
+    assert result["f1@25"] == 1.0
+    assert result["f1@50"] == 1.0
+
+
+def test_multi_overlap_f1_partial():
+    from ml.src.tas.metrics import MultiOverlapF1
+
+    metric = MultiOverlapF1(thresholds=[0.10, 0.25, 0.50])
+    pred = np.array([0, 0, 0, 0, 1, 1, 0, 0])
+    true = np.array([0, 0, 1, 1, 1, 1, 1, 0])
+    result = metric.compute(pred, true)
+    # F1@10 should be higher than or equal to F1@50 (looser threshold)
+    assert result["f1@10"] >= result["f1@50"]
+
+
 if __name__ == "__main__":
     test_extract_segments_basic()
     print("✓ extract_segments_basic OK")
