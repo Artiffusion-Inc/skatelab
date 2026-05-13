@@ -191,6 +191,11 @@ class BleManager(private val context: Context, private val logger: ru.skatelab.c
             Result.success(Unit)
         } else {
             loge("Sensor $sensorId connection failed or timeout, state=$state")
+            // Close leaked GATT object on connect timeout to prevent system-wide GATT exhaustion
+            gattConnections.remove(address)?.close()
+            handlerThreads.remove(address)?.quitSafely()
+            addressToSensorId.remove(address)
+            updateConnectionState(sensorId, ConnectionState.DISCONNECTED)
             Result.failure(IllegalStateException("Connection failed for $sensorId, state=$state"))
         }
     }
@@ -215,14 +220,32 @@ class BleManager(private val context: Context, private val logger: ru.skatelab.c
 
         override fun onConnectionStateChange(gatt: BluetoothGatt, status: Int, newState: Int) {
             logi("GATT state change: address=$address status=$status newState=$newState")
+
+            // GATT error 133 means the stack is in a bad state — close the GATT object
+            // before attempting any new connection, otherwise connectGatt() loops forever.
+            if (status == 133 && newState == BluetoothProfile.STATE_DISCONNECTED) {
+                logw("GATT error 133 for $address — closing stale GATT object")
+                gattConnections.remove(address)
+                gatt.close()
+                updateConnectionState(sensorId, ConnectionState.DISCONNECTED)
+                return
+            }
+
             if (newState == BluetoothProfile.STATE_CONNECTED) {
                 gattConnections[address] = gatt
                 gatt.requestConnectionPriority(BluetoothGatt.CONNECTION_PRIORITY_HIGH)
-                gatt.discoverServices()
+                // Request larger MTU to reduce per-notification overhead.
+                // Default MTU=23 (20 bytes payload) means each 0x61 frame fills exactly one notification.
+                // MTU=247 allows batching multiple frames per notification, reducing CPU wake-ups at 100Hz.
+                gatt.requestMtu(247)
             } else if (newState == BluetoothProfile.STATE_DISCONNECTED) {
+                // Always close the old GATT object to prevent leaks
+                // (Android has a ~30 GATT limit system-wide before refusing new connections)
+                gattConnections.remove(address)
+                gatt.close()
+
                 // Auto-reconnect if sensor was previously connected (not explicit disconnect)
-                val wasConnected = gattConnections.remove(address) != null
-                if (wasConnected && isRecording(sensorId)) {
+                if (isRecording(sensorId)) {
                     logw("BLE disconnected during recording, attempting reconnect: $address")
                     updateConnectionState(sensorId, ConnectionState.RECONNECTING)
                     _reconnectEvents.tryEmit(sensorId)
@@ -241,6 +264,12 @@ class BleManager(private val context: Context, private val logger: ru.skatelab.c
                     updateConnectionState(sensorId, ConnectionState.DISCONNECTED)
                 }
             }
+        }
+
+        override fun onMtuChanged(gatt: BluetoothGatt, mtu: Int, status: Int) {
+            logi("MTU changed: address=$address mtu=$mtu status=$status")
+            // Service discovery must happen AFTER MTU negotiation for optimal performance
+            gatt.discoverServices()
         }
 
         override fun onServicesDiscovered(gatt: BluetoothGatt, status: Int) {
@@ -339,7 +368,12 @@ class BleManager(private val context: Context, private val logger: ru.skatelab.c
         override fun onDescriptorWrite(gatt: BluetoothGatt, descriptor: BluetoothGattDescriptor, status: Int) {
             logi("onDescriptorWrite: $address uuid=${descriptor.uuid} status=$status")
             if (descriptor.uuid.toString().startsWith("00002902")) {
-                completeSetup(gatt, address, sensorId)
+                if (status == BluetoothGatt.GATT_SUCCESS) {
+                    completeSetup(gatt, address, sensorId)
+                } else {
+                    loge("CCCD descriptor write failed (status=$status) for $address — notifications may not work")
+                    gatt.disconnect()
+                }
             }
         }
     }
