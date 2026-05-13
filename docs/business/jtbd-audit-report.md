@@ -47,13 +47,14 @@
 - **Evidence:** `abcd-segmentation.md` B2 documents circumstance ("После тренировки ребёнка"), pain ("35K+ ₽/мес без понимания отдачи"), and success criteria ("Понимание прогресса в цифрах"). However, there is no description of what parents currently do to track progress (e.g., asking the coach, watching videos, using WhatsApp groups).
 - **Impact:** Medium. Parents are a trust proxy; unclear current solution means onboarding UX cannot be designed to replace an existing habit.
 
-### Clubs / Academies (C2)
+### Clubs / Academies (C2) — ⚠️ Segment on hold (CustDev = 0)
 - **Gap 1:** No canonical JTBD statement.
 - **Gap 2:** Current solution is not documented.
 - **Gap 3:** Pain is weakly quantified.
 - **Gap 4:** Success criteria lack concrete metrics.
-- **Evidence:** `abcd-segmentation.md` C2 explicitly labels financial damage as "Низкий" and only lists "Отток учеников в академии с лучшей аналитикой" as non-monetary pain. No description of current tools (Excel, Google Forms, verbal coach reports). Success criteria is "Массовая аналитика по ученикам, но ограниченная" — no measurable threshold.
-- **Impact:** High. Clubs are a B2B scaling vector; weak JTBD undermines pricing justification and product prioritization.
+- **Gap 5:** Core pain claim ("Отток учеников в академии с лучшей аналитикой") is fabricated — no evidence parents choose clubs by analytics. Club choice driven by coach reputation, location, and price.
+- **Evidence:** `abcd-segmentation.md` C2 now marked as unvalidated. CustDev with clubs = 0. All data is hypothetical.
+- **Impact:** Downgraded from High to Low. Segment is on hold pending 3–5 interviews with club directors. B2B scaling hypothesis is untested; do not invest product resources until validated.
 
 ### Federations (D1)
 - **Gap 1:** No canonical JTBD statement.
@@ -92,7 +93,7 @@
 |----------|--------|---------|--------|--------|-----------------|
 | **P0** | Validate the recommended Coach and Athlete JTBD statements with the existing 3 CustDev respondents (async follow-up). | Coaches, Athletes | 2h | High | Product / Alice |
 | **P0** | Conduct 3-5 CustDev interviews with **parents** to document current solutions (What do they do today? WhatsApp? Coach chats? Nothing?) and validate the B2 JTBD. | Parents | 1 week | High | Product / Alice |
-| **P1** | Conduct 2-3 CustDev interviews with **club directors / academy owners** to quantify churn rates, current reporting tools, and validate the C2 JTBD. | Clubs | 1 week | High | Product / Alice |
+| **P1** | Conduct 3-5 CustDev interviews with **club directors / academy owners** to test if C2 pain exists at all. Do not assume "analytics drives retention" — ask open questions about real problems and current tools. | Clubs | 1 week | Medium (downgraded — segment on hold) | Product / Alice |
 | **P1** | Add canonical JTBD statements to `positioning.md` and `abcd-segmentation.md` for all 6 segments. Update `segmentation.md` to reference them. | All | 4h | Medium | Business Analyst |
 | **P2** | Conduct 1-2 exploratory interviews with **choreographers** to validate the B1 JTBD and refine the "5-10 hours saved" claim. | Choreographers | 3 days | Medium | Product |
 | **P2** | Define measurable success criteria for Clubs: e.g., "Reduce student churn by 10%", "Cut report prep time from 4h to 30 min". | Clubs | 2h | Medium | Business Analyst |

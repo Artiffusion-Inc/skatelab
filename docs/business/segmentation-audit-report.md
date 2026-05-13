@@ -19,7 +19,7 @@ The current segmentation is **directionally sound** but contains **material gaps
 | B1 — Choreographers | Size: ~5K. Loose sourcing. | Partial: via coaches, competitions. | $2.4M/yr. | Yes: music-analysis need is unique. | **Medium**: Product exists but no case studies; objections documented. | Good |
 | B2 — Parents | Size: ~100K (implied). | Partial: channels not defined (parent forums? clubs?). | $18M/yr. Very high emotional WTP. | Yes: safety + progress tracking motive. | **Medium**: Offer defined, but process lacks distribution plan. | Needs work |
 | C1 — Beginners | Size: ~200K. | Freemium / app stores. | Low ARPU ($0–$5/mo). | Yes: motivation vs technique. | **Low**: Correctly deprioritized. | Acceptable |
-| C2 — Small clubs | Size: ~3K academies (split unclear). | Inside sales? | $7.2M/yr at 100%. | Yes: group management need. | **Medium**: Plan exists, no case study. | Acceptable |
+| C2 — Small clubs | Size: ~3K academies (split unclear). | Inside sales? | $7.2M/yr at 100%. | Yes: group management need. | **Low**: CustDev = 0. Pain «churn from analytics» is fabricated. Segment on hold. | Needs CustDev |
 | D1 — Federations | Size: ~50. | Long cycle, procurement. | $0.3M/yr. | Yes: benchmarking need. | **Low**: No product, no case, 12–24 mo sales cycle. | Correctly parked |
 | D2 — Solo hobbyists | Not sized. | App stores. | Zero revenue. | N/A. | **None**. Correctly parked. | Acceptable |
 | X1 — ISU Judges | Not sized. | Impossible without ISU cert. | Unknown. | Real-time overlay need. | **None today**: <1s latency + certification required. | Correctly parked |
@@ -40,7 +40,7 @@ Actionability = clarity of offer + reachable channel + product readiness + case 
 | B1 — Choreographers | 6/10 | Offer defined, product in architecture, but **no case study** and objection is strong ("I already do this manually"). |
 | B2 — Parents | 5/10 | Offer defined, but **CustDev missing** (N=0 parents interviewed). Channel unclear. |
 | C1 — Beginners | 4/10 | Freemium trap; correctly labeled "do not spend resources." |
-| C2 — Small clubs | 5/10 | Budget constrained; needs land-and-expand from coach-tier. |
+| C2 — Small clubs | 2/10 | **On hold.** CustDev = 0. Pain unvalidated. Land-and-expand is hypothetical. |
 | D1 — Federations | 2/10 | No product, long cycle. Keep warm via A1 coaches who have federation relationships. |
 | D2 — Solo hobbyists | 1/10 | No monetization path. |
 | X1 — Judges | 1/10 | Blocked by real-time requirement + ISU certification. |
@@ -95,7 +95,7 @@ Current priority list is mostly correct, but **A2 should rank above A1** for MVP
 |----------|---------|--------|-----------|
 | **P0** | A2 — Advanced skaters | Self-serve launch, $5–10/mo price point. | Lowest CAC, highest willingness per CustDev, immediate feedback loop. |
 | **P1** | A1 — Elite coaches | 3 pilot programs (academies). B2B sales after proof. | High value, but requires case study + longer cycle. Use A2 success as social proof. |
-| **P2** | C2 — Small clubs | Bundle via coach-tier (A1 upsell). | Natural expansion from coaches already using dashboard. |
+| **P2** | C2 — Small clubs | **HOLD**: 3–5 interviews with club directors first. | CustDev = 0. Pain unvalidated. Do not build for this segment until confirmed. |
 | **P3** | B1 — Choreographers | Finish Choreography Planner MVP, then 2 pilot users. | Product-dependent; do not market before feature-complete. |
 | **P4** | B2 — Parents | **HOLD**: Run 5 parent interviews first. | Zero data; high risk of building the wrong thing. |
 | **P5** | C1 — Beginners | Freemium only, zero paid marketing. | Correctly deprioritized. |
@@ -143,7 +143,7 @@ Current priority list is mostly correct, but **A2 should rank above A1** for MVP
 | B1 Choreographers | 5,000 | $40 | $2.4M | `tam-calculation.md` |
 | B2 Parents | 100,000 | $15 | $18.0M | `tam-calculation.md` |
 | C1 Beginners | 200,000 | $10 | $24.0M | `tam-calculation.md` |
-| C2 Small clubs | 3,000 | $200 | $7.2M | `tam-calculation.md` |
+| C2 Small clubs | 3,000 | $200 | $7.2M | `tam-calculation.md` ⚠️ CustDev = 0, WTP unvalidated |
 | D1 Federations | 50 | $500 | $0.3M | `tam-calculation.md` |
 
 **Bottom line:** The segmentation framework is solid. Fix the numbers, validate A2 pricing, interview parents before building, and move Adult/Masters into the active targeting list.

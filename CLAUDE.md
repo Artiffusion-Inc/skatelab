@@ -2,6 +2,7 @@
 
 > **PROJECT ROADMAP:** ROADMAP.md — SINGLE SOURCE OF TRUTH for implementation status
 > **MODULE DOCS:** @docs/CLAUDE.md — research, specs, plans
+> **BUSINESS DOCS:** @docs/business/CLAUDE.md — market, pricing, CustDev, competitive
 
 ---
 

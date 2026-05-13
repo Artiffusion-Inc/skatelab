@@ -6,11 +6,11 @@ export async function generateMetadata(): Promise<Metadata> {
   return {
     title: "SkateLab — AI Тренер по фигурному катанию",
     description:
-      "Запишите прыжок — увидьте миллиметры. AI-анализ техники: высота ЦМТ, доворот, время полёта. < 15 с на полный разбор видео.",
+      "Измеряй технику, а не угадывай. IMU-датчики + ИИ: ±1° точность вместо ±10° у видео. Анализ в реальном времени, планирование программ, прогресс в цифрах.",
     alternates: { canonical: "https://skatelab.ru" },
     openGraph: {
       title: "SkateLab — AI Тренер по фигурному катанию",
-      description: "Запишите прыжок — увидьте миллиметры. AI-анализ техники за < 15 секунд.",
+      description: "Измеряй технику, а не угадывай. IMU-датчики + ИИ: ±1° точность.",
       url: "https://skatelab.ru",
       siteName: "SkateLab",
       locale: "ru_RU",
