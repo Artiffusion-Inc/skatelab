@@ -12,7 +12,9 @@ export function FooterSection() {
           <p className="text-lg font-medium tracking-tight text-foreground">SkateLab</p>
           <p className="sh-caption text-ink-mute mt-1">{t("footerTagline")}</p>
           <a
-            href="/register"
+            href="https://t.me/SkateLabPro"
+            target="_blank"
+            rel="noopener noreferrer"
             className="sh-button-cap text-ink underline hover:text-ink-mute mt-2 inline-block min-h-[44px] leading-[44px]"
           >
             {t("ctaPrimary")} →
@@ -25,6 +27,14 @@ export function FooterSection() {
               {t("footerProduct")}
             </p>
             <ul className="flex flex-col gap-1">
+              <li>
+                <a
+                  href="#features"
+                  className="sh-caption text-ink-mute hover:text-ink min-h-[44px] flex items-center"
+                >
+                  {t("footerFeatures")}
+                </a>
+              </li>
               <li>
                 <a
                   href="#how-it-works"
@@ -99,7 +109,7 @@ export function FooterSection() {
             <ul className="flex flex-col gap-1">
               <li>
                 <a
-                  href="https://t.me/alyssaabdullina"
+                  href="https://t.me/SkateLabPro"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="sh-caption text-ink-mute hover:text-ink min-h-[44px] flex items-center"

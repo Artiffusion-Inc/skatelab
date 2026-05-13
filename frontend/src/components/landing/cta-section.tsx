@@ -19,13 +19,19 @@ export function CTASection() {
           <p className="mt-4 sh-body-lg text-on-dark-mute">{t("ctaSubtitleNew")}</p>
           <div className="mt-10 flex flex-col items-start gap-4 sm:flex-row">
             <Button variant="on-teal" size="lg" className="min-h-[44px] px-10 text-base" asChild>
-              <a href="/register">{t("ctaPrimary")}</a>
+              <a
+                href="https://t.me/SkateLabPro"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                {t("ctaPrimary")}
+              </a>
             </Button>
             <a
-              href="/login"
+              href="/register"
               className="min-h-[44px] flex items-center sh-body-md text-on-dark-mute underline hover:text-primary-foreground"
             >
-              {t("ctaHasAccount")}
+              {t("ctaSecondary")}
             </a>
           </div>
         </div>

@@ -6,9 +6,10 @@ import dynamic from "next/dynamic"
 import gsap from "gsap"
 import { ScrollTrigger } from "gsap/ScrollTrigger"
 import { HeroSection } from "./hero-section"
-import { HowItWorksSection } from "./features-section"
-import { DemoSection } from "./demo-section"
-import { TrustSection } from "./trust-section"
+import { FeaturesSection } from "./features-section"
+import { HowItWorksSection } from "./how-it-works-section"
+import { AccuracySection } from "./accuracy-section"
+import { VisualShowcaseSection } from "./visual-showcase-section"
 import { PricingSection } from "./pricing-section"
 import { FAQSection } from "./faq-section"
 import { CTASection } from "./cta-section"
@@ -30,9 +31,10 @@ export function LandingClient() {
     const ctx = gsap.context(() => {
       const mm = gsap.matchMedia()
 
+      // Hero entrance
       mm.add("(prefers-reduced-motion: no-preference)", () => {
         const heroEls = containerRef.current?.querySelectorAll(
-          ".hero-eyebrow, .hero-headline, .hero-subtitle, .hero-cta, .hero-scroll",
+          ".hero-eyebrow, .hero-headline, .hero-subtitle, .hero-pills, .hero-cta, .hero-scroll",
         )
         if (!heroEls?.length) return
 
@@ -42,10 +44,38 @@ export function LandingClient() {
           {
             opacity: 1,
             y: 0,
+            duration: 0.6,
+            stagger: 0.08,
+            ease: "power2.out",
+            delay: 0.1,
           },
         )
       })
 
+      // Feature cards
+      mm.add("(prefers-reduced-motion: no-preference)", () => {
+        const cards = containerRef.current?.querySelectorAll(".feature-card")
+        if (!cards?.length) return
+
+        gsap.fromTo(
+          cards,
+          { opacity: 0, y: 30 },
+          {
+            opacity: 1,
+            y: 0,
+            duration: 0.5,
+            stagger: 0.12,
+            ease: "power2.out",
+            scrollTrigger: {
+              trigger: cards[0],
+              start: "top 85%",
+              toggleActions: "play none none none",
+            },
+          },
+        )
+      })
+
+      // How It Works steps
       mm.add("(prefers-reduced-motion: no-preference)", () => {
         const steps = containerRef.current?.querySelectorAll(".hiw-step")
         if (!steps?.length) return
@@ -67,6 +97,52 @@ export function LandingClient() {
         )
       })
 
+      // Accuracy section
+      mm.add("(prefers-reduced-motion: no-preference)", () => {
+        const el = containerRef.current?.querySelector("#accuracy")
+        if (!el) return
+
+        gsap.fromTo(
+          el,
+          { opacity: 0, y: 20 },
+          {
+            opacity: 1,
+            y: 0,
+            duration: 0.5,
+            ease: "power2.out",
+            scrollTrigger: {
+              trigger: el,
+              start: "top 85%",
+              toggleActions: "play none none none",
+            },
+          },
+        )
+      })
+
+      // Visual showcase
+      mm.add("(prefers-reduced-motion: no-preference)", () => {
+        const cards = containerRef.current?.querySelectorAll(".visual-card")
+        if (!cards?.length) return
+
+        gsap.fromTo(
+          cards,
+          { opacity: 0, y: 20 },
+          {
+            opacity: 1,
+            y: 0,
+            duration: 0.5,
+            stagger: 0.1,
+            ease: "power2.out",
+            scrollTrigger: {
+              trigger: cards[0],
+              start: "top 85%",
+              toggleActions: "play none none none",
+            },
+          },
+        )
+      })
+
+      // Pricing cards
       mm.add("(prefers-reduced-motion: no-preference)", () => {
         const cards = containerRef.current?.querySelectorAll(".pricing-card")
         if (!cards?.length) return
@@ -89,6 +165,7 @@ export function LandingClient() {
         )
       })
 
+      // FAQ header
       mm.add("(prefers-reduced-motion: no-preference)", () => {
         const faqHeader = containerRef.current?.querySelector(".faq-header")
         if (!faqHeader) return
@@ -109,6 +186,7 @@ export function LandingClient() {
         )
       })
 
+      // CTA section
       mm.add("(prefers-reduced-motion: no-preference)", () => {
         const cta = containerRef.current?.querySelector(".cta-section")
         if (!cta) return
@@ -129,6 +207,7 @@ export function LandingClient() {
         )
       })
 
+      // Header background on scroll
       const heroSection = containerRef.current?.querySelector(".hero-section")
       const headerBg = containerRef.current?.querySelector(".header-bg")
       const headerBorder = containerRef.current?.querySelector(".header-border")
@@ -156,6 +235,7 @@ export function LandingClient() {
         })
       }
 
+      // Nav link color
       const navLinks = containerRef.current?.querySelectorAll(".header-nav-link")
       if (navLinks?.length && heroSection) {
         gsap.to(navLinks, {
@@ -208,9 +288,10 @@ export function LandingClient() {
         <StickyHeader />
         <main id="main-content" tabIndex={-1}>
           <HeroSection />
+          <FeaturesSection />
           <HowItWorksSection />
-          <TrustSection />
-          <DemoSection />
+          <AccuracySection />
+          <VisualShowcaseSection />
           <PricingSection />
           <FAQSection />
           <CTASection />

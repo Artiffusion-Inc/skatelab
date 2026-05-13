@@ -8,6 +8,7 @@ import FocusLock from "react-focus-lock"
 
 const NAV_ITEMS = [
   { key: "headerNavHowItWorks", href: "#how-it-works" },
+  { key: "headerNavFeatures", href: "#features" },
   { key: "headerNavPricing", href: "#pricing" },
   { key: "headerNavFaq", href: "#faq" },
 ] as const
@@ -53,7 +54,7 @@ export function StickyHeader() {
 
   return (
     <header className="fixed top-0 left-0 right-0 z-50 pt-[env(safe-area-inset-top)]">
-      <div className="header-bg absolute inset-0 bg-background opacity-0" />
+      <div className="header-bg absolute inset-0 bg-ice-surface opacity-0" />
       <div className="header-border absolute bottom-0 left-0 right-0 h-px border-b border-hairline opacity-0" />
       <div className="relative mx-auto flex h-16 max-w-5xl items-center justify-between px-6">
         <a href="/" className="sh-body-md text-ink" style={{ fontVariationSettings: '"wght" 600' }}>
@@ -66,7 +67,7 @@ export function StickyHeader() {
               type="button"
               key={item.key}
               onClick={() => handleNavClick(item.href)}
-              className="header-nav-link sh-body-md text-on-dark-mute hover:text-surface-white transition-colors min-h-[44px] flex items-center"
+              className="header-nav-link sh-body-md text-ink-mute hover:text-ink transition-colors min-h-[44px] flex items-center"
             >
               {t(item.key)}
             </button>
@@ -80,7 +81,13 @@ export function StickyHeader() {
             className="hidden md:inline-flex min-h-[44px]"
             asChild
           >
-            <a href="/register">{t("headerCta")}</a>
+            <a
+              href="https://t.me/SkateLabPro"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              {t("headerCta")}
+            </a>
           </Button>
           <button
             type="button"
@@ -138,6 +145,17 @@ export function StickyHeader() {
                   </button>
                 ))}
               </nav>
+              <div className="p-4">
+                <Button className="w-full min-h-[44px]" asChild>
+                  <a
+                    href="https://t.me/SkateLabPro"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    {t("headerCta")}
+                  </a>
+                </Button>
+              </div>
             </div>
           </FocusLock>
         </>
