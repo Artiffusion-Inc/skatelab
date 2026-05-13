@@ -33,8 +33,6 @@ RUN --mount=type=cache,target=/root/.cache/uv \
     opencv-python-headless==4.10.0.84 \
     "numpy>=1.24,<2.3" \
     scipy==1.17.1 \
-    pillow==12.1.1 \
-    av==17.0.0 \
     numba==0.61.2 \
     fastapi==0.135.2 \
     "uvicorn[standard]==0.42.0" \
@@ -56,7 +54,33 @@ RUN --mount=type=cache,target=/root/.cache/uv \
     find /opt/venv -type f -name "*.so*" -exec strip --strip-debug {} + 2>/dev/null; \
     true
 
-# Stage 2: Minimal runtime
+# Stage 2: model download
+# Uses Docker secrets for pre-signed URLs (not in image metadata)
+# Uses cache mount to persist model files across builds
+FROM docker.io/python:3.11-slim AS model_fetch
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+# Secret files containing pre-signed URLs (one URL per file)
+# Cache mount persists downloads across builds — no re-download on URL rotation
+RUN --mount=type=secret,id=moganet_url \
+    --mount=type=secret,id=yolo_url \
+    --mount=type=cache,target=/model-cache \
+    mkdir -p /models/moganet && \
+    MOGANET_URL=$(cat /run/secrets/moganet_url) && \
+    if [ ! -f /model-cache/moganet_b_ap2d_384x288.onnx ]; then \
+      curl -sS --fail -o /model-cache/moganet_b_ap2d_384x288.onnx "$MOGANET_URL"; \
+    fi && \
+    cp /model-cache/moganet_b_ap2d_384x288.onnx /models/moganet/ && \
+    YOLO_URL=$(cat /run/secrets/yolo_url) && \
+    if [ ! -f /model-cache/yolov8n.onnx ]; then \
+      curl -sS --fail -o /model-cache/yolov8n.onnx "$YOLO_URL"; \
+    fi && \
+    cp /model-cache/yolov8n.onnx /models/
+
+# Stage 3: Minimal runtime
 FROM docker.io/python:3.11-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
@@ -81,8 +105,9 @@ ENV PATH="/opt/venv/bin:$PATH" \
     MODEL_LOG_FILE=/tmp/skatelab-server.log \
     LD_LIBRARY_PATH="/opt/venv/lib/python3.11/site-packages/nvidia/cublas/lib:/opt/venv/lib/python3.11/site-packages/nvidia/cuda_runtime/lib:/opt/venv/lib/python3.11/site-packages/nvidia/cudnn/lib:/opt/venv/lib/python3.11/site-packages/nvidia/curand/lib:/opt/venv/lib/python3.11/site-packages/nvidia/cufft/lib:/opt/venv/lib/python3.11/site-packages/nvidia/cusolver/lib:/opt/venv/lib/python3.11/site-packages/nvidia/cusparse/lib:/opt/venv/lib/python3.11/site-packages/nvidia/cuda_nvcc/lib"
 
-# ONNX models downloaded from R2 at startup — no COPY needed
+# ONNX models copied from model_fetch stage
 RUN mkdir -p /app/data/models && chown appuser:appuser /app /app/data /app/data/models
+COPY --from=model_fetch --chown=appuser:appuser /models/ /app/data/models/
 
 # Source code — changes most often, top layer
 COPY --chown=appuser:appuser ml/src/ src/

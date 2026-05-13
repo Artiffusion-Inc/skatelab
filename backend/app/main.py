@@ -107,6 +107,7 @@ def create_app() -> Litestar:
             "/api/v1/models",
             "/api/v1/outputs",
             "/api/v1/metrics/registry",
+            "/api/v1/choreography/elements/registry",
             "/api/v1/docs",
             "/api/v1/redoc",
             "/api/v1/openapi.json",

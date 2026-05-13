@@ -7,7 +7,7 @@ import { useTranslations } from "@/i18n"
 import { isZipFile, isVideoFile } from "@/lib/zip-parser"
 
 const ACCEPTED_EXTENSIONS = ".zip,.mp4,.mov,.webm,.mkv"
-const MAX_SIZE = 500 * 1024 * 1024 // 500MB
+const MAX_SIZE = 50 * 1024 * 1024 // 50MB (compressed)
 
 export function DropZone({
   onFile,

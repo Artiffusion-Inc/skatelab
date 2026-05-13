@@ -8,9 +8,9 @@ import { useChoreographyEditor } from "./editor/store"
 import { JumpTrace, SequenceTrace, SpinMarker } from "./rink-figures"
 import { FlowPaths } from "./rink-flow"
 
-const VW = 60
-const VH = 30
-const PAD = 2
+const VW = 30
+const VH = 61
+const PAD = 0.5
 
 interface RinkElement {
   id: string
@@ -44,16 +44,15 @@ function autoLayout(
   const usableH = VH - PAD * 2
 
   return sorted.map((el, i) => {
-    // Serpentine pattern: left→right, right→left
-    const row = Math.floor(i / 5)
-    const col = i % 5
-    const rowDir = row % 2 === 0 ? 1 : -1
-    const colNorm = rowDir === 1 ? col / 4 : 1 - col / 4
-    const rowNorm = row / Math.max(1, Math.ceil(sorted.length / 5) - 1)
+    const col = Math.floor(i / 5)
+    const row = i % 5
+    const colDir = col % 2 === 0 ? 1 : -1
+    const rowNorm = colDir === 1 ? row / 4 : 1 - row / 4
+    const colNorm = col / Math.max(1, Math.ceil(sorted.length / 5) - 1)
     return {
       ...el,
-      x: PAD + colNorm * usableW,
-      y: PAD + rowNorm * usableH,
+      x: PAD + rowNorm * usableW,
+      y: PAD + colNorm * usableH,
     }
   })
 }
@@ -72,7 +71,6 @@ export function RinkDiagram({
   const updatePos = useChoreographyEditor(s => s.updateElementPosition)
   const musicDuration = useChoreographyEditor(s => s.musicDuration)
 
-  // Readonly mode: use prop elements, no interactivity
   const isReadonly = !!propElements
   const _elements = propElements ?? storeElements
   const svgRef = useRef<SVGSVGElement>(null)
@@ -118,7 +116,7 @@ export function RinkDiagram({
     return [...withPos, ...auto].sort((a, b) => a.timestamp - b.timestamp)
   }, [isReadonly, propElements, storeElements, musicDuration])
 
-  const toSvg = useCallback((clientX: number, clientY: number) => {
+  const _toSvg = useCallback((clientX: number, clientY: number) => {
     const svg = svgRef.current
     if (!svg) return { x: 0, y: 0 }
     const rect = svg.getBoundingClientRect()
@@ -133,33 +131,63 @@ export function RinkDiagram({
       e.preventDefault()
       e.stopPropagation()
       select(el.id)
-      const pt = toSvg(e.clientX, e.clientY)
       dragRef.current = {
         id: el.id,
         sx: e.clientX,
         sy: e.clientY,
-        ox: pt.x - el.x,
-        oy: pt.y - el.y,
+        ox: el.x,
+        oy: el.y,
       }
       ;(e.target as Element).setPointerCapture(e.pointerId)
     },
-    [select, toSvg],
+    [select],
   )
 
-  const onPointerMove = useCallback(
-    (e: React.PointerEvent) => {
-      if (!dragRef.current) return
-      const pt = toSvg(e.clientX, e.clientY)
-      const nx = Math.max(PAD, Math.min(VW - PAD, pt.x - dragRef.current.ox))
-      const ny = Math.max(PAD, Math.min(VH - PAD, pt.y - dragRef.current.oy))
-      updatePos(dragRef.current.id, nx, ny)
-    },
-    [toSvg, updatePos],
-  )
+  const onPointerMove = useCallback((e: React.PointerEvent) => {
+    if (!dragRef.current || !svgRef.current) return
+    const rect = svgRef.current.getBoundingClientRect()
+    const scaleX = VW / rect.width
+    const scaleY = VH / rect.height
+    const dx = (e.clientX - dragRef.current.sx) * scaleX
+    const dy = (e.clientY - dragRef.current.sy) * scaleY
+    const nx = Math.max(PAD, Math.min(VW - PAD, dragRef.current.ox + dx))
+    const ny = Math.max(PAD, Math.min(VH - PAD, dragRef.current.oy + dy))
 
-  const onPointerUp = useCallback(() => {
-    dragRef.current = null
+    // Imperative DOM update — no React re-render
+    const g = svgRef.current.querySelector(`[data-el-id="${dragRef.current.id}"]`)
+    if (g) {
+      g.setAttribute(
+        "transform",
+        `translate(${nx - dragRef.current.ox}, ${ny - dragRef.current.oy})`,
+      )
+    }
   }, [])
+
+  const onPointerUp = useCallback(
+    (e: React.PointerEvent) => {
+      if (!dragRef.current || !svgRef.current) return
+      const rect = svgRef.current.getBoundingClientRect()
+      const scaleX = VW / rect.width
+      const scaleY = VH / rect.height
+      const dx = (e.clientX - dragRef.current.sx) * scaleX
+      const dy = (e.clientY - dragRef.current.sy) * scaleY
+      const nx = Math.max(PAD, Math.min(VW - PAD, dragRef.current.ox + dx))
+      const ny = Math.max(PAD, Math.min(VH - PAD, dragRef.current.oy + dy))
+
+      const id = dragRef.current.id
+      dragRef.current = null
+
+      // Sync final position to store ONCE
+      updatePos(id, nx, ny)
+
+      // Clear transform after React re-render so old transform doesn't double-offset
+      queueMicrotask(() => {
+        const g = svgRef.current?.querySelector(`[data-el-id="${id}"]`)
+        g?.removeAttribute("transform")
+      })
+    },
+    [updatePos],
+  )
 
   const onRinkClick = useCallback(
     (e: React.MouseEvent) => {
@@ -182,73 +210,90 @@ export function RinkDiagram({
         onClick={onRinkClick}
       >
         <title>{t("rink.title")}</title>
-        {/* Ice */}
-        <rect x={0} y={0} width={VW} height={VH} fill="oklch(0.97 0.01 240)" rx={0.5} />
 
-        {/* Border */}
+        {/* Ice surface */}
+        <rect x="0" y="0" width={VW} height={VH} fill="oklch(0.97 0.01 240)" />
+
+        {/* Boundary */}
         <rect
-          x={1}
-          y={1}
-          width={VW - 2}
-          height={VH - 2}
+          x="0"
+          y="0"
+          width={VW}
+          height={VH}
+          rx={7.5}
           fill="none"
-          stroke="oklch(var(--border))"
+          stroke="#dc2626"
           strokeWidth={0.15}
-          rx={0.3}
         />
 
-        {/* Center line */}
-        <line
-          x1={VW / 2}
-          y1={1}
-          x2={VW / 2}
-          y2={VH - 1}
-          stroke="oklch(0.5 0.15 25)"
-          strokeWidth={0.08}
-          strokeDasharray="0.5,0.5"
-        />
+        {/* Centre line */}
+        <line x1="0" y1={VH / 2} x2={VW} y2={VH / 2} stroke="#dc2626" strokeWidth={0.12} />
 
-        {/* Center circle */}
-        <circle
-          cx={VW / 2}
-          cy={VH / 2}
-          r={4.5}
-          fill="none"
-          stroke="oklch(0.5 0.15 25)"
-          strokeWidth={0.08}
-        />
-        <circle cx={VW / 2} cy={VH / 2} r={0.15} fill="oklch(0.5 0.15 25)" />
+        {/* Blue lines */}
+        <line x1="0" y1={8.5} x2={VW} y2={8.5} stroke="#2563eb" strokeWidth={0.1} />
+        <line x1="0" y1={52.5} x2={VW} y2={52.5} stroke="#2563eb" strokeWidth={0.1} />
 
-        {/* Zone lines */}
-        <line x1={5} y1={1} x2={5} y2={VH - 1} stroke="oklch(var(--border))" strokeWidth={0.06} />
-        <line
-          x1={VW - 5}
-          y1={1}
-          x2={VW - 5}
-          y2={VH - 1}
-          stroke="oklch(var(--border))"
-          strokeWidth={0.06}
-        />
+        {/* End lines */}
+        <line x1="0" y1={4} x2={VW} y2={4} stroke="#dc2626" strokeWidth={0.1} />
+        <line x1="0" y1={57} x2={VW} y2={57} stroke="#dc2626" strokeWidth={0.1} />
 
-        {/* Corner circles */}
+        {/* Centre circle */}
+        <circle cx={VW / 2} cy={VH / 2} r={1.5} fill="none" stroke="#dc2626" strokeWidth={0.1} />
+        <circle cx={VW / 2} cy={VH / 2} r={0.12} fill="#dc2626" />
+
+        {/* Face-off circles (4) */}
         {[
-          [10, 7.5],
-          [10, VH - 7.5],
-          [VW - 10, 7.5],
-          [VW - 10, VH - 7.5],
+          [VW / 2 - 6, VH / 2 - 11],
+          [VW / 2 + 6, VH / 2 - 11],
+          [VW / 2 - 6, VH / 2 + 11],
+          [VW / 2 + 6, VH / 2 + 11],
         ].map(([cx, cy]) => (
-          <g key={`corner-${cx}-${cy}`}>
-            <circle
-              cx={cx}
-              cy={cy}
-              r={3}
-              fill="none"
-              stroke="oklch(var(--border))"
-              strokeWidth={0.06}
-            />
-            <circle cx={cx} cy={cy} r={0.15} fill="oklch(0.5 0.15 25)" />
-          </g>
+          <circle
+            key={`face-${cx}-${cy}`}
+            cx={cx}
+            cy={cy}
+            r={3}
+            fill="none"
+            stroke="#dc2626"
+            strokeWidth={0.08}
+          />
         ))}
+
+        {/* Face-off dots (5) */}
+        {[
+          [VW / 2, VH / 2],
+          [VW / 2 - 6, VH / 2 - 11],
+          [VW / 2 + 6, VH / 2 - 11],
+          [VW / 2 - 6, VH / 2 + 11],
+          [VW / 2 + 6, VH / 2 + 11],
+        ].map(([cx, cy]) => (
+          <circle key={`dot-${cx}-${cy}`} cx={cx} cy={cy} r={0.15} fill="#dc2626" />
+        ))}
+
+        {/* Corner creases (4) — 180° arcs */}
+        {[
+          { x: 0, y: 0, start: 0, end: 90 },
+          { x: VW, y: 0, start: 90, end: 180 },
+          { x: 0, y: VH, start: 270, end: 360 },
+          { x: VW, y: VH, start: 180, end: 270 },
+        ].map(c => {
+          const r = 1.8
+          const largeArcFlag = 0
+          const sweepFlag = 1
+          const x1 = c.x === 0 ? r : c.x - r
+          const y1 = c.y === 0 ? 0 : c.y
+          const x2 = c.x === 0 ? 0 : c.x
+          const y2 = c.y === 0 ? r : c.y - r
+          return (
+            <path
+              key={`crease-${c.x}-${c.y}`}
+              d={`M ${x1} ${y1} A ${r} ${r} 0 ${largeArcFlag} ${sweepFlag} ${x2} ${y2}`}
+              fill="none"
+              stroke="#dc2626"
+              strokeWidth={0.08}
+            />
+          )
+        })}
 
         {/* Flow paths between sequential elements */}
         <FlowPaths elements={rinkElements} />
@@ -262,6 +307,7 @@ export function RinkDiagram({
             <g
               key={el.id}
               data-el-marker
+              data-el-id={el.id}
               onPointerDown={isReadonly ? undefined : e => onPointerDown(e, el)}
               style={{ cursor: isReadonly ? "default" : "grab" }}
             >

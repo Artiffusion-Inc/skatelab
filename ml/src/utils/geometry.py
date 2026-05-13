@@ -9,7 +9,7 @@ from ..types import FrameKeypoints, H36Key, NormalizedPose, TimeSeries
 
 # Numba-jitted core functions (for performance)
 @njit(cache=True, fastmath=True)  # type: ignore[reportUntypedFunctionDecorator]
-def _angle_3pt_rad(a: np.ndarray, b: np.ndarray, c: np.ndarray) -> float:
+def angle_3pt_rad(a: np.ndarray, b: np.ndarray, c: np.ndarray) -> float:
     """Calculate angle ABC in radians (jitted).
 
     Args:
@@ -62,7 +62,7 @@ def angle_3pt(a: NDArray[np.float64], b: NDArray[np.float64], c: NDArray[np.floa
     b = np.asarray(b, dtype=np.float64)
     c = np.asarray(c, dtype=np.float64)
 
-    angle_rad = _angle_3pt_rad(a, b, c)
+    angle_rad = angle_3pt_rad(a, b, c)
     return float(np.degrees(angle_rad))
 
 
@@ -99,7 +99,7 @@ def angle_3pt_batch(abc_triplets: np.ndarray) -> np.ndarray:
         a = abc_triplets[i, 0]
         b = abc_triplets[i, 1]
         c = abc_triplets[i, 2]
-        angles[i] = _angle_3pt_rad(a, b, c) * rad2deg
+        angles[i] = angle_3pt_rad(a, b, c) * rad2deg
 
     return angles
 

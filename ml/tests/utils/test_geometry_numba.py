@@ -3,10 +3,10 @@
 import numpy as np
 
 from src.utils.geometry import (
-    _angle_3pt_rad,
     _distance_numba,
     angle_3pt,
     angle_3pt_batch,
+    angle_3pt_rad,
     distance,
 )
 
@@ -38,7 +38,7 @@ class TestGeometryNumba:
         b = np.array([1.0, 0.0])
         c = np.array([1.0, 1.0])
 
-        angle_rad = _angle_3pt_rad(a, b, c)
+        angle_rad = angle_3pt_rad(a, b, c)
         assert np.isclose(angle_rad, np.pi / 2)
 
     def test_distance_basic(self):
@@ -90,12 +90,12 @@ class TestGeometryNumba:
         c = np.array([1.0, 1.0])
 
         # First call (compilation)
-        _ = _angle_3pt_rad(a, b, c)
+        _ = angle_3pt_rad(a, b, c)
 
         # Second call (compiled)
         start = time.perf_counter()
         for _ in range(10000):
-            _angle_3pt_rad(a, b, c)
+            angle_3pt_rad(a, b, c)
         elapsed = time.perf_counter() - start
 
         # Should be very fast

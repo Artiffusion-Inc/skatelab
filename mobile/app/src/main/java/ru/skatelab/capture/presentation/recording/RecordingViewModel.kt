@@ -219,23 +219,30 @@ class RecordingViewModel @Inject constructor(
             // 1. Stop video
             activeRecording?.stop()
             activeRecording = null
-            _isRecording.value = false
 
-            // 2. Stop IMU collection
-            val imuCounts = imuCollector.stop()
+            // 2. Stop IMU collection FIRST (flush/fsync before service dies)
+            val imuCounts = try {
+                imuCollector.stop()
+            } catch (e: Exception) {
+                appLogger.e(TAG, "IMU flush failed: ${e.message}")
+                emptyMap<SensorId, Int>()
+            }
             appLogger.i(TAG, "IMU samples: $imuCounts")
 
-            // 3. Stop BLE streaming
+            // 3. Update UI state
+            _isRecording.value = false
+
+            // 4. Stop BLE streaming
             for (sensorId in connectedSensors) {
                 bleRepository.stopStreaming(sensorId).getOrElse {
                     appLogger.w(TAG, "$sensorId stopStreaming failed: ${it.message}")
                 }
             }
 
-            // 4. Stop FGS
+            // 5. Stop FGS last
             context.stopService(Intent(FGS_ACTION).setPackage(context.packageName))
 
-            // 5. Build and save session
+            // 6. Build and save session
             val videoFile = File(outputDir, "video.mp4")
             val imuLeftFile = File(outputDir, "imu_left.binpb")
             val imuRightFile = File(outputDir, "imu_right.binpb")

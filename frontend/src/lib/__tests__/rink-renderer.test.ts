@@ -7,7 +7,7 @@ describe("renderRink", () => {
     expect(svg).toContain("<svg")
     expect(svg).toContain("</svg>")
     expect(svg).toContain("max-width:1200")
-    expect(svg).toContain('viewBox="0 0 60 30"')
+    expect(svg).toContain('viewBox="0 0 30 61"')
   })
 
   for (const { note, code, color, position } of [
@@ -25,11 +25,11 @@ describe("renderRink", () => {
 
   it("draws connecting paths between elements", () => {
     const svg = renderRink([
-      { code: "3Lz", position: { x: 20, y: 15 } },
-      { code: "3F", position: { x: 40, y: 15 } },
+      { code: "3Lz", position: { x: 10, y: 20 } },
+      { code: "3F", position: { x: 20, y: 40 } },
     ])
-    expect(svg).toContain('x1="20"')
-    expect(svg).toContain('x2="40"')
+    expect(svg).toContain('x1="10"')
+    expect(svg).toContain('x2="20"')
   })
 
   it("skips elements without position", () => {

@@ -141,3 +141,4 @@ experiments/yolo26-pose-kd/runs/
 row
 runs/
 .worktrees/
+.playwright-cli/

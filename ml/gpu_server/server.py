@@ -2,6 +2,8 @@
 
 Runs on the remote GPU. Receives R2 keys, processes video, returns results.
 R2 credentials are passed per-request so the worker does not store cloud credentials.
+
+Output: poses (.npy) + metrics (.json) — no video render.
 """
 
 from __future__ import annotations
@@ -16,7 +18,6 @@ from pathlib import Path
 import aiobotocore.session
 import numpy as np
 from fastapi import FastAPI
-from prometheus_client import CONTENT_TYPE_LATEST, Counter, Gauge, Histogram, generate_latest
 from pydantic import BaseModel
 from starlette.responses import Response
 
@@ -32,6 +33,8 @@ logging.getLogger().addHandler(_fh)
 app = FastAPI(title="Skating ML GPU Worker")
 
 # Prometheus metrics
+from prometheus_client import CONTENT_TYPE_LATEST, Counter, Gauge, Histogram, generate_latest
+
 INFERENCE_DURATION = Histogram(
     "inference_duration_seconds",
     "Time spent processing a video",
@@ -64,50 +67,8 @@ _R2_MODELS: list[tuple[Path, str]] = [
 
 # TAS segmenter (loaded at startup, None if model unavailable)
 _tas_segmenter = None
-
 # Async session for R2
 _async_session = aiobotocore.session.get_session()
-
-
-async def _download_models_from_r2():
-    """Download ONNX models from R2 if missing locally."""
-    r2_endpoint = os.environ.get("R2_ENDPOINT_URL", "")
-    r2_access_key = os.environ.get("R2_ACCESS_KEY_ID", "")
-    r2_secret = os.environ.get("R2_SECRET_ACCESS_KEY", "")
-    r2_bucket = os.environ.get("R2_BUCKET", "")
-
-    if not all([r2_endpoint, r2_access_key, r2_secret, r2_bucket]):
-        logger.warning("R2 credentials not set — skipping model downloads")
-        return
-
-    import botocore.config
-
-    boto_config = botocore.config.Config(
-        connect_timeout=10,
-        read_timeout=300,
-        retries={"max_attempts": 3, "mode": "adaptive"},
-    )
-    async with _async_session.create_client(
-        "s3",
-        endpoint_url=r2_endpoint,
-        aws_access_key_id=r2_access_key,
-        aws_secret_access_key=r2_secret,
-        region_name="auto",
-        config=boto_config,
-    ) as s3:
-        for local_path, r2_key in _R2_MODELS:
-            if local_path.exists():
-                size_mb = local_path.stat().st_size / 1e6
-                logger.info("Model found: %s (%.1f MB)", local_path, size_mb)
-                continue
-
-            logger.info("Downloading model from R2: %s → %s", r2_key, local_path)
-            local_path.parent.mkdir(parents=True, exist_ok=True)
-            resp = await s3.get_object(Bucket=r2_bucket, Key=r2_key)
-            body = await resp["Body"].read()
-            local_path.write_bytes(body)
-            size_mb = len(body) / 1e6
-            logger.info("Downloaded: %s (%.1f MB)", local_path, size_mb)
 
 
 _models_ready = False
@@ -117,7 +78,10 @@ async def _background_init():
     """Download models + warmup CUDA — runs after server is accepting requests."""
     global _models_ready, _tas_segmenter  # noqa: PLW0603
     try:
-        await _download_models_from_r2()
+        if not MOGANET_MODEL_PATH.exists():
+            raise OSError(f"Model not found: {MOGANET_MODEL_PATH}")
+        if not YOLO_MODEL_PATH.exists():
+            raise OSError(f"Model not found: {YOLO_MODEL_PATH}")
 
         from src.device import DeviceConfig
 
@@ -151,7 +115,7 @@ async def _background_init():
 
 @app.on_event("startup")
 async def warmup_gpu():
-    """Start background model download — server accepts requests immediately."""
+    """Start background model verification — server accepts requests immediately."""
     import asyncio
 
     _bg_task = asyncio.create_task(_background_init())  # noqa: RUF006
@@ -167,7 +131,7 @@ async def metrics():
 async def ready():
     """Readiness probe — returns 200 once server is up (models load in background)."""
     if not _models_ready:
-        return {"status": "initializing", "detail": "models downloading"}
+        return {"status": "initializing", "detail": "models initializing"}
     try:
         import onnxruntime as ort
 
@@ -212,7 +176,6 @@ class ProcessRequest(BaseModel):
     frame_skip: int = 1
     layer: int = 3
     tracking: str = "auto"
-    export: bool = True
     ml_flags: dict[str, bool] = {}
     element_type: str | None = None
     # R2 credentials passed per-request (worker doesn't store them)
@@ -223,9 +186,8 @@ class ProcessRequest(BaseModel):
 
 
 class ProcessResponse(BaseModel):
-    video_r2_key: str
     poses_r2_key: str | None = None
-    csv_r2_key: str | None = None
+    metrics_r2_key: str | None = None
     stats: dict
     metrics: list | None = None
     phases: object | None = None
@@ -416,30 +378,27 @@ def _render_person_preview(frame, persons, selected_idx=None):
     return annotated
 
 
-def _make_output_keys(video_r2_key: str) -> tuple[str, str, str]:
-    """Generate R2 output keys: (video_key, poses_key, csv_key).
+def _make_output_keys(video_r2_key: str) -> tuple[str, str]:
+    """Generate R2 output keys: (poses_key, metrics_key).
 
-    'uploads/abc/input.mp4' → 'uploads/abc/output.mp4'
-    'uploads/test/waltz.mp4' → 'output/uploads/test/waltz.mp4'
+    'uploads/abc/input.mp4' → poses='uploads/abc/output_poses.npy', metrics='uploads/abc/output_metrics.json'
+    'uploads/test/waltz.mp4' → poses='output/uploads/test/waltz_poses.npy', metrics='output/uploads/test/waltz_metrics.json'
     """
     p = Path(video_r2_key)
     if p.stem == "input":
-        out_video = str(p.with_name("output" + p.suffix))
+        base = str(p.with_name("output"))
     else:
-        out_video = f"output/{video_r2_key}"
+        base = f"output/{video_r2_key.rsplit('.', 1)[0]}"
 
-    base = out_video.rsplit(".", 1)[0]
-    return out_video, f"{base}_poses.npy", f"{base}_metrics.json"
+    return f"{base}_poses.npy", f"{base}_metrics.json"
 
 
 @app.post("/process", response_model=ProcessResponse)
 async def process(req: ProcessRequest):
     if not _models_ready:
         return Response(status_code=503, content='{"status": "models_loading"}')
+    from src.pose_preparation import prepare_poses
     from src.types import ElementPhase, PersonClick
-    from src.utils.frame_buffer import AsyncFrameReader
-    from src.utils.video_writer import H264Writer
-    from src.visualization.pipeline import VizPipeline, prepare_poses
 
     ACTIVE_REQUESTS.inc()
     start = time.perf_counter()
@@ -447,7 +406,6 @@ async def process(req: ProcessRequest):
         async with _s3(req) as s3:
             with tempfile.TemporaryDirectory() as tmpdir:
                 video_local = Path(tmpdir) / "input.mp4"
-                output_local = Path(tmpdir) / "output.mp4"
 
                 logger.info("Downloading video from R2: %s", req.video_r2_key)
                 await _s3_download(s3, req.r2_bucket, req.video_r2_key, str(video_local))
@@ -488,7 +446,7 @@ async def process(req: ProcessRequest):
                 # Offload TAS to thread — asyncio.create_task does NOT parallelize CPU/GPU code
                 segments_coro = asyncio.to_thread(_run_tas_sync)
 
-                # --- Biomechanics analysis (after pose extraction, before render) ---
+                # --- Biomechanics analysis ---
                 metrics: list = []
                 phases: ElementPhase | None = None
                 recommendations: list = []
@@ -515,42 +473,11 @@ async def process(req: ProcessRequest):
 
                 # Wait for TAS to finish
                 segments_result = await segments_coro
-
-                # --- Render video with skeleton overlay ---
-                pipe = VizPipeline(
-                    meta=prepared.meta,
-                    poses_norm=prepared.poses_norm,
-                    poses_px=prepared.poses_px,
-                    poses_3d=prepared.poses_3d,
-                    layer=req.layer,
-                    confs=prepared.confs,
-                    frame_indices=prepared.frame_indices,
-                )
-
-                meta = prepared.meta
-                writer = H264Writer(output_local, meta.width, meta.height, meta.fps)
-                reader = AsyncFrameReader(video_local, buffer_size=16, frame_skip=1)
-                reader.start()
-
-                pose_idx = 0
-                while True:
-                    result = reader.get_frame()
-                    if result is None:
-                        break
-                    fi, frame = result
-                    current_pose_idx, pose_idx = pipe.find_pose_idx(fi, pose_idx)
-                    frame, _ = pipe.render_frame(frame, fi, current_pose_idx)
-                    pipe.draw_frame_counter(frame, fi)
-                    writer.write(frame)
-
-                reader.join(timeout=5)
-                writer.close()
-
                 # --- Upload results to R2 ---
-                out_video_key, poses_key, csv_key = _make_output_keys(req.video_r2_key)
-                logger.info("Uploading results to R2: %s", out_video_key)
+                poses_key, metrics_key = _make_output_keys(req.video_r2_key)
+                upload_tasks = []
 
-                upload_tasks = [_s3_upload(s3, req.r2_bucket, out_video_key, str(output_local))]
+                logger.info("Uploading poses + metrics to R2")
 
                 # Save poses as .npy
                 poses_local = Path(tmpdir) / "poses.npy"
@@ -563,10 +490,10 @@ async def process(req: ProcessRequest):
                 metrics_json = Path(tmpdir) / "metrics.json"
                 metrics_data = {
                     "stats": {
-                        "total_frames": meta.num_frames,
+                        "total_frames": prepared.meta.num_frames,
                         "valid_frames": prepared.n_valid,
-                        "fps": meta.fps,
-                        "resolution": f"{meta.width}x{meta.height}",
+                        "fps": prepared.meta.fps,
+                        "resolution": f"{prepared.meta.width}x{prepared.meta.height}",
                     },
                     "metrics": [
                         {"name": m.name, "value": m.value, "unit": m.unit, "is_good": m.is_good}
@@ -577,15 +504,14 @@ async def process(req: ProcessRequest):
                     "element_type": req.element_type,
                 }
                 metrics_json.write_text(_json.dumps(metrics_data, ensure_ascii=False, indent=2))
-                upload_tasks.append(_s3_upload(s3, req.r2_bucket, csv_key, str(metrics_json)))
+                upload_tasks.append(_s3_upload(s3, req.r2_bucket, metrics_key, str(metrics_json)))
 
                 await asyncio.gather(*upload_tasks)
 
                 INFERENCE_REQUESTS.labels(status="success").inc()
                 return ProcessResponse(
-                    video_r2_key=out_video_key,
                     poses_r2_key=poses_key,
-                    csv_r2_key=csv_key,
+                    metrics_r2_key=metrics_key,
                     stats=metrics_data["stats"],
                     metrics=metrics_data["metrics"],
                     phases=metrics_data["phases"],

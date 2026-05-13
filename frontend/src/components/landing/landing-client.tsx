@@ -165,7 +165,7 @@ export function LandingClient() {
             end: "bottom top",
             scrub: true,
           },
-          color: "lab(47.8% 0 .0000119209)",
+          color: "oklch(0.28 0.03 250)",
         })
       }
     }, containerRef)

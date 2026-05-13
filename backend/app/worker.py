@@ -216,9 +216,7 @@ async def process_video_task(
     video_key: str,
     person_click: dict[str, int],
     frame_skip: int = 1,
-    layer: int = 3,
     tracking: str = "auto",
-    export: bool = True,
     ml_flags: dict[str, bool] | None = None,
     session_id: str | None = None,
 ) -> dict[str, Any]:
@@ -278,9 +276,7 @@ async def process_video_task(
                 if person_click
                 else None,
                 frame_skip=frame_skip,
-                layer=layer,
                 tracking=tracking,
-                export=export,
                 ml_flags=ml_flags,
                 element_type=element_type,
             )
@@ -336,7 +332,8 @@ async def process_video_task(
                 logger.warning("Failed to prepare pose data: %s", pose_err)
 
         response_data = {
-            "video_path": vast_result.video_key,
+            "poses_key": vast_result.poses_key or "",
+            "metrics_key": vast_result.metrics_key or "",
             "stats": vast_result.stats,
             "status": "Analysis complete!",
         }
