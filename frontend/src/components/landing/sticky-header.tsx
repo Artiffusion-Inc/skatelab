@@ -57,7 +57,7 @@ export function StickyHeader() {
       <div className="header-bg absolute inset-0 bg-background opacity-0" />
       <div className="header-border absolute bottom-0 left-0 right-0 h-px border-b border-hairline opacity-0" />
       <div className="relative mx-auto flex h-16 max-w-5xl items-center justify-between px-6">
-        <a href="/" className="sh-heading-md text-ink">
+        <a href="/" className="sh-body-md text-ink" style={{ fontVariationSettings: '"wght" 600' }}>
           SkateLab
         </a>
 
@@ -81,7 +81,11 @@ export function StickyHeader() {
             className="hidden md:inline-flex min-h-[44px]"
             asChild
           >
-            <a href="https://t.me/SkateLabPro" target="_blank" rel="noopener noreferrer">
+            <a
+              href="https://t.me/SkateLabPro"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
               {t("headerCta")}
             </a>
           </Button>
@@ -100,7 +104,11 @@ export function StickyHeader() {
 
       {menuOpen && (
         <>
-          <div className="fixed inset-0 z-[55] bg-ink/50" onClick={closeMenu} aria-hidden="true" />
+          <div
+            className="fixed inset-0 z-[55] bg-ink/50"
+            onClick={closeMenu}
+            aria-hidden="true"
+          />
           <FocusLock returnFocus disabled={!menuOpen}>
             <div
               className="fixed top-0 right-0 bottom-0 z-[60] bg-background"
@@ -110,7 +118,12 @@ export function StickyHeader() {
               aria-label="Меню навигации"
             >
               <div className="flex items-center justify-between p-4">
-                <span className="sh-heading-md text-ink">SkateLab</span>
+                <span
+                  className="sh-body-md text-ink"
+                  style={{ fontVariationSettings: '"wght" 600' }}
+                >
+                  SkateLab
+                </span>
                 <button
                   type="button"
                   onClick={closeMenu}
@@ -126,7 +139,7 @@ export function StickyHeader() {
                     type="button"
                     key={item.key}
                     onClick={() => handleNavClick(item.href)}
-                    className="py-4 px-6 sh-body-lg border-b border-hairline text-ink hover:bg-muted min-h-[44px] text-left"
+                    className="py-4 px-6 text-lg border-b border-hairline text-ink hover:bg-muted min-h-[44px] text-left"
                   >
                     {t(item.key)}
                   </button>
@@ -134,7 +147,11 @@ export function StickyHeader() {
               </nav>
               <div className="p-4">
                 <Button className="w-full min-h-[44px]" asChild>
-                  <a href="https://t.me/SkateLabPro" target="_blank" rel="noopener noreferrer">
+                  <a
+                    href="https://t.me/SkateLabPro"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
                     {t("headerCta")}
                   </a>
                 </Button>
