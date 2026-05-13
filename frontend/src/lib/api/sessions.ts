@@ -105,17 +105,18 @@ export function useSessions(userId?: string, elementType?: string) {
   })
 }
 
-export function useSession(id: string, opts?: Pick<UseQueryOptions<Session>, "refetchInterval">) {
-  return useQuery({
+export function useSession(id: string, opts?: { refetchInterval?: number | false }) {
+  return useQuery<Session, Error, Session>({
     queryKey: ["session", id],
     queryFn: () => apiFetch(`/sessions/${id}`, SessionSchema),
     enabled: !!id,
-    refetchInterval: (query) => {
+    refetchInterval: query => {
       const data = query.state.data
       if (data?.segmentation_status === "pending" || data?.status === "processing") {
         return 5000
       }
-      return opts?.refetchInterval ?? false
+      if (opts?.refetchInterval !== undefined) return opts.refetchInterval
+      return false
     },
   })
 }

@@ -67,7 +67,9 @@ class Session(TimestampMixin, Base):
     )
 
     segmentation_status: Mapped[str] = mapped_column(
-        String(20), server_default="pending", nullable=False,
+        String(20),
+        server_default="pending",
+        nullable=False,
     )
 
     __table_args__ = (
