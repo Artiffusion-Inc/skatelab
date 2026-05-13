@@ -34,9 +34,7 @@ export function FeaturesSection() {
       className="relative mx-auto max-w-5xl px-6 py-20 md:py-28"
     >
       <div className="mb-14 md:mb-20">
-        <p className="mb-4 sh-caption text-ink-mute">
-          {t("featuresTitle")}
-        </p>
+        <p className="mb-4 sh-caption text-ink-mute">{t("featuresTitle")}</p>
         <h2 className="sh-display-xl text-ink max-w-xl">{t("featuresHeadline")}</h2>
       </div>
 

@@ -29,16 +29,16 @@ export function FAQSection() {
         </div>
 
         <Accordion type="single" collapsible>
-        {FAQ_KEYS.map(n => (
-          <AccordionItem key={n} value={`faq-${n}`}>
-            <AccordionTrigger className="min-h-[44px] py-3 text-left max-w-[65ch]">
-              {t(`faqQ${n}`)}
-            </AccordionTrigger>
-            <AccordionContent className="sh-body-md text-ink-mute max-w-[65ch]">
-              {t(`faqA${n}`)}
-            </AccordionContent>
-          </AccordionItem>
-        ))}
+          {FAQ_KEYS.map(n => (
+            <AccordionItem key={n} value={`faq-${n}`}>
+              <AccordionTrigger className="min-h-[44px] py-3 text-left max-w-[65ch]">
+                {t(`faqQ${n}`)}
+              </AccordionTrigger>
+              <AccordionContent className="sh-body-md text-ink-mute max-w-[65ch]">
+                {t(`faqA${n}`)}
+              </AccordionContent>
+            </AccordionItem>
+          ))}
         </Accordion>
       </div>
     </section>

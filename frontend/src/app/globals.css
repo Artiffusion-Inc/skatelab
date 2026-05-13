@@ -129,13 +129,17 @@ body {
 }
 
 .step-watermark {
-  font-size: clamp(6rem, 12vw, 10rem);
+  font-size: 1rem;
   font-weight: 600;
+  font-variation-settings: "wght" 600;
+  font-variant-numeric: tabular-nums;
   line-height: 1;
-  color: oklch(0.7 0.006 80 / 0.25);
+  letter-spacing: 0.06em;
+  color: oklch(0.547 0.009 220 / 0.55);
   position: absolute;
-  top: -0.5rem;
-  left: -0.5rem;
+  top: 1.25rem;
+  right: 1.25rem;
+  left: auto;
   user-select: none;
   pointer-events: none;
 }

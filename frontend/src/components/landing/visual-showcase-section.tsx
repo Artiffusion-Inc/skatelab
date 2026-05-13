@@ -32,7 +32,7 @@ export function VisualShowcaseSection() {
           const isWide = i === 0
           return (
             <div
-              key={i}
+              key={v.label}
               className={`visual-card group relative overflow-hidden rounded-lg border border-hairline bg-background ${
                 isWide ? "md:col-span-2" : ""
               }`}
@@ -44,9 +44,7 @@ export function VisualShowcaseSection() {
               >
                 <div className={`text-center ${isWide ? "md:text-left" : ""}`}>
                   <Icon
-                    className={`h-8 w-8 text-ink-mute mx-auto mb-2 ${
-                      isWide ? "md:mx-0" : ""
-                    }`}
+                    className={`h-8 w-8 text-ink-mute mx-auto mb-2 ${isWide ? "md:mx-0" : ""}`}
                   />
                   <span className="sh-caption text-ink-mute">{v.label}</span>
                 </div>

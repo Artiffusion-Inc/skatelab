@@ -55,9 +55,7 @@ export function PricingSection() {
       aria-labelledby="pricing-heading"
     >
       <div className="mb-14 md:mb-20">
-        <p className="mb-4 sh-caption text-ink-mute">
-          {t("pricingTitle")}
-        </p>
+        <p className="mb-4 sh-caption text-ink-mute">{t("pricingTitle")}</p>
         <h2 id="pricing-heading" className="sh-display-xl text-ink">
           {t("pricingHeadline")}
         </h2>
@@ -82,17 +80,8 @@ export function PricingSection() {
               ))}
             </ul>
           </div>
-          <Button
-            variant="default"
-            size="lg"
-            className="min-h-[44px] px-8 shrink-0"
-            asChild
-          >
-            <a
-              href={hardware.href}
-              target="_blank"
-              rel="noopener noreferrer"
-            >
+          <Button variant="default" size="lg" className="min-h-[44px] px-8 shrink-0" asChild>
+            <a href={hardware.href} target="_blank" rel="noopener noreferrer">
               {hardware.cta}
             </a>
           </Button>
@@ -121,10 +110,7 @@ export function PricingSection() {
             <p className="mt-2 sh-caption text-ink-mute">{tier.desc}</p>
             <ul className="mt-6 space-y-3">
               {tier.features.map(f => (
-                <li
-                  key={f}
-                  className="flex items-start gap-2 sh-caption text-ink-mute"
-                >
+                <li key={f} className="flex items-start gap-2 sh-caption text-ink-mute">
                   <Check
                     className={`h-4 w-4 mt-0.5 shrink-0 ${tier.highlighted ? "text-primary" : "text-score-good"}`}
                   />

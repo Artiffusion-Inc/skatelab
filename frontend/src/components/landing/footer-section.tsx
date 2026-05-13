@@ -23,9 +23,7 @@ export function FooterSection() {
 
         <div className="mt-8 grid grid-cols-2 gap-6 lg:mt-0">
           <nav aria-label={t("footerProduct")}>
-            <h3 className="mb-2 sh-caption text-muted-foreground">
-              {t("footerProduct")}
-            </h3>
+            <h3 className="mb-2 sh-caption text-muted-foreground">{t("footerProduct")}</h3>
             <ul className="flex flex-col gap-1">
               <li>
                 <a
@@ -63,9 +61,7 @@ export function FooterSection() {
           </nav>
 
           <nav aria-label={t("footerLegal")}>
-            <h3 className="mb-2 sh-caption text-muted-foreground">
-              {t("footerLegal")}
-            </h3>
+            <h3 className="mb-2 sh-caption text-muted-foreground">{t("footerLegal")}</h3>
             <ul className="flex flex-col gap-1">
               <li>
                 <a
@@ -103,9 +99,7 @@ export function FooterSection() {
           </nav>
 
           <section aria-label={t("footerContact")}>
-            <h3 className="mb-2 sh-caption text-muted-foreground">
-              {t("footerContact")}
-            </h3>
+            <h3 className="mb-2 sh-caption text-muted-foreground">{t("footerContact")}</h3>
             <ul className="flex flex-col gap-1">
               <li>
                 <a

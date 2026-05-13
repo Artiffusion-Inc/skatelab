@@ -36,9 +36,7 @@ export function HowItWorksSection() {
       className="relative mx-auto max-w-5xl px-6 py-24 md:py-32"
     >
       <div className="mb-14 md:mb-20">
-        <p className="mb-4 sh-caption text-ink-mute">
-          {t("howItWorksTitle")}
-        </p>
+        <p className="mb-4 sh-caption text-ink-mute">{t("howItWorksTitle")}</p>
         <h2 className="sh-display-xl text-ink max-w-xl">{t("howItWorksHeadline")}</h2>
       </div>
 
