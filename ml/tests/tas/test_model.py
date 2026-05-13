@@ -69,6 +69,29 @@ def test_boundary_refiner_gradient():
     assert not torch.isnan(x.grad).any()
 
 
+def test_bigrutas_refiner_forward():
+    from src.tas.model import BiGRUTASRefiner
+
+    model = BiGRUTASRefiner(hidden_dim=64, num_layers=1, refiner_channels=32)
+    B, T = 2, 100
+    poses = torch.randn(B, T, 17, 2)
+    lengths = torch.tensor([100, 80])
+    logits = model(poses, lengths)
+    assert logits.shape == (B, T, 4)
+
+
+def test_bigrutas_refiner_gradient():
+    from src.tas.model import BiGRUTASRefiner
+
+    model = BiGRUTASRefiner(hidden_dim=32, num_layers=1, refiner_channels=16)
+    poses = torch.randn(2, 50, 17, 2, requires_grad=True)
+    lengths = torch.tensor([50, 30])
+    logits = model(poses, lengths)
+    loss = logits.mean()
+    loss.backward()
+    assert poses.grad is not None
+
+
 if __name__ == "__main__":
     test_bigru_forward()
     print("✓ bigru_forward OK")

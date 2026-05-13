@@ -100,4 +100,52 @@ class BoundaryRefinerCNN(nn.Module):
         return self.classifier(x)
 
 
-__all__ = ["BiGRUTAS", "BoundaryRefinerCNN"]
+class BiGRUTASRefiner(nn.Module):
+    """BiGRU coarse + BoundaryRefinerCNN two-pass model.
+
+    First pass: BiGRU produces coarse logits.
+    Second pass: RefinerCNN refines boundaries using logits + raw features.
+    """
+
+    def __init__(
+        self,
+        input_dim: int = 34,
+        hidden_dim: int = 128,
+        num_layers: int = 2,
+        num_classes: int = 4,
+        dropout: float = 0.3,
+        refiner_channels: int = 64,
+    ) -> None:
+        super().__init__()
+        self.bigru = BiGRUTAS(
+            input_dim=input_dim,
+            hidden_dim=hidden_dim,
+            num_layers=num_layers,
+            num_classes=num_classes,
+            dropout=dropout,
+        )
+        self.refiner = BoundaryRefinerCNN(
+            input_channels=num_classes + input_dim,
+            hidden_channels=refiner_channels,
+            dropout=dropout,
+        )
+
+    def forward(self, poses: torch.Tensor, lengths: torch.Tensor) -> torch.Tensor:
+        """Two-pass: BiGRU coarse → RefinerCNN refined.
+
+        Args:
+            poses: (B, T, 17, 2)
+            lengths: (B,)
+
+        Returns:
+            logits: (B, T, 4) — refined
+        """
+        B, T, J, C = poses.shape
+        coarse_logits = self.bigru(poses, lengths)  # (B, T, 4)
+        raw_features = poses.reshape(B, T, J * C)  # (B, T, 34)
+        refiner_input = torch.cat([coarse_logits, raw_features], dim=-1)  # (B, T, 38)
+        refined_logits = self.refiner(refiner_input)  # (B, T, 4)
+        return refined_logits
+
+
+__all__ = ["BiGRUTAS", "BiGRUTASRefiner", "BoundaryRefinerCNN"]
