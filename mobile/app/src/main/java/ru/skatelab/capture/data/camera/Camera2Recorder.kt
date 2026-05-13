@@ -252,10 +252,13 @@ class Camera2Recorder(
 
     fun stopRecording(): CameraRepository.RecordingStopResult {
         isRecording = false
+        // Stop MediaRecorder FIRST so it finalizes the MP4 file (writes moov atom).
+        // Closing captureSession before stop() can tear down the recording surface,
+        // resulting in a corrupted MP4 with no moov atom.
+        mediaRecorder?.stop()
         captureSession?.stopRepeating()
         captureSession?.close()
         captureSession = null
-        mediaRecorder?.stop()
         timestampTracker?.close()
 
         // Re-create preview-only session so camera stays visible after recording stops
