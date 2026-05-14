@@ -3,14 +3,24 @@ package ru.skatelab.capture.presentation.ble
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import ru.skatelab.capture.R
 import ru.skatelab.capture.domain.model.SensorId
+import ru.skatelab.capture.domain.model.SensorInfo
+import ru.skatelab.capture.domain.repository.BleRepository.ConnectionState
 import ru.skatelab.capture.domain.repository.ScanDevice
 
 @Composable
@@ -21,6 +31,7 @@ fun BleScanScreen(
     val scanResults by viewModel.scanResults.collectAsState()
     val connectionState by viewModel.connectionState.collectAsState()
     val factoryResetStatus by viewModel.factoryResetStatus.collectAsState()
+    val sensorInfo by viewModel.sensorInfo.collectAsState()
 
     LaunchedEffect(Unit) { viewModel.startScan() }
 
@@ -41,10 +52,14 @@ fun BleScanScreen(
             items(scanResults) { device ->
                 ScanDeviceRow(
                     device = device,
-                    leftConnected = connectionState[SensorId.LEFT] != null &&
-                        connectionState[SensorId.LEFT] != ru.skatelab.capture.domain.repository.BleRepository.ConnectionState.DISCONNECTED,
-                    rightConnected = connectionState[SensorId.RIGHT] != null &&
-                        connectionState[SensorId.RIGHT] != ru.skatelab.capture.domain.repository.BleRepository.ConnectionState.DISCONNECTED,
+                    leftInfo = sensorInfo[SensorId.LEFT],
+                    rightInfo = sensorInfo[SensorId.RIGHT],
+                    leftConnected =
+                        connectionState[SensorId.LEFT] != null &&
+                            connectionState[SensorId.LEFT] != ConnectionState.DISCONNECTED,
+                    rightConnected =
+                        connectionState[SensorId.RIGHT] != null &&
+                            connectionState[SensorId.RIGHT] != ConnectionState.DISCONNECTED,
                     onConnectLeft = { viewModel.connectSensor(SensorId.LEFT, device.address) },
                     onConnectRight = { viewModel.connectSensor(SensorId.RIGHT, device.address) },
                     onFactoryResetLeft = { viewModel.factoryResetSensor(SensorId.LEFT) },
@@ -55,8 +70,9 @@ fun BleScanScreen(
             }
         }
 
-        val anyConnected = connectionState[SensorId.LEFT] == ru.skatelab.capture.domain.repository.BleRepository.ConnectionState.CONNECTED ||
-            connectionState[SensorId.RIGHT] == ru.skatelab.capture.domain.repository.BleRepository.ConnectionState.CONNECTED
+        val anyConnected =
+            connectionState[SensorId.LEFT] == ConnectionState.CONNECTED ||
+                connectionState[SensorId.RIGHT] == ConnectionState.CONNECTED
 
         Button(onClick = onProceed, enabled = anyConnected) {
             Text(stringResource(R.string.ble_proceed_calibration))
@@ -72,6 +88,8 @@ fun BleScanScreen(
 @Composable
 private fun ScanDeviceRow(
     device: ScanDevice,
+    leftInfo: SensorInfo? = null,
+    rightInfo: SensorInfo? = null,
     leftConnected: Boolean,
     rightConnected: Boolean,
     onConnectLeft: () -> Unit,
@@ -124,6 +142,33 @@ private fun ScanDeviceRow(
                     }
                 }
             }
+            if (leftInfo != null) {
+                SensorInfoRow(info = leftInfo, label = "Левый")
+            }
+            if (rightInfo != null) {
+                SensorInfoRow(info = rightInfo, label = "Правый")
+            }
         }
+    }
+}
+
+@Composable
+private fun SensorInfoRow(
+    info: SensorInfo,
+    label: String,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(top = 2.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+    ) {
+        Text(
+            "$label: ${info.batteryPercent}% (${info.batteryMv}mV)",
+            style = MaterialTheme.typography.labelSmall,
+        )
+        Text(
+            "ID:${info.deviceId.takeLast(4)} FW:${info.firmwareVersion}",
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
     }
 }
