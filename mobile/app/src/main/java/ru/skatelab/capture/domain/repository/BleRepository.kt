@@ -13,19 +13,43 @@ interface BleRepository {
     val reconnectEvents: Flow<SensorId>
 
     fun startScan()
+
     fun stopScan()
-    suspend fun connect(sensorId: SensorId, address: String): Result<Unit>
+
+    suspend fun connect(
+        sensorId: SensorId,
+        address: String,
+    ): Result<Unit>
+
     suspend fun disconnect(sensorId: SensorId): Result<Unit>
+
     /** Factory reset — sensor reboots, drops GATT connection. Recovery only. */
     suspend fun factoryResetSensor(sensorId: SensorId): Result<Unit>
+
     /** ACC hardware calibration via BLE. Sensor must be horizontal and still. Recovery only. */
     suspend fun accCalibrateSensor(sensorId: SensorId): Result<Unit>
+
     /** No-op in BLE mode — 0x61 streams automatically when CCCD is enabled. */
     suspend fun startStreaming(sensorId: SensorId): Result<Unit>
+
     /** No-op in BLE mode — streaming stops when CCCD is disabled or sensor disconnects. */
     suspend fun stopStreaming(sensorId: SensorId): Result<Unit>
+
     suspend fun readBattery(sensorId: SensorId): Result<Int>
+
     suspend fun readChipTime(sensorId: SensorId): Result<Long>
+
+    /** Register 0x68 — 3 shorts → hex string like "A3F20012ABCD". */
+    suspend fun readDeviceId(sensorId: SensorId): Result<String>
+
+    /** Register 0x60 — format as "major.minor.patch". */
+    suspend fun readFirmwareVersion(sensorId: SensorId): Result<String>
+
+    /** Register 0x64 — first short as millivolts. */
+    suspend fun readBatteryMv(sensorId: SensorId): Result<Int>
+
+    /** Sends time config command sequence via BLE. */
+    suspend fun configureSensorTime(sensorId: SensorId): Result<Unit>
 
     enum class ConnectionState { DISCONNECTED, CONNECTING, CONNECTED, RECONNECTING }
 }
