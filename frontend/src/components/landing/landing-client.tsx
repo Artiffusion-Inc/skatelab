@@ -250,6 +250,9 @@ export function LandingClient() {
       }
     }, containerRef)
 
+    // Ensure ScrollTrigger measures final layout after all components mount
+    requestAnimationFrame(() => ScrollTrigger.refresh())
+
     return () => ctx.revert()
   }, [])
 

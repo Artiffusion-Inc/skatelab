@@ -28,7 +28,7 @@ export function FooterSection() {
               <li>
                 <a
                   href="#features"
-                  className="sh-caption text-ink-mute hover:text-ink min-h-[44px] flex items-center"
+                  className="sh-caption text-ink-mute hover:text-ink min-h-[44px] py-2.5 flex items-center"
                 >
                   {t("footerFeatures")}
                 </a>
@@ -36,7 +36,7 @@ export function FooterSection() {
               <li>
                 <a
                   href="#how-it-works"
-                  className="sh-caption text-ink-mute hover:text-ink min-h-[44px] flex items-center"
+                  className="sh-caption text-ink-mute hover:text-ink min-h-[44px] py-2.5 flex items-center"
                 >
                   {t("footerHowItWorks")}
                 </a>
@@ -44,7 +44,7 @@ export function FooterSection() {
               <li>
                 <a
                   href="#pricing"
-                  className="sh-caption text-ink-mute hover:text-ink min-h-[44px] flex items-center"
+                  className="sh-caption text-ink-mute hover:text-ink min-h-[44px] py-2.5 flex items-center"
                 >
                   {t("footerPricing")}
                 </a>
@@ -52,7 +52,7 @@ export function FooterSection() {
               <li>
                 <a
                   href="#faq"
-                  className="sh-caption text-ink-mute hover:text-ink min-h-[44px] flex items-center"
+                  className="sh-caption text-ink-mute hover:text-ink min-h-[44px] py-2.5 flex items-center"
                 >
                   {t("footerFaq")}
                 </a>
@@ -66,7 +66,7 @@ export function FooterSection() {
               <li>
                 <a
                   href="/privacy"
-                  className="sh-caption text-ink-mute hover:text-ink min-h-[44px] flex items-center"
+                  className="sh-caption text-ink-mute hover:text-ink min-h-[44px] py-2.5 flex items-center"
                 >
                   {t("footerPrivacy")}
                 </a>
@@ -74,7 +74,7 @@ export function FooterSection() {
               <li>
                 <a
                   href="/terms"
-                  className="sh-caption text-ink-mute hover:text-ink min-h-[44px] flex items-center"
+                  className="sh-caption text-ink-mute hover:text-ink min-h-[44px] py-2.5 flex items-center"
                 >
                   {t("footerTerms")}
                 </a>
@@ -82,7 +82,7 @@ export function FooterSection() {
               <li>
                 <a
                   href="/offer"
-                  className="sh-caption text-ink-mute hover:text-ink min-h-[44px] flex items-center"
+                  className="sh-caption text-ink-mute hover:text-ink min-h-[44px] py-2.5 flex items-center"
                 >
                   {t("footerOffer")}
                 </a>
@@ -90,7 +90,7 @@ export function FooterSection() {
               <li>
                 <a
                   href="/cookies"
-                  className="sh-caption text-ink-mute hover:text-ink min-h-[44px] flex items-center"
+                  className="sh-caption text-ink-mute hover:text-ink min-h-[44px] py-2.5 flex items-center"
                 >
                   {t("footerCookiePolicy")}
                 </a>
@@ -106,7 +106,7 @@ export function FooterSection() {
                   href="https://t.me/SkateLabPro"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="sh-caption text-ink-mute hover:text-ink min-h-[44px] flex items-center"
+                  className="sh-caption text-ink-mute hover:text-ink min-h-[44px] py-2.5 flex items-center"
                 >
                   Telegram
                 </a>

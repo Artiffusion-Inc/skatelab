@@ -53,7 +53,7 @@ export function HowItWorksSection() {
     },
   ]
 
-  const FirstIcon = icons[0]
+  const _FirstIcon = icons[0]
 
   return (
     <section
@@ -64,80 +64,32 @@ export function HowItWorksSection() {
     >
       <div className="mb-14 md:mb-20">
         <p className="mb-4 sh-caption text-ink-mute">{t("howItWorksTitle")}</p>
-        <h2 className="sh-display-xl text-ink max-w-xl">{t("howItWorksHeadline")}</h2>
+        <h2 className="sh-display-xl text-ink max-w-[65ch]">{t("howItWorksHeadline")}</h2>
       </div>
 
-      {/* Step 1 — full-width card with image */}
-      <div className="hiw-step group relative mb-8 overflow-hidden rounded-lg border border-hairline bg-background">
-        <StepImage src={steps[0].img} className="absolute inset-0 z-0" />
-        <div
-          className="absolute inset-0 z-0"
-          style={{
-            background:
-              "linear-gradient(to right, oklch(1 0 0 / 0.94) 0%, oklch(1 0 0 / 0.88) 45%, oklch(1 0 0 / 0.55) 100%)",
-          }}
-        />
-        <div className="relative z-10 flex flex-col gap-6 p-8 lg:flex-row lg:items-start lg:gap-10 lg:p-12">
-          <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-md bg-muted transition-colors group-hover:bg-primary group-hover:text-primary-foreground">
-            <FirstIcon className="h-6 w-6 text-primary group-hover:text-primary-foreground" />
-          </div>
-          <div>
-            <h3 className="sh-display-md mb-3 text-ink">{steps[0].title}</h3>
-            <p className="sh-body-md max-w-[65ch] text-ink-mute">{steps[0].description}</p>
-            <p className="mt-4 sh-caption text-primary">{steps[0].accent}</p>
-          </div>
-        </div>
-        <span className="step-watermark">01</span>
-      </div>
-
-      <div className="grid gap-8 lg:grid-cols-[1.2fr_1fr]">
-        {/* Step 2 — image card */}
-        <div className="hiw-step group relative overflow-hidden rounded-lg border border-hairline bg-background">
-          <StepImage src={steps[1].img} className="absolute inset-0 z-0" />
-          <div
-            className="absolute inset-0 z-0"
-            style={{
-              background:
-                "linear-gradient(to bottom, oklch(1 0 0 / 0.92) 0%, oklch(1 0 0 / 0.82) 50%, oklch(1 0 0 / 0.6) 100%)",
-            }}
-          />
-          <div className="relative z-10 p-8">
-            <span className="step-watermark">02</span>
-            <div className="mb-5 flex h-12 w-12 items-center justify-center rounded-md bg-muted transition-colors group-hover:bg-primary group-hover:text-primary-foreground">
-              {(() => {
-                const Icon = icons[1]
-                return <Icon className="h-5 w-5 text-primary group-hover:text-primary-foreground" />
-              })()}
+      <div className="grid gap-8 lg:grid-cols-3">
+        {steps.map((step, i) => {
+          const Icon = icons[i]
+          return (
+            <div
+              key={step.title}
+              className="hiw-step group rounded-lg border border-hairline bg-background overflow-hidden"
+            >
+              <div className="relative aspect-[4/3]">
+                <StepImage src={step.img} className="absolute inset-0 z-0" />
+                <span className="step-watermark">0{i + 1}</span>
+              </div>
+              <div className="p-6">
+                <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-md bg-muted transition-colors group-hover:bg-primary group-hover:text-primary-foreground">
+                  <Icon className="h-5 w-5 text-primary group-hover:text-primary-foreground" />
+                </div>
+                <h3 className="sh-heading-lg mb-2 text-ink">{step.title}</h3>
+                <p className="sh-body-md text-ink-mute max-w-[65ch]">{step.description}</p>
+                <p className="mt-3 sh-caption text-primary">{step.accent}</p>
+              </div>
             </div>
-            <h3 className="sh-heading-lg mb-2 text-ink">{steps[1].title}</h3>
-            <p className="sh-caption text-ink-mute max-w-[65ch]">{steps[1].description}</p>
-            <p className="mt-3 sh-caption text-primary">{steps[1].accent}</p>
-          </div>
-        </div>
-
-        {/* Step 3 — image card */}
-        <div className="hiw-step group relative overflow-hidden rounded-lg border border-hairline bg-background">
-          <StepImage src={steps[2].img} className="absolute inset-0 z-0" />
-          <div
-            className="absolute inset-0 z-0"
-            style={{
-              background:
-                "linear-gradient(to bottom, oklch(1 0 0 / 0.92) 0%, oklch(1 0 0 / 0.82) 50%, oklch(1 0 0 / 0.6) 100%)",
-            }}
-          />
-          <div className="relative z-10 flex flex-col justify-center p-8 h-full">
-            <span className="step-watermark">03</span>
-            <div className="mb-5 flex h-12 w-12 items-center justify-center rounded-md bg-muted transition-colors group-hover:bg-primary group-hover:text-primary-foreground">
-              {(() => {
-                const Icon = icons[2]
-                return <Icon className="h-5 w-5 text-primary group-hover:text-primary-foreground" />
-              })()}
-            </div>
-            <h3 className="sh-heading-lg mb-2 text-ink">{steps[2].title}</h3>
-            <p className="sh-body-md text-ink-mute max-w-[65ch]">{steps[2].description}</p>
-            <p className="mt-4 sh-caption text-primary">{steps[2].accent}</p>
-          </div>
-        </div>
+          )
+        })}
       </div>
     </section>
   )

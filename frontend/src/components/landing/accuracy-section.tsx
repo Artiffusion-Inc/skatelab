@@ -26,7 +26,7 @@ export function AccuracySection() {
     >
       <div className="mb-14 md:mb-20">
         <p className="mb-4 sh-caption text-ink-mute">{t("accuracyTitle")}</p>
-        <h2 className="sh-display-xl text-ink">{t("accuracyHeadline")}</h2>
+        <h2 className="sh-display-xl text-ink max-w-[65ch]">{t("accuracyHeadline")}</h2>
       </div>
 
       <div className="grid gap-8 lg:grid-cols-[1fr_1.4fr]">

@@ -55,7 +55,7 @@ AI-powered figure skating coach with IMU sensor integration: video analysis, rea
 - For coaches: control and credibility. "I have objective data to back my coaching, and I can track every student without being on the ice."
 - For schools: competitive edge. "Our program uses the same technology as national teams."
 
-**References:** Strava for UX organization (activity-centric, clear hierarchy), but colder and sharper. Not the orange heatmap, not the social feed. Superhuman for the editorial precision: tight typography, disciplined whitespace, single-action CTAs, three-canvas color rhythm (indigo/white/teal). The interface should feel like reading a well-set research paper, not scrolling a social media app.
+**References:** Strava for UX organization (activity-centric, clear hierarchy), but colder and sharper. Not the orange heatmap, not the social feed. Superhuman for the editorial precision: tight typography, disciplined whitespace, single-action CTAs, three-canvas color rhythm (teal/white/ice). The interface should feel like reading a well-set research paper, not scrolling a social media app.
 
 ## Anti-references
 
@@ -65,15 +65,15 @@ AI-powered figure skating coach with IMU sensor integration: video analysis, rea
 - **Toy-like / game UI** — playful illustrations, cartoonish icons, gamification badges, confetti, progress bars with celebration animations.
 - **Raw engineering dashboard** — monospace dumps, terminal aesthetics, unstyled data tables, engineering-first at the expense of usability.
 - **Direct Strava clone** — take UX structure inspiration, never the orange heatmap, never the social feed layout.
-- **Winter cliché** — snowflake icons, frosted decorative borders, "frozen glass" effects, seasonal pastel gradients. Ice identity is expressed through hue and precision, not literal winter imagery.
+- **Winter cliché** — snowflake icons, frosted decorative borders, "frozen glass" effects, seasonal pastel gradients. Ice identity is expressed through teal hue and precision, not literal winter imagery.
 
 ## Design Principles
 
 1. **Speed is a feature** — every interaction must feel snappy. Load states are informative, never blocking. Perceived performance matters as much as actual. The product must demonstrate accelerated progress in the first weeks or it fails.
 2. **Precision over decoration** — clean lines, disciplined spacing, no ornamental flourishes. Every pixel should serve the athlete's understanding, not the designer's ego.
 3. **Data at a glance** — metrics and progress should be scannable in under 2 seconds. No buried insights. Score colors always paired with icons or numeric labels for accessibility.
-4. **Ice as identity, not cliché** — the cold aesthetic (indigo navy, teal, violet accents) reflects the sport without falling into generic winter tropes. The Superhuman three-canvas rhythm (indigo hero, white body, teal closing) gives the brand editorial weight.
-5. **Objective confidence** — the interface should feel like an instrument you trust, not a toy you play with. Weight 460/540/700 typography. Warm ink (#292827, never pure black) on white canvas. Single CTA per section. Nothing competing for attention.
+4. **Ice as identity, not cliché** — the cold aesthetic (deep teal, ice-soft accents) reflects the sport without falling into generic winter tropes. The three-canvas rhythm (teal hero, white body, teal closing) gives the brand editorial weight.
+5. **Objective confidence** — the interface should feel like an instrument you trust, not a toy you play with. Weight 460/540/700 typography. Warm ink (#2a2d2e, never pure black) on white canvas. Single CTA per section. Nothing competing for attention.
 
 ## Accessibility & Inclusion
 

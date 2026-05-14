@@ -15,6 +15,7 @@ const NAV_ITEMS = [
 
 export function StickyHeader() {
   const t = useTranslations("landing")
+  const tAuth = useTranslations("auth")
   const [menuOpen, setMenuOpen] = useState(false)
   const hamburgerRef = useRef<HTMLButtonElement>(null)
 
@@ -67,23 +68,27 @@ export function StickyHeader() {
               type="button"
               key={item.key}
               onClick={() => handleNavClick(item.href)}
-              className="header-nav-link sh-body-md text-ink-mute hover:text-ink transition-colors min-h-[44px] flex items-center"
+              className="header-nav-link sh-body-md text-ink-mute hover:text-ink transition-colors min-h-[44px] py-2.5 flex items-center"
             >
               {t(item.key)}
             </button>
           ))}
         </nav>
 
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3">
+          <a
+            href="/login"
+            className="hidden md:inline-flex min-h-[44px] py-2.5 items-center sh-body-md text-ink-mute hover:text-ink transition-colors"
+          >
+            {tAuth("signIn")}
+          </a>
           <Button
             variant="default"
             size="sm"
             className="hidden md:inline-flex min-h-[44px]"
             asChild
           >
-            <a href="https://t.me/SkateLabPro" target="_blank" rel="noopener noreferrer">
-              {t("headerCta")}
-            </a>
+            <a href="/register">{t("ctaSecondary")}</a>
           </Button>
           <button
             type="button"
@@ -132,12 +137,16 @@ export function StickyHeader() {
                   </button>
                 ))}
               </nav>
-              <div className="p-4">
+              <div className="p-4 flex flex-col gap-2">
                 <Button className="w-full min-h-[44px]" asChild>
-                  <a href="https://t.me/SkateLabPro" target="_blank" rel="noopener noreferrer">
-                    {t("headerCta")}
-                  </a>
+                  <a href="/register">{t("ctaSecondary")}</a>
                 </Button>
+                <a
+                  href="/login"
+                  className="w-full min-h-[44px] py-2.5 flex items-center justify-center sh-body-md text-ink-mute hover:text-ink transition-colors"
+                >
+                  {tAuth("signIn")}
+                </a>
               </div>
             </div>
           </FocusLock>

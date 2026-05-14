@@ -29,7 +29,7 @@ export function VisualShowcaseSection() {
     >
       <div className="mb-14 md:mb-20">
         <p className="mb-4 sh-caption text-ink-mute">{t("visualTitle")}</p>
-        <h2 className="sh-display-xl text-ink max-w-xl">{t("visualHeadline")}</h2>
+        <h2 className="sh-display-xl text-ink max-w-[65ch]">{t("visualHeadline")}</h2>
       </div>
 
       <div className="grid gap-6 md:grid-cols-2">
@@ -44,42 +44,20 @@ export function VisualShowcaseSection() {
                 isWide ? "md:col-span-2" : ""
               }`}
             >
-              {/* Media area with art-directed photo */}
-              <div
-                className={`relative ${
-                  isWide ? "aspect-[21/9]" : "aspect-video"
-                }`}
-              >
+              <div className={`relative ${isWide ? "aspect-[21/9]" : "aspect-video"}`}>
                 <img
                   src={img.src}
                   alt={img.alt}
                   className="absolute inset-0 h-full w-full object-cover"
                   loading="lazy"
-                  aria-hidden="true"
                 />
-                <div
-                  className="absolute inset-0"
-                  style={{
-                    background:
-                      "linear-gradient(to top, oklch(0.985 0.005 133 / 0.95) 0%, oklch(0.985 0.005 133 / 0.4) 45%, oklch(0.22 0.06 280 / 0.25) 100%)",
-                  }}
-                />
-                <div
-                  className={`relative z-10 flex h-full items-center justify-center ${
-                    isWide ? "md:items-end md:justify-start md:p-8" : ""
-                  }`}
-                >
-                  <div className={`text-center ${isWide ? "md:text-left" : ""}`}>
-                    <Icon
-                      className={`h-8 w-8 text-on-primary mx-auto mb-2 ${isWide ? "md:mx-0" : ""}`}
-                    />
-                    <span className="sh-caption text-on-primary">{v.label}</span>
-                  </div>
-                </div>
               </div>
               <div className="p-6">
-                <h3 className="sh-heading-lg text-ink mb-1">{v.label}</h3>
-                <p className="sh-caption text-ink-mute max-w-md">{v.desc}</p>
+                <h3 className="sh-heading-lg text-ink mb-1 flex items-center gap-2">
+                  <Icon className="h-5 w-5 text-primary" />
+                  {v.label}
+                </h3>
+                <p className="sh-caption text-ink-mute max-w-[65ch]">{v.desc}</p>
               </div>
             </div>
           )

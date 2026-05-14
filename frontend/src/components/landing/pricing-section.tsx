@@ -56,7 +56,7 @@ export function PricingSection() {
     >
       <div className="mb-14 md:mb-20">
         <p className="mb-4 sh-caption text-ink-mute">{t("pricingTitle")}</p>
-        <h2 id="pricing-heading" className="sh-display-xl text-ink">
+        <h2 id="pricing-heading" className="sh-display-xl text-ink max-w-[65ch]">
           {t("pricingHeadline")}
         </h2>
       </div>
@@ -66,7 +66,7 @@ export function PricingSection() {
           <div className="flex-1">
             <div className="flex items-center gap-3 mb-2">
               <h3 className="sh-display-md text-ink">{hardware.name}</h3>
-              <span className="sh-badge-opaque inline-flex items-center rounded-full px-3 py-1 sh-micro text-primary-foreground">
+              <span className="sh-badge-opaque inline-flex items-center rounded-full px-3 py-1.5 sh-micro text-primary-foreground">
                 {hardware.price}
               </span>
             </div>
@@ -99,15 +99,15 @@ export function PricingSection() {
             }`}
           >
             {tier.badge && (
-              <span className="absolute -top-3 left-1/2 -translate-x-1/2 bg-primary px-3 py-1 rounded-full sh-micro text-primary-foreground tracking-wider">
+              <span className="absolute -top-3 left-1/2 -translate-x-1/2 bg-primary px-3 py-1.5 rounded-full sh-micro text-primary-foreground tracking-wider">
                 {tier.badge}
               </span>
             )}
             <h3 className="sh-heading-lg text-ink">{tier.name}</h3>
-            <p className="sh-price mt-4 text-ink">
+            <p className="sh-price mt-4 text-ink max-w-[65ch]">
               <data value={tier.price.replace(/[^\d]/g, "")}>{tier.price}</data>
             </p>
-            <p className="mt-2 sh-caption text-ink-mute">{tier.desc}</p>
+            <p className="mt-2 sh-caption text-ink-mute max-w-[65ch]">{tier.desc}</p>
             <ul className="mt-6 space-y-3">
               {tier.features.map(f => (
                 <li key={f} className="flex items-start gap-2 sh-caption text-ink-mute">
@@ -136,7 +136,7 @@ export function PricingSection() {
         ))}
       </ul>
 
-      <p className="mt-8 text-center sh-caption text-ink-mute max-w-2xl mx-auto">
+      <p className="mt-8 text-center sh-caption text-ink-mute max-w-[65ch] mx-auto">
         {t("pricingHardwareNote")}
       </p>
     </section>

@@ -11,7 +11,7 @@ export function CTASection() {
       <div className="relative mx-auto max-w-5xl px-6 py-24 md:py-32">
         <div className="max-w-lg">
           <p className="mb-4 sh-caption text-primary-foreground/70">{t("ctaEyebrow")}</p>
-          <h2 id="cta-heading" className="sh-display-lg text-primary-foreground">
+          <h2 id="cta-heading" className="sh-display-lg text-primary-foreground max-w-[65ch]">
             {t("ctaHeadlineNew")}
           </h2>
           <p className="mt-4 sh-body-lg text-primary-foreground/70 max-w-[65ch]">
@@ -30,7 +30,7 @@ export function CTASection() {
             </Button>
             <a
               href="/register"
-              className="min-h-[44px] flex items-center sh-body-md text-primary-foreground/70 underline hover:text-primary-foreground"
+              className="min-h-[44px] py-2.5 flex items-center sh-body-md text-primary-foreground/70 underline hover:text-primary-foreground"
             >
               {t("ctaSecondary")}
             </a>
