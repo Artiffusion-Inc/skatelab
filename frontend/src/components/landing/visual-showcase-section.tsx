@@ -5,6 +5,12 @@ import { Film, LayoutDashboard, Box } from "lucide-react"
 
 const icons = [Film, LayoutDashboard, Box]
 
+const VISUAL_IMAGES = [
+  { src: "/images/moodboard/visual-video.webp", alt: "" },
+  { src: "/images/moodboard/visual-dashboard.webp", alt: "" },
+  { src: "/images/moodboard/arena-empty.webp", alt: "" },
+]
+
 export function VisualShowcaseSection() {
   const t = useTranslations("landing")
 
@@ -29,6 +35,7 @@ export function VisualShowcaseSection() {
       <div className="grid gap-6 md:grid-cols-2">
         {visuals.map((v, i) => {
           const Icon = icons[i]
+          const img = VISUAL_IMAGES[i]
           const isWide = i === 0
           return (
             <div
@@ -37,16 +44,37 @@ export function VisualShowcaseSection() {
                 isWide ? "md:col-span-2" : ""
               }`}
             >
+              {/* Media area with art-directed photo */}
               <div
-                className={`bg-muted flex items-center justify-center ${
-                  isWide ? "aspect-[21/9] md:items-end md:justify-start md:p-8" : "aspect-video"
+                className={`relative ${
+                  isWide ? "aspect-[21/9]" : "aspect-video"
                 }`}
               >
-                <div className={`text-center ${isWide ? "md:text-left" : ""}`}>
-                  <Icon
-                    className={`h-8 w-8 text-ink-mute mx-auto mb-2 ${isWide ? "md:mx-0" : ""}`}
-                  />
-                  <span className="sh-caption text-ink-mute">{v.label}</span>
+                <img
+                  src={img.src}
+                  alt={img.alt}
+                  className="absolute inset-0 h-full w-full object-cover"
+                  loading="lazy"
+                  aria-hidden="true"
+                />
+                <div
+                  className="absolute inset-0"
+                  style={{
+                    background:
+                      "linear-gradient(to top, oklch(0.985 0.005 133 / 0.95) 0%, oklch(0.985 0.005 133 / 0.4) 45%, oklch(0.22 0.06 280 / 0.25) 100%)",
+                  }}
+                />
+                <div
+                  className={`relative z-10 flex h-full items-center justify-center ${
+                    isWide ? "md:items-end md:justify-start md:p-8" : ""
+                  }`}
+                >
+                  <div className={`text-center ${isWide ? "md:text-left" : ""}`}>
+                    <Icon
+                      className={`h-8 w-8 text-on-primary mx-auto mb-2 ${isWide ? "md:mx-0" : ""}`}
+                    />
+                    <span className="sh-caption text-on-primary">{v.label}</span>
+                  </div>
                 </div>
               </div>
               <div className="p-6">
