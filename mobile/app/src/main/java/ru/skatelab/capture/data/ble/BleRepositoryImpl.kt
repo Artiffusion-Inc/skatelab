@@ -4,8 +4,6 @@ import android.content.Context
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
 import ru.skatelab.capture.domain.model.ImuSample
 import ru.skatelab.capture.domain.model.SensorId
 import ru.skatelab.capture.domain.repository.BleRepository
@@ -22,7 +20,6 @@ class BleRepositoryImpl @Inject constructor(
 
     private val bleManager = BleManager(context, appLogger)
     private val _addressMap = ConcurrentHashMap<SensorId, String>()
-    private val streamingMutexes = ConcurrentHashMap<SensorId, Mutex>()
 
     override val scanResults: Flow<List<ScanDevice>> = bleManager.scanResults.map { results ->
         results.map { ScanDevice(name = it.name, address = it.address, rssi = it.rssi) }
@@ -58,53 +55,23 @@ class BleRepositoryImpl @Inject constructor(
         bleManager.disconnect(sensorId, address)
     }
 
-    override suspend fun bleConfigure(sensorId: SensorId): Result<Unit> = runCatching {
-        bleManager.sendSequence(sensorId, Wt901Commander.bleConfigureSequence())
-    }
-
-    override suspend fun configureSensor(sensorId: SensorId): Result<Unit> = runCatching {
-        bleManager.sendSequence(sensorId, Wt901Commander.configureSequence())
-    }
-
-    override suspend fun configureSensorNoAccCal(sensorId: SensorId): Result<Unit> = runCatching {
-        bleManager.sendSequence(sensorId, Wt901Commander.configureSequenceNoAccCal())
-    }
-
     override suspend fun factoryResetSensor(sensorId: SensorId): Result<Unit> = runCatching {
-        bleManager.sendSequence(sensorId, Wt901Commander.factoryResetSequence())
+        bleManager.sendCommand(sensorId, Wt901Commander.factoryReset())
     }
 
     override suspend fun accCalibrateSensor(sensorId: SensorId): Result<Unit> = runCatching {
         bleManager.sendSequence(sensorId, Wt901Commander.bleAccCalibrateSequence())
     }
 
-    override suspend fun startStreaming(sensorId: SensorId): Result<Unit> {
-        val mutex = streamingMutexes.getOrPut(sensorId) { Mutex() }
-        return mutex.withLock {
-            bleManager.markRecording(sensorId)
-            runCatching {
-                bleManager.sendSequence(sensorId, Wt901Commander.startStreamingSequence())
-            }
-        }
-    }
+    /** No-op in BLE mode — 0x61 streams automatically when CCCD is enabled. */
+    override suspend fun startStreaming(sensorId: SensorId): Result<Unit> = Result.success(Unit)
 
-    override suspend fun stopStreaming(sensorId: SensorId): Result<Unit> {
-        val mutex = streamingMutexes.getOrPut(sensorId) { Mutex() }
-        return mutex.withLock {
-            val result = runCatching {
-                bleManager.sendSequence(sensorId, Wt901Commander.stopStreamingSequence())
-            }
-            if (result.isSuccess) {
-                bleManager.markStopped(sensorId)
-            }
-            result
-        }
-    }
+    /** No-op in BLE mode — streaming stops when sensor disconnects. */
+    override suspend fun stopStreaming(sensorId: SensorId): Result<Unit> = Result.success(Unit)
 
     override suspend fun readBattery(sensorId: SensorId): Result<Int> {
         val result = bleManager.readRegisterResponse(sensorId, 0x04)
         return result.map { data ->
-            // Battery register returns percentage as int16 in data[0]
             data[0].toInt().coerceIn(0, 100)
         }
     }
@@ -112,7 +79,6 @@ class BleRepositoryImpl @Inject constructor(
     override suspend fun readChipTime(sensorId: SensorId): Result<Long> {
         val result = bleManager.readRegisterResponse(sensorId, 0x50)
         return result.map { data ->
-            // Chip time register returns 3x int16: low, mid, high → combine to uint32
             val low = data[0].toLong() and 0xFFFF
             val mid = data[1].toLong() and 0xFFFF
             val high = data[2].toLong() and 0xFFFF

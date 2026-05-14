@@ -16,16 +16,13 @@ interface BleRepository {
     fun stopScan()
     suspend fun connect(sensorId: SensorId, address: String): Result<Unit>
     suspend fun disconnect(sensorId: SensorId): Result<Unit>
-    /** BLE-protocol configuration: factory reset + set output rate. No UART-only RSW writes. */
-    suspend fun bleConfigure(sensorId: SensorId): Result<Unit>
-    /** UART-only config with ACC calibration — DO NOT USE with BLE sensors. */
-    suspend fun configureSensor(sensorId: SensorId): Result<Unit>
-    /** UART-only config without ACC cal — DO NOT USE with BLE sensors. */
-    suspend fun configureSensorNoAccCal(sensorId: SensorId): Result<Unit>
+    /** Factory reset — sensor reboots, drops GATT connection. Recovery only. */
     suspend fun factoryResetSensor(sensorId: SensorId): Result<Unit>
-    /** ACC hardware calibration via BLE. Sensor must be horizontal and still. */
+    /** ACC hardware calibration via BLE. Sensor must be horizontal and still. Recovery only. */
     suspend fun accCalibrateSensor(sensorId: SensorId): Result<Unit>
+    /** No-op in BLE mode — 0x61 streams automatically when CCCD is enabled. */
     suspend fun startStreaming(sensorId: SensorId): Result<Unit>
+    /** No-op in BLE mode — streaming stops when CCCD is disabled or sensor disconnects. */
     suspend fun stopStreaming(sensorId: SensorId): Result<Unit>
     suspend fun readBattery(sensorId: SensorId): Result<Int>
     suspend fun readChipTime(sensorId: SensorId): Result<Long>

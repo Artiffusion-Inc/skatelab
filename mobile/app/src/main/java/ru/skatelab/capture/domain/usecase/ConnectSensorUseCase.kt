@@ -7,9 +7,8 @@ import javax.inject.Inject
 class ConnectSensorUseCase @Inject constructor(
     private val bleRepository: BleRepository,
 ) {
-    /** Connect and configure sensor using BLE-protocol sequence (factory reset + output rate). */
+    /** Connect sensor. BleManager sends setRate(0x09) automatically after service discovery. */
     suspend fun invoke(sensorId: SensorId, address: String): Result<Unit> {
-        bleRepository.connect(sensorId, address).getOrElse { return Result.failure(it) }
-        return bleRepository.bleConfigure(sensorId)
+        return bleRepository.connect(sensorId, address)
     }
 }
