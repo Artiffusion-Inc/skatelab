@@ -13,32 +13,27 @@
   --color-muted: oklch(0.967 0 0);
   --color-muted-foreground: oklch(0.55 0 0);
   --color-border: oklch(0.815 0 0);
-  --color-primary: oklch(0.22 0.06 280);
+  --color-primary: oklch(0.52 0.08 205);
   --color-primary-foreground: oklch(1 0 0);
+  --color-primary-deep: oklch(0.2 0.04 220);
   --color-destructive: oklch(0.541 0.22 25);
   --color-destructive-foreground: oklch(0.98 0 0);
   --color-card: oklch(1 0 0);
   --color-card-foreground: oklch(0.145 0 0);
   --color-accent: oklch(0.905 0 0);
-  --color-link: oklch(0.541 0.23 264);
-  --color-ice-deep: oklch(0.42 0.12 240);
-  --color-ice-glow: oklch(0.72 0.12 240);
-  --color-ice-surface: oklch(0.97 0.01 240);
-  --color-ice-dark: oklch(0.18 0.03 240);
-  --color-ink: oklch(0.278 0.003 106);
-  --color-ink-mute: oklch(0.547 0.009 106);
-  --color-ink-faint: oklch(0.678 0.008 106);
-  --color-canvas-soft: oklch(0.985 0.005 133);
-  --color-surface-violet-soft: oklch(0.812 0.202 321);
-  --color-surface-teal-deep: oklch(0.284 0.042 201);
-  --color-surface-teal-mid: oklch(0.41 0.068 201);
-  --color-on-dark-mute: oklch(0.795 0.042 316);
-  --color-on-dark-dim: oklch(0.63 0.04 317);
-  --color-on-dark-faint: oklch(0.47 0.087 317);
-  --color-hairline: oklch(0.92 0.018 118);
-  --color-hairline-dark: oklch(0.364 0.084 319);
-  --color-primary-deep: oklch(0.175 0.066 315);
-  --color-on-dark-dim: oklch(0.63 0.04 317);
+  --color-link: oklch(0.52 0.08 205);
+  --color-ink: oklch(0.278 0.003 220);
+  --color-ink-mute: oklch(0.547 0.009 220);
+  --color-ink-faint: oklch(0.678 0.008 220);
+  --color-canvas-soft: oklch(0.93 0.01 260);
+  --color-surface-ice-soft: oklch(0.88 0.04 240);
+  --color-surface-teal-deep: oklch(0.2 0.04 220);
+  --color-surface-teal-mid: oklch(0.42 0.06 205);
+  --color-on-dark-mute: oklch(0.82 0.02 240);
+  --color-on-dark-dim: oklch(0.65 0.02 240);
+  --color-on-dark-faint: oklch(0.5 0.02 240);
+  --color-hairline: oklch(0.9 0.01 240);
+  --color-hairline-dark: oklch(0.35 0.04 220);
 }
 
 body {
@@ -100,8 +95,7 @@ body {
   --card-foreground: oklch(0.2 0.01 60);
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(0.2 0.01 60);
-  --primary: oklch(0.22 0.06 280);
-  --on-dark-dim: oklch(0.63 0.04 317);
+  --primary: oklch(0.52 0.08 205);
   --primary-foreground: oklch(1 0 0);
   --secondary: oklch(0.967 0 0);
   --secondary-foreground: oklch(0.2 0.01 60);
@@ -110,11 +104,10 @@ body {
   --accent: oklch(0.905 0 0);
   --accent-foreground: oklch(0.2 0.01 60);
   --destructive: oklch(0.541 0.22 25);
-  --border: oklch(0.815 0 0);
-  --input: oklch(0.815 0 0);
-  --on-dark-dim: oklch(0.63 0.04 317);
-  --ring: oklch(0.48 0.19 264);
-  --link: oklch(0.541 0.23 264);
+  --border: oklch(0.9 0.01 240);
+  --input: oklch(0.9 0.01 240);
+  --ring: oklch(0.52 0.08 205);
+  --link: oklch(0.52 0.08 205);
   --chart-1: oklch(0.967 0 0);
   --chart-2: oklch(0.55 0 0);
   --chart-3: oklch(0.225 0 0);
@@ -127,38 +120,26 @@ body {
   --radius: 1.25rem;
   --sidebar: oklch(1 0 0);
   --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.145 0 0);
+  --sidebar-primary: oklch(0.52 0.08 205);
   --sidebar-primary-foreground: oklch(1 0 0);
   --sidebar-accent: oklch(0.967 0 0);
   --sidebar-accent-foreground: oklch(0.145 0 0);
-  --sidebar-border: oklch(0.815 0 0);
-  --sidebar-ring: oklch(0.48 0.19 264);
-}
-
-.diagonal-streak {
-  position: absolute;
-  right: -10%;
-  top: -20%;
-  width: 60%;
-  height: 140%;
-  background: linear-gradient(
-    135deg,
-    transparent 40%,
-    oklch(0.72 0.12 240 / 0.06) 50%,
-    transparent 60%
-  );
-  transform: skewX(-12deg);
-  pointer-events: none;
+  --sidebar-border: oklch(0.9 0.01 240);
+  --sidebar-ring: oklch(0.52 0.08 205);
 }
 
 .step-watermark {
-  font-size: clamp(6rem, 12vw, 10rem);
+  font-size: 1rem;
   font-weight: 600;
+  font-variation-settings: "wght" 600;
+  font-variant-numeric: tabular-nums;
   line-height: 1;
-  color: oklch(0.7 0.006 80 / 0.25);
+  letter-spacing: 0.06em;
+  color: oklch(0.547 0.009 220 / 0.55);
   position: absolute;
-  top: -0.5rem;
-  left: -0.5rem;
+  top: 1.25rem;
+  right: 1.25rem;
+  left: auto;
   user-select: none;
   pointer-events: none;
 }
@@ -179,12 +160,14 @@ body {
     font-variation-settings: "wght" 700;
     line-height: 1;
     letter-spacing: -0.03em;
+    font-variant-numeric: tabular-nums;
   }
-  .sh-legal {
-    font-size: 0.6875rem;
-    font-weight: 460;
-    font-variation-settings: "wght" 460;
-    line-height: 1.5;
+  .sh-heading-md {
+    font-size: 1.125rem;
+    font-weight: 600;
+    font-variation-settings: "wght" 600;
+    line-height: 1.2;
+    letter-spacing: -0.01em;
   }
   .sh-display-xxl {
     font-size: clamp(2.25rem, 5.5vw, 4rem);
@@ -253,32 +236,21 @@ body {
     line-height: 1;
   }
   .sh-badge-opaque {
-    background: oklch(0.175 0.066 315 / 0.85);
-    border: 1px solid oklch(0.812 0.202 321 / 0.4);
+    background: oklch(0.2 0.04 220 / 0.85);
+    border: 1px solid oklch(0.88 0.04 240 / 0.4);
   }
   .sh-badge-flat {
-    background: oklch(0.175 0.066 315 / 0.85);
-    border: 1px solid oklch(0.812 0.202 321 / 0.3);
+    background: oklch(0.2 0.04 220 / 0.85);
+    border: 1px solid oklch(0.88 0.04 240 / 0.3);
   }
   .sh-teal-band {
     background: var(--color-surface-teal-deep);
     color: var(--color-primary-foreground);
   }
-  .sh-violet-backdrop {
+  .sh-ice-backdrop {
     background:
-      radial-gradient(ellipse 80% 60% at 70% 40%, oklch(0.812 0.202 321 / 0.3) 0%, transparent 60%),
-      radial-gradient(ellipse 60% 80% at 30% 60%, oklch(0.234 0.119 318 / 0.2) 0%, transparent 50%),
-      linear-gradient(to bottom, var(--color-primary), var(--color-primary-deep));
-  }
-  .sh-demo-overlay {
-    background: linear-gradient(
-      to bottom right,
-      oklch(0.175 0.066 315 / 0.6),
-      oklch(0.175 0.066 315 / 0.3)
-    );
-  }
-  .sh-demo-glow {
-    background: radial-gradient(at 50% 100%, oklch(0.812 0.202 321 / 0.2) 0%, transparent 70%);
+      radial-gradient(ellipse 80% 60% at 70% 40%, oklch(0.88 0.03 260 / 0.35) 0%, transparent 60%),
+      linear-gradient(to bottom, oklch(0.93 0.01 240), oklch(0.97 0.005 250));
   }
   @keyframes metricPulse {
     0%,

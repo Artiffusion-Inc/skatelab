@@ -30,12 +30,7 @@ const POLLING_STATUSES = new Set(["queued", "uploading", "running", "pending"])
 
 export default function SessionDetailPage() {
   const { id } = useParams<{ id: string }>()
-  const { data: session, isLoading } = useSession(id, {
-    refetchInterval: query => {
-      const status = query.state.data?.status
-      return POLLING_STATUSES.has(status ?? "") ? 3000 : false
-    },
-  })
+  const { data: session, isLoading } = useSession(id)
   const te = useTranslations("elements")
   const ts = useTranslations("sessions")
   const tSession = useTranslations("session")
@@ -112,9 +107,7 @@ export default function SessionDetailPage() {
           />
         )}
 
-        {session.pose_data && (
-          <PhaseTimeline totalFrames={totalFrames} phases={session.phases ?? {}} />
-        )}
+        {session.pose_data && <PhaseTimeline totalFrames={totalFrames} phases={session.phases} />}
 
         {session.pose_data && session.frame_metrics && (
           <FrameMetricsChart

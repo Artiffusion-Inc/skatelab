@@ -35,3 +35,9 @@ allow-direct-references = true
 
 [tool.hatch.build.targets.wheel]
 packages = ["src"]
+
+[dependency-groups]
+dev = [
+    "fastapi>=0.136.1",
+    "pytest-asyncio>=1.3.0",
+]

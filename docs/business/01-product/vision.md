@@ -1,85 +1,84 @@
 # Product Vision & Value Proposition
 
+> **Актуально:** Hardware-first модель. IMU-трекеры = основной продукт. SkateLab SaaS = AI-платформа для анализа.
+
 ## Mission
 
-AI-тренер по фигурному катанию — анализ видео и рекомендации на русском языке.
+SkateLab — система трекеров для фигурных коньков с AI-платформой.
 
-SkateLab — SaaS-платформа для фигуристов и тренеров, которая анализирует видео тренировок с помощью ML, измеряет биомеханические параметры элементов и даёт персонализированные рекомендации для улучшения техники.
+Точные метрики техники: угол ребра, скорость вращения, биомеханика прыжков. Объективные данные вместо догадок.
 
 ## Problem Statement
 
-Фигуристы и тренеры сталкиваются с тремя ключевыми проблемами:
+Фигуристы и тренеры сталкиваются с тремя проблемами:
 
-1. **Нет объективных данных.** Оценка техники основана на субъективном восприятии тренера. Нет числовых метрик: высота прыжка, скорость вращения, качество приземления.
-2. **Дорого.** Биомеханический анализ доступен только национальным сборным (Omega — 14 камер вокруг катка, закрытый софт). Индивидуальные фигуристы и малые клубы не имеют доступа.
-3. **Языковой барьер.** Существующие решения — на английском. Русскоязычные фигуристы (Россия, Казахстан, Беларусь, Латвия — ключевые рынки) не получают анализа на родном языке.
+1. **Нет объективных данных.** Оценка техники — субъективное восприятие тренера. Нет числовых метрик: угол ребра, скорость вращения, высота прыжка.
+2. **Дорого.** Биомеханический анализ доступен только национальным сборным (Omega — 4–6 камер на мероприятие, закрытый софт). Индивидуальные фигуристы и малые клубы — без доступа.
+3. **Языковой барьер.** Существующие решения — на английском. Русскоязычные фигуристы (Россия, Казахстан, Беларусь) не получают анализа на родном языке.
 
 ## Value Proposition
 
-**Для фигуристов:** Загрузил видео → получил объективные метрики и рекомендации на русском. Сравнил себя с эталоном. Отследил прогресс.
+**Для тренеров:** IMU-трекеры на коньках ученика → точные метрики на русском. Объективные данные для корректировки техники.
 
-**Для тренеров:** Дашборд учеников, объективные данные для корректировки техники, трекинг прогресса во времени.
+**Для спортсменов:** Узнай, что не так с твоим прыжком. Угол ребра, GOE proxy, сравнение с эталоном.
 
-**Для клубов:** Масштабирование качества тренерской работы, единая система аналитики.
+**Для клубов:** Единая система аналитики. Масштабирование качества тренерской работы.
 
-### Unique Differentiators
+## Unique Differentiators
 
 | Дифференциатор | Что это | Почему важно |
-|---------------|---------|--------------|
-| OOFSkate proxy features | Оценка качества через кинематику тела, не через лезвие конька | Работает с обычного телефона, не нужны 14 камер или IMU-датчики |
-| H3.6M 17kp 3D | Стандартный формат скелета, совместимый с исследованиями | Легко интегрировать новые модели из academia |
-| CoM trajectory | Центр масс вместо времени полёта | Устраняет 60% ошибку в измерении высоты прыжка |
+|---------------|---------|-------------|
+| IMU + AI гибрид | Датчики на коньках + видео-аналитика | Точнее video-only (±1° vs ±10°) |
+| OOFSkate proxy features | Оценка качества через кинематику тела | Работает даже без IMU |
+| CoM trajectory | Центр масс вместо времени полёта | Устраняет 60% ошибку в высоте прыжка |
 | Русский язык | Полная локализация: UI, рекомендации, метрики | Единственный продукт с native русским |
-| Хореограф-планировщик | ISU element DB + CSP solver + music analysis | Визуальное планирование программы с учётом музыки |
-| Anatomical Re-ID | Идентификация фигуриста по биометрии, не по одежде | Не путает людей в одинаковой чёрной форме на льду |
+| Хореограф-планировщик | ISU element DB + CSP solver + music analysis | Визуальное планирование программы |
+| Цена | TBD ₽ vs $600–2000+ (wearable market) | Доступно индивидуальным спортсменам |
 
 ## Product Components
 
-### Core ML Pipeline
-
-```
-Video → RTMO (rtmlib, CUDA, COCO 17kp)
-  → COCO→H3.6M conversion → GapFiller → Smoothing (One-Euro, Numba JIT)
-  → Phase Detection (CoM-based, adaptive sigma)
-  → Biomechanics Metrics (airtime, height, knee angles, rotation, landing quality)
-  → DTW alignment vs reference → GOE proxy score
-  → Rule-based Recommender → Russian Text Report
-```
-
-### SaaS Platform
+### Hardware
 
 | Компонент | Описание |
 |-----------|----------|
-| Upload | Chunked S3 multipart upload, presigned URLs для R2 |
+| IMU-трекеры (2 шт) | Toe + heel, угол наклона ребра, ускорение |
+| Крепление | Липучка с EVA-прокладкой / 3D-printed кейс |
+| Зарядка | USB-C, до 4 часов работы |
+| Mobile app | Android (Kotlin), BLE 5.0, real-time data |
+
+### SkateLab AI Platform
+
+| Компонент | Описание |
+|-----------|----------|
+| Upload | Chunked S3 multipart upload, presigned URLs |
 | Sessions | CRUD с метриками, персистенция в Postgres |
 | Metrics Registry | 12+ биомеханических метрик, русские лейблы |
-| Progress Dashboard | Тренды, PR трекер, диагностика (5 правил) |
-| Coach Dashboard | Ученики, сессии, диагностика, управление связями |
-| Choreography Planner | ISU elements + CSP solver + music analysis + SVG rink renderer |
-| i18n | next-intl, русский + английский |
+| Progress Dashboard | Тренды, PR трекер, диагностика |
+| Coach Dashboard | Ученики, сессии, диагностика |
+| Choreography Planner | ISU elements + CSP solver + SVG rink |
 
 ### Tech Stack
 
 | Слой | Технология |
 |------|-----------|
-| ML Pipeline | Python, rtmlib, onnxruntime-gpu, scipy, numba |
-| Backend | FastAPI, SQLAlchemy, Alembic, arq + Valkey |
-| Frontend | Next.js 16, React, Tailwind, shadcn/ui, Recharts, three.js |
-| Storage | Cloudflare R2 (S3-compatible), Postgres |
+| Hardware | IMU (MPU9250), BLE 5.0, Kotlin Android |
+| ML Pipeline | Python, onnxruntime-gpu, scipy, numba |
+| Backend | FastAPI, SQLAlchemy, arq + Valkey |
+| Frontend | Next.js 16, React, Tailwind, shadcn/ui |
+| Storage | Cloudflare R2, Postgres |
 | Remote GPU | Vast.ai Serverless |
-| Task Runner | go-task |
 
 ## Current Status
 
-**MVP 100% complete** (ROADMAP.md — single source of truth).
+**MVP hardware + software в разработке.**
 
-- 65+ файлов кода, 5341+ нод в графе знаний
-- Pipeline: ~12с для 14.5с видео (GPU, frame_skip=8)
-- 279+ тестов
-- GPU-only inference (CPU запрещён)
+- Mobile app: Android (Kotlin), BLE data collection ✅
+- IMU experiments: угол ребра реконструирован ✅
+- AI-платформа: ~279 тест-кейсов, pipeline ~12s. ⚠️ Тесты не все проходят (1 ошибка при сборке).
+- 3D-printed кейс: в разработке (ИТМО)
 
 ## Key Constraints
 
-- **GPU-only.** CPU inference запрещена. `device='cuda'`.
-- **Backend не импортирует ML internals.** arq worker может импортировать ML типы, но не вызывать pipeline напрямую.
-- **Тяжёлый ML → GPU** (локальный или Vast.ai Serverless).
+- **GPU-only inference.** CPU запрещена. `device='cuda'`.
+- **Backend не импортирует ML internals.** arq worker только диспетчер.
+- **Hardware dependency.** IMU-трекеры требуют IMU + mobile app.

@@ -6,7 +6,7 @@
 
 ## Executive Summary
 
-The current segmentation is **directionally sound** but contains **material gaps in sizing consistency, missing segments, and prioritization nuance**. ABCDX methodology is applied correctly at the qualitative level. The biggest risk: bottom-up TAM ($79.5M) and SAM ($70–$140M) are almost equal, implying the product has near-zero addressability outside Russian-speaking markets. This is either a strategic constraint that must be stated explicitly, or a sizing error.
+The current segmentation is **directionally sound** but contains **material gaps in sizing consistency, missing segments, and prioritization nuance**. ABCDX methodology is applied correctly at the qualitative level. The biggest risk: TAM ($36.1M bottom-up) is calculated for all markets but heavily weighted toward Russian-speaking skaters (SAM ~$3M), implying limited non-Russian validation. This is a strategic constraint (Russian-first) that must be stated explicitly.
 
 ---
 
@@ -19,7 +19,7 @@ The current segmentation is **directionally sound** but contains **material gaps
 | B1 — Choreographers | Size: ~5K. Loose sourcing. | Partial: via coaches, competitions. | $2.4M/yr. | Yes: music-analysis need is unique. | **Medium**: Product exists but no case studies; objections documented. | Good |
 | B2 — Parents | Size: ~100K (implied). | Partial: channels not defined (parent forums? clubs?). | $18M/yr. Very high emotional WTP. | Yes: safety + progress tracking motive. | **Medium**: Offer defined, but process lacks distribution plan. | Needs work |
 | C1 — Beginners | Size: ~200K. | Freemium / app stores. | Low ARPU ($0–$5/mo). | Yes: motivation vs technique. | **Low**: Correctly deprioritized. | Acceptable |
-| C2 — Small clubs | Size: ~3K academies (split unclear). | Inside sales? | $7.2M/yr at 100%. | Yes: group management need. | **Medium**: Plan exists, no case study. | Acceptable |
+| C2 — Small clubs | Size: ~3K academies (split unclear). | Inside sales? | $7.2M/yr at 100%. | Yes: group management need. | **Low**: CustDev = 0. Pain «churn from analytics» is fabricated. Segment on hold. | Needs CustDev |
 | D1 — Federations | Size: ~50. | Long cycle, procurement. | $0.3M/yr. | Yes: benchmarking need. | **Low**: No product, no case, 12–24 mo sales cycle. | Correctly parked |
 | D2 — Solo hobbyists | Not sized. | App stores. | Zero revenue. | N/A. | **None**. Correctly parked. | Acceptable |
 | X1 — ISU Judges | Not sized. | Impossible without ISU cert. | Unknown. | Real-time overlay need. | **None today**: <1s latency + certification required. | Correctly parked |
@@ -40,7 +40,7 @@ Actionability = clarity of offer + reachable channel + product readiness + case 
 | B1 — Choreographers | 6/10 | Offer defined, product in architecture, but **no case study** and objection is strong ("I already do this manually"). |
 | B2 — Parents | 5/10 | Offer defined, but **CustDev missing** (N=0 parents interviewed). Channel unclear. |
 | C1 — Beginners | 4/10 | Freemium trap; correctly labeled "do not spend resources." |
-| C2 — Small clubs | 5/10 | Budget constrained; needs land-and-expand from coach-tier. |
+| C2 — Small clubs | 2/10 | **On hold.** CustDev = 0. Pain unvalidated. Land-and-expand is hypothetical. |
 | D1 — Federations | 2/10 | No product, long cycle. Keep warm via A1 coaches who have federation relationships. |
 | D2 — Solo hobbyists | 1/10 | No monetization path. |
 | X1 — Judges | 1/10 | Blocked by real-time requirement + ISU certification. |
@@ -64,14 +64,14 @@ Actionability = clarity of offer + reachable channel + product readiness + case 
 
 #### 3.1 TAM/SAM Inversion
 
-- Bottom-up TAM (global): **$79.5M** at 100% penetration (`tam-calculation.md`).
-- SAM (Russian-speaking only): **$70M–$140M** (`segmentation.md`).
+- Bottom-up TAM (global): **$36.1M** at 100% penetration (`tam-calculation.md`).
+- SAM (Russian-speaking only): **~$3M** (`segmentation.md`).
 
-**Problem:** SAM cannot be 90–175% of TAM. If the product is truly limited to Russian speakers, the global TAM should be much larger (US, Canada, Japan, Korea, Europe) and SAM a fraction of it. If the product is global, SAM should be larger than TAM? No — the bottom-up TAM is simply too low for a global sport.
+**Problem:** SAM is ~8% of TAM, which is plausible for a Russian-first product. However, the bottom-up TAM may still undercount global markets (US, Canada, Japan, Korea, Europe) where figure skating is larger but SkateLab has no localization or distribution.
 
 **Likely root cause:** The bottom-up detailed calculation silently counts only segments SkateLab currently considers, not all global active figure skaters. The summary table’s 500K active skaters is plausible globally, but the revenue math only adds up to 355K + 20K coaches + 3K academies.
 
-**Recommendation:** Recalculate TAM with full 500K skaters + 50K coaches + 5K clubs. If the product is Russian-first, rename the $79.5M figure to **SAM** and calculate a true global TAM (including non-Russian markets) as $200M+.
+**Recommendation:** The $36.1M bottom-up TAM is plausible for a Russian-first product with limited global distribution. If expanding globally, recalculate TAM with full 500K skaters + 50K coaches + 5K clubs across all markets (US, Canada, Japan, Korea, Europe) — likely $200M+.
 
 #### 3.2 ARPU Realism
 
@@ -95,7 +95,7 @@ Current priority list is mostly correct, but **A2 should rank above A1** for MVP
 |----------|---------|--------|-----------|
 | **P0** | A2 — Advanced skaters | Self-serve launch, $5–10/mo price point. | Lowest CAC, highest willingness per CustDev, immediate feedback loop. |
 | **P1** | A1 — Elite coaches | 3 pilot programs (academies). B2B sales after proof. | High value, but requires case study + longer cycle. Use A2 success as social proof. |
-| **P2** | C2 — Small clubs | Bundle via coach-tier (A1 upsell). | Natural expansion from coaches already using dashboard. |
+| **P2** | C2 — Small clubs | **HOLD**: 3–5 interviews with club directors first. | CustDev = 0. Pain unvalidated. Do not build for this segment until confirmed. |
 | **P3** | B1 — Choreographers | Finish Choreography Planner MVP, then 2 pilot users. | Product-dependent; do not market before feature-complete. |
 | **P4** | B2 — Parents | **HOLD**: Run 5 parent interviews first. | Zero data; high risk of building the wrong thing. |
 | **P5** | C1 — Beginners | Freemium only, zero paid marketing. | Correctly deprioritized. |
@@ -122,7 +122,7 @@ Current priority list is mostly correct, but **A2 should rank above A1** for MVP
 
 | # | Action | Owner | Deadline | Success Metric |
 |---|--------|-------|----------|----------------|
-| 1 | **Fix TAM/SAM inversion**: Recalculate global TAM including non-Russian markets; clearly label $79.5M as SAM if Russian-only. | BizDev / Analyst | 2026-05-14 | One consistent TAM/SAM/SOM table |
+| 1 | **Fix TAM/SAM inversion**: Recalculate global TAM including non-Russian markets; clearly label $36.1M as SAM if Russian-only. | BizDev / Analyst | 2026-05-14 | One consistent TAM/SAM/SOM table |
 | 2 | **Validate A2 ARPU**: Price sensitivity survey with 20+ advanced skaters; test $5 vs $10 vs $20/mo. | Product / Marketing | 2026-05-21 | Price-demand curve; revised ARPU |
 | 3 | **CustDev for B2 (Parents)**: 5 interviews with parents of skaters 6–14y. Validate WTP and channel. | CustDev lead | 2026-05-28 | Interview notes; go/no-go for P4 |
 | 4 | **Define channels for B2**: If CustDev positive, document acquisition channel (parent Telegram/FB groups, club partnerships). | Marketing | 2026-06-04 | Channel CAC estimate |
@@ -143,7 +143,7 @@ Current priority list is mostly correct, but **A2 should rank above A1** for MVP
 | B1 Choreographers | 5,000 | $40 | $2.4M | `tam-calculation.md` |
 | B2 Parents | 100,000 | $15 | $18.0M | `tam-calculation.md` |
 | C1 Beginners | 200,000 | $10 | $24.0M | `tam-calculation.md` |
-| C2 Small clubs | 3,000 | $200 | $7.2M | `tam-calculation.md` |
+| C2 Small clubs | 3,000 | $200 | $7.2M | `tam-calculation.md` ⚠️ CustDev = 0, WTP unvalidated |
 | D1 Federations | 50 | $500 | $0.3M | `tam-calculation.md` |
 
 **Bottom line:** The segmentation framework is solid. Fix the numbers, validate A2 pricing, interview parents before building, and move Adult/Masters into the active targeting list.

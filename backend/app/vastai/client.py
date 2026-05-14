@@ -1,17 +1,15 @@
 """Client for calling Vast.ai Serverless GPU endpoint.
 
 Flow:
-  1. POST /route to get worker URL from Vast.ai
-  2. POST /process to the worker with R2 key + credentials
-  3. Worker processes and uploads results to R2
+  1. POST /route to get worker URL + auth from Vast.ai
+  2. POST /{endpoint} to PyWorker with {auth_data, payload}
+  3. PyWorker validates auth, proxies payload to FastAPI (port 8000)
   4. Return R2 keys (no local download)
 """
 
 from __future__ import annotations
 
 import logging
-import threading
-import time
 from dataclasses import dataclass
 
 import httpx
@@ -24,35 +22,16 @@ ROUTE_URL = "https://run.vast.ai/route/"
 REQUEST_TIMEOUT = 600  # 10 min for video processing
 ROUTE_TIMEOUT = 30
 
-# Worker URL cache to avoid repeated HTTP calls
-_worker_url_cache: str | None = None
-_worker_url_cache_time: float = 0.0
-_WORKER_URL_TTL = 60  # Cache for 60 seconds
-
-# Lock for thread-safe cache access
-_worker_url_lock = threading.Lock()
-
-# Shared async HTTP client (lazy-init, reused across requests)
-_async_client: httpx.AsyncClient | None = None
-
-
-def _get_async_client() -> httpx.AsyncClient:
-    """Return a shared httpx.AsyncClient, creating it on first use."""
-    global _async_client  # noqa: PLW0603
-    if _async_client is None or _async_client.is_closed:
-        _async_client = httpx.AsyncClient(timeout=REQUEST_TIMEOUT)
-    return _async_client
-
 
 @dataclass
 class VastResult:
-    video_key: str
     poses_key: str | None
-    csv_key: str | None
+    metrics_key: str | None
     stats: dict
     metrics: list | None
     phases: object | None
     recommendations: list | None
+    segments: list[dict] | None = None
 
 
 @dataclass
@@ -66,41 +45,72 @@ class VastDetectResult:
     status: str
 
 
-def _get_worker_url(endpoint_name: str, api_key: str) -> str:
-    """Route request to get a ready worker URL."""
-    global _worker_url_cache, _worker_url_cache_time  # noqa: PLW0603
-    now = time.monotonic()
-    with _worker_url_lock:
-        if _worker_url_cache and (now - _worker_url_cache_time) < _WORKER_URL_TTL:
-            return _worker_url_cache
-        resp = httpx.post(
+def _route_request(endpoint_name: str, api_key: str) -> dict:
+    """Get route + auth data from Vast.ai. Each call returns fresh signature."""
+    resp = httpx.post(
+        ROUTE_URL,
+        headers={"Authorization": f"Bearer {api_key}"},
+        json={"endpoint": endpoint_name},
+        timeout=ROUTE_TIMEOUT,
+    )
+    resp.raise_for_status()
+    data = resp.json()
+    if "error_msg" in data:
+        raise RuntimeError(f"Vast.ai route error: {data['error_msg']}")
+    return {
+        "url": data["url"],
+        "signature": data["signature"],
+        "reqnum": data["reqnum"],
+        "request_idx": data["request_idx"],
+        "cost": data["cost"],
+    }
+
+
+async def _async_route_request(endpoint_name: str, api_key: str) -> dict:
+    """Async version of _route_request."""
+    async with httpx.AsyncClient(timeout=ROUTE_TIMEOUT) as client:
+        resp = await client.post(
             ROUTE_URL,
             headers={"Authorization": f"Bearer {api_key}"},
             json={"endpoint": endpoint_name},
-            timeout=ROUTE_TIMEOUT,
         )
         resp.raise_for_status()
         data = resp.json()
-        url = data["url"]
-        _worker_url_cache = url  # noqa: PLW0603
-        _worker_url_cache_time = now  # noqa: PLW0603
-        return url
+        if "error_msg" in data:
+            raise RuntimeError(f"Vast.ai route error: {data['error_msg']}")
+        return {
+            "url": data["url"],
+            "signature": data["signature"],
+            "reqnum": data["reqnum"],
+            "request_idx": data["request_idx"],
+            "cost": data["cost"],
+        }
+
+
+def _build_auth_data(route: dict, endpoint_name: str) -> dict:
+    """Build auth_data dict for PyWorker from route response."""
+    return {
+        "endpoint": endpoint_name,
+        "request_idx": route["request_idx"],
+        "reqnum": route["reqnum"],
+        "url": route["url"],
+        "cost": route["cost"],
+        "signature": route["signature"],
+    }
 
 
 def process_video_remote(
     video_key: str,
     person_click: dict[str, int] | None = None,
     frame_skip: int = 1,
-    layer: int = 3,
     tracking: str = "auto",
-    export: bool = True,
     ml_flags: dict[str, bool] | None = None,
     element_type: str | None = None,
 ) -> VastResult:
     """Send video processing to Vast.ai Serverless GPU.
 
     Video must already be in R2 at `video_key`.
-    Returns R2 keys for results (no local download).
+    Returns R2 keys for poses.npy + metrics.json (no video render).
 
     Raises httpx.HTTPStatusError on routing/processing failures.
     """
@@ -111,19 +121,17 @@ def process_video_remote(
     api_key = settings.vastai.api_key.get_secret_value()
     endpoint_name = settings.vastai.endpoint_name
 
-    # 1. Route to worker
+    # 1. Route to worker (fresh signature per request)
     logger.info("Routing to Vast.ai endpoint: %s", endpoint_name)
-    worker_url = _get_worker_url(endpoint_name, api_key)
-    logger.info("Worker URL: %s", worker_url)
+    route = _route_request(endpoint_name, api_key)
+    logger.info("Worker URL: %s", route["url"])
 
-    # 2. Send processing request (video is already in R2)
+    # 2. Send processing request wrapped in PyWorker format
     payload = {
         "video_r2_key": video_key,
         "person_click": person_click,
         "frame_skip": frame_skip,
-        "layer": layer,
         "tracking": tracking,
-        "export": export,
         "ml_flags": ml_flags,
         "element_type": element_type,
         "r2_endpoint_url": settings.r2.endpoint_url,
@@ -131,55 +139,36 @@ def process_video_remote(
         "r2_secret_access_key": settings.r2.secret_access_key.get_secret_value(),
         "r2_bucket": settings.r2.bucket,
     }
+    body = {
+        "auth_data": _build_auth_data(route, endpoint_name),
+        "payload": payload,
+    }
     resp = httpx.post(
-        f"{worker_url}/process",
-        json=payload,
+        f"{route['url']}/process",
+        json=body,
         timeout=REQUEST_TIMEOUT,
     )
     resp.raise_for_status()
     result = resp.json()
 
     # 3. Return R2 keys directly (no download)
+    segments = result.get("segments")
     return VastResult(
-        video_key=result["video_r2_key"],
         poses_key=result.get("poses_r2_key"),
-        csv_key=result.get("csv_r2_key"),
+        metrics_key=result.get("metrics_r2_key"),
         stats=result["stats"],
         metrics=result.get("metrics"),
         phases=result.get("phases"),
         recommendations=result.get("recommendations"),
+        segments=segments,
     )
-
-
-async def _asyncio_get_worker_url(endpoint_name: str, api_key: str) -> str:
-    """Async route request to get a ready worker URL (with TTL cache)."""
-    global _worker_url_cache, _worker_url_cache_time  # noqa: PLW0603
-    now = time.monotonic()
-    with _worker_url_lock:
-        if _worker_url_cache and (now - _worker_url_cache_time) < _WORKER_URL_TTL:
-            return _worker_url_cache
-        client = _get_async_client()
-        resp = await client.post(
-            ROUTE_URL,
-            headers={"Authorization": f"Bearer {api_key}"},
-            json={"endpoint": endpoint_name},
-            timeout=ROUTE_TIMEOUT,
-        )
-        resp.raise_for_status()
-        data = resp.json()
-        url = data["url"]
-        _worker_url_cache = url  # noqa: PLW0603
-        _worker_url_cache_time = now  # noqa: PLW0603
-        return url
 
 
 async def process_video_remote_async(
     video_key: str,
     person_click: dict[str, int] | None = None,
     frame_skip: int = 1,
-    layer: int = 3,
     tracking: str = "auto",
-    export: bool = True,
     ml_flags: dict[str, bool] | None = None,
     element_type: str | None = None,
 ) -> VastResult:
@@ -191,19 +180,17 @@ async def process_video_remote_async(
     api_key = settings.vastai.api_key.get_secret_value()
     endpoint_name = settings.vastai.endpoint_name
 
-    # 1. Route to worker (async)
+    # 1. Route to worker (fresh signature per request)
     logger.info("Routing to Vast.ai endpoint: %s", endpoint_name)
-    worker_url = await _asyncio_get_worker_url(endpoint_name, api_key)
-    logger.info("Worker URL: %s", worker_url)
+    route = await _async_route_request(endpoint_name, api_key)
+    logger.info("Worker URL: %s", route["url"])
 
-    # 2. Send processing request (video is already in R2)
+    # 2. Send processing request wrapped in PyWorker format
     payload = {
         "video_r2_key": video_key,
         "person_click": person_click,
         "frame_skip": frame_skip,
-        "layer": layer,
         "tracking": tracking,
-        "export": export,
         "ml_flags": ml_flags,
         "element_type": element_type,
         "r2_endpoint_url": settings.r2.endpoint_url,
@@ -211,24 +198,28 @@ async def process_video_remote_async(
         "r2_secret_access_key": settings.r2.secret_access_key.get_secret_value(),
         "r2_bucket": settings.r2.bucket,
     }
-    client = _get_async_client()
-    resp = await client.post(
-        f"{worker_url}/process",
-        json=payload,
-        timeout=REQUEST_TIMEOUT,
-    )
-    resp.raise_for_status()
-    result = resp.json()
+    body = {
+        "auth_data": _build_auth_data(route, endpoint_name),
+        "payload": payload,
+    }
+    async with httpx.AsyncClient(timeout=REQUEST_TIMEOUT) as client:
+        resp = await client.post(
+            f"{route['url']}/process",
+            json=body,
+        )
+        resp.raise_for_status()
+        result = resp.json()
 
     # 3. Return R2 keys directly (no download)
+    segments = result.get("segments")
     return VastResult(
-        video_key=result["video_r2_key"],
         poses_key=result.get("poses_r2_key"),
-        csv_key=result.get("csv_r2_key"),
+        metrics_key=result.get("metrics_r2_key"),
         stats=result["stats"],
         metrics=result.get("metrics"),
         phases=result.get("phases"),
         recommendations=result.get("recommendations"),
+        segments=segments,
     )
 
 
@@ -248,12 +239,12 @@ async def detect_video_remote_async(
     api_key = settings.vastai.api_key.get_secret_value()
     endpoint_name = settings.vastai.endpoint_name
 
-    # 1. Route to worker (async)
+    # 1. Route to worker (fresh signature per request)
     logger.info("Routing detection to Vast.ai endpoint: %s", endpoint_name)
-    worker_url = await _asyncio_get_worker_url(endpoint_name, api_key)
-    logger.info("Worker URL: %s", worker_url)
+    route = await _async_route_request(endpoint_name, api_key)
+    logger.info("Worker URL: %s", route["url"])
 
-    # 2. Send detection request
+    # 2. Send detection request wrapped in PyWorker format
     payload = {
         "video_r2_key": video_key,
         "tracking": tracking,
@@ -262,17 +253,20 @@ async def detect_video_remote_async(
         "r2_secret_access_key": settings.r2.secret_access_key.get_secret_value(),
         "r2_bucket": settings.r2.bucket,
     }
-    client = _get_async_client()
-    resp = await client.post(
-        f"{worker_url}/detect",
-        json=payload,
-        timeout=REQUEST_TIMEOUT,
-    )
-    resp.raise_for_status()
-    result = resp.json()
+    body = {
+        "auth_data": _build_auth_data(route, endpoint_name),
+        "payload": payload,
+    }
+    async with httpx.AsyncClient(timeout=REQUEST_TIMEOUT) as client:
+        resp = await client.post(
+            f"{route['url']}/detect",
+            json=body,
+        )
+        resp.raise_for_status()
+        result = resp.json()
 
     return VastDetectResult(
-        persons=[p.model_dump() if hasattr(p, "model_dump") else p for p in result["persons"]],
+        persons=list(result["persons"]),
         preview_image=result["preview_image"],
         video_key=result["video_key"],
         auto_click=result.get("auto_click"),

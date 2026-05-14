@@ -1,6 +1,6 @@
 # Figure Skating Biomechanics ML - Roadmap
 
-**Status:** MVP 100% complete | Last updated: 2026-04-30
+**Status:** MVP 100% complete | Last updated: 2026-05-13
 
 > **This is the SINGLE SOURCE OF TRUTH for project status.** All implementation decisions and priority changes must be reflected here first.
 
@@ -160,6 +160,17 @@ Direct blade edge detection from single-camera video is an unsolved problem in o
 - ✅ PipelineProfiler: instrument all AnalysisPipeline stages
 - ✅ Deep profiling: ONNX op-level, DeepSORT internals, Conv node breakdown
 - ✅ Measured: ~12s for 14.5s video (GPU, frame_skip=8)
+
+### 🔄 AI Element Timeline (2026-05-13)
+
+**Feature:** ML-based temporal action segmentation for figure skating elements
+
+- ✅ Coarse TAS v2 (BiGRU+Refiner → ONNX)
+- ✅ Fine Classifier (Skeleton1DCNN → ONNX)
+- ✅ GPU Server Integration (asyncio.to_thread concurrent TAS)
+- ✅ Backend Persistence (SessionElement ORM + batch insert)
+- ✅ Frontend (TimelineData schema + ElementTimeline component)
+- ⏳ Validation — needs trained model weights
 
 ### 🎉 API Design Fixes (2026-04-29)
 
@@ -908,6 +919,39 @@ result = engine.fit_jump_trajectory(poses_3d, takeoff_idx, landing_idx)
     - MCFS proper training with GCN
     - **Files:** `experiments/`
 
+### Phase O: AI Element Timeline (2026-05-13) 🔄 IN PROGRESS
+
+66. **Coarse TAS v2** ✅ DONE
+    - BiGRU + Refiner architecture → ONNX export
+    - Replaces legacy rule-based segmentation
+    - **Files:** `ml/src/tas/`
+
+67. **Fine Classifier (Skeleton1DCNN)** ✅ DONE
+    - 1D CNN on skeleton sequences → ONNX export
+    - Per-element fine-grained classification
+    - **Files:** `ml/src/tas/`
+
+68. **GPU Server Integration** ✅ DONE
+    - `asyncio.to_thread` concurrent TAS inference
+    - Non-blocking GPU dispatch in Vast.ai worker
+    - **Files:** `ml/gpu_server/`
+
+69. **Backend Persistence** ✅ DONE
+    - SessionElement ORM model + batch insert
+    - Element CRUD routes
+    - **Files:** `backend/app/models/`, `backend/app/routes/sessions.py`
+
+70. **Frontend Timeline** ✅ DONE
+    - TimelineData schema + ElementTimeline component
+    - Interactive element blocks with type labels
+    - **Files:** `frontend/`
+
+71. **Validation** ⏳ PENDING
+    - Needs trained model weights for end-to-end validation
+    - Synthetic test data only currently
+
+---
+
 ### Phase N: Frontend Polish & Backend Infrastructure (2026-05-02) ✅ DONE
 
 59. **Joint Angle Arcs** ✅ DONE
@@ -1100,6 +1144,7 @@ result = engine.fit_jump_trajectory(poses_3d, takeoff_idx, landing_idx)
 | 0.9 | 2026-04-18 | SaaS + Choreo | Strava dashboard, coach-student relationships, choreography planner |
 | 1.0 | 2026-04-29 | Production | API design fixes, CI/CD deploy pipeline |
 | 1.1 | 2026-05-02 | Production | Frontend polish (3D viewer, comparison), backend infra (rate limits, cache), docs |
+| 1.2 | 2026-05-13 | In Progress | AI Element Timeline (TAS v2, fine classifier, persistence, frontend) |
 
 ---
 

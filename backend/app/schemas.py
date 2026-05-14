@@ -247,9 +247,7 @@ class ProcessRequest(BaseModel):
     video_key: str
     person_click: PersonClick
     frame_skip: int = 1
-    layer: int = 3
     tracking: str = "auto"
-    export: bool = True
     session_id: str | None = None
     depth: bool = False
     optical_flow: bool = False
@@ -319,6 +317,24 @@ class SessionMetricResponse(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class ElementSegmentResponse(BaseModel):
+    id: str
+    element_type: str
+    element_name: str | None = None
+    start_frame: int
+    end_frame: int
+    confidence: float
+    phases_json: dict | None = None
+
+    model_config = {"from_attributes": True}
+
+
+class TimelineData(BaseModel):
+    segments: list[ElementSegmentResponse]
+    segmentation_confidence: float | None = None
+    segmentation_status: str = "pending"
+
+
 # Pose and metrics data types (Task 10, 2026-04-16)
 
 
@@ -384,6 +400,8 @@ class SessionResponse(BaseModel):
     manifest_key: str | None = None
     created_at: str
     processed_at: str | None
+    timeline: TimelineData | None = None
+    segmentation_status: str = "pending"
     metrics: list[SessionMetricResponse] = []
 
     model_config = {"from_attributes": True}
@@ -623,3 +641,21 @@ class SaveProgramRequest(BaseModel):
 
 class ExportRequest(BaseModel):
     format: str = Field(pattern=r"^(svg|pdf|json)$")
+
+
+class ElementDefResponse(BaseModel):
+    code: str
+    name: str
+    type: str  # "jump" | "spin" | "step_sequence" | "choreo_sequence"
+    base_value: float
+    rotations: float
+    has_toe_pick: bool
+    entry_edge: str
+    exit_edge: str
+    combo_eligible: bool
+    short_program_eligible: bool
+
+
+class ElementRegistryResponse(BaseModel):
+    elements: list[ElementDefResponse]
+    season: str

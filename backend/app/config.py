@@ -112,7 +112,7 @@ class VastAIConfig(BaseSettings):
     """Vast.ai Serverless GPU settings."""
 
     api_key: SecretStr = SecretStr("")
-    endpoint_name: str = "skatelab-worker"
+    endpoint_name: str = "skatelab-workers"
 
     class Config:
         env_prefix = "VASTAI_"

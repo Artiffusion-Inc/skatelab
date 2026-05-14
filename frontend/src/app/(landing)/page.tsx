@@ -1,6 +1,4 @@
 import type { Metadata } from "next"
-import { cookies } from "next/headers"
-import { redirect } from "next/navigation"
 import { getTranslations } from "next-intl/server"
 import { LandingClient } from "@/components/landing/landing-client"
 
@@ -8,11 +6,11 @@ export async function generateMetadata(): Promise<Metadata> {
   return {
     title: "SkateLab — AI Тренер по фигурному катанию",
     description:
-      "Запишите прыжок — увидьте миллиметры. AI-анализ техники: высота ЦМТ, доворот, время полёта. < 15 с на полный разбор видео.",
+      "Измеряй технику, а не угадывай. IMU-датчики + ИИ: ±1° точность вместо ±10° у видео. Анализ в реальном времени, планирование программ, прогресс в цифрах.",
     alternates: { canonical: "https://skatelab.ru" },
     openGraph: {
       title: "SkateLab — AI Тренер по фигурному катанию",
-      description: "Запишите прыжок — увидьте миллиметры. AI-анализ техники за < 15 секунд.",
+      description: "Измеряй технику, а не угадывай. IMU-датчики + ИИ: ±1° точность.",
       url: "https://skatelab.ru",
       siteName: "SkateLab",
       locale: "ru_RU",
@@ -30,9 +28,6 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function LandingPage() {
-  const hasAuth = (await cookies()).get("sb_auth")?.value
-  if (hasAuth) redirect("/feed")
-
   const t = await getTranslations("landing")
 
   const faqItems = [

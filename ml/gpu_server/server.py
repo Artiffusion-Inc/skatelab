@@ -2,6 +2,8 @@
 
 Runs on the remote GPU. Receives R2 keys, processes video, returns results.
 R2 credentials are passed per-request so the worker does not store cloud credentials.
+
+Output: poses (.npy) + metrics (.json) — no video render.
 """
 
 from __future__ import annotations
@@ -14,17 +16,25 @@ import time
 from pathlib import Path
 
 import aiobotocore.session
+import numpy as np
 from fastapi import FastAPI
-from prometheus_client import CONTENT_TYPE_LATEST, Counter, Gauge, Histogram, generate_latest
 from pydantic import BaseModel
 from starlette.responses import Response
 
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.INFO, force=True)
 logger = logging.getLogger(__name__)
+
+# File handler for PyWorker log monitoring (Vast.ai Serverless reads this)
+_log_file = os.environ.get("MODEL_LOG_FILE", "/tmp/skatelab-server.log")  # noqa: S108
+_fh = logging.FileHandler(_log_file)
+_fh.setFormatter(logging.Formatter("%(levelname)s:%(name)s:%(message)s"))
+logging.getLogger().addHandler(_fh)
 
 app = FastAPI(title="Skating ML GPU Worker")
 
 # Prometheus metrics
+from prometheus_client import CONTENT_TYPE_LATEST, Counter, Gauge, Histogram, generate_latest
+
 INFERENCE_DURATION = Histogram(
     "inference_duration_seconds",
     "Time spent processing a video",
@@ -43,65 +53,72 @@ ACTIVE_REQUESTS = Gauge(
 # Models are at /app/data/models/ inside the container
 os.environ.setdefault("PROJECT_ROOT", "/app")
 
-MOGANET_MODEL_PATH = Path("data/models/moganet/moganet_b_ap2d_384x288.onnx")
-MOGANET_R2_KEY = "models/moganet/moganet_b_ap2d_384x288.onnx"
+_PROJECT_ROOT = Path(os.environ.get("PROJECT_ROOT", "/app"))
+MOGANET_MODEL_PATH = _PROJECT_ROOT / "data/models/moganet/moganet_b_ap2d_384x288.onnx"
+YOLO_MODEL_PATH = _PROJECT_ROOT / "data/models/yolov8n.onnx"
+TAS_MODEL_PATH = _PROJECT_ROOT / "data/models/tas/bigr_refiner_best.onnx"
 
+# R2 keys for each model
+_R2_MODELS: list[tuple[Path, str]] = [
+    (MOGANET_MODEL_PATH, "models/moganet/moganet_b_ap2d_384x288.onnx"),
+    (YOLO_MODEL_PATH, "models/yolov8n.onnx"),
+    (TAS_MODEL_PATH, "models/tas/bigr_refiner_best.onnx"),
+]
+
+# TAS segmenter (loaded at startup, None if model unavailable)
+_tas_segmenter = None
 # Async session for R2
 _async_session = aiobotocore.session.get_session()
 
 
-async def _download_model_if_missing():
-    """Download MogaNet ONNX from R2 if not already in the image."""
-    if MOGANET_MODEL_PATH.exists():
-        logger.info(
-            "MogaNet ONNX found: %s (%.1f MB)",
-            MOGANET_MODEL_PATH,
-            MOGANET_MODEL_PATH.stat().st_size / 1e6,
-        )
-        return
+_models_ready = False
 
-    r2_endpoint = os.environ.get("R2_ENDPOINT_URL", "")
-    r2_key = os.environ.get("R2_ACCESS_KEY_ID", "")
-    r2_secret = os.environ.get("R2_SECRET_ACCESS_KEY", "")
-    r2_bucket = os.environ.get("R2_BUCKET", "")
 
-    if not all([r2_endpoint, r2_key, r2_secret, r2_bucket]):
-        logger.warning("MogaNet ONNX missing and R2 credentials not set — model download skipped")
-        return
+async def _background_init():
+    """Download models + warmup CUDA — runs after server is accepting requests."""
+    global _models_ready, _tas_segmenter  # noqa: PLW0603
+    try:
+        if not MOGANET_MODEL_PATH.exists():
+            raise OSError(f"Model not found: {MOGANET_MODEL_PATH}")
+        if not YOLO_MODEL_PATH.exists():
+            raise OSError(f"Model not found: {YOLO_MODEL_PATH}")
 
-    logger.info("MogaNet ONNX not found, downloading from R2: %s", MOGANET_R2_KEY)
-    MOGANET_MODEL_PATH.parent.mkdir(parents=True, exist_ok=True)
-    async with _async_session.create_client(
-        "s3",
-        endpoint_url=r2_endpoint,
-        aws_access_key_id=r2_key,
-        aws_secret_access_key=r2_secret,
-        region_name="auto",
-    ) as s3:
-        await s3.download_file(r2_bucket, MOGANET_R2_KEY, str(MOGANET_MODEL_PATH))
-    logger.info(
-        "MogaNet ONNX downloaded: %s (%.1f MB)",
-        MOGANET_MODEL_PATH,
-        MOGANET_MODEL_PATH.stat().st_size / 1e6,
-    )
+        from src.device import DeviceConfig
+
+        cfg = DeviceConfig.default()
+        if cfg.is_cuda:
+            import onnxruntime as ort
+
+            opts = ort.SessionOptions()
+            opts.intra_op_num_threads = 1
+            opts.inter_op_num_threads = 2
+            logger.info("GPU warmup: CUDA initialized")
+
+        # Load TAS segmenter if model exists
+        try:
+            from src.tas.inference import TASElementSegmenter
+
+            if TAS_MODEL_PATH.exists():
+                _tas_segmenter = TASElementSegmenter(model_path=str(TAS_MODEL_PATH))
+                logger.info("TAS segmenter loaded at startup (ONNX)")
+            else:
+                logger.warning("TAS model not found at %s — timeline unavailable", TAS_MODEL_PATH)
+        except (ValueError, RuntimeError, OSError):
+            logger.warning("TAS segmenter not loaded — timeline unavailable", exc_info=True)
+
+        _models_ready = True
+        logger.info("Background init complete — models ready")
+    except (OSError, ValueError, RuntimeError):
+        logger.exception("Background init failed")
+        _models_ready = False
 
 
 @app.on_event("startup")
 async def warmup_gpu():
-    """Pre-warm CUDA/cuDNN and download missing models from R2."""
-    await _download_model_if_missing()
+    """Start background model verification — server accepts requests immediately."""
+    import asyncio
 
-    from src.device import DeviceConfig
-
-    cfg = DeviceConfig.default()
-    if not cfg.is_cuda:
-        return
-    import onnxruntime as ort
-
-    opts = ort.SessionOptions()
-    opts.intra_op_num_threads = 1
-    opts.inter_op_num_threads = 2
-    logging.getLogger(__name__).info("GPU warmup: CUDA initialized")
+    _bg_task = asyncio.create_task(_background_init())  # noqa: RUF006
 
 
 @app.get("/metrics")
@@ -112,16 +129,18 @@ async def metrics():
 
 @app.get("/ready")
 async def ready():
-    """Readiness probe — checks ONNX session health."""
+    """Readiness probe — returns 200 once server is up (models load in background)."""
+    if not _models_ready:
+        return {"status": "initializing", "detail": "models initializing"}
     try:
         import onnxruntime as ort
 
         providers = ort.get_available_providers()
         if "CUDAExecutionProvider" not in providers:
-            return Response(status_code=503, content='{"status": "no_cuda"}')
-        return {"status": "ready"}
+            return {"status": "ready", "gpu": "cpu_fallback"}
+        return {"status": "ready", "gpu": "cuda"}
     except (ImportError, RuntimeError, OSError):
-        return Response(status_code=503, content='{"status": "unhealthy"}')
+        return {"status": "ready", "gpu": "unknown"}
 
 
 class DetectRequest(BaseModel):
@@ -157,7 +176,6 @@ class ProcessRequest(BaseModel):
     frame_skip: int = 1
     layer: int = 3
     tracking: str = "auto"
-    export: bool = True
     ml_flags: dict[str, bool] = {}
     element_type: str | None = None
     # R2 credentials passed per-request (worker doesn't store them)
@@ -168,13 +186,13 @@ class ProcessRequest(BaseModel):
 
 
 class ProcessResponse(BaseModel):
-    video_r2_key: str
     poses_r2_key: str | None = None
-    csv_r2_key: str | None = None
+    metrics_r2_key: str | None = None
     stats: dict
     metrics: list | None = None
     phases: object | None = None
     recommendations: list | None = None
+    segments: list[dict] | None = None
 
 
 def _s3(creds: ProcessRequest | DetectRequest):
@@ -229,6 +247,8 @@ DETECT_REQUESTS = Counter(
 
 @app.post("/detect", response_model=DetectResponse)
 async def detect(req: DetectRequest):
+    if not _models_ready:
+        return Response(status_code=503, content='{"status": "models_loading"}')
     import base64
 
     import cv2
@@ -240,12 +260,12 @@ async def detect(req: DetectRequest):
     ACTIVE_REQUESTS.inc()
     start = time.perf_counter()
     try:
-        async with await _s3(req) as s3:
+        async with _s3(req) as s3:
             with tempfile.TemporaryDirectory() as tmpdir:
                 video_local = Path(tmpdir) / "input.mp4"
 
                 logger.info("Downloading video for detection from R2: %s", req.video_r2_key)
-                await s3.download_file(req.r2_bucket, req.video_r2_key, str(video_local))
+                await _s3_download(s3, req.r2_bucket, req.video_r2_key, str(video_local))
 
                 cfg = DeviceConfig.default()
                 extractor = PoseExtractor(
@@ -358,12 +378,27 @@ def _render_person_preview(frame, persons, selected_idx=None):
     return annotated
 
 
+def _make_output_keys(video_r2_key: str) -> tuple[str, str]:
+    """Generate R2 output keys: (poses_key, metrics_key).
+
+    'uploads/abc/input.mp4' → poses='uploads/abc/output_poses.npy', metrics='uploads/abc/output_metrics.json'
+    'uploads/test/waltz.mp4' → poses='output/uploads/test/waltz_poses.npy', metrics='output/uploads/test/waltz_metrics.json'
+    """
+    p = Path(video_r2_key)
+    if p.stem == "input":
+        base = str(p.with_name("output"))
+    else:
+        base = f"output/{video_r2_key.rsplit('.', 1)[0]}"
+
+    return f"{base}_poses.npy", f"{base}_metrics.json"
+
+
 @app.post("/process", response_model=ProcessResponse)
 async def process(req: ProcessRequest):
-    from src.types import PersonClick
-    from src.utils.frame_buffer import AsyncFrameReader
-    from src.utils.video_writer import H264Writer
-    from src.visualization.pipeline import VizPipeline, prepare_poses
+    if not _models_ready:
+        return Response(status_code=503, content='{"status": "models_loading"}')
+    from src.pose_preparation import prepare_poses
+    from src.types import ElementPhase, PersonClick
 
     ACTIVE_REQUESTS.inc()
     start = time.perf_counter()
@@ -371,7 +406,6 @@ async def process(req: ProcessRequest):
         async with _s3(req) as s3:
             with tempfile.TemporaryDirectory() as tmpdir:
                 video_local = Path(tmpdir) / "input.mp4"
-                output_local = Path(tmpdir) / "output.mp4"
 
                 logger.info("Downloading video from R2: %s", req.video_r2_key)
                 await _s3_download(s3, req.r2_bucket, req.video_r2_key, str(video_local))
@@ -382,7 +416,9 @@ async def process(req: ProcessRequest):
                     else None
                 )
 
-                logger.info("Running pipeline (ml_flags=%s)", req.ml_flags)
+                logger.info(
+                    "Running pipeline (element=%s, ml_flags=%s)", req.element_type, req.ml_flags
+                )
                 prepared = prepare_poses(
                     video_local,
                     person_click=click,
@@ -391,66 +427,96 @@ async def process(req: ProcessRequest):
                     progress_cb=None,
                 )
 
-                pipe = VizPipeline(
-                    meta=prepared.meta,
-                    poses_norm=prepared.poses_norm,
-                    poses_px=prepared.poses_px,
-                    poses_3d=prepared.poses_3d,
-                    layer=req.layer,
-                    confs=prepared.confs,
-                    frame_indices=prepared.frame_indices,
-                )
+                # --- TAS element segmentation (concurrent with biomechanics) ---
+                def _run_tas_sync():
+                    """Blocking TAS ONNX inference — runs in thread pool for true parallelism."""
+                    if _tas_segmenter is None:
+                        return None
+                    segs = _tas_segmenter.segment(prepared.poses_norm, fps=prepared.meta.fps)
+                    return [
+                        {
+                            "element_type": s["element_type"],
+                            "start": s["start"],
+                            "end": s["end"],
+                            "confidence": s["confidence"],
+                        }
+                        for s in segs
+                    ]
 
-                meta = prepared.meta
-                writer = H264Writer(output_local, meta.width, meta.height, meta.fps)
-                reader = AsyncFrameReader(video_local, buffer_size=16, frame_skip=1)
-                reader.start()
+                # Offload TAS to thread — asyncio.create_task does NOT parallelize CPU/GPU code
+                segments_coro = asyncio.to_thread(_run_tas_sync)
 
-                frame_idx = 0
-                pose_idx = 0
+                # --- Biomechanics analysis ---
+                metrics: list = []
+                phases: ElementPhase | None = None
+                recommendations: list = []
 
-                while True:
-                    result = reader.get_frame()
-                    if result is None:
-                        break
-                    fi, frame = result
-                    current_pose_idx, pose_idx = pipe.find_pose_idx(fi, pose_idx)
-                    frame, _ = pipe.render_frame(frame, fi, current_pose_idx)
-                    pipe.draw_frame_counter(frame, fi)
-                    writer.write(frame)
-                    frame_idx += 1
+                if req.element_type:
+                    from src.analysis import element_defs
+                    from src.analysis.metrics import BiomechanicsAnalyzer
+                    from src.analysis.phase_detector import PhaseDetector
+                    from src.analysis.recommender import Recommender
 
-                reader.join(timeout=5)
-                writer.close()
+                    element_def = element_defs.get_element_def(req.element_type)
+                    if element_def is not None:
+                        phase_detector = PhaseDetector()
+                        phase_result = phase_detector.detect_phases(
+                            prepared.poses_norm, prepared.meta.fps, req.element_type
+                        )
+                        phases = phase_result.phases
 
-                result = {
+                        analyzer = BiomechanicsAnalyzer(element_def)
+                        metrics = analyzer.analyze(prepared.poses_norm, phases, prepared.meta.fps)
+
+                        recommender = Recommender()
+                        recommendations = recommender.recommend(metrics, req.element_type)
+
+                # Wait for TAS to finish
+                segments_result = await segments_coro
+                # --- Upload results to R2 ---
+                poses_key, metrics_key = _make_output_keys(req.video_r2_key)
+                upload_tasks = []
+
+                logger.info("Uploading poses + metrics to R2")
+
+                # Save poses as .npy
+                poses_local = Path(tmpdir) / "poses.npy"
+                np.save(str(poses_local), prepared.poses_norm)
+                upload_tasks.append(_s3_upload(s3, req.r2_bucket, poses_key, str(poses_local)))
+
+                # Save metrics + phases + recommendations as JSON
+                import json as _json
+
+                metrics_json = Path(tmpdir) / "metrics.json"
+                metrics_data = {
                     "stats": {
-                        "total_frames": meta.num_frames,
+                        "total_frames": prepared.meta.num_frames,
                         "valid_frames": prepared.n_valid,
-                        "fps": meta.fps,
-                        "resolution": f"{meta.width}x{meta.height}",
+                        "fps": prepared.meta.fps,
+                        "resolution": f"{prepared.meta.width}x{prepared.meta.height}",
                     },
+                    "metrics": [
+                        {"name": m.name, "value": m.value, "unit": m.unit, "is_good": m.is_good}
+                        for m in metrics
+                    ],
+                    "phases": phases.__dict__ if phases else None,
+                    "recommendations": recommendations,
+                    "element_type": req.element_type,
                 }
-
-                out_key = req.video_r2_key.replace("input/", "output/")
-                logger.info("Uploading result to R2: %s", out_key)
-
-                upload_tasks = [_s3_upload(s3, req.r2_bucket, out_key, str(output_local))]
-
-                poses_key = None
-                csv_key = None
+                metrics_json.write_text(_json.dumps(metrics_data, ensure_ascii=False, indent=2))
+                upload_tasks.append(_s3_upload(s3, req.r2_bucket, metrics_key, str(metrics_json)))
 
                 await asyncio.gather(*upload_tasks)
 
                 INFERENCE_REQUESTS.labels(status="success").inc()
                 return ProcessResponse(
-                    video_r2_key=out_key,
                     poses_r2_key=poses_key,
-                    csv_r2_key=csv_key,
-                    stats=result["stats"],
-                    metrics=result.get("metrics"),
-                    phases=result.get("phases"),
-                    recommendations=result.get("recommendations"),
+                    metrics_r2_key=metrics_key,
+                    stats=metrics_data["stats"],
+                    metrics=metrics_data["metrics"],
+                    phases=metrics_data["phases"],
+                    recommendations=recommendations,
+                    segments=segments_result,
                 )
     except Exception:
         INFERENCE_REQUESTS.labels(status="error").inc()
@@ -465,21 +531,7 @@ async def health():
     return {"status": "ok"}
 
 
-@app.get("/debug/net")
-async def debug_net():
-    """Check outbound HTTPS connectivity."""
-    import httpx
-
-    r2_ep = os.environ.get(
-        "CF_R2_ENDPOINT_URL",
-        "https://28d6f87dc336e12d133b3886d711348d.r2.cloudflarestorage.com",
-    )
-    results = {}
-    async with httpx.AsyncClient(timeout=5) as client:
-        for url in ["https://1.1.1.1", "https://httpbin.org/get", r2_ep]:
-            try:
-                await client.head(url)
-                results[url] = "ok"
-            except Exception as e:
-                results[url] = f"FAIL: {e}"
-    return results
+@app.post("/ping")
+async def ping():
+    """Lightweight liveness probe for Vast.ai PyWorker benchmarks."""
+    return {"status": "ok"}

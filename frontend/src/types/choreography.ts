@@ -138,9 +138,9 @@ export const TRACK_CONFIG: Record<
 }
 
 export const RINK_PRESETS: { name: string; width: number; height: number }[] = [
-  { name: "Olympic", width: 60, height: 30 },
-  { name: "NHL", width: 61, height: 26 },
-  { name: "Training", width: 56, height: 26 },
+  { name: "Olympic", width: 30, height: 61 },
+  { name: "NHL", width: 26, height: 61 },
+  { name: "Training", width: 26, height: 56 },
 ]
 
 export const DEFAULT_DURATIONS: Record<TrackType, number> = {

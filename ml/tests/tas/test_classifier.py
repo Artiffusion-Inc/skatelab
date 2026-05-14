@@ -1,7 +1,8 @@
-"""Tests for RF segment classifier."""
+"""Tests for RF segment classifier and Skeleton1DCNN."""
 
 import numpy as np
 import pytest
+import torch
 
 try:
     from ml.src.tas.classifier import SegmentClassifier, extract_segment_features
@@ -52,6 +53,43 @@ def test_classifier_fit_predict():
     label, conf = clf.predict(segments[0]["features"])
     assert label == "3Flip"
     assert 0 <= conf <= 1
+
+
+def test_skeleton1dcnn_forward():
+    from src.tas.classifier import Skeleton1DCNN
+
+    model = Skeleton1DCNN(num_classes=7)
+    x = torch.randn(4, 120, 34)
+    lengths = torch.tensor([120, 100, 80, 60])
+    out = model(x, lengths)
+    assert out.shape == (4, 7)
+    assert not torch.isnan(out).any()
+
+
+def test_skeleton1dcnn_variable_length():
+    from src.tas.classifier import Skeleton1DCNN
+
+    model = Skeleton1DCNN(num_classes=5)
+    x = torch.randn(2, 200, 34)
+    lengths = torch.tensor([200, 50])
+    out = model(x, lengths)
+    assert out.shape == (2, 5)
+    assert not torch.isnan(out).any()
+
+
+def test_skeleton1dcnn_duration_feature():
+    """Duration feature differentiates short vs long segments."""
+    from src.tas.classifier import Skeleton1DCNN
+
+    model = Skeleton1DCNN(num_classes=3)
+    x = torch.randn(2, 100, 34)
+    lengths_short = torch.tensor([30, 30])
+    lengths_long = torch.tensor([100, 100])
+    with torch.no_grad():
+        out_short = model(x, lengths_short)
+        out_long = model(x, lengths_long)
+    # Outputs should differ due to duration feature
+    assert not torch.allclose(out_short, out_long)
 
 
 if __name__ == "__main__":

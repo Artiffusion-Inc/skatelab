@@ -4,6 +4,9 @@ import android.content.Context
 import ru.skatelab.capture.AppLogger
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
 import ru.skatelab.capture.domain.model.CalibrationData
@@ -19,6 +22,9 @@ class SessionRepositoryImpl @Inject constructor(
     @ApplicationContext private val context: Context,
     private val appLogger: AppLogger,
 ) : SessionRepository {
+
+    private val _sessions = MutableStateFlow<List<CaptureSession>>(emptyList())
+    override val sessions: StateFlow<List<CaptureSession>> = _sessions.asStateFlow()
 
     companion object {
         private const val TAG = "SessionRepo"

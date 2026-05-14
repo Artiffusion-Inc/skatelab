@@ -125,15 +125,27 @@ def compute_segment_angles(pose: NDArray[np.float32]) -> dict[str, float]:
 
         try:
             if name == "Trunk":
-                angles[name] = segment_angle(mid_hip, mid_shoulder)
+                angles[name] = segment_angle(
+                    np.asarray(mid_hip, dtype=np.float64),
+                    np.asarray(mid_shoulder, dtype=np.float64),
+                )
             elif name == "Head":
-                angles[name] = segment_angle(mid_shoulder, pose[H36Key.HEAD])
+                angles[name] = segment_angle(
+                    np.asarray(mid_shoulder, dtype=np.float64),
+                    np.asarray(pose[H36Key.HEAD], dtype=np.float64),
+                )
             elif name in ("R Foot", "L Foot"):
                 idx = H36Key.RFOOT if "R" in name else H36Key.LFOOT
                 knee_idx = H36Key.RKNEE if "R" in name else H36Key.LKNEE
-                angles[name] = segment_angle(pose[knee_idx], pose[idx])
+                angles[name] = segment_angle(
+                    np.asarray(pose[knee_idx], dtype=np.float64),
+                    np.asarray(pose[idx], dtype=np.float64),
+                )
             else:
-                angles[name] = segment_angle(pose[start], pose[end])
+                angles[name] = segment_angle(
+                    np.asarray(pose[start], dtype=np.float64),
+                    np.asarray(pose[end], dtype=np.float64),
+                )
         except (ValueError, ZeroDivisionError, IndexError):
             angles[name] = np.nan
 

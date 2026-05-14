@@ -211,7 +211,7 @@ describe("silent refresh on 401", () => {
     expect(mockFetch).toHaveBeenCalledTimes(3)
   })
 
-  it("redirects to login when refresh fails", async () => {
+  it("throws ApiError(401) when refresh fails", async () => {
     setTokens("old-access", "invalid-refresh")
 
     // First call: 401
@@ -225,16 +225,15 @@ describe("silent refresh on 401", () => {
     // Refresh call: fails
     mockFetch.mockResolvedValueOnce(mockResponse({ ok: false, status: 401 }))
 
-    // handleAuthFailure sets window.location.href and returns never (pending promise)
-    const result = apiFetch("/protected", TestSchema)
-    // Prevent unhandled rejection
-    result.catch(() => {})
-    // Wait a tick for the async flow to complete redirect
-    await new Promise(r => setTimeout(r, 10))
-    expect(mockRedirect).toHaveBeenCalledWith("/login")
+    await expect(apiFetch("/protected", TestSchema)).rejects.toSatisfy(err => {
+      assert(err instanceof ApiError)
+      expect(err.status).toBe(401)
+      return true
+    })
+    expect(getAccessToken()).toBeNull()
   })
 
-  it("redirects to login when no refresh token available", async () => {
+  it("throws ApiError(401) when no refresh token available", async () => {
     mockLocalStorage.setItem("access_token", "old-access")
 
     mockFetch.mockResolvedValueOnce(
@@ -245,10 +244,12 @@ describe("silent refresh on 401", () => {
       }),
     )
 
-    const result = apiFetch("/protected", TestSchema)
-    result.catch(() => {})
-    await new Promise(r => setTimeout(r, 10))
-    expect(mockRedirect).toHaveBeenCalledWith("/login")
+    await expect(apiFetch("/protected", TestSchema)).rejects.toSatisfy(err => {
+      assert(err instanceof ApiError)
+      expect(err.status).toBe(401)
+      return true
+    })
+    expect(getAccessToken()).toBeNull()
   })
 })
 

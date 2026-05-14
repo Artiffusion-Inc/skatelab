@@ -17,28 +17,30 @@ export function FAQSection() {
     <section
       id="faq"
       tabIndex={-1}
-      className="border-t border-hairline mx-auto max-w-3xl px-6 py-20 md:py-28"
+      className="border-t border-hairline mx-auto max-w-5xl px-6 py-16 md:py-24"
       aria-labelledby="faq-heading"
     >
-      <div className="faq-header mb-10">
-        <p className="mb-4 sh-micro uppercase tracking-[0.3em] text-ink-mute">{t("faqTitle")}</p>
-        <h2 id="faq-heading" className="sh-display-xl text-ink">
-          {t("faqTitle")}
-        </h2>
-      </div>
+      <div className="lg:grid lg:grid-cols-[1fr_2fr] lg:gap-16">
+        <div className="faq-header mb-10 md:mb-14 lg:mb-0">
+          <p className="mb-4 sh-caption text-ink-mute">{t("faqEyebrow")}</p>
+          <h2 id="faq-heading" className="sh-display-xl text-ink max-w-md">
+            {t("faqTitle")}
+          </h2>
+        </div>
 
-      <Accordion type="single" collapsible>
-        {FAQ_KEYS.map(n => (
-          <AccordionItem key={n} value={`faq-${n}`}>
-            <AccordionTrigger className="min-h-[44px] py-3 text-left">
-              {t(`faqQ${n}`)}
-            </AccordionTrigger>
-            <AccordionContent className="sh-body-md text-ink-mute">
-              {t(`faqA${n}`)}
-            </AccordionContent>
-          </AccordionItem>
-        ))}
-      </Accordion>
+        <Accordion type="single" collapsible>
+          {FAQ_KEYS.map(n => (
+            <AccordionItem key={n} value={`faq-${n}`}>
+              <AccordionTrigger className="min-h-[44px] py-3 text-left max-w-[65ch]">
+                {t(`faqQ${n}`)}
+              </AccordionTrigger>
+              <AccordionContent className="sh-body-md text-ink-mute max-w-[65ch]">
+                {t(`faqA${n}`)}
+              </AccordionContent>
+            </AccordionItem>
+          ))}
+        </Accordion>
+      </div>
     </section>
   )
 }

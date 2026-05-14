@@ -6,7 +6,8 @@
     "useIgnoreFile": true
   },
   "files": {
-    "ignoreUnknown": false
+    "ignoreUnknown": false,
+    "includes": ["**", "!next-env.d.ts"]
   },
   "formatter": {
     "enabled": true,
@@ -106,6 +107,16 @@
         "rules": {
           "suspicious": {
             "noArrayIndexKey": "off"
+          }
+        }
+      }
+    },
+    {
+      "includes": ["src/components/landing/demo-section.tsx"],
+      "linter": {
+        "rules": {
+          "a11y": {
+            "useSemanticElements": "off"
           }
         }
       }

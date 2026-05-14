@@ -216,9 +216,7 @@ async def process_video_task(
     video_key: str,
     person_click: dict[str, int],
     frame_skip: int = 1,
-    layer: int = 3,
     tracking: str = "auto",
-    export: bool = True,
     ml_flags: dict[str, bool] | None = None,
     session_id: str | None = None,
 ) -> dict[str, Any]:
@@ -278,9 +276,7 @@ async def process_video_task(
                 if person_click
                 else None,
                 frame_skip=frame_skip,
-                layer=layer,
                 tracking=tracking,
-                export=export,
                 ml_flags=ml_flags,
                 element_type=element_type,
             )
@@ -336,7 +332,8 @@ async def process_video_task(
                 logger.warning("Failed to prepare pose data: %s", pose_err)
 
         response_data = {
-            "video_path": vast_result.video_key,
+            "poses_key": vast_result.poses_key or "",
+            "metrics_key": vast_result.metrics_key or "",
             "stats": vast_result.stats,
             "status": "Analysis complete!",
         }
@@ -345,9 +342,13 @@ async def process_video_task(
         await publish_task_event(
             task_id, {"status": "completed", "progress": 1.0, "message": "Done"}, valkey=valkey
         )
-        if session_id and vast_result.metrics:
+        if session_id:
             try:
-                from app.crud.session import update_session_analysis
+                from app.crud.session import (
+                    batch_insert_elements,
+                    get_by_id,
+                    update_session_analysis,
+                )
                 from app.database import async_session  # type: ignore[import-untyped]
                 from app.services.session_saver import save_analysis_results
 
@@ -362,17 +363,40 @@ async def process_video_task(
                             phases=vast_result.phases,  # type: ignore[arg-type]
                         )
 
-                    # Save metrics and recommendations (existing flow)
-                    await save_analysis_results(
-                        db,
-                        session_id=session_id,
-                        metrics=vast_result.metrics,
-                        phases=vast_result.phases,
-                        recommendations=vast_result.recommendations or [],
-                    )
+                    # Save metrics and recommendations
+                    if vast_result.metrics:
+                        await save_analysis_results(
+                            db,
+                            session_id=session_id,
+                            metrics=vast_result.metrics,
+                            phases=vast_result.phases,
+                            recommendations=vast_result.recommendations or [],
+                        )
+
+                    # Save timeline segments (same transaction as metrics)
+                    if vast_result.segments:
+                        seg_confidence = float(
+                            np.mean([s["confidence"] for s in vast_result.segments])
+                        )
+                        await batch_insert_elements(
+                            db,
+                            session_id,
+                            vast_result.segments,
+                            segmentation_confidence=seg_confidence,
+                        )
+
+                    # Update segmentation_status atomically
+                    session_obj = await get_by_id(db, session_id)
+                    if session_obj:
+                        if vast_result.segments is not None:
+                            session_obj.segmentation_status = "done"
+                        else:
+                            session_obj.segmentation_status = "failed"
+
+                    # Single commit for metrics + segments + status
                     await db.commit()
             except (OSError, ValueError, RuntimeError) as save_err:
-                logger.warning("Failed to save session results: %s", save_err)
+                logger.warning("Failed to save session data: %s", save_err)
 
         return response_data
 

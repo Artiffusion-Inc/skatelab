@@ -1,9 +1,13 @@
 # Technology & R&D Risks
 
+> **Актуально:** Hardware-first модель (IMU-трекеры). SaaS — дополнительный поток.
+
 ## Current Tech Stack
 
 | Компонент | Технология | Версия | Зрелость |
 |-----------|-----------|--------|----------|
+| **IMU Hardware** | **IMU (MPU9250), BLE 5.0** | — | **Prototype** |
+| Mobile App (Hardware) | Kotlin, Android | Latest | WIP (`mobile/lib/`) |
 | ML Pipeline | Python, rtmlib, onnxruntime-gpu | 3.12, latest | MVP complete |
 | Pose Backend | RTMO/Body (COCO 17kp) | rtmlib latest | Production-ready |
 | 3D Lifter | MotionAGFormer-S | 59MB | Functional |
@@ -13,11 +17,10 @@
 | Task Queue | arq + Valkey | Latest | Functional |
 | Storage | Cloudflare R2 | — | Stable |
 | Remote GPU | Vast.ai Serverless | — | Functional |
-| Mobile | Flutter (partial) | — | WIP |
 
 ## R&D Roadmap
 
-### Completed (MVP)
+### Completed (MVP Software)
 
 - ✅ RTMO pose estimation pipeline (~12s for 14.5s video)
 - ✅ CoM-based phase detection (eliminates 60% height error)
@@ -28,15 +31,16 @@
 - ✅ Side-by-side comparison
 - ✅ Rate limiting, caching, i18n
 
-### In Progress / Planned
+### In Progress / Planned (Hardware)
 
 | Фича | Приоритет | Сложность | Статус |
 |------|-----------|-----------|--------|
+| **3D-printed кейс для IMU** | **High** | Medium | **В разработке (ИТМО)** |
+| **Mobile app BLE integration** | **High** | High | **WIP (`mobile/lib/`)** |
+| **IMU + video sync** | **High** | High | **PoC** |
 | GCN element classifier | Medium | High | Research |
 | Reference database expansion | High | Medium | Planned |
-| Mobile app | High | High | WIP (`mobile/lib/`) |
 | Real-time pipeline (<1s) | Low | Very High | Research |
-| Audio-visual blade detection | Low | Very High | Deprioritized |
 
 ## Technical Risks
 
@@ -44,17 +48,17 @@
 
 | Риск | Вероятность | Влияние | Mitigation |
 |------|-----------|---------|-----------|
-| GPU cost scaling | Высокая | Высокое | Vast.ai spot, on-device inference, model quantization |
-| YOLO26-Pose AGPL-3.0 | Средняя | Высокое | Already migrating to RTMO (Apache 2.0) |
-| Dataset licensing | Высокая | Высокое | Audit all licenses, obtain commercial where needed |
-| MotionAGFormer license unknown | Средняя | Среднее | Use Biomechanics3DEstimator as fallback (no model) |
-| Single-camera blade detection | Certain | Высокое | OOFSkate proxy features (already pivoted) |
+| **Hardware production (IMU + кейс)** | **Высокая** | **Высокое** | **3D-printed прототип (ИТМО), локальные поставщики** |
+| **IMU калибровка и точность** | **Высокая** | **Высокое** | **MPU9250 (±1° в статике, динамика TBD), калибровка per-unit, firmware updates** |
+| **GPU cost scaling** | Высокая | Высокое | Vast.ai spot, on-device inference, model quantization |
+| **Dataset licensing** | Высокая | Высокое | Audit all licenses, obtain commercial where needed |
+| **Single-camera blade detection** | Certain | Высокое | OOFSkate proxy features + IMU hybrid |
 
 ### MEDIUM Risk
 
 | Риск | Вероятность | Влияние | Mitigation |
 |------|-----------|---------|-----------|
-| Model accuracy degradation on new domains | Средняя | Среднее | Continuous benchmarking, reference database |
+| BLE connectivity (on ice) | Средняя | Среднее | BLE 5.0, кэширование, offline mode |
 | R2/Cloudflare outage | Низкая | Среднее | Multi-cloud fallback (Hetzner S3) |
 | 152-ФЗ compliance | Высокая | Среднее | Russian hosting for PII, R2 for media only |
 | Seasonal demand spikes | Высокая | Среднее | Auto-scaling GPU via Vast.ai, pre-warm |
@@ -67,41 +71,41 @@
 | Next.js major version break | Низкая | Низкое | Pin version, gradual upgrades |
 | Vast.ai availability | Средняя | Низкое | Local GPU fallback (RTX 3050 Ti) |
 
-## IMU Sensor Integration (EdgeSense)
+## IMU Hardware
 
-> **Status:** Experimental. Alisa проводит тесты с IMU-датчиками на льду.
+> **Статус:** Прототип. Алиса проводит тесты на льду.
 
 ### Current Findings
 
-- IMU датчик прикрепляется к коньку (toe + heel positions)
-- Удалось реконструировать угол наклона ребра через отношение бокового/вертикального ускорения (1 датчик)
-- Крепление: липучка с EVA-прокладкой (в разработке 3D-printed кейс)
-- Потенциальная интеграция: IMU trajectory + 2D→3D skeleton → полная 3D реконструкция проката
+- IMU прикреплён к коньку (toe + heel positions)
+- Реконструирован угол наклона ребра через отношение бокового/вертикального ускорения (1 датчик)
+- Крепление: липучка с EVA-прокладкой (прототип)
+- 3D-printed кейс — в разработке (ИТМО)
+- **Потенциальная интеграция:** IMU trajectory + 2D→3D skeleton → полная 3D реконструкция
 
-### 3D Reconstruction Vision
+### BOM (Bill of Materials)
 
-Объединение IMU траекторий (акселерометры) с 2D→3D keypoints позволяет реконструировать полное движение фигуриста в 3D — просмотр своего проката в 3D.
+| Компонент | Стоимость (₽) | Примечание |
+|-----------|--------------|-----------|
+| IMU датчик WitMotion WT901 BLE CL (2 шт) | 1 441 × 2 = 2 882 | Озон, включая Type-C зарядку |
+| Крепление (липучка/EVA) | ~150 | Прототип |
+| 3D-printed кейс | TBD | ИТМО |
+| Bluetooth модуль | Вкл. в IMU | BLE 5.0 |
+| Зарядка (USB-C) | Вкл. в IMU | — |
+| **Итого BOM (только компоненты)** | **~3 030 ₽** | 2 882 (IMU) + 150 (крепление), без упаковки/логистики |
 
-### BOM (初步)
-
-| Компонент | Стоимость | Примечание |
-|-----------|----------|-----------|
-| IMU датчик | TBD | Алиса заказывает |
-| Крепление (липучка/EVA) | ~100–300 ₽ | Прототип |
-| 3D-printed кейс | TBD | Можно напечатать в ИТМО |
-| Bluetooth модуль | Вкл. в IMU | данных через Bluetooth |
-
-### Risks
+### Hardware Risks
 
 - Крепление на льду: вибрация, влажность, удары
 - Синхронизация IMU ↔ video timestamps
 - Калибровка: каждый датчик нужно калибровать
+- BLE range: ~10m, может не хватить на катке
 
 ## GPU Cost Model
 
-### Cost Optimization Update (2026-05-05)
+### Cost Optimization (2026-05-05)
 
-GPU cost снижен с $0.5/час до $0.01/час (50x) за счёт оптимизации pipeline. Достаточно GTX 1070 Ti.
+GPU cost снижен с $0.5/час до $0.01/час (50x). Достаточно GTX 1070 Ti.
 
 ### Current Performance
 
@@ -118,27 +122,26 @@ GPU cost снижен с $0.5/час до $0.01/час (50x) за счёт оп�
 | 100 | 1,000 | $30–60 | $360–720 |
 | 500 | 5,000 | $150–300 | $1,800–3,600 |
 | 2,000 | 20,000 | $600–1,200 | $7,200–14,400 |
-| 10,000 | 100,000 | $3,000–6,000 | $36,000–72,000 |
 
-### Mitigation Strategies
+### Mitigation
 
-1. **On-device inference** — Mobile GPU (Adreno, Apple Neural Engine). Reduces GPU cost to zero for users with capable devices.
-2. **Model quantization** — INT8/FP16 RTMO reduces inference time 2x.
-3. **Frame skip tuning** — Already using frame_skip=8. Can go higher for less critical analyses.
-4. **Batch processing** — Queue analyses during off-peak hours for lower Vast.ai spot prices.
-5. **Caching** — Same video → cached results. Already implemented (fastapi-cache2).
+1. **On-device inference** — Mobile GPU (Adreno, Apple Neural Engine)
+2. **Model quantization** — INT8/FP16 RTMO reduces inference time 2x
+3. **Frame skip tuning** — Already using frame_skip=8
+4. **Batch processing** — Queue during off-peak for lower Vast.ai spot prices
+5. **Caching** — Same video → cached results
 
 ## R&D Budget Allocation
 
 | Категория | Доля | Приоритет |
 |-----------|------|-----------|
-| ML accuracy improvement | 40% | Highest |
-| Mobile app | 25% | High |
-| Infrastructure reliability | 15% | Medium |
-| New features (choreography, etc.) | 10% | Medium |
-| Research (GCN, Pose3DM) | 10% | Low |
+| **Hardware (IMU + кейс)** | **35%** | **Highest** |
+| **Mobile app (BLE)** | **25%** | **High** |
+| ML accuracy improvement | 20% | High |
+| Infrastructure reliability | 10% | Medium |
+| New features (choreography) | 10% | Medium |
 
-## Key Research Papers & References
+## Key Research Papers
 
 1. **OOFSkate (MIT, 2026)** — Body kinematics proxy features, deployed at Olympics
 2. **RTMO (OpenMMLab)** — Current pose backbone, Apache 2.0

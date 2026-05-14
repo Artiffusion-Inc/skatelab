@@ -163,10 +163,11 @@ def _generate_candidates(
         if len(selected_passes) < min_passes:
             continue
 
+        max_spins = 2 if segment == "short_program" else 3
         available_spins = [s for s in spins if s in ELEMENTS]
-        if len(available_spins) < 3:
+        if len(available_spins) < max_spins:
             available_spins = list({"CSp4", "LSp4", "FSp4"} | set(available_spins))
-        selected_spins = random.sample(available_spins, min(3, len(available_spins)))
+        selected_spins = random.sample(available_spins, min(max_spins, len(available_spins)))
 
         selected_stsq = random.choice(step_options)
         selected_chsq = choreo_options[0]

@@ -6,6 +6,7 @@ import { devMockAuth, isDevelopment } from "@/lib/env"
 import type { UserResponse } from "@/lib/auth"
 import * as auth from "@/lib/auth"
 import { clearTokens, getAccessToken, getRefreshToken } from "@/lib/api-client"
+import { isPublicPage } from "@/lib/is-public-page"
 import { useMountEffect } from "@/lib/useMountEffect"
 
 interface AuthContextValue {
@@ -23,7 +24,8 @@ function needsVerificationRedirect(user: UserResponse): boolean {
   if (user.is_verified) return false
   if (typeof window === "undefined") return false
   const path = window.location.pathname
-  return !path.startsWith("/verify-email") && !path.startsWith("/resend-verification")
+  if (path.startsWith("/verify-email") || path.startsWith("/resend-verification")) return false
+  return !isPublicPage(path)
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -59,6 +61,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return
     }
 
+    const publicPage = typeof window !== "undefined" && isPublicPage(window.location.pathname)
+
     auth
       .fetchMe()
       .then(u => {
@@ -69,7 +73,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       })
       .catch(() => {
         clearTokens()
-        router.push("/login")
+        if (!publicPage) router.push("/login")
       })
       .finally(() => setIsLoading(false))
   })
