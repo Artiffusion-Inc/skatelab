@@ -8,6 +8,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import ru.skatelab.capture.domain.model.SensorId
@@ -35,6 +36,12 @@ class BleScanViewModel
 
         val scanResults: StateFlow<List<ScanDevice>> =
             bleRepository.scanResults
+                .combine(bleRepository.connectionState) { scanned, stateMap ->
+                    val connected = bleRepository.getConnectedDevices()
+                    val scanByAddr = scanned.associateBy { it.address }
+                    val mergedByAddr = scanByAddr + connected.associateBy { it.address }
+                    mergedByAddr.values.toList()
+                }
                 .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
         val connectionState =

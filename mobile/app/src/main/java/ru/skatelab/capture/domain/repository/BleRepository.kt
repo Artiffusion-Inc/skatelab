@@ -51,5 +51,8 @@ interface BleRepository {
     /** Sends time config command sequence via BLE. */
     suspend fun configureSensorTime(sensorId: SensorId): Result<Unit>
 
+    /** Connected BLE devices not visible to scanner (already connected GATT). */
+    fun getConnectedDevices(): List<ScanDevice>
+
     enum class ConnectionState { DISCONNECTED, CONNECTING, CONNECTED, RECONNECTING }
 }

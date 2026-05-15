@@ -122,4 +122,7 @@ class BleRepositoryImpl
             runCatching {
                 bleManager.sendSequence(sensorId, Wt901Commander.timeConfigSequence())
             }
+
+        override fun getConnectedDevices(): List<ScanDevice> =
+            bleManager.getConnectedDevices().map { ScanDevice(name = it.name, address = it.address, rssi = it.rssi) }
     }
