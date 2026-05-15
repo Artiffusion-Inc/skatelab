@@ -5,6 +5,7 @@ plugins {
     id("org.jetbrains.kotlin.plugin.compose")
     id("com.google.dagger.hilt.android")
     id("com.google.protobuf")
+    id("org.jlleitschuh.gradle.ktlint") version "12.2.0"
 }
 
 android {
@@ -27,7 +28,7 @@ android {
             isShrinkResources = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
-                "proguard-rules.pro"
+                "proguard-rules.pro",
             )
         }
     }
@@ -93,6 +94,14 @@ dependencies {
     kapt("com.google.dagger:hilt-android-compiler:2.56.1")
     implementation("androidx.hilt:hilt-navigation-compose:1.2.0")
 
+    // CameraX
+    val camerax_version = "1.4.1"
+    implementation("androidx.camera:camera-core:$camerax_version")
+    implementation("androidx.camera:camera-camera2:$camerax_version")
+    implementation("androidx.camera:camera-lifecycle:$camerax_version")
+    implementation("androidx.camera:camera-video:$camerax_version")
+    implementation("androidx.camera:camera-compose:$camerax_version")
+
     // Protobuf
     implementation("com.google.protobuf:protobuf-javalite:4.30.2")
 
@@ -112,4 +121,16 @@ dependencies {
     androidTestImplementation("androidx.compose.ui:ui-test-junit4")
     androidTestImplementation("androidx.test:runner:1.6.2")
     androidTestImplementation("androidx.test:rules:1.6.1")
+}
+
+ktlint {
+    android = true
+    disabledRules =
+        setOf(
+            "function-naming",
+            "no-wildcard-imports",
+            "max-line-length",
+            "discouraged-comment-location",
+            "property-naming",
+        )
 }
