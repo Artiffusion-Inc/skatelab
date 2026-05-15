@@ -20,22 +20,25 @@ Use MiroFish (multi-agent simulation) to synthetically validate these gaps. Seed
 | Component | Choice |
 |---|---|
 | **MiroFish fork** | Upstream (666ghj/MiroFish) |
-| **Host** | Docker on home server (or temporary Vast.ai GPU instance) |
-| **LLM** | NineRouter (`https://9r.hypcat.net/v1`) — OpenAI-compatible |
+| **Host** | Remote server (78.40.209.34), Podman + podman-compose |
+| **LLM** | NineRouter (`https://9r.hypcat.net/v1`) — external URL, not internal network |
 | **Embeddings** | Jina AI v3 API (10M tokens free tier) |
 | **Agent memory** | Zep Cloud free tier (1,000 credits/month) |
-| **Container runtime** | Podman |
+| **Container runtime** | Podman 5.4.2 + podman-compose 1.3.0 |
+| **Reverse proxy** | Caddy (existing) → subdomain `mf.${DOMAIN}` |
+| **Disk** | ~12G free — monitor, MiroFish image ~2G |
 
 ## Deployment Architecture
 
 ```
-Home server / Vast.ai instance
-  └── Podman container (mirofish)
+Remote server (78.40.209.34)
+  └── Podman container (mirofish) in app_network
        ├── Frontend :3000 (Vue/Vite)
        ├── Backend :5001 (Flask)
-       ├── LLM → NineRouter API (OpenAI-compat)
+       ├── LLM → https://9r.hypcat.net/v1 (external, not internal 9router)
        ├── Embeddings → Jina AI v3 API
        └── Memory → Zep Cloud
+  └── Caddy (existing) → https://mf.${DOMAIN}
 ```
 
 ### Environment Variables

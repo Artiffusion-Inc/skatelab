@@ -4,9 +4,9 @@
 
 **Goal:** Deploy MiroFish multi-agent simulator and run audience simulation for 3 SkateLab segments (B2B, A1/A2, Parents) to validate WTP, pricing, pain points.
 
-**Architecture:** MiroFish Docker container on home server. NineRouter for LLM, Jina AI v3 for embeddings, Zep Cloud for agent memory. Seed document → GraphRAG → personas → OASIS simulation → ReportAgent analysis.
+**Architecture:** MiroFish Podman container on remote server (78.40.209.34). NineRouter (external URL) for LLM, Jina AI v3 for embeddings, Zep Cloud for agent memory. Caddy reverse proxy at `mf.${DOMAIN}`. Seed document → GraphRAG → personas → OASIS simulation → ReportAgent analysis.
 
-**Tech Stack:** Podman/Docker, MiroFish (666ghj/MiroFish), NineRouter API, Jina AI v3, Zep Cloud
+**Tech Stack:** Podman 5.4.2 + podman-compose 1.3.0, MiroFish (666ghj/MiroFish), NineRouter API (external), Jina AI v3, Zep Cloud, Caddy
 
 ---
 
@@ -41,7 +41,7 @@ mkdir -p infra/mirofish
 Write `infra/mirofish/.env`:
 
 ```env
-# LLM (NineRouter)
+# LLM (NineRouter — external URL, not internal network)
 LLM_API_KEY=sk-4d7e8ae80dedc297-1szbqr-de1a5fb8
 LLM_BASE_URL=https://9r.hypcat.net/v1
 LLM_MODEL_NAME=qwen-plus
@@ -52,7 +52,7 @@ LLM_BOOST_BASE_URL=https://9r.hypcat.net/v1
 LLM_BOOST_MODEL_NAME=gpt-4o-mini
 
 # Memory (Zep Cloud)
-ZEP_API_KEY=<paste-from-step-1>
+ZEP_API_KEY=<paste-from-task-1>
 ```
 
 - [ ] **Step 4: Add .env to .gitignore**
@@ -73,70 +73,141 @@ git commit -m "chore: gitignore MiroFish credentials"
 
 ---
 
-## Task 2: Deploy MiroFish Container
+## Task 2: Deploy MiroFish Container on Remote Server
+
+**Server:** 78.40.209.34 (SSH: `ssh -i ~/.ssh/id_rsa_remote_nopass root@78.40.209.34`)
+**Context:** Podman 5.4.2, podman-compose 1.3.0, Caddy reverse proxy, ~12G free disk, existing `app_network` with 9router and other services.
+**Important:** LLM calls go through `https://9r.hypcat.net/v1` (external URL), NOT internal `9router:20128`.
 
 **Files:**
 
-- Create: `infra/mirofish/docker-compose.yml`
-- Create: `infra/mirofish/.env` (from Task 1)
+- Create: `infra/mirofish/docker-compose.yml` (remote)
+- Create: `infra/mirofish/.env` (remote, gitignored)
 
-- [ ] **Step 1: Create docker-compose.yml**
+- [ ] **Step 1: Create directory on remote server**
 
-Write `infra/mirofish/docker-compose.yml`:
+```bash
+ssh -i ~/.ssh/id_rsa_remote_nopass root@78.40.209.34 "mkdir -p /root/mirofish/uploads"
+```
 
-```yaml
+- [ ] **Step 2: Create .env on remote server**
+
+```bash
+ssh -i ~/.ssh/id_rsa_remote_nopass root@78.40.209.34 "cat > /root/mirofish/.env << 'EOF'
+# LLM (NineRouter — external URL, not internal)
+LLM_API_KEY=sk-4d7e8ae80dedc297-1szbqr-de1a5fb8
+LLM_BASE_URL=https://9r.hypcat.net/v1
+LLM_MODEL_NAME=qwen-plus
+
+# Optional boost config
+LLM_BOOST_API_KEY=sk-4d7e8ae80dedc297-1szbqr-de1a5fb8
+LLM_BOOST_BASE_URL=https://9r.hypcat.net/v1
+LLM_BOOST_MODEL_NAME=gpt-4o-mini
+
+# Memory (Zep Cloud)
+ZEP_API_KEY=<paste-from-task-1>
+EOF"
+```
+
+- [ ] **Step 3: Create docker-compose.yml on remote server**
+
+```bash
+ssh -i ~/.ssh/id_rsa_remote_nopass root@78.40.209.34 "cat > /root/mirofish/docker-compose.yml << 'YAML'
 services:
   mirofish:
     image: ghcr.io/666ghj/mirofish:latest
     container_name: mirofish
-    ports:
-      - "3000:3000"    # Frontend (Vue/Vite)
-      - "5001:5001"    # Backend (Flask API)
     env_file:
       - .env
     restart: unless-stopped
     volumes:
       - ./uploads:/app/backend/uploads
+    networks:
+      - app_network
+
+networks:
+  app_network:
+    external: true
+YAML"
 ```
 
-- [ ] **Step 2: Create uploads directory**
+Note: No port mapping needed — Caddy proxies to container via `app_network`. Ports 3000/5001 are internal only.
+
+- [ ] **Step 4: Pull MiroFish image**
 
 ```bash
-mkdir -p infra/mirofish/uploads
+ssh -i ~/.ssh/id_rsa_remote_nopass root@78.40.209.34 "cd /root/mirofish && podman-compose pull"
 ```
 
-- [ ] **Step 3: Pull the MiroFish image**
+Expected: Image `ghcr.io/666ghj/mirofish:latest` downloaded (~2GB). Monitor disk: `df -h /`.
+
+- [ ] **Step 5: Start the container**
 
 ```bash
-cd infra/mirofish
-podman-compose pull
+ssh -i ~/.ssh/id_rsa_remote_nopass root@78.40.209.34 "cd /root/mirofish && podman-compose up -d"
 ```
 
-Expected: Image `ghcr.io/666ghj/mirofish:latest` downloaded (~2GB).
+Expected: Container `mirofish` running.
 
-- [ ] **Step 4: Start the container**
+- [ ] **Step 6: Verify container is running**
 
 ```bash
-cd infra/mirofish
-podman-compose up -d
+ssh -i ~/.ssh/id_rsa_remote_nopass root@78.40.209.34 "podman ps | grep mirofish"
 ```
 
-Expected: Container `mirofish` running, ports 3000 + 5001 exposed.
+Expected: Container listed, status "Up".
 
-- [ ] **Step 5: Verify deployment**
+- [ ] **Step 7: Configure Caddy reverse proxy**
+
+Add MiroFish to existing Caddyfile on the remote server. The Caddyfile is at `./Caddyfile` relative to `compose.yaml`.
 
 ```bash
-curl -s http://localhost:5001/health | head -20
+ssh -i ~/.ssh/id_rsa_remote_nopass root@78.40.209.34
 ```
 
-Open http://localhost:3000 in browser. Expected: MiroFish UI loads.
+Edit Caddyfile to add:
 
-- [ ] **Step 6: Commit compose file**
+```
+mf.{$DOMAIN} {
+    reverse_proxy mirofish:3000
+}
+```
+
+Or if Caddyfile uses `{$DOMAIN}` syntax:
+
+```
+mf.{$DOMAIN} {
+    reverse_proxy mirofish:3000
+}
+```
+
+Then reload Caddy:
 
 ```bash
-git add infra/mirofish/docker-compose.yml
-git commit -m "chore(infra): add MiroFish docker-compose"
+cd /root  # or wherever compose.yaml is
+podman exec caddy caddy reload --config /etc/caddy/Caddyfile
 ```
+
+- [ ] **Step 8: Verify access**
+
+```bash
+curl -sI https://mf.<DOMAIN>
+```
+
+Expected: 200 or redirect. MiroFish UI should be accessible at `https://mf.<DOMAIN>`.
+
+- [ ] **Step 9: Commit local reference files**
+
+```bash
+git add infra/mirofish/.gitkeep
+git commit -m "chore(infra): add MiroFish remote deploy reference"
+```
+
+Note: `docker-compose.yml` and `.env` live on the remote server only (not in git).
+
+---
+
+**Note on disk space:** Remote server has ~12G free. MiroFish image ~2G + uploads. Monitor with `df -h /` after pull. If tight, clean unused podman images (`podman image prune`).
 
 ---
 
@@ -516,7 +587,7 @@ git commit -m "docs(mirofish): add audience persona profiles (B2B, A1/A2, parent
 
 - [ ] **Step 1: Open MiroFish UI**
 
-1. Open http://localhost:3000 in browser
+1. Open `https://mf.<DOMAIN>` in browser (or `http://78.40.209.34:3000` if Caddy not configured yet)
 2. Click "New Project"
 3. Name: "SkateLab A1/A2 Validation"
 4. Description: "WTP and objection simulation for coaches and athletes"
@@ -568,11 +639,18 @@ Use the "Deep Interaction" feature:
 - [ ] **Step 8: Export and save results**
 
 ```bash
-# Copy simulation data from container volume
-cp -r infra/mirofish/uploads/simulations/ infra/mirofish/results/a1a2-simulation-$(date +%Y%m%d)/
+# Copy simulation data from remote server
+ssh -i ~/.ssh/id_rsa_remote_nopass root@78.40.209.34 \
+  "cp -r /root/mirofish/uploads/simulations/ /root/mirofish/results/a1a2-simulation-$(date +%Y%m%d)/"
 ```
 
-Save report to `infra/mirofish/results/a1a2-report-$(date +%Y%m%d).json`
+Download report locally:
+
+```bash
+scp -i ~/.ssh/id_rsa_remote_nopass \
+  root@78.40.209.34:/root/mirofish/results/a1a2-report-$(date +%Y%m%d).json \
+  infra/mirofish/results/
+```
 
 - [ ] **Step 9: Calibrate against real CustDev**
 
@@ -589,7 +667,7 @@ If simulation diverges significantly from real data, adjust persona definitions 
 
 - [ ] **Step 1: Create new project**
 
-1. Open http://localhost:3000
+1. Open `https://mf.<DOMAIN>` in browser
 2. "New Project" → Name: "SkateLab B2B Validation"
 3. Description: "Institutional buying process simulation for skating schools and academies"
 
@@ -625,7 +703,8 @@ Same process as Task 5 Steps 6-7. Focus questions on:
 - [ ] **Step 7: Export results**
 
 ```bash
-cp -r infra/mirofish/uploads/simulations/ infra/mirofish/results/b2b-simulation-$(date +%Y%m%d)/
+ssh -i ~/.ssh/id_rsa_remote_nopass root@78.40.209.34 \
+  "cp -r /root/mirofish/uploads/simulations/ /root/mirofish/results/b2b-simulation-$(date +%Y%m%d)/"
 ```
 
 ---
@@ -634,7 +713,7 @@ cp -r infra/mirofish/uploads/simulations/ infra/mirofish/results/b2b-simulation-
 
 - [ ] **Step 1: Create new project**
 
-1. Open http://localhost:3000
+1. Open `https://mf.<DOMAIN>` in browser
 2. "New Project" → Name: "SkateLab Parent Validation"
 3. Description: "Parent motivation and WTP simulation for figure skating AI coaching"
 
@@ -668,7 +747,8 @@ Focus interview questions on:
 - [ ] **Step 6: Export results**
 
 ```bash
-cp -r infra/mirofish/uploads/simulations/ infra/mirofish/results/parent-simulation-$(date +%Y%m%d)/
+ssh -i ~/.ssh/id_rsa_remote_nopass root@78.40.209.34 \
+  "cp -r /root/mirofish/uploads/simulations/ /root/mirofish/results/parent-simulation-$(date +%Y%m%d)/"
 ```
 
 ---
@@ -712,28 +792,29 @@ git commit -m "docs(business): add MiroFish audience simulation results"
 
 ## Task 9: Teardown and Cleanup
 
-- [ ] **Step 1: Backup all simulation data**
+- [ ] **Step 1: Backup all simulation data from remote**
 
 ```bash
-tar czf infra/mirofish/mirofish-backup-$(date +%Y%m%d).tar.gz \
-  infra/mirofish/results/ \
-  infra/mirofish/uploads/
+scp -i ~/.ssh/id_rsa_remote_nopass -r \
+  root@78.40.209.34:/root/mirofish/results/ \
+  infra/mirofish/results/
 ```
 
-- [ ] **Step 2: Stop container**
+- [ ] **Step 2: Stop container on remote**
 
 ```bash
-cd infra/mirofish
-podman-compose down
+ssh -i ~/.ssh/id_rsa_remote_nopass root@78.40.209.34 \
+  "cd /root/mirofish && podman-compose down"
 ```
 
 - [ ] **Step 3: (Optional) Remove container image to reclaim disk**
 
 ```bash
-podman rmi ghcr.io/666ghj/mirofish:latest
+ssh -i ~/.ssh/id_rsa_remote_nopass root@78.40.209.34 \
+  "podman rmi ghcr.io/666ghj/mirofish:latest"
 ```
 
-Only do this if you don't plan to re-run simulations soon.
+Only do this if you don't plan to re-run simulations soon. Frees ~2GB.
 
 ---
 
