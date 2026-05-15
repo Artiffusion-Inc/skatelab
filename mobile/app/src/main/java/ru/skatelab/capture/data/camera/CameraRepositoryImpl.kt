@@ -1,5 +1,6 @@
 package ru.skatelab.capture.data.camera
 
+import androidx.camera.viewfinder.CameraViewfinder
 import androidx.lifecycle.LifecycleOwner
 import dagger.hilt.android.qualifiers.ApplicationContext
 import java.io.File
@@ -23,6 +24,10 @@ class CameraRepositoryImpl
 
         override suspend fun unbind() {
             recorder.unbind()
+        }
+
+        override fun setViewfinder(viewfinder: CameraViewfinder?) {
+            recorder.setViewfinder(viewfinder)
         }
 
         override suspend fun startRecording(

@@ -1,5 +1,6 @@
 package ru.skatelab.capture.domain.repository
 
+import androidx.camera.viewfinder.CameraViewfinder
 import androidx.lifecycle.LifecycleOwner
 import java.io.File
 import kotlinx.coroutines.flow.StateFlow
@@ -13,6 +14,9 @@ interface CameraRepository {
 
     /** Unbind all use cases and release camera. */
     suspend fun unbind()
+
+    /** Set the viewfinder for camera preview. Called when CameraViewfinder is created. */
+    fun setViewfinder(viewfinder: CameraViewfinder?)
 
     /** Start recording to [videoFile] with frame timestamps in [framesFile]. */
     suspend fun startRecording(

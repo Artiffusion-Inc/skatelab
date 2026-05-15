@@ -147,8 +147,7 @@ class RecordingViewModel
         }
 
         fun setViewfinder(viewfinder: CameraViewfinder?) {
-            (cameraRepository as? ru.skatelab.capture.data.camera.CameraRepositoryImpl)
-                ?.recorder?.setViewfinder(viewfinder)
+            cameraRepository.setViewfinder(viewfinder)
         }
 
         fun bindCamera(lifecycleOwner: LifecycleOwner, outputDir: File) {
