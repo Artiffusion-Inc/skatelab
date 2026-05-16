@@ -2,6 +2,9 @@ package ru.skatelab.capture.domain.usecase
 
 import io.mockk.every
 import io.mockk.mockk
+import kotlin.math.acos
+import kotlin.math.cos
+import kotlin.math.sin
 import kotlin.math.sqrt
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
@@ -393,6 +396,30 @@ class CalibrateSensorUseCaseTest {
         )
         val mean = invokeComputeMeanQuaternion(samples)
         assertArrayEquals(floatArrayOf(0.5f, 0.5f, 0.5f, 0.5f), mean, 0.01f)
+    }
+
+    @Test
+    fun computeMeanQuaternion_knownCluster_withinPoint5Degree() {
+        val samples = mutableListOf<ImuSample>()
+        for (i in 0 until 20) {
+            val angle = (i - 10) * 0.002f // small perturbation: ±0.02 rad ≈ ±1.1°
+            val w = cos(angle.toDouble()).toFloat()
+            val x = sin(angle.toDouble()).toFloat() * 0.57735f
+            val y = x
+            val z = x
+            val n = sqrt((w * w + x * x + y * y + z * z).toDouble()).toFloat()
+            samples.add(stillSample(i.toLong(), quatW = w / n, quatX = x / n, quatY = y / n, quatZ = z / n))
+        }
+        val mean = invokeComputeMeanQuaternion(samples)
+        val dist = angularDistanceDeg(mean, floatArrayOf(1f, 0f, 0f, 0f))
+        assertTrue("Angular distance should be < 0.5° but was $dist", dist < 0.5f)
+    }
+
+    private fun angularDistanceDeg(q1: FloatArray, q2: FloatArray): Float {
+        var dot = 0f
+        for (i in 0 until 4) dot += q1[i] * q2[i]
+        dot = dot.coerceIn(-1f, 1f)
+        return Math.toDegrees(acos(dot.toDouble()) * 2).toFloat()
     }
 
     @Test
