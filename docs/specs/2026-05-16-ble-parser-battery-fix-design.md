@@ -2,9 +2,9 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use subagent-driven-development or executing-plans to implement this plan task-by-task.
 
-**Goal:** Fix 5 bugs in WT901 BLE parser and battery reading that cause register reads to timeout and battery percentage to show 0%.
+**Goal:** Fix 6 bugs in WT901 BLE parser and battery reading that cause register reads to timeout and battery percentage to show 0%.
 
-**Architecture:** Fix Wt901Parser's 0x71 frame handling (frame size, register address, data offset) and BleRepositoryImpl's battery register and voltage-to-percent conversion.
+**Architecture:** Fix Wt901Parser's 0x71 frame handling (frame size, checksum skip, register address, data offset) and BleRepositoryImpl's battery register and raw-to-percent conversion.
 
 **TechStack:** Kotlin, Android BLE, JUnit 5
 
@@ -19,7 +19,9 @@ Device testing revealed:
 
 Root cause: Wt901Parser treats 0x71 (register read response) frames as 11-byte individual frames, but BLE 0x71 frames are 20 bytes. This causes buffer desync — the parser reads 11 bytes, leaves 9 residual bytes, and subsequent frames can't be parsed. The 0x71 responses never reach `readRegisterResponse()`, causing timeouts.
 
-Secondary bug: `readBattery()` reads register 0x04 (BAUD rate, not battery) and incorrectly interprets the result as a 0-100 percentage. The correct register is 0x64 (battery voltage), which returns millivolts/100 and needs a conversion table.
+Secondary bug: `readBattery()` reads register 0x04 (BAUD rate, not battery) and incorrectly interprets the result as a 0-100 percentage. The correct register is 0x64 (battery), which returns a raw integer. The WT901BLECL reference app uses raw values with thresholds 680-850 (DeviceControlActivity.java). The physical unit is unverified — likely centivolts for a 2S LiPo or raw ADC counts via voltage divider.
+
+Additional bug: `isChecksumValid()` is called for 0x71 frames, but BLE 0x71 frames have no checksum. Byte 10 is data (`d3L`), not a checksum. This causes every 0x71 frame to fail validation → shift by 1 byte → desync → all 0x71 responses dropped. Without this fix, the frame size fix is ineffective.
 
 ## Bug 1: 0x71 Frame Size
 
@@ -40,27 +42,50 @@ val frameSize = when (frameType) {
 }
 ```
 
-## Bug 2: Register Address Parsing
+## Bug 2: Checksum Validation for 0x71
 
-**Current (broken):**
+**File:** `Wt901Parser.kt`
+
+**Current (broken):** `isChecksumValid()` is called for all non-combined frames, including 0x71. It sums bytes 0..9 and checks against byte 10. In a 20-byte 0x71 frame, byte 10 is `d3L` (data), not a checksum. This virtually always fails, causing `shiftBuffer(1)` and desync.
+
+**Evidence:** The WT901BLECL reference app (`Data.java`) has NO checksum validation. The WitMotion datasheet 20-byte BLE 0x71 format has no checksum byte.
+
+**Fix:** Skip checksum validation for `TYPE_REG_READ`:
+```kotlin
+when (frameType) {
+    TYPE_COMBINED -> {
+        if (!isCombinedFramePlausible()) {
+            Log.w(logTag, "0x61 frame failed plausibility check — desync likely, skipping 1 byte")
+            shiftBuffer(1)
+            continue
+        }
+    }
+    TYPE_REG_READ -> {
+        // 0x71 frames in BLE mode have no checksum
+    }
+    else -> {
+        if (!isChecksumValid()) {
+            shiftBuffer(1)
+            continue
+        }
+    }
+}
+```
+
+**Critical:** Without this fix, the frame size fix (Bug 1) is ineffective — 0x71 frames will still be dropped.
+
+## Bug 3: Register Address Parsing
+
+**Current:**
 ```kotlin
 val register = buffer[2].toInt() and 0xFF
 ```
 
-**Fix:** BLE 0x71 format is `[0x55][0x71][RegL][RegH][data...]`. Register address is RegL at `buffer[2]`:
-```kotlin
-val register = buffer[2].toInt() and 0xFF  // This is actually correct — RegL is at offset 2
-```
-
-Wait — on second look, `buffer[2]` IS RegL. The register byte is correct. But verify offset against BLE 0x71 format: `[0x55][0x71][RegL][RegH][d0L][d0H]...[d7L][d7H]` = 20 bytes. So:
-- `buffer[0]` = 0x55
-- `buffer[1]` = 0x71
-- `buffer[2]` = RegL ← this is what we want
-- `buffer[3]` = RegH
+BLE 0x71 format: `[0x55][0x71][RegL][RegH][d0L][d0H]...[d7L][d7H]` = 20 bytes. `buffer[2]` = RegL.
 
 **Verdict:** Register address parsing is correct. No change needed.
 
-## Bug 3: Data Offset and Length
+## Bug 4: Data Offset and Length
 
 **Current (broken):**
 ```kotlin
@@ -83,7 +108,7 @@ val data = ShortArray(8) { i ->
 
 **Impact:** `RegisterReadResult.data` changes from `ShortArray(3)` to `ShortArray(8)`. All callers that access `data[0]` still work — they just get more data.
 
-## Bug 4: Battery Register
+## Bug 5: Battery Register
 
 **File:** `mobile/app/src/main/java/ru/skatelab/capture/data/ble/BleRepositoryImpl.kt`
 
@@ -100,34 +125,32 @@ override suspend fun readBattery(sensorId: SensorId): Result<Int> {
 **Fix:**
 ```kotlin
 override suspend fun readBattery(sensorId: SensorId): Result<Int> {
-    val result = bleManager.readRegisterResponse(sensorId, 0x64)  // 0x64 = battery voltage
+    val result = bleManager.readRegisterResponse(sensorId, 0x64)  // 0x64 = battery
     return result.map { data ->
-        voltageToPercent(data[0].toInt())  // Convert mV/100 to percentage
+        rawToPercent(data[0].toInt())  // Use reference-app thresholds
     }
 }
 
-private fun voltageToPercent(mv100: Int): Int {
-    val mv = mv100 * 100  // Register returns mV/100 (e.g., 384 = 3.84V)
-    return when {
-        mv >= 3960 -> 100
-        mv >= 3930 -> 90
-        mv >= 3870 -> 75
-        mv >= 3820 -> 60
-        mv >= 3790 -> 50
-        mv >= 3770 -> 40
-        mv >= 3730 -> 30
-        mv >= 3700 -> 20
-        mv >= 3680 -> 15
-        mv >= 3500 -> 10
-        mv >= 3400 -> 5
-        else -> 0
-    }
+/**
+ * Convert raw battery register value to percentage.
+ * Thresholds from WT901BLECL reference app (DeviceControlActivity.java).
+ * Physical unit of register 0x64 is unverified — may be centivolts (2S LiPo)
+ * or raw ADC counts via voltage divider.
+ * TODO: Verify with hardware measurement (multimeter vs. register value).
+ */
+private fun rawToPercent(raw: Int): Int = when {
+    raw >= 850 -> 100
+    raw >= 775 -> 80
+    raw >= 745 -> 60
+    raw >= 735 -> 40
+    raw >= 680 -> 20
+    else -> 0
 }
 ```
 
-**Note:** Register 0x64 returns the raw voltage value. The official WitMotion BLE protocol documentation specifies: register value = millivolts / 100. So 384 = 3.84V = ~3840mV. The conversion table above uses millivolts.
+**Note:** The original spec assumed register 0x64 returns "millivolts / 100" (384 = 3.84V). The WT901BLECL reference app uses raw values with thresholds 680-850 with NO multiplication. The unit is unverified — the reference app's thresholds are the only ground truth.
 
-## Bug 5: readBatteryMv
+## Bug 6: readBatteryMv
 
 **File:** `BleRepositoryImpl.kt`
 
@@ -141,27 +164,30 @@ override suspend fun readBatteryMv(sensorId: SensorId): Result<Int> {
 }
 ```
 
-**Fix:** Return actual millivolts:
+**Fix:** Return raw value (unit unverified, do NOT multiply by 100):
 ```kotlin
-override suspend fun readBatteryMv(sensorId: SensorId): Result<Int> {
-    val result = bleManager.readRegisterResponse(sensorId, 0x64)
-    return result.map { data ->
-        data[0].toInt() * 100  // Convert mV/100 to mV
+override suspend fun readBatteryMv(sensorId: SensorId): Result<Int> =
+    runCatching {
+        val data = bleManager.readRegisterResponse(sensorId, 0x64).getOrThrow()
+        data[0].toInt()  // Raw value — unit unverified. TODO: compare with multimeter.
     }
-}
 ```
+
+**Note:** The original spec assumed the register returns mV/100 and multiplied by 100. The reference app uses the raw value directly. Do NOT multiply until hardware verification confirms the unit.
 
 ## Testing
 
 - Update `Wt901ParserTest` to test 0x71 frames as 20-byte BLE format
-- Add test for `voltageToPercent()`
+- Add test for 0x71 checksumless parsing (arbitrary byte 10 should not cause failure)
+- Add test for `rawToPercent()`
 - Verify existing `parseRegisterReadResponseDoesNotInterfereWithImuCycle` still passes with 20-byte 0x71
+- Add test for 0x71 interleaved with 0x61 in a single notification buffer
 
 ## Files to Change
 
 | File | Change |
 |------|--------|
-| `Wt901Parser.kt` | Add `REG_READ_FRAME_SIZE = 20`, fix frame size logic, fix `parseRegisterReadFrame` data offset/length |
-| `BleRepositoryImpl.kt` | Fix `readBattery` register 0x04→0x64, add `voltageToPercent()`, fix `readBatteryMv` |
-| `Wt901ParserTest.kt` | Update 0x71 test frames to 20-byte BLE format |
+| `Wt901Parser.kt` | Add `REG_READ_FRAME_SIZE = 20`, fix frame size logic, **skip checksum for 0x71**, fix `parseRegisterReadFrame` data offset/length |
+| `BleRepositoryImpl.kt` | Fix `readBattery` register 0x04→0x64, add `rawToPercent()` with reference-app thresholds, fix `readBatteryMv` (no *100) |
+| `Wt901ParserTest.kt` | Update 0x71 test frames to 20-byte BLE format, add checksumless test, add interleaving test |
 | `SensorInfo.kt` | No change needed (already has `batteryPercent` and `batteryMv`) |

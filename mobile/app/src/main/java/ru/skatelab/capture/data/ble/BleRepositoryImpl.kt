@@ -81,10 +81,25 @@ class BleRepositoryImpl
         override suspend fun stopStreaming(sensorId: SensorId): Result<Unit> = Result.success(Unit)
 
         override suspend fun readBattery(sensorId: SensorId): Result<Int> {
-            val result = bleManager.readRegisterResponse(sensorId, 0x04)
+            val result = bleManager.readRegisterResponse(sensorId, 0x64)
             return result.map { data ->
-                data[0].toInt().coerceIn(0, 100)
+                rawToPercent(data[0].toInt())
             }
+        }
+
+        /**
+         * Convert raw battery register value to percentage.
+         * Thresholds from WT901BLECL reference app (DeviceControlActivity.java).
+         * Physical unit of register 0x64 is unverified.
+         * TODO: Verify with hardware measurement (multimeter vs. register value).
+         */
+        private fun rawToPercent(raw: Int): Int = when {
+            raw >= 850 -> 100
+            raw >= 775 -> 80
+            raw >= 745 -> 60
+            raw >= 735 -> 40
+            raw >= 680 -> 20
+            else -> 0
         }
 
         override suspend fun readChipTime(sensorId: SensorId): Result<Long> {
@@ -115,7 +130,7 @@ class BleRepositoryImpl
         override suspend fun readBatteryMv(sensorId: SensorId): Result<Int> =
             runCatching {
                 val data = bleManager.readRegisterResponse(sensorId, 0x64).getOrThrow()
-                data[0].toInt() and 0xFFFF
+                data[0].toInt() // Raw value — unit unverified. TODO: compare with multimeter.
             }
 
         override suspend fun configureSensorTime(sensorId: SensorId): Result<Unit> =
@@ -124,5 +139,7 @@ class BleRepositoryImpl
             }
 
         override fun getConnectedDevices(): List<ScanDevice> =
-            bleManager.getConnectedDevices().map { ScanDevice(name = it.name, address = it.address, rssi = it.rssi) }
+            bleManager.getConnectedDevices().map { ScanDevice(name = it.name, address = it.address, rssi = it.rssi, isConnected = true) }
+
+        override fun getAddressForSensor(sensorId: SensorId): String? = _addressMap[sensorId]
     }
