@@ -209,6 +209,36 @@ class CalibrateSensorUseCaseTest {
         }
 
     @Test
+    fun invokeBoth_insufficientStillSamples_returnsFailure() =
+        testScope.runTest {
+            val calibrationDeferred = async { useCase() }
+            runCurrent()
+
+            advanceTimeBy(1_500L)
+            runCurrent()
+
+            // Only 10 still samples per sensor — below MIN_STILL_SAMPLES=50
+            launch {
+                repeat(10) { i ->
+                    imuSamplesFlow.emit(SensorId.LEFT to stillSample(i.toLong()))
+                    imuSamplesFlow.emit(SensorId.RIGHT to stillSample(i.toLong()))
+                    yield()
+                }
+            }
+            runCurrent()
+
+            advanceTimeBy(12_000L)
+            runCurrent()
+
+            val result = calibrationDeferred.await()
+            assertTrue("Should fail with insufficient still samples", result.isFailure)
+            assertTrue(
+                "Error should mention 'Insufficient still samples'",
+                result.exceptionOrNull()!!.message!!.contains("Insufficient still samples"),
+            )
+        }
+
+    @Test
     fun invokeBoth_warmupSamplesFiltered() =
         testScope.runTest {
             val calibrationDeferred = async { useCase() }
