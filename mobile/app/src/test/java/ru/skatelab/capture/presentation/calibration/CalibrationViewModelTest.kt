@@ -8,6 +8,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestScope
+import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
@@ -121,6 +122,8 @@ class CalibrationViewModelTest {
             viewModel.calibrateBoth()
             assertFalse(viewModel.isCalibrating.value)
 
+            runCurrent()
+            advanceTimeBy(500L)
             runCurrent()
             assertFalse(viewModel.isCalibrating.value)
         }
