@@ -139,6 +139,76 @@ class CalibrateSensorUseCaseTest {
         }
 
     @Test
+    fun invokeBoth_gyroAbove5Dps_samplesRejected() =
+        testScope.runTest {
+            val calibrationDeferred = async { useCase() }
+            runCurrent()
+
+            advanceTimeBy(1_500L)
+            runCurrent()
+
+            launch {
+                repeat(100) { i ->
+                    imuSamplesFlow.emit(SensorId.LEFT to ImuSample(
+                        timestampNs = i.toLong(),
+                        accX = 0f, accY = 0f, accZ = 9.81f,
+                        gyroX = 6.0f, gyroY = 0f, gyroZ = 0f,
+                        quatW = 1f, quatX = 0f, quatY = 0f, quatZ = 0f,
+                    ))
+                    imuSamplesFlow.emit(SensorId.RIGHT to ImuSample(
+                        timestampNs = i.toLong(),
+                        accX = 0f, accY = 0f, accZ = 9.81f,
+                        gyroX = 6.0f, gyroY = 0f, gyroZ = 0f,
+                        quatW = 1f, quatX = 0f, quatY = 0f, quatZ = 0f,
+                    ))
+                    yield()
+                }
+            }
+            runCurrent()
+
+            advanceTimeBy(12_000L)
+            runCurrent()
+
+            val result = calibrationDeferred.await()
+            assertTrue("Should fail with gyro > 5 deg/s samples only", result.isFailure)
+        }
+
+    @Test
+    fun invokeBoth_accOutsideRange_samplesRejected() =
+        testScope.runTest {
+            val calibrationDeferred = async { useCase() }
+            runCurrent()
+
+            advanceTimeBy(1_500L)
+            runCurrent()
+
+            launch {
+                repeat(100) { i ->
+                    imuSamplesFlow.emit(SensorId.LEFT to ImuSample(
+                        timestampNs = i.toLong(),
+                        accX = 0f, accY = 0f, accZ = 8.0f,
+                        gyroX = 0f, gyroY = 0f, gyroZ = 0f,
+                        quatW = 1f, quatX = 0f, quatY = 0f, quatZ = 0f,
+                    ))
+                    imuSamplesFlow.emit(SensorId.RIGHT to ImuSample(
+                        timestampNs = i.toLong(),
+                        accX = 0f, accY = 0f, accZ = 8.0f,
+                        gyroX = 0f, gyroY = 0f, gyroZ = 0f,
+                        quatW = 1f, quatX = 0f, quatY = 0f, quatZ = 0f,
+                    ))
+                    yield()
+                }
+            }
+            runCurrent()
+
+            advanceTimeBy(12_000L)
+            runCurrent()
+
+            val result = calibrationDeferred.await()
+            assertTrue("Should fail with acc magnitude outside 9.3-10.3", result.isFailure)
+        }
+
+    @Test
     fun invokeBoth_warmupSamplesFiltered() =
         testScope.runTest {
             val calibrationDeferred = async { useCase() }
