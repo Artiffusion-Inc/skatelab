@@ -4,22 +4,58 @@ import kotlinx.coroutines.flow.Flow
 import ru.skatelab.capture.domain.model.ImuSample
 import ru.skatelab.capture.domain.model.SensorId
 
-data class ScanDevice(val name: String, val address: String, val rssi: Int)
+data class ScanDevice(val name: String, val address: String, val rssi: Int, val isConnected: Boolean = false)
 
 interface BleRepository {
     val scanResults: Flow<List<ScanDevice>>
     val connectionState: Flow<Map<SensorId, ConnectionState>>
     val imuSamples: Flow<Pair<SensorId, ImuSample>>
+    val reconnectEvents: Flow<SensorId>
 
     fun startScan()
+
     fun stopScan()
-    suspend fun connect(sensorId: SensorId, address: String): Result<Unit>
+
+    suspend fun connect(
+        sensorId: SensorId,
+        address: String,
+    ): Result<Unit>
+
     suspend fun disconnect(sensorId: SensorId): Result<Unit>
-    suspend fun configureSensor(sensorId: SensorId): Result<Unit>
+
+    /** Factory reset — sensor reboots, drops GATT connection. Recovery only. */
+    suspend fun factoryResetSensor(sensorId: SensorId): Result<Unit>
+
+    /** ACC hardware calibration via BLE. Sensor must be horizontal and still. Recovery only. */
+    suspend fun accCalibrateSensor(sensorId: SensorId): Result<Unit>
+
+    /** No-op in BLE mode — 0x61 streams automatically when CCCD is enabled. */
     suspend fun startStreaming(sensorId: SensorId): Result<Unit>
+
+    /** No-op in BLE mode — streaming stops when CCCD is disabled or sensor disconnects. */
     suspend fun stopStreaming(sensorId: SensorId): Result<Unit>
+
     suspend fun readBattery(sensorId: SensorId): Result<Int>
+
     suspend fun readChipTime(sensorId: SensorId): Result<Long>
+
+    /** Register 0x68 — 3 shorts → hex string like "A3F20012ABCD". */
+    suspend fun readDeviceId(sensorId: SensorId): Result<String>
+
+    /** Register 0x60 — format as "major.minor.patch". */
+    suspend fun readFirmwareVersion(sensorId: SensorId): Result<String>
+
+    /** Register 0x64 — first short as millivolts. */
+    suspend fun readBatteryMv(sensorId: SensorId): Result<Int>
+
+    /** Sends time config command sequence via BLE. */
+    suspend fun configureSensorTime(sensorId: SensorId): Result<Unit>
+
+    /** Connected BLE devices not visible to scanner (already connected GATT). */
+    fun getConnectedDevices(): List<ScanDevice>
+
+    /** MAC address of a connected sensor, or null if not connected. */
+    fun getAddressForSensor(sensorId: SensorId): String?
 
     enum class ConnectionState { DISCONNECTED, CONNECTING, CONNECTED, RECONNECTING }
 }

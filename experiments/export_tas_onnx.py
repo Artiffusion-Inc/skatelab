@@ -92,10 +92,24 @@ def export_fine_classifier(checkpoint_path: Path, output_path: Path) -> None:
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--checkpoint", type=Path, required=True, help="Path to BiGRUTASRefiner checkpoint")
-    parser.add_argument("--output", type=Path, default=None, help="Output ONNX path (default: data/models/tas/bigr_refiner_best.onnx)")
-    parser.add_argument("--fine-classifier", type=Path, default=None, help="Path to Skeleton1DCNN checkpoint (optional)")
-    parser.add_argument("--fine-output", type=Path, default=None, help="Output path for fine classifier ONNX")
+    parser.add_argument(
+        "--checkpoint", type=Path, required=True, help="Path to BiGRUTASRefiner checkpoint"
+    )
+    parser.add_argument(
+        "--output",
+        type=Path,
+        default=None,
+        help="Output ONNX path (default: data/models/tas/bigr_refiner_best.onnx)",
+    )
+    parser.add_argument(
+        "--fine-classifier",
+        type=Path,
+        default=None,
+        help="Path to Skeleton1DCNN checkpoint (optional)",
+    )
+    parser.add_argument(
+        "--fine-output", type=Path, default=None, help="Output path for fine classifier ONNX"
+    )
     args = parser.parse_args()
 
     output = args.output or Path("data/models/tas/bigr_refiner_best.onnx")

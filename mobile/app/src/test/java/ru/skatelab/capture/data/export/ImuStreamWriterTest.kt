@@ -1,15 +1,14 @@
 package ru.skatelab.capture.data.export
 
+import java.io.File
+import java.io.FileInputStream
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import ru.skatelab.capture.domain.model.ImuSample
 import ru.skatelab.capture.proto.Imu.IMURecord
-import java.io.File
-import java.io.FileInputStream
 
 class ImuStreamWriterTest {
-
     @Test
     fun `write 2 samples and read back with parseDelimitedFrom`() {
         val tempFile = File.createTempFile("imu_stream", ".binpb")
@@ -18,18 +17,20 @@ class ImuStreamWriterTest {
         val writer = ImuStreamWriter()
         writer.open(tempFile)
 
-        val sample1 = ImuSample(
-            timestampNs = 10_000_000_000L,
-            accX = 0.1f, accY = 0.2f, accZ = 9.81f,
-            gyroX = 0.01f, gyroY = 0.02f, gyroZ = 0.03f,
-            quatW = 1.0f, quatX = 0.0f, quatY = 0.0f, quatZ = 0.0f,
-        )
-        val sample2 = ImuSample(
-            timestampNs = 10_010_000_000L,
-            accX = 0.3f, accY = 0.4f, accZ = 9.80f,
-            gyroX = 0.04f, gyroY = 0.05f, gyroZ = 0.06f,
-            quatW = 0.99f, quatX = 0.01f, quatY = 0.02f, quatZ = 0.03f,
-        )
+        val sample1 =
+            ImuSample(
+                timestampNs = 10_000_000_000L,
+                accX = 0.1f, accY = 0.2f, accZ = 9.81f,
+                gyroX = 0.01f, gyroY = 0.02f, gyroZ = 0.03f,
+                quatW = 1.0f, quatX = 0.0f, quatY = 0.0f, quatZ = 0.0f,
+            )
+        val sample2 =
+            ImuSample(
+                timestampNs = 10_010_000_000L,
+                accX = 0.3f, accY = 0.4f, accZ = 9.80f,
+                gyroX = 0.04f, gyroY = 0.05f, gyroZ = 0.06f,
+                quatW = 0.99f, quatX = 0.01f, quatY = 0.02f, quatZ = 0.03f,
+            )
 
         writer.write(sample1)
         writer.write(sample2)

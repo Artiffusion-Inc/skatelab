@@ -6,52 +6,52 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class ManifestBuilderTest {
-
     @Test
     fun `build manifest and verify JSON fields`() {
-        val json = ManifestBuilder()
-            .version("2.0")
-            .t0Ns(12345678901200L)
-            .durationMs(5000L)
-            .createdAt("2026-05-09T14:30:00Z")
-            .video {
-                filename("capture_20260509_143000.mp4")
-                fps(60)
-                width(1920)
-                height(1080)
-                actualFpsVerified(true)
-                frameTimestampsFile("capture_20260509_143000_frames.csv")
-                timestampSource("REALTIME")
-                videoStartDelayMs(120L)
-                firstFrameNs(12345678901200L)
-            }
-            .imu("left") {
-                filename("capture_20260509_143000_left.binpb")
-                format("delimited_imu_record")
-                sampleRateHz(100)
-                sensorId("WT901-XXXX")
-                clockOffsetNs(12345L)
-                imuStartDelayMs(480L)
-                resyncIntervalsS(30)
-                reconnectCount(0)
-                droppedPartialCount(0)
-            }
-            .imu("right") {
-                filename("capture_20260509_143000_right.binpb")
-                format("delimited_imu_record")
-                sampleRateHz(100)
-                sensorId("WT901-YYYY")
-                clockOffsetNs(67890L)
-                imuStartDelayMs(490L)
-                resyncIntervalsS(30)
-                reconnectCount(1)
-                droppedPartialCount(2)
-            }
-            .calibration {
-                left(floatArrayOf(1f, 0f, 0f, 0f), "2026-05-09T14:29:50Z")
-                right(floatArrayOf(1f, 0f, 0f, 0f), "2026-05-09T14:29:50Z")
-            }
-            .build()
+        val json =
+            ManifestBuilder()
+                .version("2.0")
+                .t0Ns(12345678901200L)
+                .durationMs(5000L)
+                .createdAt("2026-05-09T14:30:00Z")
+                .video {
+                    filename("capture_20260509_143000.mp4")
+                    fps(60)
+                    width(1920)
+                    height(1080)
+                    actualFpsVerified(true)
+                    frameTimestampsFile("capture_20260509_143000_frames.csv")
+                    timestampSource("REALTIME")
+                    videoStartDelayMs(120L)
+                    firstFrameNs(12345678901200L)
+                }
+                .imu("left") {
+                    filename("capture_20260509_143000_left.binpb")
+                    format("delimited_imu_record")
+                    sampleRateHz(100)
+                    sensorId("WT901-XXXX")
+                    clockOffsetNs(12345L)
+                    imuStartDelayMs(480L)
+                    resyncIntervalsS(30)
+                    reconnectCount(0)
+                    droppedPartialCount(0)
+                }
+                .imu("right") {
+                    filename("capture_20260509_143000_right.binpb")
+                    format("delimited_imu_record")
+                    sampleRateHz(100)
+                    sensorId("WT901-YYYY")
+                    clockOffsetNs(67890L)
+                    imuStartDelayMs(490L)
+                    resyncIntervalsS(30)
+                    reconnectCount(1)
+                    droppedPartialCount(2)
+                }
+                .calibration {
+                    left(floatArrayOf(1f, 0f, 0f, 0f), "2026-05-09T14:29:50Z")
+                    right(floatArrayOf(1f, 0f, 0f, 0f), "2026-05-09T14:29:50Z")
+                }
+                .build()
 
         val root = JSONObject(json)
 
@@ -101,11 +101,12 @@ class ManifestBuilderTest {
 
     @Test
     fun `minimal manifest with only required fields`() {
-        val json = ManifestBuilder()
-            .t0Ns(1000L)
-            .durationMs(100L)
-            .createdAt("2026-01-01T00:00:00Z")
-            .build()
+        val json =
+            ManifestBuilder()
+                .t0Ns(1000L)
+                .durationMs(100L)
+                .createdAt("2026-01-01T00:00:00Z")
+                .build()
 
         val root = JSONObject(json)
         assertEquals("2.0", root.getString("version"))

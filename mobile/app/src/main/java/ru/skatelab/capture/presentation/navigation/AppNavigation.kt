@@ -1,5 +1,6 @@
 package ru.skatelab.capture.presentation.navigation
 
+import android.os.Environment
 import androidx.compose.runtime.Composable
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavType
@@ -7,6 +8,12 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import dagger.hilt.EntryPoint
+import dagger.hilt.InstallIn
+import dagger.hilt.android.EntryPointAccessors
+import dagger.hilt.components.SingletonComponent
+import java.io.File
+import ru.skatelab.capture.presentation.SessionState
 import ru.skatelab.capture.presentation.ble.BleScanScreen
 import ru.skatelab.capture.presentation.ble.BleScanViewModel
 import ru.skatelab.capture.presentation.calibration.CalibrationScreen
@@ -15,16 +22,23 @@ import ru.skatelab.capture.presentation.export.ExportScreen
 import ru.skatelab.capture.presentation.export.ExportViewModel
 import ru.skatelab.capture.presentation.recording.RecordingScreen
 import ru.skatelab.capture.presentation.recording.RecordingViewModel
-import ru.skatelab.capture.presentation.SessionState
-import java.io.File
+import ru.skatelab.capture.presentation.session.SessionListScreen
+import ru.skatelab.capture.presentation.session.SessionListViewModel
 
 object Routes {
     const val BLE_SCAN = "ble_scan"
     const val CALIBRATION = "calibration"
     const val RECORDING = "recording"
     const val EXPORT = "export/{sessionId}"
+    const val SESSIONS = "sessions"
 
     fun export(sessionId: String) = "export/$sessionId"
+}
+
+@InstallIn(SingletonComponent::class)
+@EntryPoint
+interface SessionStateEntryPoint {
+    fun sessionState(): SessionState
 }
 
 @Composable
@@ -54,16 +68,26 @@ fun AppNavigation() {
         composable(Routes.RECORDING) {
             val viewModel: RecordingViewModel = hiltViewModel()
             val context = androidx.compose.ui.platform.LocalContext.current
-            val downloadsDir = android.os.Environment.getExternalStoragePublicDirectory(android.os.Environment.DIRECTORY_DOWNLOADS)
-            val outputDir = File(downloadsDir, "skatelab_capture_${System.currentTimeMillis()}")
+            val outputDir =
+                File(
+                    context.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS),
+                    "skatelab_capture_${System.currentTimeMillis()}",
+                ).also {
+                    it.mkdirs()
+                }
+            val sessionState =
+                EntryPointAccessors.fromApplication(
+                    context.applicationContext,
+                    SessionStateEntryPoint::class.java,
+                ).sessionState()
 
             RecordingScreen(
                 viewModel = viewModel,
                 outputDir = outputDir,
-                calibration = SessionState.calibration,
+                calibration = sessionState.calibration,
                 onRecordingComplete = { sessionId ->
                     navController.navigate(Routes.export(sessionId)) {
-                        popUpTo(Routes.CALIBRATION) { inclusive = false }
+                        popUpTo(Routes.SESSIONS) { inclusive = false }
                     }
                 },
             )
@@ -78,6 +102,26 @@ fun AppNavigation() {
             ExportScreen(
                 viewModel = viewModel,
                 sessionId = sessionId,
+                onExportComplete = {
+                    navController.navigate(Routes.SESSIONS) {
+                        popUpTo(Routes.SESSIONS) { inclusive = true }
+                    }
+                },
+            )
+        }
+
+        composable(Routes.SESSIONS) {
+            val viewModel: SessionListViewModel = hiltViewModel()
+            SessionListScreen(
+                viewModel = viewModel,
+                onSessionClick = { sessionId ->
+                    navController.navigate(Routes.export(sessionId))
+                },
+                onNewRecording = {
+                    navController.navigate(Routes.BLE_SCAN) {
+                        popUpTo(Routes.SESSIONS) { inclusive = true }
+                    }
+                },
             )
         }
     }

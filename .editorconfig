@@ -58,3 +58,10 @@ charset = utf-8
 [*.{yml,yaml}]
 # GitHub Actions, GitLab CI, etc.
 indent_size = 2
+
+# Kotlin
+[*.kt]
+indent_size = 4
+
+[*.kts]
+indent_size = 4

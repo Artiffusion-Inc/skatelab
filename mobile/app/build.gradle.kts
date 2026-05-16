@@ -5,6 +5,7 @@ plugins {
     id("org.jetbrains.kotlin.plugin.compose")
     id("com.google.dagger.hilt.android")
     id("com.google.protobuf")
+    id("org.jlleitschuh.gradle.ktlint") version "12.2.0"
 }
 
 android {
@@ -27,7 +28,7 @@ android {
             isShrinkResources = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
-                "proguard-rules.pro"
+                "proguard-rules.pro",
             )
         }
     }
@@ -47,6 +48,12 @@ android {
 
     testOptions {
         unitTests.isReturnDefaultValues = true
+    }
+
+    tasks.withType<Test>().configureEach {
+        jvmArgs = listOf("-Xmx768m", "-XX:+UseG1GC", "-XX:MaxMetaspaceSize=256m")
+        maxHeapSize = "768m"
+        maxParallelForks = 1
     }
 
     protobuf {
@@ -87,18 +94,21 @@ dependencies {
     kapt("com.google.dagger:hilt-android-compiler:2.56.1")
     implementation("androidx.hilt:hilt-navigation-compose:1.2.0")
 
-    // Camera
-    implementation("androidx.camera:camera-core:1.4.2")
-    implementation("androidx.camera:camera-camera2:1.4.2")
-    implementation("androidx.camera:camera-lifecycle:1.4.2")
-    implementation("androidx.camera:camera-video:1.4.2")
-    implementation("androidx.camera:camera-view:1.4.2")
+    // CameraX
+    val cameraxVersion = "1.5.3"
+    implementation("androidx.camera:camera-core:$cameraxVersion")
+    implementation("androidx.camera:camera-camera2:$cameraxVersion")
+    implementation("androidx.camera:camera-lifecycle:$cameraxVersion")
+    implementation("androidx.camera:camera-video:$cameraxVersion")
+    implementation("androidx.camera:camera-compose:$cameraxVersion")
 
     // Protobuf
     implementation("com.google.protobuf:protobuf-javalite:4.30.2")
 
     // Coroutines
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.2")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.10.2")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-guava:1.10.2")
 
     // Testing
     testImplementation("junit:junit:4.13.2")
@@ -113,4 +123,16 @@ dependencies {
     androidTestImplementation("androidx.compose.ui:ui-test-junit4")
     androidTestImplementation("androidx.test:runner:1.6.2")
     androidTestImplementation("androidx.test:rules:1.6.1")
+}
+
+ktlint {
+    android = true
+    disabledRules =
+        setOf(
+            "function-naming",
+            "no-wildcard-imports",
+            "max-line-length",
+            "discouraged-comment-location",
+            "property-naming",
+        )
 }

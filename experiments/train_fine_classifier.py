@@ -9,12 +9,11 @@ Usage:
 """
 
 import argparse
-import json
 from pathlib import Path
 
 import numpy as np
 import torch
-import torch.nn as nn
+from torch import nn
 from torch.utils.data import DataLoader, Dataset
 
 from ml.src.tas.classifier import Skeleton1DCNN

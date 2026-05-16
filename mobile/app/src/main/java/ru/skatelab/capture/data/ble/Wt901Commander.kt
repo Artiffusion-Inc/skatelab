@@ -8,13 +8,17 @@ package ru.skatelab.capture.data.ble
  *
  * Unlock must be sent before EVERY configuration write — the 10-second
  * window expires after Save. Register reads do NOT need Unlock.
+ *
+ * BLE connect sends ONLY setRate() — no unlock/save/accCalibrate.
+ * See: docs/specs/2026-05-14-ble-stack-redesign-design.md
  */
 object Wt901Commander {
-
     // Register addresses
-    private const val REG_OUTPUT_CONTENT: Byte = 0x02
     private const val REG_OUTPUT_RATE: Byte = 0x03
     private const val REG_READ_OPCODE: Byte = 0x27
+
+    // Calibration commands (WitMotion WT901 protocol)
+    private const val CMD_ACC_CALIB: Byte = 0x01
 
     // Command prefix
     private const val CMD_PREFIX_0: Byte = 0xFF.toByte()
@@ -24,6 +28,7 @@ object Wt901Commander {
     private const val DELAY_AFTER_UNLOCK_MS = 50L
     private const val DELAY_BETWEEN_CONFIG_MS = 100L
     private const val DELAY_AFTER_SAVE_MS = 500L
+    private const val DELAY_ACC_CALIB_MS = 2000L
 
     /** A single command step with bytes to send and a delay after sending. */
     data class CommandStep(
@@ -43,69 +48,119 @@ object Wt901Commander {
         }
     }
 
-    // --- Individual command builders ---
+    // --- Atomic commands ---
 
     /** Unlock the sensor for configuration (opens 10-second window). */
     fun unlock(): ByteArray = byteArrayOf(CMD_PREFIX_0, CMD_PREFIX_1, 0x69, 0x88.toByte(), 0xB5.toByte())
 
-    /**
-     * Set OutputContent register (0x02).
-     * @param value Bitmask of output types to enable (XAMLCORP SDK flags).
-     *   Time=0x0001, ACC=0x0002, GYRO=0x0004, Angle=0x0008,
-     *   Magnetic=0x0010, Quaternion=0x0040
-     *   0x0046 = ACC + GYRO + Quaternion
-     *   0x0000 = disable all output
-     */
-    fun setOutputContent(value: Int): ByteArray =
-        byteArrayOf(CMD_PREFIX_0, CMD_PREFIX_1, REG_OUTPUT_CONTENT, value.toByte(), (value shr 8).toByte())
+    /** Start accelerometer hardware calibration — sensor must be still and level. */
+    fun accCalibrate(): ByteArray = byteArrayOf(CMD_PREFIX_0, CMD_PREFIX_1, CMD_ACC_CALIB, 0x01, 0x00)
+
+    /** Stop active calibration (ACC or MAG). */
+    fun stopCalibration(): ByteArray = byteArrayOf(CMD_PREFIX_0, CMD_PREFIX_1, CMD_ACC_CALIB, 0x00, 0x00)
 
     /**
      * Set OutputRate register (0x03).
      * @param value Rate code. 0x09 = 100Hz.
+     * This is the ONLY command sent on BLE connect.
      */
-    fun setOutputRate(value: Int): ByteArray =
-        byteArrayOf(CMD_PREFIX_0, CMD_PREFIX_1, REG_OUTPUT_RATE, value.toByte(), 0x00)
+    fun setRate(value: Int): ByteArray = byteArrayOf(CMD_PREFIX_0, CMD_PREFIX_1, REG_OUTPUT_RATE, value.toByte(), 0x00)
 
-    /** Save configuration to EEPROM (causes output mode switch). */
+    /** Set sensor date — year/month register (0x30). */
+    fun setTimeYearMonth(
+        year: Int,
+        month: Int,
+    ): ByteArray = byteArrayOf(CMD_PREFIX_0, CMD_PREFIX_1, 0x30, month.toByte(), (year - 2000).toByte())
+
+    /** Set sensor date — hour/day register (0x31). */
+    fun setTimeHourDay(
+        hour: Int,
+        day: Int,
+    ): ByteArray = byteArrayOf(CMD_PREFIX_0, CMD_PREFIX_1, 0x31, hour.toByte(), day.toByte())
+
+    /** Set sensor time — second/minute register (0x32). */
+    fun setTimeSecondMinute(
+        second: Int,
+        minute: Int,
+    ): ByteArray = byteArrayOf(CMD_PREFIX_0, CMD_PREFIX_1, 0x32, second.toByte(), minute.toByte())
+
+    /**
+     * Time configuration sequence: writes current Android time to sensor.
+     * Must be called BEFORE streaming starts (WT901 ignores register writes during streaming).
+     * Sequence: unlock → setTimeYearMonth → setTimeHourDay → setTimeSecondMinute → save
+     */
+    fun timeConfigSequence(): List<CommandStep> {
+        val now = java.util.Calendar.getInstance()
+        return listOf(
+            CommandStep(unlock(), DELAY_AFTER_UNLOCK_MS),
+            CommandStep(
+                setTimeYearMonth(now.get(java.util.Calendar.YEAR), now.get(java.util.Calendar.MONTH) + 1),
+                DELAY_BETWEEN_CONFIG_MS,
+            ),
+            CommandStep(
+                setTimeHourDay(now.get(java.util.Calendar.HOUR_OF_DAY), now.get(java.util.Calendar.DAY_OF_MONTH)),
+                DELAY_BETWEEN_CONFIG_MS,
+            ),
+            CommandStep(
+                setTimeSecondMinute(now.get(java.util.Calendar.SECOND), now.get(java.util.Calendar.MINUTE)),
+                DELAY_BETWEEN_CONFIG_MS,
+            ),
+            CommandStep(save(), DELAY_AFTER_SAVE_MS),
+        )
+    }
+
+    /** Restart sensor — reboots without changing stored config. Drops GATT connection. */
+    fun restart(): ByteArray = byteArrayOf(CMD_PREFIX_0, CMD_PREFIX_1, 0x00, 0xFF.toByte(), 0x00)
+
+    /** Factory reset — restores all registers to defaults and reboots. Drops GATT connection. */
+    fun factoryReset(): ByteArray = byteArrayOf(CMD_PREFIX_0, CMD_PREFIX_1, 0x00, 0x01, 0x00)
+
+    /** Save configuration to flash (no reboot). Must send after any config write. */
     fun save(): ByteArray = byteArrayOf(CMD_PREFIX_0, CMD_PREFIX_1, 0x00, 0x00, 0x00)
 
     /**
      * Read a register value (query-response via 0x71 notification).
      * Register reads do NOT need Unlock.
      */
-    fun readRegister(reg: Int): ByteArray =
-        byteArrayOf(CMD_PREFIX_0, CMD_PREFIX_1, REG_READ_OPCODE, reg.toByte(), 0x00)
+    fun readRegister(reg: Int): ByteArray = byteArrayOf(CMD_PREFIX_0, CMD_PREFIX_1, REG_READ_OPCODE, reg.toByte(), 0x00)
 
-    // --- Command sequences ---
+    /** Undocumented wake-up sequence (FF F0 F0 F0 F0). Some firmware needs this before unlock. */
+    fun wakeUp(): ByteArray = byteArrayOf(0xFF.toByte(), 0xF0.toByte(), 0xF0.toByte(), 0xF0.toByte(), 0xF0.toByte())
 
-    /**
-     * Full configuration sequence: Unlock → OutputContent → OutputRate → Save.
-     * Run once after initial connection, before recording.
-     */
-    fun configureSequence(): List<CommandStep> = listOf(
-        CommandStep(unlock(), DELAY_AFTER_UNLOCK_MS),
-        CommandStep(setOutputContent(0x0046), DELAY_BETWEEN_CONFIG_MS),
-        CommandStep(setOutputRate(0x09), DELAY_BETWEEN_CONFIG_MS),
-        CommandStep(save(), DELAY_AFTER_SAVE_MS),
-    )
+    // --- Recovery sequences (manual only, NOT on connect) ---
 
     /**
-     * Start streaming: Unlock → OutputContent 0x0046 → Save.
-     * Sends at recording start. ~750ms total.
+     * ACC calibration recovery sequence for BLE.
+     * Use when ACC data in 0x61 frame is all zeros (corrupted offset).
+     * Sensor MUST be horizontal and completely still during calibration.
+     *
+     * Sequence: stopCalib → unlock → stopCalib(working mode) → unlock → accCalibrate → save
+     * Two stopCalib calls ensure sensor is in working mode before calibration.
+     * Two unlock calls guard against expired unlock window.
      */
-    fun startStreamingSequence(): List<CommandStep> = listOf(
-        CommandStep(unlock(), DELAY_AFTER_UNLOCK_MS),
-        CommandStep(setOutputContent(0x0046), DELAY_BETWEEN_CONFIG_MS),
-        CommandStep(save(), DELAY_AFTER_SAVE_MS),
-    )
+    fun bleAccCalibrateSequence(): List<CommandStep> =
+        listOf(
+            CommandStep(stopCalibration(), DELAY_BETWEEN_CONFIG_MS),
+            CommandStep(unlock(), DELAY_AFTER_UNLOCK_MS),
+            // working mode first (critical!)
+            CommandStep(stopCalibration(), DELAY_ACC_CALIB_MS),
+            CommandStep(unlock(), DELAY_AFTER_UNLOCK_MS),
+            // start ACC cal — sensor must be STILL
+            CommandStep(accCalibrate(), DELAY_ACC_CALIB_MS),
+            CommandStep(save(), DELAY_AFTER_SAVE_MS),
+        )
 
     /**
-     * Stop streaming: Unlock → OutputContent 0x0000 → Save.
-     * Sends at recording end. ~750ms total.
+     * ACC calibration with wake-up — for stubborn firmware versions.
+     * Sensor MUST be horizontal and completely still.
      */
-    fun stopStreamingSequence(): List<CommandStep> = listOf(
-        CommandStep(unlock(), DELAY_AFTER_UNLOCK_MS),
-        CommandStep(setOutputContent(0x0000), DELAY_BETWEEN_CONFIG_MS),
-        CommandStep(save(), DELAY_AFTER_SAVE_MS),
-    )
+    fun bleAccCalibrateWithWakeSequence(): List<CommandStep> =
+        listOf(
+            CommandStep(wakeUp(), DELAY_BETWEEN_CONFIG_MS),
+            CommandStep(unlock(), DELAY_AFTER_UNLOCK_MS),
+            CommandStep(stopCalibration(), DELAY_ACC_CALIB_MS),
+            CommandStep(unlock(), DELAY_AFTER_UNLOCK_MS),
+            CommandStep(accCalibrate(), DELAY_ACC_CALIB_MS),
+            CommandStep(save(), DELAY_AFTER_SAVE_MS),
+        )
 }
