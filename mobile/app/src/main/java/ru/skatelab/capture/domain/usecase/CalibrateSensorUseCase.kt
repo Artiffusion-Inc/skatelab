@@ -24,8 +24,9 @@ class CalibrateSensorUseCase
             private const val TAG = "CalibrateSensorUC"
             private const val COLLECTION_TIMEOUT_MS = 12_000L
             private const val COLLECTION_DURATION_MS = 10_000L
-            private const val MAX_STILL_SAMPLES = 500
-            private const val ANGULAR_VELOCITY_THRESHOLD_DEG_S = 10.0
+            private const val ANGULAR_VELOCITY_THRESHOLD_DEG_S = 5.0
+            private const val ACC_MAG_MIN = 9.3
+            private const val ACC_MAG_MAX = 10.3
             private const val WARMUP_MS = 1_000L
         }
 
@@ -129,7 +130,16 @@ class CalibrateSensorUseCase
                                             sample.gyroZ * sample.gyroZ
                                     ).toDouble(),
                                 )
-                            val isStill = gyroMagDegS <= ANGULAR_VELOCITY_THRESHOLD_DEG_S
+                            val accMag =
+                                sqrt(
+                                    (
+                                        sample.accX * sample.accX +
+                                            sample.accY * sample.accY +
+                                            sample.accZ * sample.accZ
+                                    ).toDouble(),
+                                )
+                            val isStill = gyroMagDegS <= ANGULAR_VELOCITY_THRESHOLD_DEG_S &&
+                                accMag >= ACC_MAG_MIN && accMag <= ACC_MAG_MAX
                             when (sensorId) {
                                 SensorId.LEFT -> {
                                     leftReceived++
@@ -150,7 +160,6 @@ class CalibrateSensorUseCase
                         delay(progressStep)
                         elapsedMs += progressStep
                         if (elapsedMs >= COLLECTION_DURATION_MS) break
-                        if (leftSamples.size >= MAX_STILL_SAMPLES && rightSamples.size >= MAX_STILL_SAMPLES) break
                         val progress = ((elapsedMs * 100) / COLLECTION_DURATION_MS).toInt().coerceIn(0, 99)
                         if (progress != lastProgressReport) {
                             lastProgressReport = progress
