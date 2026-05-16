@@ -58,6 +58,7 @@ class CalibrationViewModel
         private val _rightQuat = MutableStateFlow(QuaternionPreview())
         val rightQuat: StateFlow<QuaternionPreview> = _rightQuat.asStateFlow()
 
+        private var calibrationJob: Job? = null
         private var previewJob: Job? = null
         private var streamingSensors = mutableSetOf<SensorId>()
 
@@ -96,7 +97,8 @@ class CalibrationViewModel
         }
 
         fun calibrateBoth() {
-            viewModelScope.launch {
+            calibrationJob?.cancel()
+            calibrationJob = viewModelScope.launch {
                 _isCalibrating.value = true
                 _error.value = null
                 _calibrationProgress.value = 0
@@ -119,6 +121,15 @@ class CalibrationViewModel
                     restartPreviewCollection()
                 }
             }
+        }
+
+        fun cancelCalibration() {
+            calibrationJob?.cancel()
+            calibrationJob = null
+            _isCalibrating.value = false
+            _calibrationProgress.value = 0
+            _error.value = null
+            restartPreviewCollection()
         }
 
         private fun restartPreviewCollection() {

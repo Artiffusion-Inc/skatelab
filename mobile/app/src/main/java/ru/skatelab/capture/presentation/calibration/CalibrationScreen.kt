@@ -1,8 +1,16 @@
 package ru.skatelab.capture.presentation.calibration
 
 import androidx.compose.foundation.layout.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -68,7 +76,7 @@ fun CalibrationScreen(
             )
             Spacer(modifier = Modifier.height(4.dp))
             Text(
-                text = "${secondsLeft} с",
+                text = "$secondsLeft с",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -84,17 +92,26 @@ fun CalibrationScreen(
         Spacer(modifier = Modifier.weight(1f))
         Button(
             onClick = onProceed,
-            enabled = leftCal != null || rightCal != null,
+            enabled = !isCalibrating && (leftCal != null || rightCal != null),
             modifier = Modifier.fillMaxWidth(),
         ) {
             Text(stringResource(R.string.calibration_proceed))
         }
         Spacer(modifier = Modifier.height(8.dp))
-        TextButton(
-            onClick = onProceed,
-            modifier = Modifier.fillMaxWidth(),
-        ) {
-            Text(stringResource(R.string.calibration_skip))
+        if (isCalibrating) {
+            TextButton(
+                onClick = { viewModel.cancelCalibration() },
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text(stringResource(R.string.calibration_cancel))
+            }
+        } else {
+            TextButton(
+                onClick = onProceed,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text(stringResource(R.string.calibration_skip))
+            }
         }
     }
 }
@@ -109,8 +126,9 @@ private fun SensorStatusCard(
         Column(modifier = Modifier.padding(16.dp)) {
             Text(label, style = MaterialTheme.typography.titleMedium)
 
-            val hasNonZero = quaternion.w != 0f || quaternion.x != 0f ||
-                quaternion.y != 0f || quaternion.z != 0f
+            val hasNonZero =
+                quaternion.w != 0f || quaternion.x != 0f ||
+                    quaternion.y != 0f || quaternion.z != 0f
             if (hasNonZero) {
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
