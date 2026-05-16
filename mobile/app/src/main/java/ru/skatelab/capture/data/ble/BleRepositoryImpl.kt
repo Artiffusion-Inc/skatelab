@@ -89,16 +89,21 @@ class BleRepositoryImpl
 
         /**
          * Convert raw battery register value to percentage.
-         * Thresholds from WT901BLECL reference app (DeviceControlActivity.java).
-         * Physical unit of register 0x64 is unverified.
+         * Register 0x64 returns centivolts (0.01V). WT901BLECL uses a single-cell
+         * Li-ion battery (3.0-4.2V = 300-420 raw).
+         * Based on standard Li-ion discharge curve.
          * TODO: Verify with hardware measurement (multimeter vs. register value).
          */
         private fun rawToPercent(raw: Int): Int = when {
-            raw >= 850 -> 100
-            raw >= 775 -> 80
-            raw >= 745 -> 60
-            raw >= 735 -> 40
-            raw >= 680 -> 20
+            raw >= 415 -> 100
+            raw >= 405 -> 90
+            raw >= 395 -> 75
+            raw >= 385 -> 60
+            raw >= 375 -> 45
+            raw >= 365 -> 30
+            raw >= 355 -> 20
+            raw >= 345 -> 10
+            raw >= 335 -> 5
             else -> 0
         }
 

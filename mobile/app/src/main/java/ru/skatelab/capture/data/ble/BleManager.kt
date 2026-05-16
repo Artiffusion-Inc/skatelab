@@ -18,6 +18,8 @@ import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -58,6 +60,8 @@ class BleManager(
         Log.e(TAG, msg)
         logger?.e(TAG, msg)
     }
+
+    private val readMutex = Mutex()
 
     companion object {
         private const val TAG = "BleManager"
@@ -403,11 +407,13 @@ class BleManager(
                                 }
                             }
                         }
-                    val sample = parser.feed(bytes, arrivalNs)
-                    if (sample != null) {
+                    val samples = parser.feed(bytes, arrivalNs)
+                    if (samples.isNotEmpty()) {
                         val id = addressToSensorId[address]
                         if (id != null) {
-                            _imuSamples.tryEmit(id to sample)
+                            samples.forEach { sample ->
+                                _imuSamples.tryEmit(id to sample)
+                            }
                         } else {
                             logw("No SensorId for address=$address")
                         }
@@ -498,14 +504,14 @@ class BleManager(
         sensorId: SensorId,
         register: Int,
         timeoutMs: Long = 2000L,
-    ): Result<ShortArray> {
+    ): Result<ShortArray> = readMutex.withLock {
         val address =
             addressToSensorId.entries.find { it.value == sensorId }?.key
                 ?: return Result.failure(IllegalArgumentException("No address for $sensorId"))
 
         writeBytes(address, Wt901Commander.readRegister(register))
 
-        return try {
+        try {
             val result =
                 withTimeoutOrNull(timeoutMs) {
                     _registerReadResults.first { (addr, r) ->
