@@ -94,18 +94,19 @@ class BleRepositoryImpl
          * Based on standard Li-ion discharge curve.
          * TODO: Verify with hardware measurement (multimeter vs. register value).
          */
-        private fun rawToPercent(raw: Int): Int = when {
-            raw >= 415 -> 100
-            raw >= 405 -> 90
-            raw >= 395 -> 75
-            raw >= 385 -> 60
-            raw >= 375 -> 45
-            raw >= 365 -> 30
-            raw >= 355 -> 20
-            raw >= 345 -> 10
-            raw >= 335 -> 5
-            else -> 0
-        }
+        private fun rawToPercent(raw: Int): Int =
+            when {
+                raw >= 415 -> 100
+                raw >= 405 -> 90
+                raw >= 395 -> 75
+                raw >= 385 -> 60
+                raw >= 375 -> 45
+                raw >= 365 -> 30
+                raw >= 355 -> 20
+                raw >= 345 -> 10
+                raw >= 335 -> 5
+                else -> 0
+            }
 
         override suspend fun readChipTime(sensorId: SensorId): Result<Long> {
             val result = bleManager.readRegisterResponse(sensorId, 0x50)

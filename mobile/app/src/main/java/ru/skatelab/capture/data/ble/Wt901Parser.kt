@@ -162,11 +162,12 @@ class Wt901Parser {
             }
 
             // Determine frame size
-            val frameSize = when (frameType) {
-                TYPE_COMBINED -> COMBINED_FRAME_SIZE
-                TYPE_REG_READ -> REG_READ_FRAME_SIZE
-                else -> INDIVIDUAL_FRAME_SIZE
-            }
+            val frameSize =
+                when (frameType) {
+                    TYPE_COMBINED -> COMBINED_FRAME_SIZE
+                    TYPE_REG_READ -> REG_READ_FRAME_SIZE
+                    else -> INDIVIDUAL_FRAME_SIZE
+                }
             if (bufferSize < frameSize) {
                 break // Wait for more data
             }

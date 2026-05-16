@@ -1,7 +1,8 @@
 package ru.skatelab.capture.data.sync
 
 import android.os.SystemClock
-import kotlinx.coroutines.CompletableDeferred
+import javax.inject.Inject
+import javax.inject.Named
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
@@ -10,8 +11,6 @@ import kotlinx.coroutines.withTimeoutOrNull
 import ru.skatelab.capture.AppLogger
 import ru.skatelab.capture.domain.model.SensorId
 import ru.skatelab.capture.domain.repository.BleRepository
-import javax.inject.Named
-import javax.inject.Inject
 
 /**
  * Performs a one-shot time sync by reading chip time register (0x50) from each sensor.
@@ -24,54 +23,57 @@ import javax.inject.Inject
  * Call [syncAndWait] before starting IMU streaming. The returned deferred
  * completes when both sensors have been read (or failed).
  */
-class PeriodicTimeSync @Inject constructor(
-    private val timeSyncManager: TimeSyncManager,
-    private val bleRepository: BleRepository,
-    private val appLogger: AppLogger,
-    @Named("clockNanos") private val clockNanos: () -> Long = { SystemClock.elapsedRealtimeNanos() },
-) {
-    companion object {
-        private const val TAG = "TimeSync"
-    }
+class PeriodicTimeSync
+    @Inject
+    constructor(
+        private val timeSyncManager: TimeSyncManager,
+        private val bleRepository: BleRepository,
+        private val appLogger: AppLogger,
+        @Named("clockNanos") private val clockNanos: () -> Long = { SystemClock.elapsedRealtimeNanos() },
+    ) {
+        companion object {
+            private const val TAG = "TimeSync"
+        }
 
-    private var job: Job? = null
+        private var job: Job? = null
 
-    /**
-     * Perform a one-shot time sync for both sensors.
-     * Must be called BEFORE IMU streaming starts (WT901 ignores register reads during streaming).
-     */
-    fun sync(scope: CoroutineScope) {
-        stop()
-        job = scope.launch {
-            val leftDeferred = async { withTimeoutOrNull(3_000L) { performRead(SensorId.LEFT) } }
-            val rightDeferred = async { withTimeoutOrNull(3_000L) { performRead(SensorId.RIGHT) } }
-            leftDeferred.await()
-            rightDeferred.await()
+        /**
+         * Perform a one-shot time sync for both sensors.
+         * Must be called BEFORE IMU streaming starts (WT901 ignores register reads during streaming).
+         */
+        fun sync(scope: CoroutineScope) {
+            stop()
+            job =
+                scope.launch {
+                    val leftDeferred = async { withTimeoutOrNull(3_000L) { performRead(SensorId.LEFT) } }
+                    val rightDeferred = async { withTimeoutOrNull(3_000L) { performRead(SensorId.RIGHT) } }
+                    leftDeferred.await()
+                    rightDeferred.await()
+                }
+        }
+
+        /**
+         * Suspend until the sync job completes.
+         * Call after [sync] to ensure offsets are set before starting streaming.
+         */
+        suspend fun awaitSync() {
+            job?.join()
+        }
+
+        fun stop() {
+            job?.cancel()
+            job = null
+        }
+
+        private suspend fun performRead(sensorId: SensorId) {
+            val androidNs = clockNanos()
+            bleRepository.readChipTime(sensorId)
+                .onSuccess { chipTimeMs ->
+                    timeSyncManager.updatePeriodicOffset(sensorId, androidNs, chipTimeMs)
+                    appLogger.d(TAG, "Time sync $sensorId: offset=${timeSyncManager.getOffset(sensorId)}ns")
+                }
+                .onFailure {
+                    appLogger.w(TAG, "Time sync read failed for $sensorId: ${it.message}")
+                }
         }
     }
-
-    /**
-     * Suspend until the sync job completes.
-     * Call after [sync] to ensure offsets are set before starting streaming.
-     */
-    suspend fun awaitSync() {
-        job?.join()
-    }
-
-    fun stop() {
-        job?.cancel()
-        job = null
-    }
-
-    private suspend fun performRead(sensorId: SensorId) {
-        val androidNs = clockNanos()
-        bleRepository.readChipTime(sensorId)
-            .onSuccess { chipTimeMs ->
-                timeSyncManager.updatePeriodicOffset(sensorId, androidNs, chipTimeMs)
-                appLogger.d(TAG, "Time sync $sensorId: offset=${timeSyncManager.getOffset(sensorId)}ns")
-            }
-            .onFailure {
-                appLogger.w(TAG, "Time sync read failed for $sensorId: ${it.message}")
-            }
-    }
-}

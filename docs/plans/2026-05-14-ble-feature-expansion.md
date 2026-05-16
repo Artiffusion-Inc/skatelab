@@ -534,7 +534,9 @@ class TimeSynchronizerImpl @Inject constructor(
 }
 ```
 
-After changes, `sync()` will first attempt `configureSensorTime()` for each sensor where offset > 1s, then delegate to `periodicTimeSync.sync()`.
+After changes, `sync()` will first attempt `configureSensorTime()` for each sensor where offset is unknown (=0, first sync) or exceeds 1s, then (sequentially) delegate to `periodicTimeSync.sync()`.
+
+**Design decision:** `offset=0` means "never synced" → must configure time. `abs(offset) < 1s && offset != 0` means clock is close enough → skip. Time-config runs **sequentially before** `periodicTimeSync.sync()` to avoid race condition (WT901 ignores register reads while processing writes).
 
 - [ ] **Step 1: Write failing test**
 
@@ -546,6 +548,7 @@ import io.mockk.coVerify
 import io.mockk.mockk
 import io.mockk.verify
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import org.junit.Before
 import org.junit.Test
@@ -571,31 +574,50 @@ class TimeSynchronizerImplTest {
     fun `sync calls configureSensorTime when offset exceeds 1 second`() =
         runTest {
             coEvery { timeSyncManager.getOffset(SensorId.LEFT) } returns 2_000_000_000L
-            coEvery { timeSyncManager.getOffset(SensorId.RIGHT) } returns 0L
+            coEvery { timeSyncManager.getOffset(SensorId.RIGHT) } returns 500_000_000L
+            coEvery { configureSensorTimeUseCase(SensorId.LEFT) } returns Result.success(Unit)
 
             synchronizer.sync(this)
+            advanceUntilIdle()
 
             coVerify(exactly = 1) { configureSensorTimeUseCase(SensorId.LEFT) }
             coVerify(exactly = 0) { configureSensorTimeUseCase(SensorId.RIGHT) }
         }
 
     @Test
-    fun `sync skips configureSensorTime when offset under 1 second`() =
+    fun `sync calls configureSensorTime when offset is zero (first sync)`) =
+        runTest {
+            coEvery { timeSyncManager.getOffset(SensorId.LEFT) } returns 0L
+            coEvery { timeSyncManager.getOffset(SensorId.RIGHT) } returns 0L
+            coEvery { configureSensorTimeUseCase(any()) } returns Result.success(Unit)
+
+            synchronizer.sync(this)
+            advanceUntilIdle()
+
+            // offset=0 means never synced → always configure time
+            coVerify(exactly = 1) { configureSensorTimeUseCase(SensorId.LEFT) }
+            coVerify(exactly = 1) { configureSensorTimeUseCase(SensorId.RIGHT) }
+        }
+
+    @Test
+    fun `sync skips configureSensorTime when offset under 1 second and non-zero`() =
         runTest {
             coEvery { timeSyncManager.getOffset(SensorId.LEFT) } returns 500_000_000L
             coEvery { timeSyncManager.getOffset(SensorId.RIGHT) } returns 800_000_000L
 
             synchronizer.sync(this)
+            advanceUntilIdle()
 
             coVerify(exactly = 0) { configureSensorTimeUseCase(any()) }
         }
 
     @Test
-    fun `sync always delegates to periodicTimeSync`() =
+    fun `sync always delegates to periodicTimeSync after time-config`() =
         runTest {
-            coEvery { timeSyncManager.getOffset(any()) } returns 0L
+            coEvery { timeSyncManager.getOffset(any()) } returns 500_000_000L // offset < 1s, non-zero
 
             synchronizer.sync(this)
+            advanceUntilIdle()
 
             verify(exactly = 1) { periodicTimeSync.sync(any()) }
         }
@@ -647,18 +669,21 @@ class TimeSynchronizerImpl
         }
 
         override fun sync(scope: CoroutineScope) {
-            // Auto time-config: write Android time to sensor if offset > 1s
             scope.launch {
+                // Auto time-config: write Android time to sensor if offset is
+                // unknown (=0, first sync) or exceeds 1 second.
+                // Runs BEFORE periodicTimeSync to avoid race — WT901 ignores
+                // register reads while processing time-config writes.
                 for (sensorId in listOf(SensorId.LEFT, SensorId.RIGHT)) {
                     val offset = timeSyncManager.getOffset(sensorId)
-                    if (offset != 0L && kotlin.math.abs(offset) > OFFSET_THRESHOLD_NS) {
+                    if (offset == 0L || kotlin.math.abs(offset) > OFFSET_THRESHOLD_NS) {
                         configureSensorTimeUseCase(sensorId).onFailure {
                             // Best effort — proceed with offset-based sync
                         }
                     }
                 }
+                periodicTimeSync.sync(scope)
             }
-            periodicTimeSync.sync(scope)
         }
 
         override suspend fun awaitSync() = periodicTimeSync.awaitSync()

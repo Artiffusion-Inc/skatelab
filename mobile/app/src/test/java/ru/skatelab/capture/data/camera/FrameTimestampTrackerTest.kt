@@ -1,12 +1,11 @@
 package ru.skatelab.capture.data.camera
 
+import java.io.File
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
-import java.io.File
 
 class FrameTimestampTrackerTest {
-
     @Test
     fun `write 2 frames and read back CSV`() {
         val tempFile = File.createTempFile("frame_timestamps", ".csv")

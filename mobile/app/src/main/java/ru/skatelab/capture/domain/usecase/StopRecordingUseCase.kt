@@ -28,6 +28,8 @@ class StopRecordingUseCase
             bleRepository.stopStreaming(SensorId.RIGHT)
             cameraRepository.release()
 
-            return Result.success(StopResult(actualFps = stopResult.actualFps, fpsVerified = stopResult.fpsVerified, firstFrameNs = stopResult.firstFrameNs))
+            return Result.success(
+                StopResult(actualFps = stopResult.actualFps, fpsVerified = stopResult.fpsVerified, firstFrameNs = stopResult.firstFrameNs),
+            )
         }
     }

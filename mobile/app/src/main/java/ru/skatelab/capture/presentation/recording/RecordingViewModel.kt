@@ -149,7 +149,10 @@ class RecordingViewModel
             _elapsedMs.value = 0L
         }
 
-        fun bindCamera(lifecycleOwner: LifecycleOwner, outputDir: File) {
+        fun bindCamera(
+            lifecycleOwner: LifecycleOwner,
+            outputDir: File,
+        ) {
             currentOutputDir = outputDir
 
             cleanupStaleCaptureDirs(outputDir.parentFile, excludeDir = outputDir)
@@ -281,7 +284,10 @@ class RecordingViewModel
                         actualVideoFps = stopResult.actualFps
                         fpsVerified = stopResult.fpsVerified
                         firstFrameNs = stopResult.firstFrameNs
-                        appLogger.i(TAG, "Stopped: actualFps=${stopResult.actualFps} verified=${stopResult.fpsVerified} firstFrameNs=${stopResult.firstFrameNs}")
+                        appLogger.i(
+                            TAG,
+                            "Stopped: actualFps=${stopResult.actualFps} verified=${stopResult.fpsVerified} firstFrameNs=${stopResult.firstFrameNs}",
+                        )
                     }
                     .onFailure {
                         appLogger.w(TAG, "Stop use case partial failure: ${it.message}")

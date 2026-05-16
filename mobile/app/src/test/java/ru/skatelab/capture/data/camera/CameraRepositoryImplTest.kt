@@ -5,7 +5,6 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class CameraRepositoryImplTest {
-
     @Test
     fun fullHardwareLevel_isSupported() {
         val isSupported = FULL >= FULL

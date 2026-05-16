@@ -138,26 +138,27 @@ class SessionRepositoryImplTest {
             val rightPath = File(sessionDir, "imu_right.binpb").absolutePath
             val framesPath = File(sessionDir, "frames.csv").absolutePath
             val manifestPath = File(sessionDir, "manifest.json").absolutePath
-            val oldJson = """
-            {
-              "id": "old-session",
-              "videoPath": "$videoPath",
-              "imuLeftPath": "$leftPath",
-              "imuRightPath": "$rightPath",
-              "frameTimestampsPath": "$framesPath",
-              "manifestPath": "$manifestPath",
-              "t0Ns": 1000000000,
-              "durationMs": 5000,
-              "videoFps": 60,
-              "timestampSource": "REALTIME",
-              "videoStartDelayMs": 120,
-              "imuStartDelayMs": {"LEFT": 480, "RIGHT": 490},
-              "calibration": {"LEFT": {"quatRef": [1.0,0.0,0.0,0.0],"calibratedAt": 1000}, "RIGHT": {"quatRef": [0.0,1.0,0.0,0.0],"calibratedAt": 2000}},
-              "clockOffsetNs": {"LEFT": 12345, "RIGHT": 67890},
-              "createdAt": 1700000000000,
-              "isComplete": true
-            }
-            """.trimIndent()
+            val oldJson =
+                """
+                {
+                  "id": "old-session",
+                  "videoPath": "$videoPath",
+                  "imuLeftPath": "$leftPath",
+                  "imuRightPath": "$rightPath",
+                  "frameTimestampsPath": "$framesPath",
+                  "manifestPath": "$manifestPath",
+                  "t0Ns": 1000000000,
+                  "durationMs": 5000,
+                  "videoFps": 60,
+                  "timestampSource": "REALTIME",
+                  "videoStartDelayMs": 120,
+                  "imuStartDelayMs": {"LEFT": 480, "RIGHT": 490},
+                  "calibration": {"LEFT": {"quatRef": [1.0,0.0,0.0,0.0],"calibratedAt": 1000}, "RIGHT": {"quatRef": [0.0,1.0,0.0,0.0],"calibratedAt": 2000}},
+                  "clockOffsetNs": {"LEFT": 12345, "RIGHT": 67890},
+                  "createdAt": 1700000000000,
+                  "isComplete": true
+                }
+                """.trimIndent()
             File(sessionDir, "meta.json").writeText(oldJson)
 
             val loaded = repository.getSession("old-session")

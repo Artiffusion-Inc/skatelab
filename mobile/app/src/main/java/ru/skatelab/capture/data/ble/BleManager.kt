@@ -18,8 +18,6 @@ import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -27,6 +25,8 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withTimeoutOrNull
 import ru.skatelab.capture.domain.model.ImuSample
 import ru.skatelab.capture.domain.model.SensorId
@@ -504,36 +504,39 @@ class BleManager(
         sensorId: SensorId,
         register: Int,
         timeoutMs: Long = 2000L,
-    ): Result<ShortArray> = readMutex.withLock {
-        val address =
-            addressToSensorId.entries.find { it.value == sensorId }?.key
-                ?: return Result.failure(IllegalArgumentException("No address for $sensorId"))
+    ): Result<ShortArray> =
+        readMutex.withLock {
+            val address =
+                addressToSensorId.entries.find { it.value == sensorId }?.key
+                    ?: return Result.failure(IllegalArgumentException("No address for $sensorId"))
 
-        writeBytes(address, Wt901Commander.readRegister(register))
+            writeBytes(address, Wt901Commander.readRegister(register))
 
-        try {
-            val result =
-                withTimeoutOrNull(timeoutMs) {
-                    _registerReadResults.first { (addr, r) ->
-                        addr == address && r.register == register
-                    }.second
+            try {
+                val result =
+                    withTimeoutOrNull(timeoutMs) {
+                        _registerReadResults.first { (addr, r) ->
+                            addr == address && r.register == register
+                        }.second
+                    }
+                if (result != null) {
+                    logi("readRegisterResponse: reg=0x${register.toString(16)} data=${result.data.toList()}")
+                    Result.success(result.data)
+                } else {
+                    logw("readRegisterResponse: timeout for reg=0x${register.toString(16)}")
+                    Result.failure(
+                        java.util.concurrent.TimeoutException(
+                            "No 0x71 response for register 0x${register.toString(16)} within ${timeoutMs}ms",
+                        ),
+                    )
                 }
-            if (result != null) {
-                logi("readRegisterResponse: reg=0x${register.toString(16)} data=${result.data.toList()}")
-                Result.success(result.data)
-            } else {
-                logw("readRegisterResponse: timeout for reg=0x${register.toString(16)}")
-                Result.failure(
-                    java.util.concurrent.TimeoutException("No 0x71 response for register 0x${register.toString(16)} within ${timeoutMs}ms"),
-                )
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                loge("readRegisterResponse error: ${e.message}")
+                Result.failure(e)
             }
-        } catch (e: CancellationException) {
-            throw e
-        } catch (e: Exception) {
-            loge("readRegisterResponse error: ${e.message}")
-            Result.failure(e)
         }
-    }
 
     /**
      * Convenience: send command by SensorId (finds address internally).

@@ -5,10 +5,10 @@ import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.sample
 import kotlinx.coroutines.launch
 import ru.skatelab.capture.domain.model.CalibrationData
@@ -98,29 +98,30 @@ class CalibrationViewModel
 
         fun calibrateBoth() {
             calibrationJob?.cancel()
-            calibrationJob = viewModelScope.launch {
-                _isCalibrating.value = true
-                _error.value = null
-                _calibrationProgress.value = 0
-                previewJob?.cancel()
-                previewJob = null
-                try {
-                    calibrateSensorUseCase { progress ->
-                        _calibrationProgress.value = progress
-                    }
-                        .onSuccess { calMap ->
-                            calMap[SensorId.LEFT]?.let { _leftCalibration.value = it }
-                            calMap[SensorId.RIGHT]?.let { _rightCalibration.value = it }
-                            sessionState.calibration = calMap
+            calibrationJob =
+                viewModelScope.launch {
+                    _isCalibrating.value = true
+                    _error.value = null
+                    _calibrationProgress.value = 0
+                    previewJob?.cancel()
+                    previewJob = null
+                    try {
+                        calibrateSensorUseCase { progress ->
+                            _calibrationProgress.value = progress
                         }
-                        .onFailure { _error.value = it.message }
-                } finally {
-                    _calibrationProgress.value = 100
-                    delay(500L)
-                    _isCalibrating.value = false
-                    restartPreviewCollection()
+                            .onSuccess { calMap ->
+                                calMap[SensorId.LEFT]?.let { _leftCalibration.value = it }
+                                calMap[SensorId.RIGHT]?.let { _rightCalibration.value = it }
+                                sessionState.calibration = calMap
+                            }
+                            .onFailure { _error.value = it.message }
+                    } finally {
+                        _calibrationProgress.value = 100
+                        delay(500L)
+                        _isCalibrating.value = false
+                        restartPreviewCollection()
+                    }
                 }
-            }
         }
 
         fun cancelCalibration() {

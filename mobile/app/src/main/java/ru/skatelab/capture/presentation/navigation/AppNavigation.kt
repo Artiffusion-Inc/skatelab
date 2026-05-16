@@ -1,5 +1,6 @@
 package ru.skatelab.capture.presentation.navigation
 
+import android.os.Environment
 import androidx.compose.runtime.Composable
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavType
@@ -7,6 +8,12 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import dagger.hilt.EntryPoint
+import dagger.hilt.InstallIn
+import dagger.hilt.android.EntryPointAccessors
+import dagger.hilt.components.SingletonComponent
+import java.io.File
+import ru.skatelab.capture.presentation.SessionState
 import ru.skatelab.capture.presentation.ble.BleScanScreen
 import ru.skatelab.capture.presentation.ble.BleScanViewModel
 import ru.skatelab.capture.presentation.calibration.CalibrationScreen
@@ -17,9 +24,6 @@ import ru.skatelab.capture.presentation.recording.RecordingScreen
 import ru.skatelab.capture.presentation.recording.RecordingViewModel
 import ru.skatelab.capture.presentation.session.SessionListScreen
 import ru.skatelab.capture.presentation.session.SessionListViewModel
-import ru.skatelab.capture.presentation.SessionState
-import java.io.File
-import android.os.Environment
 
 object Routes {
     const val BLE_SCAN = "ble_scan"
@@ -29,6 +33,12 @@ object Routes {
     const val SESSIONS = "sessions"
 
     fun export(sessionId: String) = "export/$sessionId"
+}
+
+@InstallIn(SingletonComponent::class)
+@EntryPoint
+interface SessionStateEntryPoint {
+    fun sessionState(): SessionState
 }
 
 @Composable
@@ -58,12 +68,23 @@ fun AppNavigation() {
         composable(Routes.RECORDING) {
             val viewModel: RecordingViewModel = hiltViewModel()
             val context = androidx.compose.ui.platform.LocalContext.current
-            val outputDir = File(context.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS), "skatelab_capture_${System.currentTimeMillis()}").also { it.mkdirs() }
+            val outputDir =
+                File(
+                    context.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS),
+                    "skatelab_capture_${System.currentTimeMillis()}",
+                ).also {
+                    it.mkdirs()
+                }
+            val sessionState =
+                EntryPointAccessors.fromApplication(
+                    context.applicationContext,
+                    SessionStateEntryPoint::class.java,
+                ).sessionState()
 
             RecordingScreen(
                 viewModel = viewModel,
                 outputDir = outputDir,
-                calibration = SessionState.calibration,
+                calibration = sessionState.calibration,
                 onRecordingComplete = { sessionId ->
                     navController.navigate(Routes.export(sessionId)) {
                         popUpTo(Routes.SESSIONS) { inclusive = false }

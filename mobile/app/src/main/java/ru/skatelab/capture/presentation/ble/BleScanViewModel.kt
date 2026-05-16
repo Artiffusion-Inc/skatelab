@@ -12,14 +12,12 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import ru.skatelab.capture.domain.model.SensorId
-import ru.skatelab.capture.domain.model.SensorInfo
 import ru.skatelab.capture.domain.repository.BleRepository
 import ru.skatelab.capture.domain.repository.ScanDevice
 import ru.skatelab.capture.domain.service.Logger
 import ru.skatelab.capture.domain.usecase.AccCalibrateSensorUseCase
 import ru.skatelab.capture.domain.usecase.ConnectSensorUseCase
 import ru.skatelab.capture.domain.usecase.FactoryResetSensorUseCase
-import ru.skatelab.capture.domain.usecase.ReadSensorInfoUseCase
 
 @HiltViewModel
 class BleScanViewModel
@@ -30,7 +28,6 @@ class BleScanViewModel
         private val factoryResetSensorUseCase: FactoryResetSensorUseCase,
         private val accCalibrateSensorUseCase: AccCalibrateSensorUseCase,
         private val appLogger: Logger,
-        private val readSensorInfoUseCase: ReadSensorInfoUseCase,
     ) : ViewModel() {
         private val tag = "BleScanVM"
 
@@ -50,21 +47,6 @@ class BleScanViewModel
 
         private val _factoryResetStatus = MutableStateFlow<String?>(null)
         val factoryResetStatus: StateFlow<String?> = _factoryResetStatus.asStateFlow()
-
-        private val _sensorInfo = MutableStateFlow<Map<SensorId, SensorInfo?>>(emptyMap())
-        val sensorInfo: StateFlow<Map<SensorId, SensorInfo?>> = _sensorInfo.asStateFlow()
-
-        init {
-            viewModelScope.launch {
-                connectionState.collect { stateMap ->
-                    for ((sensorId, state) in stateMap) {
-                        if (state == BleRepository.ConnectionState.CONNECTED && _sensorInfo.value[sensorId] == null) {
-                            refreshSensorInfo(sensorId)
-                        }
-                    }
-                }
-            }
-        }
 
         private var _isScanning = false
         val isScanning: Boolean get() = _isScanning
@@ -126,14 +108,7 @@ class BleScanViewModel
             }
         }
 
-        fun refreshSensorInfo(sensorId: SensorId) {
-            viewModelScope.launch {
-                val result = readSensorInfoUseCase(sensorId)
-                if (result.isSuccess) {
-                    _sensorInfo.value = _sensorInfo.value + (sensorId to result.getOrThrow())
-                }
-            }
-        }
+        fun getAddressForSensor(sensorId: SensorId): String? = bleRepository.getAddressForSensor(sensorId)
 
         override fun onCleared() {
             super.onCleared()

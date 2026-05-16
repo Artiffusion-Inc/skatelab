@@ -1,6 +1,6 @@
 package ru.skatelab.capture.presentation.recording
 
-import androidx.camera.viewfinder.CameraViewfinder
+import androidx.camera.compose.CameraXViewfinder
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -29,7 +29,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.viewinterop.AndroidView
 import java.io.File
 import ru.skatelab.capture.R
 import ru.skatelab.capture.domain.model.CalibrationData
@@ -144,16 +143,17 @@ private fun CameraPreview(
     sensorInfo: Map<SensorId, SensorInfo?>,
     onCameraReady: () -> Unit,
 ) {
+    val surfaceRequest by viewModel.surfaceRequest.collectAsState()
+
     Box(modifier = Modifier.fillMaxSize()) {
-        AndroidView(
-            factory = { context ->
-                CameraViewfinder(context).apply {
-                    viewModel.setViewfinder(this)
-                    onCameraReady()
-                }
-            },
-            modifier = Modifier.fillMaxSize(),
-        )
+        surfaceRequest?.let { request ->
+            CameraXViewfinder(
+                surfaceRequest = request,
+                modifier = Modifier.fillMaxSize(),
+            )
+        }
+
+        LaunchedEffect(Unit) { onCameraReady() }
 
         val leftInfo = sensorInfo[SensorId.LEFT]
         val rightInfo = sensorInfo[SensorId.RIGHT]
@@ -167,8 +167,8 @@ private fun CameraPreview(
                         .padding(horizontal = 8.dp, vertical = 4.dp),
             ) {
                 val parts = mutableListOf<String>()
-                leftInfo?.let { parts.add("Л:${it.batteryPercent}%") }
-                rightInfo?.let { parts.add("П:${it.batteryPercent}%") }
+                leftInfo?.let { parts.add("Л:${it.batteryPercent}%(${it.batteryMv})") }
+                rightInfo?.let { parts.add("П:${it.batteryPercent}%(${it.batteryMv})") }
                 Text(
                     parts.joinToString(" "),
                     color = Color.White,

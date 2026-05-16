@@ -33,11 +33,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import ru.skatelab.capture.R
-import ru.skatelab.capture.domain.model.CaptureSession
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import ru.skatelab.capture.R
+import ru.skatelab.capture.domain.model.CaptureSession
 
 @Composable
 fun SessionListScreen(
@@ -75,7 +75,7 @@ fun SessionListScreen(
             FloatingActionButton(onClick = onNewRecording) {
                 Icon(Icons.Default.Add, contentDescription = stringResource(R.string.session_new_recording))
             }
-        }
+        },
     ) { padding ->
         Column(
             modifier = Modifier.fillMaxSize().padding(padding).padding(horizontal = 16.dp),
@@ -129,10 +129,11 @@ private fun SessionRow(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Column(modifier = Modifier.weight(1f)) {
-                val dateFormat = SimpleDateFormat(
-                    stringResource(R.string.session_date_format),
-                    Locale.getDefault(),
-                )
+                val dateFormat =
+                    SimpleDateFormat(
+                        stringResource(R.string.session_date_format),
+                        Locale.getDefault(),
+                    )
                 Text(
                     dateFormat.format(Date(session.createdAt)),
                     style = MaterialTheme.typography.bodyLarge,
@@ -149,11 +150,12 @@ private fun SessionRow(
                     stringResource(R.string.session_incomplete)
                 },
                 style = MaterialTheme.typography.labelMedium,
-                color = if (session.isComplete) {
-                    MaterialTheme.colorScheme.primary
-                } else {
-                    MaterialTheme.colorScheme.error
-                },
+                color =
+                    if (session.isComplete) {
+                        MaterialTheme.colorScheme.primary
+                    } else {
+                        MaterialTheme.colorScheme.error
+                    },
             )
             IconButton(onClick = onDelete, modifier = Modifier.size(32.dp)) {
                 Icon(

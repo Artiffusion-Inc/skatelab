@@ -22,8 +22,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import ru.skatelab.capture.R
 import java.io.File
+import ru.skatelab.capture.R
 
 @Composable
 fun ExportScreen(
@@ -49,13 +49,14 @@ fun ExportScreen(
     // Launch share sheet when shareUri is set
     LaunchedEffect(shareUri) {
         shareUri?.let { uri ->
-            val shareIntent = Intent(Intent.ACTION_SEND).apply {
-                type = "application/zip"
-                putExtra(Intent.EXTRA_STREAM, uri)
-                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-            }
+            val shareIntent =
+                Intent(Intent.ACTION_SEND).apply {
+                    type = "application/zip"
+                    putExtra(Intent.EXTRA_STREAM, uri)
+                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                }
             context.startActivity(
-                Intent.createChooser(shareIntent, context.getString(R.string.export_share_title))
+                Intent.createChooser(shareIntent, context.getString(R.string.export_share_title)),
             )
             viewModel.onShareComplete()
         }

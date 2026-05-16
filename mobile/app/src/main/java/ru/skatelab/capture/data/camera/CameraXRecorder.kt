@@ -63,11 +63,12 @@ class CameraXRecorder
                 val provider = ProcessCameraProvider.getInstance(context).await()
                 cameraProvider = provider
 
-                val p = Preview.Builder().build().also { preview ->
-                    preview.setSurfaceProvider(cameraExecutor) { request ->
-                        _surfaceRequest.value = request
+                val p =
+                    Preview.Builder().build().also { preview ->
+                        preview.setSurfaceProvider(cameraExecutor) { request ->
+                            _surfaceRequest.value = request
+                        }
                     }
-                }
                 preview = p
 
                 val r =

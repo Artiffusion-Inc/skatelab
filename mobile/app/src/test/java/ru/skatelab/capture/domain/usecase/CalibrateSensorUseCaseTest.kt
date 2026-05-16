@@ -8,7 +8,6 @@ import kotlin.math.sin
 import kotlin.math.sqrt
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
-import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.StandardTestDispatcher
@@ -152,18 +151,24 @@ class CalibrateSensorUseCaseTest {
 
             launch {
                 repeat(100) { i ->
-                    imuSamplesFlow.emit(SensorId.LEFT to ImuSample(
-                        timestampNs = i.toLong(),
-                        accX = 0f, accY = 0f, accZ = 9.81f,
-                        gyroX = 6.0f, gyroY = 0f, gyroZ = 0f,
-                        quatW = 1f, quatX = 0f, quatY = 0f, quatZ = 0f,
-                    ))
-                    imuSamplesFlow.emit(SensorId.RIGHT to ImuSample(
-                        timestampNs = i.toLong(),
-                        accX = 0f, accY = 0f, accZ = 9.81f,
-                        gyroX = 6.0f, gyroY = 0f, gyroZ = 0f,
-                        quatW = 1f, quatX = 0f, quatY = 0f, quatZ = 0f,
-                    ))
+                    imuSamplesFlow.emit(
+                        SensorId.LEFT to
+                            ImuSample(
+                                timestampNs = i.toLong(),
+                                accX = 0f, accY = 0f, accZ = 9.81f,
+                                gyroX = 6.0f, gyroY = 0f, gyroZ = 0f,
+                                quatW = 1f, quatX = 0f, quatY = 0f, quatZ = 0f,
+                            ),
+                    )
+                    imuSamplesFlow.emit(
+                        SensorId.RIGHT to
+                            ImuSample(
+                                timestampNs = i.toLong(),
+                                accX = 0f, accY = 0f, accZ = 9.81f,
+                                gyroX = 6.0f, gyroY = 0f, gyroZ = 0f,
+                                quatW = 1f, quatX = 0f, quatY = 0f, quatZ = 0f,
+                            ),
+                    )
                     yield()
                 }
             }
@@ -187,18 +192,24 @@ class CalibrateSensorUseCaseTest {
 
             launch {
                 repeat(100) { i ->
-                    imuSamplesFlow.emit(SensorId.LEFT to ImuSample(
-                        timestampNs = i.toLong(),
-                        accX = 0f, accY = 0f, accZ = 8.0f,
-                        gyroX = 0f, gyroY = 0f, gyroZ = 0f,
-                        quatW = 1f, quatX = 0f, quatY = 0f, quatZ = 0f,
-                    ))
-                    imuSamplesFlow.emit(SensorId.RIGHT to ImuSample(
-                        timestampNs = i.toLong(),
-                        accX = 0f, accY = 0f, accZ = 8.0f,
-                        gyroX = 0f, gyroY = 0f, gyroZ = 0f,
-                        quatW = 1f, quatX = 0f, quatY = 0f, quatZ = 0f,
-                    ))
+                    imuSamplesFlow.emit(
+                        SensorId.LEFT to
+                            ImuSample(
+                                timestampNs = i.toLong(),
+                                accX = 0f, accY = 0f, accZ = 8.0f,
+                                gyroX = 0f, gyroY = 0f, gyroZ = 0f,
+                                quatW = 1f, quatX = 0f, quatY = 0f, quatZ = 0f,
+                            ),
+                    )
+                    imuSamplesFlow.emit(
+                        SensorId.RIGHT to
+                            ImuSample(
+                                timestampNs = i.toLong(),
+                                accX = 0f, accY = 0f, accZ = 8.0f,
+                                gyroX = 0f, gyroY = 0f, gyroZ = 0f,
+                                quatW = 1f, quatX = 0f, quatY = 0f, quatZ = 0f,
+                            ),
+                    )
                     yield()
                 }
             }
@@ -360,13 +371,14 @@ class CalibrateSensorUseCaseTest {
 
     @Test
     fun computeMeanQuaternion_clusteredQuaternions_returnsMarkleyMean() {
-        val samples = listOf(
-            stillSample(0L, quatW = 0.9998f, quatX = 0.01f, quatY = 0.005f, quatZ = 0.002f),
-            stillSample(1L, quatW = 0.9999f, quatX = 0.008f, quatY = 0.006f, quatZ = 0.001f),
-            stillSample(2L, quatW = 0.9997f, quatX = 0.012f, quatY = 0.004f, quatZ = 0.003f),
-            stillSample(3L, quatW = 0.9998f, quatX = 0.009f, quatY = 0.007f, quatZ = 0.002f),
-            stillSample(4L, quatW = 0.9999f, quatX = 0.011f, quatY = 0.003f, quatZ = 0.001f),
-        )
+        val samples =
+            listOf(
+                stillSample(0L, quatW = 0.9998f, quatX = 0.01f, quatY = 0.005f, quatZ = 0.002f),
+                stillSample(1L, quatW = 0.9999f, quatX = 0.008f, quatY = 0.006f, quatZ = 0.001f),
+                stillSample(2L, quatW = 0.9997f, quatX = 0.012f, quatY = 0.004f, quatZ = 0.003f),
+                stillSample(3L, quatW = 0.9998f, quatX = 0.009f, quatY = 0.007f, quatZ = 0.002f),
+                stillSample(4L, quatW = 0.9999f, quatX = 0.011f, quatY = 0.003f, quatZ = 0.001f),
+            )
         val mean = invokeComputeMeanQuaternion(samples)
         val meanNorm = sqrt((mean[0] * mean[0] + mean[1] * mean[1] + mean[2] * mean[2] + mean[3] * mean[3]).toDouble()).toFloat()
         assertEquals(1.0f, meanNorm, 0.01f)
@@ -376,12 +388,13 @@ class CalibrateSensorUseCaseTest {
 
     @Test
     fun computeMeanQuaternion_hemisphereFlip_fixedReference() {
-        val samples = listOf(
-            stillSample(0L, quatW = 0.7071f, quatX = 0.7071f, quatY = 0f, quatZ = 0f),
-            stillSample(1L, quatW = -0.7071f, quatX = -0.7071f, quatY = 0f, quatZ = 0f),
-            stillSample(2L, quatW = 0.7071f, quatX = 0.7071f, quatY = 0f, quatZ = 0f),
-            stillSample(3L, quatW = -0.7071f, quatX = -0.7071f, quatY = 0f, quatZ = 0f),
-        )
+        val samples =
+            listOf(
+                stillSample(0L, quatW = 0.7071f, quatX = 0.7071f, quatY = 0f, quatZ = 0f),
+                stillSample(1L, quatW = -0.7071f, quatX = -0.7071f, quatY = 0f, quatZ = 0f),
+                stillSample(2L, quatW = 0.7071f, quatX = 0.7071f, quatY = 0f, quatZ = 0f),
+                stillSample(3L, quatW = -0.7071f, quatX = -0.7071f, quatY = 0f, quatZ = 0f),
+            )
         val mean = invokeComputeMeanQuaternion(samples)
         assertTrue("Mean w should be positive", mean[0] > 0f)
         assertTrue("Mean x should be positive", mean[1] > 0f)
@@ -391,9 +404,10 @@ class CalibrateSensorUseCaseTest {
 
     @Test
     fun computeMeanQuaternion_singleQuaternion_returnsThatQuaternion() {
-        val samples = listOf(
-            stillSample(0L, quatW = 0.5f, quatX = 0.5f, quatY = 0.5f, quatZ = 0.5f),
-        )
+        val samples =
+            listOf(
+                stillSample(0L, quatW = 0.5f, quatX = 0.5f, quatY = 0.5f, quatZ = 0.5f),
+            )
         val mean = invokeComputeMeanQuaternion(samples)
         assertArrayEquals(floatArrayOf(0.5f, 0.5f, 0.5f, 0.5f), mean, 0.01f)
     }
@@ -415,7 +429,10 @@ class CalibrateSensorUseCaseTest {
         assertTrue("Angular distance should be < 0.5° but was $dist", dist < 0.5f)
     }
 
-    private fun angularDistanceDeg(q1: FloatArray, q2: FloatArray): Float {
+    private fun angularDistanceDeg(
+        q1: FloatArray,
+        q2: FloatArray,
+    ): Float {
         var dot = 0f
         for (i in 0 until 4) dot += q1[i] * q2[i]
         dot = dot.coerceIn(-1f, 1f)
@@ -434,34 +451,54 @@ class CalibrateSensorUseCaseTest {
         val m22 = n * y * y; val m23 = n * y * z
         val m33 = n * z * z
 
-        val result = invokeDominantEigenvector4x4(
-            m00, m01, m02, m03,
-            m01, m11, m12, m13,
-            m02, m12, m22, m23,
-            m03, m13, m23, m33,
-            w, x, y, z,
-        )
-        val rNorm = sqrt((result[0] * result[0] + result[1] * result[1] + result[2] * result[2] + result[3] * result[3]).toDouble()).toFloat()
+        val result =
+            invokeDominantEigenvector4x4(
+                m00, m01, m02, m03,
+                m01, m11, m12, m13,
+                m02, m12, m22, m23,
+                m03, m13, m23, m33,
+                w, x, y, z,
+            )
+        val rNorm =
+            sqrt(
+                (result[0] * result[0] + result[1] * result[1] + result[2] * result[2] + result[3] * result[3]).toDouble(),
+            ).toFloat()
         assertEquals(1.0f, rNorm, 0.001f)
         val dot = result[0] * w + result[1] * x + result[2] * y + result[3] * z
         assertTrue("Eigenvector should align with input (dot=$dot)", dot > 0.99f)
     }
 
     private fun invokeDominantEigenvector4x4(
-        m00: Float, m01: Float, m02: Float, m03: Float,
-        m10: Float, m11: Float, m12: Float, m13: Float,
-        m20: Float, m21: Float, m22: Float, m23: Float,
-        m30: Float, m31: Float, m32: Float, m33: Float,
-        initW: Float, initX: Float, initY: Float, initZ: Float,
+        m00: Float,
+        m01: Float,
+        m02: Float,
+        m03: Float,
+        m10: Float,
+        m11: Float,
+        m12: Float,
+        m13: Float,
+        m20: Float,
+        m21: Float,
+        m22: Float,
+        m23: Float,
+        m30: Float,
+        m31: Float,
+        m32: Float,
+        m33: Float,
+        initW: Float,
+        initX: Float,
+        initY: Float,
+        initZ: Float,
     ): FloatArray {
-        val method = CalibrateSensorUseCase::class.java.getDeclaredMethod(
-            "dominantEigenvector4x4",
-            Float::class.java, Float::class.java, Float::class.java, Float::class.java,
-            Float::class.java, Float::class.java, Float::class.java, Float::class.java,
-            Float::class.java, Float::class.java, Float::class.java, Float::class.java,
-            Float::class.java, Float::class.java, Float::class.java, Float::class.java,
-            Float::class.java, Float::class.java, Float::class.java, Float::class.java,
-        )
+        val method =
+            CalibrateSensorUseCase::class.java.getDeclaredMethod(
+                "dominantEigenvector4x4",
+                Float::class.java, Float::class.java, Float::class.java, Float::class.java,
+                Float::class.java, Float::class.java, Float::class.java, Float::class.java,
+                Float::class.java, Float::class.java, Float::class.java, Float::class.java,
+                Float::class.java, Float::class.java, Float::class.java, Float::class.java,
+                Float::class.java, Float::class.java, Float::class.java, Float::class.java,
+            )
         method.isAccessible = true
         return method.invoke(useCase, m00, m01, m02, m03, m10, m11, m12, m13, m20, m21, m22, m23, m30, m31, m32, m33, initW, initX, initY, initZ) as FloatArray
     }

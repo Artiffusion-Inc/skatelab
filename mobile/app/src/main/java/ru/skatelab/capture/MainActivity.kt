@@ -44,30 +44,33 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 private fun PermissionGate(content: @Composable () -> Unit) {
-    val runtimePermissions = buildList {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            add(Manifest.permission.BLUETOOTH_SCAN)
-            add(Manifest.permission.BLUETOOTH_CONNECT)
-        } else {
-            add(Manifest.permission.ACCESS_FINE_LOCATION)
+    val runtimePermissions =
+        buildList {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                add(Manifest.permission.BLUETOOTH_SCAN)
+                add(Manifest.permission.BLUETOOTH_CONNECT)
+            } else {
+                add(Manifest.permission.ACCESS_FINE_LOCATION)
+            }
+            add(Manifest.permission.CAMERA)
         }
-        add(Manifest.permission.CAMERA)
-    }
 
     var runtimeGranted by remember { mutableStateOf(false) }
     val context = androidx.compose.ui.platform.LocalContext.current
 
-    val runtimeLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.RequestMultiplePermissions()
-    ) { results ->
-        runtimeGranted = results.all { it.value }
-        if (!runtimeGranted) Log.w("MainActivity", "Denied: ${results.filter { !it.value }.keys}")
-    }
+    val runtimeLauncher =
+        rememberLauncherForActivityResult(
+            ActivityResultContracts.RequestMultiplePermissions(),
+        ) { results ->
+            runtimeGranted = results.all { it.value }
+            if (!runtimeGranted) Log.w("MainActivity", "Denied: ${results.filter { !it.value }.keys}")
+        }
 
     LaunchedEffect(Unit) {
-        val missing = runtimePermissions.filter {
-            ContextCompat.checkSelfPermission(context, it) != PackageManager.PERMISSION_GRANTED
-        }
+        val missing =
+            runtimePermissions.filter {
+                ContextCompat.checkSelfPermission(context, it) != PackageManager.PERMISSION_GRANTED
+            }
         if (missing.isEmpty()) {
             runtimeGranted = true
         } else {

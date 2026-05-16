@@ -1,6 +1,5 @@
 package ru.skatelab.capture.data.sync
 
-import io.mockk.every
 import io.mockk.mockk
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -10,7 +9,6 @@ import ru.skatelab.capture.domain.model.SensorId
 import ru.skatelab.capture.domain.repository.BleRepository
 
 class TimeSyncManagerTest {
-
     private val bleRepository: BleRepository = mockk(relaxed = true)
     private val manager = TimeSyncManager(bleRepository)
 

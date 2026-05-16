@@ -13,15 +13,18 @@ import kotlin.math.roundToInt
  * CSV format: `frame_index,timestamp_ns` header + one line per frame.
  */
 class FrameTimestampTracker {
-
     private var writer: FileWriter? = null
     private val queue = LinkedBlockingQueue<Pair<Int, Long>>(1000)
     private var writerThread: Thread? = null
+
     @Volatile private var isRunning = false
 
     @Volatile private var frameCount = 0
+
     @Volatile private var firstFrameNs: Long = 0L
+
     @Volatile private var lastFrameNs: Long = 0L
+
     @Volatile private var framesSinceFlush = 0
 
     /**
@@ -30,24 +33,26 @@ class FrameTimestampTracker {
      * Must be called before [onFrame].
      */
     fun open(file: File) {
-        writer = FileWriter(file).apply {
-            write("frame_index,timestamp_ns\n")
-            flush()
-        }
-        isRunning = true
-        writerThread = Thread({
-            val w = writer ?: return@Thread
-            while (isRunning || !queue.isEmpty()) {
-                val entry = queue.poll(100, TimeUnit.MILLISECONDS) ?: continue
-                val (index, timestampNs) = entry
-                w.write("$index,$timestampNs\n")
-                framesSinceFlush++
-                if (framesSinceFlush >= 30) {
-                    w.flush()
-                    framesSinceFlush = 0
-                }
+        writer =
+            FileWriter(file).apply {
+                write("frame_index,timestamp_ns\n")
+                flush()
             }
-        }, "FrameTimestampWriter").apply { start() }
+        isRunning = true
+        writerThread =
+            Thread({
+                val w = writer ?: return@Thread
+                while (isRunning || !queue.isEmpty()) {
+                    val entry = queue.poll(100, TimeUnit.MILLISECONDS) ?: continue
+                    val (index, timestampNs) = entry
+                    w.write("$index,$timestampNs\n")
+                    framesSinceFlush++
+                    if (framesSinceFlush >= 30) {
+                        w.flush()
+                        framesSinceFlush = 0
+                    }
+                }
+            }, "FrameTimestampWriter").apply { start() }
     }
 
     /**

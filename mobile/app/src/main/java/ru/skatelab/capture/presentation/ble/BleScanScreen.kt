@@ -19,7 +19,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import ru.skatelab.capture.R
 import ru.skatelab.capture.domain.model.SensorId
-import ru.skatelab.capture.domain.model.SensorInfo
 import ru.skatelab.capture.domain.repository.BleRepository.ConnectionState
 import ru.skatelab.capture.domain.repository.ScanDevice
 
@@ -31,7 +30,6 @@ fun BleScanScreen(
     val scanResults by viewModel.scanResults.collectAsState()
     val connectionState by viewModel.connectionState.collectAsState()
     val factoryResetStatus by viewModel.factoryResetStatus.collectAsState()
-    val sensorInfo by viewModel.sensorInfo.collectAsState()
 
     LaunchedEffect(Unit) { viewModel.startScan() }
 
@@ -52,14 +50,20 @@ fun BleScanScreen(
             items(scanResults) { device ->
                 ScanDeviceRow(
                     device = device,
-                    leftInfo = sensorInfo[SensorId.LEFT],
-                    rightInfo = sensorInfo[SensorId.RIGHT],
                     leftConnected =
                         connectionState[SensorId.LEFT] != null &&
                             connectionState[SensorId.LEFT] != ConnectionState.DISCONNECTED,
                     rightConnected =
                         connectionState[SensorId.RIGHT] != null &&
                             connectionState[SensorId.RIGHT] != ConnectionState.DISCONNECTED,
+                    leftSensorAddress =
+                        connectionState.entries
+                            .find { it.key == SensorId.LEFT && it.value != ConnectionState.DISCONNECTED }
+                            ?.let { viewModel.getAddressForSensor(SensorId.LEFT) },
+                    rightSensorAddress =
+                        connectionState.entries
+                            .find { it.key == SensorId.RIGHT && it.value != ConnectionState.DISCONNECTED }
+                            ?.let { viewModel.getAddressForSensor(SensorId.RIGHT) },
                     onConnectLeft = { viewModel.connectSensor(SensorId.LEFT, device.address) },
                     onConnectRight = { viewModel.connectSensor(SensorId.RIGHT, device.address) },
                     onFactoryResetLeft = { viewModel.factoryResetSensor(SensorId.LEFT) },
@@ -88,17 +92,21 @@ fun BleScanScreen(
 @Composable
 private fun ScanDeviceRow(
     device: ScanDevice,
-    leftInfo: SensorInfo? = null,
-    rightInfo: SensorInfo? = null,
     leftConnected: Boolean,
     rightConnected: Boolean,
+    leftSensorAddress: String?,
+    rightSensorAddress: String?,
     onConnectLeft: () -> Unit,
     onConnectRight: () -> Unit,
-    onFactoryResetLeft: (() -> Unit)? = null,
-    onFactoryResetRight: (() -> Unit)? = null,
-    onAccCalibrateLeft: (() -> Unit)? = null,
-    onAccCalibrateRight: (() -> Unit)? = null,
+    onFactoryResetLeft: () -> Unit,
+    onFactoryResetRight: () -> Unit,
+    onAccCalibrateLeft: () -> Unit,
+    onAccCalibrateRight: () -> Unit,
 ) {
+    // Is this device the one assigned to LEFT or RIGHT sensor?
+    val isLeftDevice = leftSensorAddress == device.address
+    val isRightDevice = rightSensorAddress == device.address
+
     Card(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
         Column(modifier = Modifier.padding(12.dp)) {
             Row(
@@ -109,66 +117,39 @@ private fun ScanDeviceRow(
                 Column {
                     Text(device.name, style = MaterialTheme.typography.bodyLarge)
                     Text(device.address, style = MaterialTheme.typography.bodySmall)
-                    Text("RSSI: ${device.rssi}", style = MaterialTheme.typography.bodySmall)
+                    if (device.isConnected) {
+                        Text("Подключен", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
+                    } else {
+                        Text("RSSI: ${device.rssi}", style = MaterialTheme.typography.bodySmall)
+                    }
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                     OutlinedButton(onClick = onConnectLeft, enabled = !leftConnected) { Text(stringResource(R.string.ble_left)) }
                     OutlinedButton(onClick = onConnectRight, enabled = !rightConnected) { Text(stringResource(R.string.ble_right)) }
                 }
             }
-            // Factory reset and ACC calibration buttons for connected sensors
+            // Show control buttons only for the sensor assigned to THIS device
             Row(
                 modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
                 horizontalArrangement = Arrangement.spacedBy(4.dp),
             ) {
-                if (leftConnected && onFactoryResetLeft != null) {
+                if (isLeftDevice) {
                     TextButton(onClick = onFactoryResetLeft) {
                         Text("Сброс лев.", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.labelSmall)
                     }
-                }
-                if (rightConnected && onFactoryResetRight != null) {
-                    TextButton(onClick = onFactoryResetRight) {
-                        Text("Сброс прав.", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.labelSmall)
-                    }
-                }
-                if (leftConnected && onAccCalibrateLeft != null) {
                     TextButton(onClick = onAccCalibrateLeft) {
                         Text("ACC лев.", color = MaterialTheme.colorScheme.tertiary, style = MaterialTheme.typography.labelSmall)
                     }
                 }
-                if (rightConnected && onAccCalibrateRight != null) {
+                if (isRightDevice) {
+                    TextButton(onClick = onFactoryResetRight) {
+                        Text("Сброс прав.", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.labelSmall)
+                    }
                     TextButton(onClick = onAccCalibrateRight) {
                         Text("ACC прав.", color = MaterialTheme.colorScheme.tertiary, style = MaterialTheme.typography.labelSmall)
                     }
                 }
             }
-            if (leftInfo != null) {
-                SensorInfoRow(info = leftInfo, label = "Левый")
-            }
-            if (rightInfo != null) {
-                SensorInfoRow(info = rightInfo, label = "Правый")
-            }
         }
-    }
-}
-
-@Composable
-private fun SensorInfoRow(
-    info: SensorInfo,
-    label: String,
-) {
-    Row(
-        modifier = Modifier.fillMaxWidth().padding(top = 2.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-    ) {
-        Text(
-            "$label: ${info.batteryPercent}% (${info.batteryMv}mV)",
-            style = MaterialTheme.typography.labelSmall,
-        )
-        Text(
-            "ID:${info.deviceId.takeLast(4)} FW:${info.firmwareVersion}",
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
     }
 }

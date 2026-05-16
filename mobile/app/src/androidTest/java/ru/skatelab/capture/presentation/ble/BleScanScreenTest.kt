@@ -9,7 +9,6 @@ import org.junit.Rule
 import org.junit.Test
 
 class BleScanScreenTest {
-
     @get:Rule
     val composeRule = createComposeRule()
 

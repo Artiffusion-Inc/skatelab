@@ -4,7 +4,7 @@ import kotlinx.coroutines.flow.Flow
 import ru.skatelab.capture.domain.model.ImuSample
 import ru.skatelab.capture.domain.model.SensorId
 
-data class ScanDevice(val name: String, val address: String, val rssi: Int)
+data class ScanDevice(val name: String, val address: String, val rssi: Int, val isConnected: Boolean = false)
 
 interface BleRepository {
     val scanResults: Flow<List<ScanDevice>>
@@ -53,6 +53,9 @@ interface BleRepository {
 
     /** Connected BLE devices not visible to scanner (already connected GATT). */
     fun getConnectedDevices(): List<ScanDevice>
+
+    /** MAC address of a connected sensor, or null if not connected. */
+    fun getAddressForSensor(sensorId: SensorId): String?
 
     enum class ConnectionState { DISCONNECTED, CONNECTING, CONNECTED, RECONNECTING }
 }

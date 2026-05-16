@@ -14,7 +14,6 @@ import ru.skatelab.capture.MainActivity
 import ru.skatelab.capture.R
 
 class SensorRecordingService : Service() {
-
     companion object {
         private const val CHANNEL_ID = "sensor_recording"
         private const val NOTIFICATION_ID = 1
@@ -24,16 +23,22 @@ class SensorRecordingService : Service() {
 
     override fun onBind(intent: Intent?): IBinder? = null
 
-    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+    override fun onStartCommand(
+        intent: Intent?,
+        flags: Int,
+        startId: Int,
+    ): Int {
         createNotificationChannel()
         val notification = buildNotification()
 
         when (intent?.action) {
             ACTION_START -> {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                    startForeground(NOTIFICATION_ID, notification,
+                    startForeground(
+                        NOTIFICATION_ID,
+                        notification,
                         android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_CONNECTED_DEVICE or
-                        android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_CAMERA
+                            android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_CAMERA,
                     )
                 } else {
                     startForeground(NOTIFICATION_ID, notification)
@@ -50,21 +55,24 @@ class SensorRecordingService : Service() {
     }
 
     private fun createNotificationChannel() {
-        val channel = NotificationChannel(
-            CHANNEL_ID,
-            getString(R.string.recording_notification_channel),
-            NotificationManager.IMPORTANCE_LOW,
-        )
+        val channel =
+            NotificationChannel(
+                CHANNEL_ID,
+                getString(R.string.recording_notification_channel),
+                NotificationManager.IMPORTANCE_LOW,
+            )
         val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         manager.createNotificationChannel(channel)
     }
 
     private fun buildNotification(): Notification {
-        val pendingIntent = PendingIntent.getActivity(
-            this, 0,
-            Intent(this, MainActivity::class.java),
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
-        )
+        val pendingIntent =
+            PendingIntent.getActivity(
+                this,
+                0,
+                Intent(this, MainActivity::class.java),
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+            )
         return NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle(getString(R.string.recording_notification_title))
             .setSmallIcon(R.drawable.ic_notification)

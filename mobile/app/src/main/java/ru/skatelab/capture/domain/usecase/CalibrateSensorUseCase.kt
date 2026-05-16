@@ -51,21 +51,25 @@ class CalibrateSensorUseCase
                 appLogger.i(TAG, "Collected LEFT=${leftSamples.size}, RIGHT=${rightSamples.size} still samples")
 
                 if (leftSamples.size < MIN_STILL_SAMPLES || rightSamples.size < MIN_STILL_SAMPLES) {
-                    return Result.failure(IllegalStateException(
-                        "Insufficient still samples: left=${leftSamples.size}, right=${rightSamples.size}. " +
-                        "Hold sensors still for at least 5 seconds.",
-                    ))
+                    return Result.failure(
+                        IllegalStateException(
+                            "Insufficient still samples: left=${leftSamples.size}, right=${rightSamples.size}. " +
+                                "Hold sensors still for at least 5 seconds.",
+                        ),
+                    )
                 }
 
                 val result = mutableMapOf<SensorId, CalibrationData>()
-                result[SensorId.LEFT] = CalibrationData(
-                    quatRef = computeMeanQuaternion(leftSamples),
-                    calibratedAt = System.currentTimeMillis(),
-                )
-                result[SensorId.RIGHT] = CalibrationData(
-                    quatRef = computeMeanQuaternion(rightSamples),
-                    calibratedAt = System.currentTimeMillis(),
-                )
+                result[SensorId.LEFT] =
+                    CalibrationData(
+                        quatRef = computeMeanQuaternion(leftSamples),
+                        calibratedAt = System.currentTimeMillis(),
+                    )
+                result[SensorId.RIGHT] =
+                    CalibrationData(
+                        quatRef = computeMeanQuaternion(rightSamples),
+                        calibratedAt = System.currentTimeMillis(),
+                    )
                 Result.success(result)
             } catch (e: CancellationException) {
                 throw e
@@ -131,8 +135,9 @@ class CalibrateSensorUseCase
                                             sample.accZ * sample.accZ
                                     ).toDouble(),
                                 )
-                            val isStill = gyroMagDegS <= ANGULAR_VELOCITY_THRESHOLD_DEG_S &&
-                                accMag >= ACC_MAG_MIN && accMag <= ACC_MAG_MAX
+                            val isStill =
+                                gyroMagDegS <= ANGULAR_VELOCITY_THRESHOLD_DEG_S &&
+                                    accMag >= ACC_MAG_MIN && accMag <= ACC_MAG_MAX
                             when (sensorId) {
                                 SensorId.LEFT -> {
                                     leftReceived++
@@ -209,11 +214,26 @@ class CalibrateSensorUseCase
         }
 
         private fun dominantEigenvector4x4(
-            m00: Float, m01: Float, m02: Float, m03: Float,
-            m10: Float, m11: Float, m12: Float, m13: Float,
-            m20: Float, m21: Float, m22: Float, m23: Float,
-            m30: Float, m31: Float, m32: Float, m33: Float,
-            initW: Float, initX: Float, initY: Float, initZ: Float,
+            m00: Float,
+            m01: Float,
+            m02: Float,
+            m03: Float,
+            m10: Float,
+            m11: Float,
+            m12: Float,
+            m13: Float,
+            m20: Float,
+            m21: Float,
+            m22: Float,
+            m23: Float,
+            m30: Float,
+            m31: Float,
+            m32: Float,
+            m33: Float,
+            initW: Float,
+            initX: Float,
+            initY: Float,
+            initZ: Float,
         ): FloatArray {
             var w = initW; var x = initX; var y = initY; var z = initZ
             for (i in 0 until 20) {

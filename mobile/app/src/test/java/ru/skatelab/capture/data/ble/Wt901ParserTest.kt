@@ -250,7 +250,10 @@ class Wt901ParserTest {
     // --- Test 8: 0x71 register read response parsing (20-byte BLE format) ---
 
     /** Build a 20-byte BLE 0x71 register read frame. No checksum. */
-    private fun buildRegReadFrame(register: Int, dataValues: ShortArray): ByteArray {
+    private fun buildRegReadFrame(
+        register: Int,
+        dataValues: ShortArray,
+    ): ByteArray {
         require(dataValues.size == 8) { "BLE 0x71 requires exactly 8 shorts" }
         val frame = ByteArray(20)
         frame[0] = 0x55.toByte()
@@ -347,7 +350,11 @@ class Wt901ParserTest {
 
         val t0 = 1_000_000_000L
 
-        fun buildCombinedFrame(accX: Short, gyroX: Short, roll: Short): ByteArray {
+        fun buildCombinedFrame(
+            accX: Short,
+            gyroX: Short,
+            roll: Short,
+        ): ByteArray {
             val frame = ByteArray(20)
             frame[0] = 0x55.toByte()
             frame[1] = 0x61.toByte()
@@ -385,7 +392,11 @@ class Wt901ParserTest {
 
         // Build two 0x61 combined frames concatenated
         // 0x61 frame: [0x55][0x61][AccX][AccY][AccZ][GyrX][GyrY][GyrZ][Roll][Pitch][Yaw]
-        fun buildCombinedFrame(accX: Short, gyroX: Short, roll: Short): ByteArray {
+        fun buildCombinedFrame(
+            accX: Short,
+            gyroX: Short,
+            roll: Short,
+        ): ByteArray {
             val frame = ByteArray(20)
             frame[0] = 0x55.toByte()
             frame[1] = 0x61.toByte()

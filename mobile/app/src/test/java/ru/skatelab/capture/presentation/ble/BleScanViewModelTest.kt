@@ -1,11 +1,13 @@
 package ru.skatelab.capture.presentation.ble
 
+import androidx.lifecycle.viewModelScope
 import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceUntilIdle
@@ -19,14 +21,12 @@ import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import ru.skatelab.capture.domain.model.SensorId
-import ru.skatelab.capture.domain.model.SensorInfo
 import ru.skatelab.capture.domain.repository.BleRepository
 import ru.skatelab.capture.domain.repository.ScanDevice
 import ru.skatelab.capture.domain.service.Logger
 import ru.skatelab.capture.domain.usecase.AccCalibrateSensorUseCase
 import ru.skatelab.capture.domain.usecase.ConnectSensorUseCase
 import ru.skatelab.capture.domain.usecase.FactoryResetSensorUseCase
-import ru.skatelab.capture.domain.usecase.ReadSensorInfoUseCase
 
 class BleScanViewModelTest {
     private val testDispatcher = StandardTestDispatcher()
@@ -37,7 +37,6 @@ class BleScanViewModelTest {
     private lateinit var factoryResetSensorUseCase: FactoryResetSensorUseCase
     private lateinit var accCalibrateSensorUseCase: AccCalibrateSensorUseCase
     private lateinit var appLogger: Logger
-    private lateinit var readSensorInfoUseCase: ReadSensorInfoUseCase
     private lateinit var viewModel: BleScanViewModel
 
     private val scanResultsFlow = MutableStateFlow<List<ScanDevice>>(emptyList())
@@ -51,7 +50,6 @@ class BleScanViewModelTest {
         factoryResetSensorUseCase = mockk(relaxed = true)
         accCalibrateSensorUseCase = mockk(relaxed = true)
         appLogger = mockk(relaxed = true)
-        readSensorInfoUseCase = mockk(relaxed = true)
 
         every { bleRepository.scanResults } returns scanResultsFlow
         every { bleRepository.connectionState } returns connectionStateFlow
@@ -63,7 +61,6 @@ class BleScanViewModelTest {
                 factoryResetSensorUseCase,
                 accCalibrateSensorUseCase,
                 appLogger,
-                readSensorInfoUseCase,
             )
     }
 
@@ -118,14 +115,26 @@ class BleScanViewModelTest {
         }
 
     @Test
-    fun `auto-refresh sensorInfo on connect`() =
+    fun `getAddressForSensor delegates to repository`() =
         testScope.runTest {
-            val info = SensorInfo(deviceId = "A3F2", firmwareVersion = "1.0", batteryPercent = 85, batteryMv = 3850)
-            coEvery { readSensorInfoUseCase(SensorId.LEFT) } returns Result.success(info)
+            every { bleRepository.getAddressForSensor(SensorId.LEFT) } returns "AA:BB:CC:DD:EE:FF"
+            assertEquals("AA:BB:CC:DD:EE:FF", viewModel.getAddressForSensor(SensorId.LEFT))
+        }
 
-            connectionStateFlow.value = mapOf(SensorId.LEFT to BleRepository.ConnectionState.CONNECTED)
+    @Test
+    fun `scanResults merges connected devices`() =
+        testScope.runTest {
+            val connectedDevice = ScanDevice("WT901", "AA:BB:CC:DD:EE:FF", 0)
+            every { bleRepository.getConnectedDevices() } returns listOf(connectedDevice)
+            scanResultsFlow.value = emptyList()
+
+            val collectJob = viewModel.viewModelScope.launch { viewModel.scanResults.collect {} }
+
             advanceUntilIdle()
 
-            assertEquals(info, viewModel.sensorInfo.value[SensorId.LEFT])
+            val result = viewModel.scanResults.value
+            assertTrue("Connected device should appear in scan results", result.any { it.address == "AA:BB:CC:DD:EE:FF" })
+
+            collectJob.cancel()
         }
 }
