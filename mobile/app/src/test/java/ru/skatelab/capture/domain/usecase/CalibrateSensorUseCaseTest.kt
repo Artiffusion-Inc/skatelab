@@ -271,7 +271,7 @@ class CalibrateSensorUseCaseTest {
         }
 
     @Test
-    fun invokeBoth_partialResult_oneSensorStill() =
+    fun invokeBoth_partialResult_oneSensorStill_returnsFailure() =
         testScope.runTest {
             val calibrationDeferred = async { useCase() }
             runCurrent()
@@ -293,10 +293,7 @@ class CalibrateSensorUseCaseTest {
             runCurrent()
 
             val result = calibrationDeferred.await()
-            assertTrue("Expected success, got: ${result.exceptionOrNull()?.message}", result.isSuccess)
-            val calMap = result.getOrThrow()
-            assertTrue(calMap.containsKey(SensorId.LEFT))
-            assertTrue("RIGHT should not be calibrated with moving samples", !calMap.containsKey(SensorId.RIGHT))
+            assertTrue("Should fail — RIGHT has no still samples", result.isFailure)
         }
 
     @Test

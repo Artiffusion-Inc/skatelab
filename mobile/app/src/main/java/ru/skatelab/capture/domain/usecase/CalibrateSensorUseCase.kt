@@ -27,6 +27,7 @@ class CalibrateSensorUseCase
             private const val ANGULAR_VELOCITY_THRESHOLD_DEG_S = 5.0
             private const val ACC_MAG_MIN = 9.3
             private const val ACC_MAG_MAX = 10.3
+            private const val MIN_STILL_SAMPLES = 50
             private const val WARMUP_MS = 1_000L
         }
 
@@ -49,31 +50,23 @@ class CalibrateSensorUseCase
 
                 appLogger.i(TAG, "Collected LEFT=${leftSamples.size}, RIGHT=${rightSamples.size} still samples")
 
-                val result = mutableMapOf<SensorId, CalibrationData>()
-                if (leftSamples.isNotEmpty()) {
-                    result[SensorId.LEFT] =
-                        CalibrationData(
-                            quatRef = computeMeanQuaternion(leftSamples),
-                            calibratedAt = System.currentTimeMillis(),
-                        )
-                } else {
-                    appLogger.w(TAG, "No still samples for LEFT")
-                }
-                if (rightSamples.isNotEmpty()) {
-                    result[SensorId.RIGHT] =
-                        CalibrationData(
-                            quatRef = computeMeanQuaternion(rightSamples),
-                            calibratedAt = System.currentTimeMillis(),
-                        )
-                } else {
-                    appLogger.w(TAG, "No still samples for RIGHT")
+                if (leftSamples.size < MIN_STILL_SAMPLES || rightSamples.size < MIN_STILL_SAMPLES) {
+                    return Result.failure(IllegalStateException(
+                        "Insufficient still samples: left=${leftSamples.size}, right=${rightSamples.size}. " +
+                        "Hold sensors still for at least 5 seconds.",
+                    ))
                 }
 
-                if (result.isEmpty()) {
-                    Result.failure(IllegalStateException("No still samples collected for either sensor"))
-                } else {
-                    Result.success(result)
-                }
+                val result = mutableMapOf<SensorId, CalibrationData>()
+                result[SensorId.LEFT] = CalibrationData(
+                    quatRef = computeMeanQuaternion(leftSamples),
+                    calibratedAt = System.currentTimeMillis(),
+                )
+                result[SensorId.RIGHT] = CalibrationData(
+                    quatRef = computeMeanQuaternion(rightSamples),
+                    calibratedAt = System.currentTimeMillis(),
+                )
+                Result.success(result)
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
