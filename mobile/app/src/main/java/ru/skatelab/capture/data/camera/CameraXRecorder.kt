@@ -6,13 +6,13 @@ import androidx.camera.core.Camera
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.ImageAnalysis
 import androidx.camera.core.Preview
+import androidx.camera.core.SurfaceRequest
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.video.FileOutputOptions
 import androidx.camera.video.Recorder
 import androidx.camera.video.Recording
 import androidx.camera.video.VideoCapture
 import androidx.camera.video.VideoRecordEvent
-import androidx.camera.viewfinder.CameraViewfinder
 import androidx.lifecycle.LifecycleOwner
 import dagger.hilt.android.qualifiers.ApplicationContext
 import java.io.File
@@ -24,6 +24,7 @@ import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.guava.await
 import kotlinx.coroutines.withTimeout
 import ru.skatelab.capture.domain.repository.CameraRepository
 
@@ -39,11 +40,13 @@ class CameraXRecorder
         private val _isRecording = MutableStateFlow(false)
         val isRecording: StateFlow<Boolean> = _isRecording.asStateFlow()
 
+        private val _surfaceRequest = MutableStateFlow<SurfaceRequest?>(null)
+        val surfaceRequest: StateFlow<SurfaceRequest?> = _surfaceRequest.asStateFlow()
+
         private var cameraProvider: ProcessCameraProvider? = null
         private var camera: Camera? = null
         private var activeRecording: Recording? = null
         private var timestampTracker: FrameTimestampTracker? = null
-        private var viewfinder: CameraViewfinder? = null
         private var cameraExecutor: ExecutorService = Executors.newSingleThreadExecutor()
 
         private var tStartCalledNs: Long = 0L
@@ -53,22 +56,37 @@ class CameraXRecorder
 
         suspend fun bindToLifecycle(lifecycleOwner: LifecycleOwner): Result<Unit> =
             runCatching {
-                val provider = ProcessCameraProvider.getInstance(context)
+                if (cameraExecutor.isShutdown) {
+                    cameraExecutor = Executors.newSingleThreadExecutor()
+                }
+
+                val provider = ProcessCameraProvider.getInstance(context).await()
                 cameraProvider = provider
 
-                preview = Preview.Builder().build()
+                val p = Preview.Builder().build().also { preview ->
+                    preview.setSurfaceProvider(cameraExecutor) { request ->
+                        _surfaceRequest.value = request
+                    }
+                }
+                preview = p
 
-                recorder =
+                val r =
                     Recorder.Builder()
                         .setAspectRatio(androidx.camera.core.AspectRatio.RATIO_16_9)
                         .build()
-                videoCapture = VideoCapture.withOutput(recorder!!)
+                recorder = r
+                val vc = VideoCapture.withOutput(r)
+                videoCapture = vc
 
                 val imageAnalysis =
                     ImageAnalysis.Builder()
                         .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
                         .setOutputImageFormat(ImageAnalysis.OUTPUT_IMAGE_FORMAT_RGBA_8888)
                         .build()
+                imageAnalysis.setAnalyzer(cameraExecutor) { image ->
+                    timestampTracker?.onFrame(SystemClock.elapsedRealtimeNanos())
+                    image.close()
+                }
 
                 val cameraSelector =
                     CameraSelector.Builder()
@@ -77,31 +95,21 @@ class CameraXRecorder
 
                 provider.unbindAll()
 
-                viewfinder?.let { vf ->
-                    preview?.setSurfaceProvider(vf.surfaceProvider)
-                }
-
                 camera =
                     provider.bindToLifecycle(
                         lifecycleOwner,
                         cameraSelector,
-                        preview,
-                        videoCapture,
+                        p,
+                        vc,
                         imageAnalysis,
                     )
 
                 _isPreviewReady.value = true
             }
 
-        fun setViewfinder(viewfinder: CameraViewfinder?) {
-            this.viewfinder = viewfinder
-            viewfinder?.let { vf ->
-                preview?.setSurfaceProvider(vf.surfaceProvider)
-            }
-        }
-
         fun unbind() {
             cameraProvider?.unbindAll()
+            _surfaceRequest.value = null
             _isPreviewReady.value = false
         }
 
@@ -140,7 +148,6 @@ class CameraXRecorder
                 try {
                     withTimeout(3_000L) { startDeferred.await() }
                 } catch (_: Exception) {
-                    // Recording started but event didn't fire — still proceed
                     _isRecording.value = true
                 }
 
@@ -162,10 +169,12 @@ class CameraXRecorder
 
                 val actualFps = timestampTracker?.computeFps() ?: 0
                 val frameCount = timestampTracker?.getFrameCount() ?: 0
+                val firstFrameNs = timestampTracker?.getFirstFrameNs() ?: 0L
 
                 CameraRepository.RecordingStopResult(
                     actualFps = actualFps,
                     fpsVerified = frameCount > 10 && actualFps > 0,
+                    firstFrameNs = firstFrameNs,
                 )
             }
 
@@ -179,6 +188,7 @@ class CameraXRecorder
             recorder = null
             videoCapture = null
             preview = null
+            _surfaceRequest.value = null
             _isPreviewReady.value = false
             _isRecording.value = false
         }

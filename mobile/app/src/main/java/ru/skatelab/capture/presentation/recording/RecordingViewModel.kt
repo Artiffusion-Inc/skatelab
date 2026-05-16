@@ -2,7 +2,7 @@ package ru.skatelab.capture.presentation.recording
 
 import android.content.Context
 import android.content.Intent
-import androidx.camera.viewfinder.CameraViewfinder
+import androidx.camera.core.SurfaceRequest
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -17,7 +17,6 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
-import kotlinx.coroutines.withContext
 import ru.skatelab.capture.domain.model.CalibrationData
 import ru.skatelab.capture.domain.model.CaptureSession
 import ru.skatelab.capture.domain.model.SensorId
@@ -74,11 +73,15 @@ class RecordingViewModel
         private val _sessionId = MutableStateFlow<String?>(null)
         val sessionId: StateFlow<String?> = _sessionId
 
+        val surfaceRequest: StateFlow<SurfaceRequest?> = cameraRepository.surfaceRequest
+
         private var currentStartInfo: RecordingStartInfo? = null
         private var batteryJob: kotlinx.coroutines.Job? = null
         private var currentCalibration = mapOf<SensorId, CalibrationData>()
         private var currentOutputDir: File? = null
-        private var actualVideoFps: Int = 60
+        private var actualVideoFps: Int = 0
+        private var fpsVerified: Boolean = false
+        private var firstFrameNs: Long = 0L
 
         private var preparedVideoFile: File? = null
         private var preparedFramesFile: File? = null
@@ -144,10 +147,6 @@ class RecordingViewModel
             timerJob?.cancel()
             timerJob = null
             _elapsedMs.value = 0L
-        }
-
-        fun setViewfinder(viewfinder: CameraViewfinder?) {
-            cameraRepository.setViewfinder(viewfinder)
         }
 
         fun bindCamera(lifecycleOwner: LifecycleOwner, outputDir: File) {
@@ -232,11 +231,8 @@ class RecordingViewModel
             startForegroundService(context)
 
             viewModelScope.launch {
-                // Time sync on IO — was blocking main thread (up to 6s)
-                withContext(Dispatchers.IO) {
-                    timeSynchronizer.sync(viewModelScope)
-                    timeSynchronizer.awaitSync()
-                }
+                timeSynchronizer.sync(viewModelScope)
+                timeSynchronizer.awaitSync()
 
                 imuCollector.start(
                     viewModelScope,
@@ -283,7 +279,9 @@ class RecordingViewModel
                 stopRecordingUseCase()
                     .onSuccess { stopResult ->
                         actualVideoFps = stopResult.actualFps
-                        appLogger.i(TAG, "Stopped: actualFps=${stopResult.actualFps} verified=${stopResult.fpsVerified}")
+                        fpsVerified = stopResult.fpsVerified
+                        firstFrameNs = stopResult.firstFrameNs
+                        appLogger.i(TAG, "Stopped: actualFps=${stopResult.actualFps} verified=${stopResult.fpsVerified} firstFrameNs=${stopResult.firstFrameNs}")
                     }
                     .onFailure {
                         appLogger.w(TAG, "Stop use case partial failure: ${it.message}")
@@ -291,7 +289,7 @@ class RecordingViewModel
 
                 val imuCounts =
                     try {
-                        withContext(Dispatchers.IO) { imuCollector.stop() }
+                        imuCollector.stop()
                     } catch (e: CancellationException) {
                         throw e
                     } catch (e: Exception) {
@@ -327,7 +325,9 @@ class RecordingViewModel
                         manifestFile = File(outputDir, "manifest.json"),
                         t0Ns = startInfo.t0Ns,
                         durationMs = durationMs,
-                        videoFps = actualVideoFps,
+                        actualFps = actualVideoFps,
+                        fpsVerified = fpsVerified,
+                        firstFrameNs = if (startInfo.t0Ns > 0 && firstFrameNs > 0) firstFrameNs - startInfo.t0Ns else 0L,
                         timestampSource = startInfo.timestampSource,
                         videoStartDelayMs = startInfo.videoStartDelayMs,
                         imuStartDelayMs = startInfo.imuStartDelayMs,

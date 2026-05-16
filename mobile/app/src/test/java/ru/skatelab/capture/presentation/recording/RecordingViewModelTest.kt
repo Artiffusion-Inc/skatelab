@@ -8,9 +8,12 @@ import io.mockk.mockk
 import io.mockk.verify
 import java.io.File
 import kotlinx.coroutines.Dispatchers
+import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.TestScope
+import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
@@ -35,7 +38,7 @@ import ru.skatelab.capture.domain.usecase.StartRecordingUseCase
 import ru.skatelab.capture.domain.usecase.StopRecordingUseCase
 
 class RecordingViewModelTest {
-    private val testDispatcher = StandardTestDispatcher()
+    private val testDispatcher = UnconfinedTestDispatcher()
     private val testScope = TestScope(testDispatcher)
 
     private lateinit var cameraRepository: CameraRepository
@@ -72,8 +75,9 @@ class RecordingViewModelTest {
 
     private val stubStopResult =
         StopRecordingUseCase.StopResult(
-            actualFps = 60,
+            actualFps = 30,
             fpsVerified = true,
+            firstFrameNs = 1_000_050_000_000L,
         )
 
     @Before
@@ -95,6 +99,7 @@ class RecordingViewModelTest {
 
         every { cameraRepository.isPreviewReady } returns MutableStateFlow(false)
         every { cameraRepository.isRecording } returns MutableStateFlow(false)
+        every { cameraRepository.surfaceRequest } returns MutableStateFlow(null)
         every { timeSynchronizer.getOffset(any()) } returns 0L
         every { bleRepository.reconnectEvents } returns kotlinx.coroutines.flow.emptyFlow()
 
@@ -108,6 +113,7 @@ class RecordingViewModelTest {
 
     @After
     fun tearDown() {
+        viewModel.viewModelScope.cancel()
         Dispatchers.resetMain()
     }
 
@@ -117,7 +123,7 @@ class RecordingViewModelTest {
             coEvery { cameraRepository.bindToLifecycle(any()) } returns Result.success(Unit)
 
             viewModel.bindCamera(lifecycleOwner, outputDir)
-            runCurrent()
+            advanceUntilIdle()
 
             assertTrue(viewModel.isPreviewReady.value)
             assertNull(viewModel.error.value)
@@ -130,7 +136,7 @@ class RecordingViewModelTest {
                 Result.failure(IllegalStateException("Camera busy"))
 
             viewModel.bindCamera(lifecycleOwner, outputDir)
-            runCurrent()
+            advanceUntilIdle()
 
             assertFalse(viewModel.isPreviewReady.value)
             assertTrue(viewModel.error.value!!.contains("Camera prepare failed"))
@@ -144,7 +150,7 @@ class RecordingViewModelTest {
                 Result.success(stubStartInfo)
 
             viewModel.bindCamera(lifecycleOwner, outputDir)
-            runCurrent()
+            advanceUntilIdle()
 
             viewModel.startRecording(outputDir, emptyMap(), context)
             runCurrent()
@@ -154,6 +160,8 @@ class RecordingViewModelTest {
             verify { imuCollector.start(any(), any()) }
             coVerify { timeSynchronizer.sync(any()) }
             coVerify { timeSynchronizer.awaitSync() }
+
+            viewModel.viewModelScope.cancel()
         }
 
     @Test
@@ -164,7 +172,7 @@ class RecordingViewModelTest {
                 Result.failure(IllegalStateException("BLE start failed"))
 
             viewModel.bindCamera(lifecycleOwner, outputDir)
-            runCurrent()
+            advanceUntilIdle()
 
             viewModel.startRecording(outputDir, emptyMap(), context)
             runCurrent()
@@ -194,13 +202,13 @@ class RecordingViewModelTest {
             every { imuCollector.stop() } returns emptyMap()
 
             viewModel.bindCamera(lifecycleOwner, outputDir)
-            runCurrent()
+            advanceUntilIdle()
 
             viewModel.startRecording(outputDir, emptyMap(), context)
             runCurrent()
 
             viewModel.stopRecording(context)
-            runCurrent()
+            advanceUntilIdle()
 
             assertTrue("sessionId should be set", viewModel.sessionId.value != null)
             assertFalse(viewModel.isRecording.value)
@@ -230,13 +238,13 @@ class RecordingViewModelTest {
             every { imuCollector.stop() } returns emptyMap()
 
             viewModel.bindCamera(lifecycleOwner, outputDir)
-            runCurrent()
+            advanceUntilIdle()
 
             viewModel.startRecording(outputDir, emptyMap(), context)
             runCurrent()
 
             viewModel.stopRecording(context)
-            runCurrent()
+            advanceUntilIdle()
 
             assertTrue("sessionId should be set", viewModel.sessionId.value != null)
             assertFalse(viewModel.isRecording.value)
@@ -259,13 +267,13 @@ class RecordingViewModelTest {
             every { imuCollector.stop() } returns emptyMap()
 
             viewModel.bindCamera(lifecycleOwner, outputDir)
-            runCurrent()
+            advanceUntilIdle()
 
             viewModel.startRecording(outputDir, calibration, context)
             runCurrent()
 
             viewModel.stopRecording(context)
-            runCurrent()
+            advanceUntilIdle()
 
             coVerify { sessionRepository.saveSession(match { it.calibration == calibration }) }
         }
@@ -278,12 +286,14 @@ class RecordingViewModelTest {
                 Result.success(stubStartInfo)
 
             viewModel.bindCamera(lifecycleOwner, outputDir)
-            runCurrent()
+            advanceUntilIdle()
 
             viewModel.startRecording(outputDir, emptyMap(), context)
             runCurrent()
 
             verify { imuCollector.start(any(), any()) }
+
+            viewModel.viewModelScope.cancel()
         }
 
     @Test
@@ -297,13 +307,13 @@ class RecordingViewModelTest {
             every { imuCollector.stop() } returns mapOf(SensorId.LEFT to 100, SensorId.RIGHT to 95)
 
             viewModel.bindCamera(lifecycleOwner, outputDir)
-            runCurrent()
+            advanceUntilIdle()
 
             viewModel.startRecording(outputDir, emptyMap(), context)
             runCurrent()
 
             viewModel.stopRecording(context)
-            runCurrent()
+            advanceUntilIdle()
 
             verify { imuCollector.stop() }
         }

@@ -1,6 +1,6 @@
 package ru.skatelab.capture.domain.repository
 
-import androidx.camera.viewfinder.CameraViewfinder
+import androidx.camera.core.SurfaceRequest
 import androidx.lifecycle.LifecycleOwner
 import java.io.File
 import kotlinx.coroutines.flow.StateFlow
@@ -8,15 +8,13 @@ import kotlinx.coroutines.flow.StateFlow
 interface CameraRepository {
     val isPreviewReady: StateFlow<Boolean>
     val isRecording: StateFlow<Boolean>
+    val surfaceRequest: StateFlow<SurfaceRequest?>
 
     /** Bind CameraX use cases to [lifecycleOwner]. Must be called before recording. */
     suspend fun bindToLifecycle(lifecycleOwner: LifecycleOwner): Result<Unit>
 
     /** Unbind all use cases and release camera. */
     suspend fun unbind()
-
-    /** Set the viewfinder for camera preview. Called when CameraViewfinder is created. */
-    fun setViewfinder(viewfinder: CameraViewfinder?)
 
     /** Start recording to [videoFile] with frame timestamps in [framesFile]. */
     suspend fun startRecording(
@@ -40,5 +38,6 @@ interface CameraRepository {
     data class RecordingStopResult(
         val actualFps: Int,
         val fpsVerified: Boolean,
+        val firstFrameNs: Long,
     )
 }
