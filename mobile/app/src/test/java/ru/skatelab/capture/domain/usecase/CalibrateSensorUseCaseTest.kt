@@ -259,6 +259,46 @@ class CalibrateSensorUseCaseTest {
     }
 
     @Test
+    fun computeMeanQuaternion_clusteredQuaternions_returnsMarkleyMean() {
+        val samples = listOf(
+            stillSample(0L, quatW = 0.9998f, quatX = 0.01f, quatY = 0.005f, quatZ = 0.002f),
+            stillSample(1L, quatW = 0.9999f, quatX = 0.008f, quatY = 0.006f, quatZ = 0.001f),
+            stillSample(2L, quatW = 0.9997f, quatX = 0.012f, quatY = 0.004f, quatZ = 0.003f),
+            stillSample(3L, quatW = 0.9998f, quatX = 0.009f, quatY = 0.007f, quatZ = 0.002f),
+            stillSample(4L, quatW = 0.9999f, quatX = 0.011f, quatY = 0.003f, quatZ = 0.001f),
+        )
+        val mean = invokeComputeMeanQuaternion(samples)
+        val meanNorm = sqrt((mean[0] * mean[0] + mean[1] * mean[1] + mean[2] * mean[2] + mean[3] * mean[3]).toDouble()).toFloat()
+        assertEquals(1.0f, meanNorm, 0.01f)
+        val dot = mean[0]
+        assertTrue("Mean w component should be positive (dot=$dot)", dot > 0.9f)
+    }
+
+    @Test
+    fun computeMeanQuaternion_hemisphereFlip_fixedReference() {
+        val samples = listOf(
+            stillSample(0L, quatW = 0.7071f, quatX = 0.7071f, quatY = 0f, quatZ = 0f),
+            stillSample(1L, quatW = -0.7071f, quatX = -0.7071f, quatY = 0f, quatZ = 0f),
+            stillSample(2L, quatW = 0.7071f, quatX = 0.7071f, quatY = 0f, quatZ = 0f),
+            stillSample(3L, quatW = -0.7071f, quatX = -0.7071f, quatY = 0f, quatZ = 0f),
+        )
+        val mean = invokeComputeMeanQuaternion(samples)
+        assertTrue("Mean w should be positive", mean[0] > 0f)
+        assertTrue("Mean x should be positive", mean[1] > 0f)
+        assertEquals(0f, mean[2], 0.01f)
+        assertEquals(0f, mean[3], 0.01f)
+    }
+
+    @Test
+    fun computeMeanQuaternion_singleQuaternion_returnsThatQuaternion() {
+        val samples = listOf(
+            stillSample(0L, quatW = 0.5f, quatX = 0.5f, quatY = 0.5f, quatZ = 0.5f),
+        )
+        val mean = invokeComputeMeanQuaternion(samples)
+        assertArrayEquals(floatArrayOf(0.5f, 0.5f, 0.5f, 0.5f), mean, 0.01f)
+    }
+
+    @Test
     fun dominantEigenvector_rank1Matrix_returnsExpectedVector() {
         val n = 100f
         val qw = 0.5f; val qx = 0.5f; val qy = 0.5f; val qz = 0.5f
