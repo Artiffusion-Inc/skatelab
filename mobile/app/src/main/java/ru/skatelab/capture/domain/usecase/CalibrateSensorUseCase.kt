@@ -169,16 +169,15 @@ class CalibrateSensorUseCase
         }
 
         private fun computeMeanQuaternion(samples: List<ImuSample>): FloatArray {
-            var refW = samples.first().quatW
-            var refX = samples.first().quatX
-            var refY = samples.first().quatY
-            var refZ = samples.first().quatZ
+            val refW = samples.first().quatW
+            val refX = samples.first().quatX
+            val refY = samples.first().quatY
+            val refZ = samples.first().quatZ
 
-            var sumW = 0f
-            var sumX = 0f
-            var sumY = 0f
-            var sumZ = 0f
-            var count = 0
+            var m00 = 0f; var m01 = 0f; var m02 = 0f; var m03 = 0f
+            var m11 = 0f; var m12 = 0f; var m13 = 0f
+            var m22 = 0f; var m23 = 0f
+            var m33 = 0f
 
             for (sample in samples) {
                 var qW = sample.quatW
@@ -186,31 +185,25 @@ class CalibrateSensorUseCase
                 var qY = sample.quatY
                 var qZ = sample.quatZ
 
-                // Hemisphere consistency: flip if dot(q_i, q_ref) < 0
-                val dot = qW * refW + qX * refX + qY * refY + qZ * refZ
-                if (dot < 0f) {
-                    qW = -qW
-                    qX = -qX
-                    qY = -qY
-                    qZ = -qZ
+                if (qW * refW + qX * refX + qY * refY + qZ * refZ < 0f) {
+                    qW = -qW; qX = -qX; qY = -qY; qZ = -qZ
                 }
 
-                sumW += qW
-                sumX += qX
-                sumY += qY
-                sumZ += qZ
-                count++
-
-                // Update reference to running mean for next iteration
-                refW = sumW / count
-                refX = sumX / count
-                refY = sumY / count
-                refZ = sumZ / count
+                m00 += qW * qW; m01 += qW * qX; m02 += qW * qY; m03 += qW * qZ
+                m11 += qX * qX; m12 += qX * qY; m13 += qX * qZ
+                m22 += qY * qY; m23 += qY * qZ
+                m33 += qZ * qZ
             }
 
-            // Normalize
-            val norm = sqrt((sumW * sumW + sumX * sumX + sumY * sumY + sumZ * sumZ).toDouble()).toFloat()
-            return floatArrayOf(sumW / norm, sumX / norm, sumY / norm, sumZ / norm)
+            val m10 = m01; val m20 = m02; val m21 = m12; val m30 = m03; val m31 = m13; val m32 = m23
+
+            return dominantEigenvector4x4(
+                m00, m01, m02, m03,
+                m10, m11, m12, m13,
+                m20, m21, m22, m23,
+                m30, m31, m32, m33,
+                refW, refX, refY, refZ,
+            )
         }
 
         private fun dominantEigenvector4x4(
