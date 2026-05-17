@@ -494,7 +494,10 @@
     "share": "Share",
     "delete": "Delete",
     "deleteConfirm": "Delete this session? This action cannot be undone.",
-    "deleting": "Deleting..."
+    "deleting": "Deleting...",
+    "tourTabs": "Switch tabs for details",
+    "tourActions": "Click for more actions",
+    "tour3d": "Rotate the 3D model with WASD keys"
   },
   "analysis": {
     "frameMetrics": "Frame Metrics",

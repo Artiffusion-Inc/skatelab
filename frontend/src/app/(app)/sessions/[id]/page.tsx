@@ -1,7 +1,7 @@
 "use client"
 
 import { useParams } from "next/navigation"
-import { lazy, Suspense } from "react"
+import { lazy, Suspense, useState } from "react"
 import { PhaseTimeline } from "@/components/analysis/phase-timeline"
 import { SkeletonDetail } from "@/components/skeleton-detail"
 import { VideoWithSkeleton } from "@/components/analysis/video-with-skeleton"
@@ -39,6 +39,14 @@ export default function SessionDetailPage() {
 
   const processStream = useProcessStream(session?.process_task_id ?? null)
   const retryMutation = useRetrySession()
+
+  const [visitCount] = useState(() => {
+    if (typeof window === "undefined") return 0
+    const count = parseInt(localStorage.getItem("session_detail_visits") ?? "0") + 1
+    localStorage.setItem("session_detail_visits", String(count))
+    return count
+  })
+  const [dismissed, setDismissed] = useState(false)
 
   const totalFrames = session?.pose_data ? Math.max(...session.pose_data.frames) : 300
 
@@ -81,10 +89,16 @@ export default function SessionDetailPage() {
   return (
     <div className="mx-auto max-w-2xl space-y-6 lg:max-w-none lg:grid lg:grid-cols-2 lg:gap-6">
       <div className="space-y-6">
-        <div>
+        <div className="relative">
           <h1 className="text-xl font-semibold">
             {te(session.element_type) ?? session.element_type}
           </h1>
+          {visitCount === 1 && !dismissed && (
+            <div className="absolute -bottom-8 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-lg bg-foreground px-3 py-1.5 text-xs text-background shadow-lg">
+              {tSession("tourTabs")}
+              <button type="button" onClick={() => setDismissed(true)} className="ml-2 opacity-70 hover:opacity-100">&times;</button>
+            </div>
+          )}
           <p className="text-sm text-ink-mute">
             {new Date(session.created_at).toLocaleDateString("ru-RU")}
           </p>
@@ -132,16 +146,32 @@ export default function SessionDetailPage() {
       </div>
 
       <div className="space-y-6">
-        <SessionActions sessionId={session.id} />
+        <div className="relative inline-block">
+          <SessionActions sessionId={session.id} />
+          {visitCount === 2 && !dismissed && (
+            <div className="absolute -bottom-8 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-lg bg-foreground px-3 py-1.5 text-xs text-background shadow-lg">
+              {tSession("tourActions")}
+              <button type="button" onClick={() => setDismissed(true)} className="ml-2 opacity-70 hover:opacity-100">&times;</button>
+            </div>
+          )}
+        </div>
 
         {session.pose_data && session.frame_metrics && (
-          <Suspense fallback={<div className="aspect-square rounded-xl bg-muted animate-pulse" />}>
-            <ThreeJSkeletonViewer
-              poseData={session.pose_data}
-              frameMetrics={session.frame_metrics}
-              className="rounded-xl"
-            />
-          </Suspense>
+          <div className="relative">
+            <Suspense fallback={<div className="aspect-square rounded-xl bg-muted animate-pulse" />}>
+              <ThreeJSkeletonViewer
+                poseData={session.pose_data}
+                frameMetrics={session.frame_metrics}
+                className="rounded-xl"
+              />
+            </Suspense>
+            {visitCount === 3 && !dismissed && (
+              <div className="absolute -bottom-8 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-lg bg-foreground px-3 py-1.5 text-xs text-background shadow-lg">
+                {tSession("tour3d")}
+                <button type="button" onClick={() => setDismissed(true)} className="ml-2 opacity-70 hover:opacity-100">&times;</button>
+              </div>
+            )}
+          </div>
         )}
 
         {session.metrics.length > 0 && (
