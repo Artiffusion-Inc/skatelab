@@ -10,10 +10,12 @@ from collections.abc import Sequence  # noqa: TC003
 from typing import ClassVar
 
 from litestar import Controller, Request, get, post
-from litestar.exceptions import ClientException
+from litestar.exceptions import ClientException, NotAuthorizedException
 from litestar.response import ServerSentEvent
 from litestar.status_codes import HTTP_404_NOT_FOUND
 
+from app.auth.deps import CurrentUser
+from app.middleware.rate_limit import check_rate_limit
 from app.schemas import (
     MLModelFlags,
     ProcessRequest,
@@ -43,12 +45,17 @@ class ProcessController(Controller):
         self,
         request: Request,
         data: ProcessRequest,
+        user: CurrentUser,
     ) -> QueueProcessResponse:
         """Enqueue video processing job and return task_id immediately."""
+        await check_rate_limit(f"process:enqueue:{user.id}", max_requests=10, window_seconds=60)
+
         task_id = f"proc_{uuid.uuid4().hex[:12]}"
 
         valkey = get_valkey()
-        await create_task_state(task_id, video_key=data.video_key, valkey=valkey)
+        await create_task_state(
+            task_id, video_key=data.video_key, valkey=valkey, user_id=str(user.id)
+        )
 
         ml_flags = MLModelFlags(
             depth=data.depth,
@@ -74,7 +81,7 @@ class ProcessController(Controller):
         return QueueProcessResponse(task_id=task_id)
 
     @get("/{task_id:str}/status")
-    async def get_process_status(self, task_id: str) -> TaskStatusResponse:
+    async def get_process_status(self, task_id: str, user: CurrentUser) -> TaskStatusResponse:
         """Poll task status."""
         valkey = get_valkey()
         state = await get_task_state(task_id, valkey=valkey)
@@ -99,13 +106,13 @@ class ProcessController(Controller):
         )
 
     @post("/{task_id:str}/cancel", status_code=200)
-    async def cancel_queued_process(self, task_id: str) -> dict:
+    async def cancel_queued_process(self, task_id: str, user: CurrentUser) -> dict:
         """Cancel a queued or running task via Valkey signal."""
         await set_cancel_signal(task_id)
         return {"status": "cancel_requested", "task_id": task_id}
 
     @get("/{task_id:str}/stream")
-    async def stream_process_status(self, task_id: str) -> ServerSentEvent:
+    async def stream_process_status(self, task_id: str, user: CurrentUser) -> ServerSentEvent:
         """SSE endpoint for real-time task progress streaming."""
 
         async def event_generator():
@@ -117,6 +124,10 @@ class ProcessController(Controller):
                 # Send initial state
                 state = await get_task_state(task_id, valkey=valkey)
                 if state:
+                    # Ownership check: reject if task belongs to another user
+                    task_user_id = state.get("user_id")
+                    if task_user_id and str(task_user_id) != str(user.id):
+                        raise NotAuthorizedException("Not authorized to view this task")
                     yield {"data": json.dumps(state)}
                 else:
                     yield {"data": json.dumps({"status": "unknown"})}

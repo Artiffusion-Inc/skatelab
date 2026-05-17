@@ -72,6 +72,7 @@ async def create_task_state(
     task_id: str,
     video_key: str,
     valkey: aioredis.Redis | None = None,
+    user_id: str | None = None,
 ) -> None:
     close = valkey is None
     if valkey is None:
@@ -79,19 +80,22 @@ async def create_task_state(
     try:
         ttl = get_settings().app.task_ttl_seconds
         now = datetime.now(UTC).isoformat()
+        fields: dict[str, str] = {
+            "task_id": task_id,
+            "status": TaskStatus.PENDING,
+            "video_key": video_key,
+            "progress": "0.0",
+            "message": "Queued",
+            "created_at": now,
+            "started_at": "",
+            "completed_at": "",
+            "error": "",
+        }
+        if user_id is not None:
+            fields["user_id"] = user_id
         await valkey.hset(
             f"{TASK_KEY_PREFIX}{task_id}",
-            mapping={
-                "task_id": task_id,
-                "status": TaskStatus.PENDING,
-                "video_key": video_key,
-                "progress": "0.0",
-                "message": "Queued",
-                "created_at": now,
-                "started_at": "",
-                "completed_at": "",
-                "error": "",
-            },
+            mapping=fields,
         )
         await valkey.expire(f"{TASK_KEY_PREFIX}{task_id}", ttl)
     finally:

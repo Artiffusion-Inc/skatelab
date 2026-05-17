@@ -68,9 +68,11 @@ async def test_sse_stream_times_out_after_no_messages(mock_settings):
 
         from app.routes.process import ProcessController
 
+        mock_user = MagicMock(id="test-user-id")
+
         # stream_process_status is async, returns ServerSentEvent
         response = await ProcessController.stream_process_status.fn(
-            MagicMock(), task_id="proc_test123"
+            MagicMock(), user=mock_user, task_id="proc_test123"
         )
 
         # ServerSentEvent.iterator yields raw SSE wire-format bytes
@@ -110,8 +112,10 @@ async def test_sse_stream_yields_progress_events(mock_settings):
 
         from app.routes.process import ProcessController
 
+        mock_user = MagicMock(id="test-user-id")
+
         response = await ProcessController.stream_process_status.fn(
-            MagicMock(), task_id="proc_test456"
+            MagicMock(), user=mock_user, task_id="proc_test456"
         )
 
         events = []
