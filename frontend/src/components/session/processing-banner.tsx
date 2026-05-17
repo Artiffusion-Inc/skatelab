@@ -52,7 +52,12 @@ export function ProcessingBanner({ taskId, onCancel, onRetry }: ProcessingBanner
           {isSlow && !isStale && <p className="text-xs text-ink-mute">{t("slowAnalysis")}</p>}
         </div>
         {isStale && onRetry && (
-          <Button variant="outline" size="sm" onClick={onRetry} className="shrink-0 text-sm">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onRetry}
+            className="shrink-0 text-sm min-h-[44px]"
+          >
             {t("retry")}
           </Button>
         )}
@@ -60,7 +65,7 @@ export function ProcessingBanner({ taskId, onCancel, onRetry }: ProcessingBanner
           variant="ghost"
           size="sm"
           onClick={onCancel}
-          className="shrink-0 text-sm text-ink-mute"
+          className="shrink-0 text-sm text-ink-mute min-h-[44px]"
         >
           {t("cancel")}
         </Button>

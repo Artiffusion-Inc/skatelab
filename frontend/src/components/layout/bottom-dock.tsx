@@ -50,7 +50,7 @@ export function BottomDock() {
               href={tab.href}
               aria-current={active ? "page" : undefined}
               aria-label={tab.label}
-              className={`flex flex-col items-center gap-0.5 rounded-md px-4 py-1.5 text-[10px] font-medium transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none ${
+              className={`flex min-h-[44px] flex-col items-center justify-center gap-0.5 rounded-md px-4 text-[10px] font-medium transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none ${
                 active ? "text-ink" : "text-ink-mute"
               }`}
             >
@@ -71,7 +71,7 @@ export function BottomDock() {
               href={tab.href}
               aria-current={active ? "page" : undefined}
               aria-label={tab.label}
-              className={`flex flex-col items-center gap-0.5 rounded-md px-4 py-1.5 text-[10px] font-medium transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none ${
+              className={`flex min-h-[44px] flex-col items-center justify-center gap-0.5 rounded-md px-4 text-[10px] font-medium transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none ${
                 active ? "text-ink" : "text-ink-mute"
               }`}
             >

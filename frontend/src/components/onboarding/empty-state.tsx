@@ -54,7 +54,7 @@ export function EmptyState({
           <Link
             href={secondaryAction.href}
             onClick={secondaryAction.onClick}
-            className="text-sm font-medium text-ink-mute hover:text-foreground transition-colors"
+            className="inline-flex min-h-[44px] items-center px-3 text-sm font-medium text-ink-mute hover:text-foreground transition-colors"
           >
             {secondaryAction.label}
           </Link>
