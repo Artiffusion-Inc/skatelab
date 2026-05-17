@@ -1,5 +1,6 @@
 "use client"
 
+import Link from "next/link"
 import { useParams } from "next/navigation"
 import { lazy, Suspense } from "react"
 import { PhaseTimeline } from "@/components/analysis/phase-timeline"
@@ -43,7 +44,14 @@ export default function SessionDetailPage() {
   const totalFrames = session?.pose_data ? Math.max(...session.pose_data.frames) : 300
 
   if (isLoading) return <SkeletonDetail />
-  if (!session) return <div className="py-20 text-center text-ink-mute">{ts("notFound")}</div>
+  if (!session) return (
+    <div className="flex flex-col items-center py-20 text-center" role="status">
+      <p className="text-lg text-muted-foreground">Сессия не найдена</p>
+      <Link href="/feed" className="mt-4 text-sm text-primary hover:underline">
+        Вернуться к записям
+      </Link>
+    </div>
+  )
 
   if (POLLING_STATUSES.has(session.status)) {
     return (
@@ -64,6 +72,11 @@ export default function SessionDetailPage() {
       <div className="mx-auto max-w-lg space-y-4 px-4 py-20 text-center">
         <p className="sh-display-md text-destructive">{ts("analysisFailed")}</p>
         <p className="text-sm text-ink-mute">{session.error_message}</p>
+        {session.video_url && (
+          <video src={session.video_url} controls className="w-full rounded-xl">
+            <track kind="captions" />
+          </video>
+        )}
         {session.video_key && (
           <Button
             onClick={() =>

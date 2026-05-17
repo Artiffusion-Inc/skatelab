@@ -1,5 +1,6 @@
 "use client"
 
+import { useCallback } from "react"
 import { useAnalysisStore } from "@/stores/analysis"
 import type { PhasesData } from "@/types"
 
@@ -33,6 +34,34 @@ export function PhaseTimeline({ totalFrames, phases }: PhaseTimelineProps) {
     setCurrentFrame(targetFrame)
   }
 
+  // Build ordered phase entries for keyboard navigation
+  const phaseEntries = Object.entries(phases)
+    .filter(([, v]) => v != null)
+    .map(([key, v]) => ({ key, frame: (v as { frame: number }).frame }))
+    .sort((a, b) => a.frame - b.frame)
+
+  const activePhaseIndex = (() => {
+    let idx = 0
+    for (let i = 0; i < phaseEntries.length; i++) {
+      if (currentFrame >= phaseEntries[i].frame) idx = i
+    }
+    return idx
+  })()
+
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLDivElement>) => {
+      if (e.key === "ArrowRight" || e.key === "ArrowLeft") {
+        e.preventDefault()
+        const dir = e.key === "ArrowRight" ? 1 : -1
+        const next = Math.max(0, Math.min(phaseEntries.length - 1, activePhaseIndex + dir))
+        setCurrentFrame(phaseEntries[next].frame)
+      } else if (e.key === "Enter") {
+        handleSeek(e)
+      }
+    },
+    [activePhaseIndex, phaseEntries, setCurrentFrame],
+  )
+
   const takeoffPercent = phases.takeoff ? (phases.takeoff.frame / totalFrames) * 100 : null
 
   const peakPercent = phases.peak ? (phases.peak.frame / totalFrames) * 100 : null
@@ -43,12 +72,12 @@ export function PhaseTimeline({ totalFrames, phases }: PhaseTimelineProps) {
     <div
       className="relative w-full h-12 bg-muted rounded-lg overflow-hidden cursor-pointer"
       onClick={handleSeek}
-      onKeyDown={e => e.key === "Enter" && handleSeek(e)}
+      onKeyDown={handleKeyDown}
       role="slider"
       aria-valuemin={0}
-      aria-valuemax={totalFrames}
-      aria-valuenow={currentFrame}
-      aria-label="Frame scrubber"
+      aria-valuemax={Math.max(0, phaseEntries.length - 1)}
+      aria-valuenow={activePhaseIndex}
+      aria-label="Phase timeline"
       tabIndex={0}
     >
       {/* Phase zones */}

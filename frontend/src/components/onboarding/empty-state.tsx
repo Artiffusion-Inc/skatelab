@@ -28,6 +28,8 @@ export function EmptyState({
 }: EmptyStateProps) {
   return (
     <div
+      role="status"
+      aria-live="polite"
       className={cn("flex flex-col items-center justify-center py-20 px-4 text-center", className)}
     >
       {icon && (
