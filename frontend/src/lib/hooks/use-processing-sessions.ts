@@ -18,8 +18,7 @@ export function useProcessingSessions() {
 
   const { data } = useQuery({
     queryKey: ["sessions", user?.id, "processing"],
-    queryFn: () =>
-      apiFetch("/sessions?status=processing", ProcessingSessionListSchema),
+    queryFn: () => apiFetch("/sessions?status=processing", ProcessingSessionListSchema),
     enabled: !!user,
     refetchInterval: 30_000,
   })

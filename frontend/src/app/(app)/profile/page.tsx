@@ -18,7 +18,15 @@ export default function ProfilePage() {
   const { isFirstLoad, isError } = usePageStatus([sessionsQ, prsQ])
 
   if (isFirstLoad) return <SkeletonProfile />
-  if (isError) return <ErrorState onRetry={() => { sessionsQ.refetch(); prsQ.refetch() }} />
+  if (isError)
+    return (
+      <ErrorState
+        onRetry={() => {
+          sessionsQ.refetch()
+          prsQ.refetch()
+        }}
+      />
+    )
 
   return (
     <div className="mx-auto max-w-lg space-y-5 px-4 py-4">

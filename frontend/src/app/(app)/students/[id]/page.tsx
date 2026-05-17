@@ -44,7 +44,15 @@ export default function StudentProfilePage() {
   const { isFirstLoad, isError } = usePageStatus([trendQ, diagQ])
 
   if (isFirstLoad) return <SkeletonStudent />
-  if (isError) return <ErrorState onRetry={() => { trendQ.refetch(); diagQ.refetch() }} />
+  if (isError)
+    return (
+      <ErrorState
+        onRetry={() => {
+          trendQ.refetch()
+          diagQ.refetch()
+        }}
+      />
+    )
 
   return (
     <div className="mx-auto max-w-2xl space-y-4 sm:max-w-3xl">

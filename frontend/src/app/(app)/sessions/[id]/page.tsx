@@ -44,14 +44,15 @@ export default function SessionDetailPage() {
   const totalFrames = session?.pose_data ? Math.max(...session.pose_data.frames) : 300
 
   if (isLoading) return <SkeletonDetail />
-  if (!session) return (
-    <div className="flex flex-col items-center py-20 text-center" role="status">
-      <p className="text-lg text-muted-foreground">Сессия не найдена</p>
-      <Link href="/feed" className="mt-4 text-sm text-primary hover:underline">
-        Вернуться к записям
-      </Link>
-    </div>
-  )
+  if (!session)
+    return (
+      <div className="flex flex-col items-center py-20 text-center" role="status">
+        <p className="text-lg text-muted-foreground">Сессия не найдена</p>
+        <Link href="/feed" className="mt-4 text-sm text-primary hover:underline">
+          Вернуться к записям
+        </Link>
+      </div>
+    )
 
   if (POLLING_STATUSES.has(session.status)) {
     return (

@@ -41,8 +41,21 @@ export default function ConnectionsPage() {
     }
   }
 
-  if (isFirstLoad) return <div className="mx-auto max-w-2xl sm:max-w-3xl"><SkeletonConnection /></div>
-  if (isError) return <ErrorState onRetry={() => { connsQuery.refetch(); pendingQuery.refetch() }} />
+  if (isFirstLoad)
+    return (
+      <div className="mx-auto max-w-2xl sm:max-w-3xl">
+        <SkeletonConnection />
+      </div>
+    )
+  if (isError)
+    return (
+      <ErrorState
+        onRetry={() => {
+          connsQuery.refetch()
+          pendingQuery.refetch()
+        }}
+      />
+    )
 
   const conns = connsQuery.data
   const pending = pendingQuery.data
