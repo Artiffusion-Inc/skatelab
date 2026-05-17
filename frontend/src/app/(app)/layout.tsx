@@ -4,6 +4,7 @@ import Link from "next/link"
 import { redirect } from "next/navigation"
 import { getTranslations } from "next-intl/server"
 import { AppNav } from "@/components/app-nav"
+import { UnverifiedBanner } from "@/components/auth/unverified-banner"
 import { BottomDock } from "@/components/layout/bottom-dock"
 import { OnboardingGate } from "@/components/onboarding/onboarding-gate"
 
@@ -31,6 +32,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
             <AppNav />
           </div>
         </header>
+        <UnverifiedBanner />
         <main
           id="main-content"
           className="mx-auto w-full max-w-5xl flex-1 px-6 py-4 pb-24 sm:py-6 sm:pb-8"
