@@ -92,6 +92,14 @@ export default function SessionDetailPage() {
               cancelMutation.mutate(session.process_task_id)
             }
           }}
+          onRetry={() => {
+            if (session.video_key) {
+              retryMutation.mutate({
+                sessionId: session.id,
+                videoKey: session.video_key as string,
+              })
+            }
+          }}
         />
       )}
 

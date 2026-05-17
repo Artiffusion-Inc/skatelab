@@ -503,6 +503,8 @@
     "viewStudents": "Students"
   },
   "session": {
+    "slowAnalysis": "Analysis is taking longer than usual. This is normal for long videos.",
+    "staleAnalysis": "Analysis is taking too long.",
     "justNow": "just now",
     "minsAgo": "{n} min ago",
     "hoursAgo": "{n} h ago",
