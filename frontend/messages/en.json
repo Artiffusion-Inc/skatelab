@@ -49,6 +49,7 @@
     "verifySuccessTitle": "Email verified!",
     "verifySuccessSubtitle": "You can now sign in to your account",
     "verifyError": "Verification failed",
+    "verifyEmailError": "Failed to send email",
     "noVerificationCode": "No code?",
     "resendVerification": "Resend verification",
     "resendSuccess": "Email sent",

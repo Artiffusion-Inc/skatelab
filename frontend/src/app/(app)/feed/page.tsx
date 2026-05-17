@@ -5,6 +5,7 @@ import Link from "next/link"
 import { SessionCard } from "@/components/session/session-card"
 import { SkeletonCard } from "@/components/skeleton-card"
 import { ErrorState } from "@/components/error-state"
+import { DemoBadge } from "@/components/demo/demo-badge"
 import { usePageStatus } from "@/lib/hooks/use-page-status"
 import { useTranslations } from "@/i18n"
 import { useSessions, useBulkDeleteSessions } from "@/lib/api/sessions"
@@ -19,6 +20,7 @@ export default function FeedPage() {
   const tc = useTranslations("common")
   const te = useTranslations("elements")
   const tEmpty = useTranslations("emptyStates")
+  const td = useTranslations("demo")
 
   const [selectionMode, setSelectionMode] = useState(false)
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
@@ -74,15 +76,30 @@ export default function FeedPage() {
 
   if (isError) return <ErrorState onRetry={() => query.refetch()} />
 
-  if (!query.data?.sessions.length) {
+  const totalSessions = query.data?.sessions.length ?? 0
+  const showDemoTile = totalSessions < 3
+
+  if (!totalSessions) {
     return (
-      <EmptyState
-        icon={<Upload className="h-7 w-7 text-primary" />}
-        title={tEmpty("feedTitle")}
-        description={tEmpty("feedDesc")}
-        primaryAction={{ label: tEmpty("feedAction"), href: "/upload" }}
-        secondaryAction={{ label: tEmpty("feedSecondaryAction"), href: "/connections" }}
-      />
+      <div className="mx-auto max-w-2xl space-y-3 sm:max-w-3xl">
+        <Link
+          href="/sessions/demo-axel"
+          className="block rounded-2xl border border-primary/20 bg-primary/5 p-3 sm:p-4 transition-colors hover:bg-primary/10"
+        >
+          <div className="flex items-center gap-2">
+            <span className="font-medium">{te("axel")}</span>
+            <DemoBadge />
+          </div>
+          <p className="mt-1 text-sm text-ink-mute">{td("demoSessionLabel")}</p>
+        </Link>
+        <EmptyState
+          icon={<Upload className="h-7 w-7 text-primary" />}
+          title={tEmpty("feedTitle")}
+          description={tEmpty("feedDesc")}
+          primaryAction={{ label: tEmpty("feedAction"), href: "/upload" }}
+          secondaryAction={{ label: tEmpty("feedSecondaryAction"), href: "/connections" }}
+        />
+      </div>
     )
   }
 
@@ -147,18 +164,32 @@ export default function FeedPage() {
         </Link>
       </div>
 
-      {filteredSessions.length === 0 ? (
+      {filteredSessions.length === 0 && !showDemoTile ? (
         <p className="py-10 text-center text-ink-mute">{tf("noSessions")}</p>
       ) : (
-        filteredSessions.map(session => (
-          <SessionCard
-            key={session.id}
-            session={session}
-            selectable={selectionMode}
-            selected={selectedIds.has(session.id)}
-            onSelect={toggleSelect}
-          />
-        ))
+        <>
+          {showDemoTile && (
+            <Link
+              href="/sessions/demo-axel"
+              className="block rounded-2xl border border-primary/20 bg-primary/5 p-3 sm:p-4 transition-colors hover:bg-primary/10"
+            >
+              <div className="flex items-center gap-2">
+                <span className="font-medium">{te("axel")}</span>
+                <DemoBadge />
+              </div>
+              <p className="mt-1 text-sm text-ink-mute">{td("demoSessionLabel")}</p>
+            </Link>
+          )}
+          {filteredSessions.map(session => (
+            <SessionCard
+              key={session.id}
+              session={session}
+              selectable={selectionMode}
+              selected={selectedIds.has(session.id)}
+              onSelect={toggleSelect}
+            />
+          ))}
+        </>
       )}
     </div>
   )

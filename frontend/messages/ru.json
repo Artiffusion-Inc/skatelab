@@ -49,6 +49,7 @@
     "verifySuccessTitle": "Email подтверждён!",
     "verifySuccessSubtitle": "Теперь вы можете войти в аккаунт",
     "verifyError": "Ошибка подтверждения",
+    "verifyEmailError": "Не удалось отправить письмо",
     "noVerificationCode": "Нет кода?",
     "resendVerification": "Отправить повторно",
     "resendSuccess": "Письмо отправлено",
