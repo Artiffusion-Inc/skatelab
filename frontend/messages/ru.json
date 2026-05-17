@@ -519,7 +519,20 @@
       "30d": "30 дн",
       "90d": "90 дн",
       "all": "Всё"
-    }
+    },
+    "backToElements": "Все элементы",
+    "health": {
+      "improving": "Улучшается",
+      "stagnant": "Без изменений",
+      "declining": "Ухудшается",
+      "no_data": "Нет данных"
+    },
+    "allMetrics": "Все метрики ({count})",
+    "alerts": "Рекомендации",
+    "noAlerts": "Рекомендаций нет",
+    "referenceRange": "Эталонный диапазон",
+    "personalRecord": "Личный рекорд",
+    "backToMetrics": "Все метрики"
   },
   "coach": {
     "noProblems": "Проблем не обнаружено",

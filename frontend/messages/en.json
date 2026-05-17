@@ -481,7 +481,20 @@
       "30d": "30 d",
       "90d": "90 d",
       "all": "All"
-    }
+    },
+    "backToElements": "All elements",
+    "health": {
+      "improving": "Improving",
+      "stagnant": "Stagnant",
+      "declining": "Declining",
+      "no_data": "No data"
+    },
+    "allMetrics": "All metrics ({count})",
+    "alerts": "Alerts",
+    "noAlerts": "No alerts",
+    "referenceRange": "Reference range",
+    "personalRecord": "Personal record",
+    "backToMetrics": "All metrics"
   },
   "coach": {
     "noProblems": "No problems detected",
