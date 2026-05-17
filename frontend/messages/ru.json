@@ -546,7 +546,9 @@
     "noProblems": "Проблем не обнаружено",
     "studentFallback": "Ученик",
     "viewSelf": "Мой прогресс",
-    "viewStudents": "Ученики"
+    "viewStudents": "Ученики",
+    "sandboxLabel": "Демо-данные",
+    "inviteRealStudents": "Пригласите реальных учеников"
   },
   "session": {
     "slowAnalysis": "Анализ занимает дольше обычного. Это нормально для длинных видео.",

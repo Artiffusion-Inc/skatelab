@@ -508,7 +508,9 @@
     "noProblems": "No problems detected",
     "studentFallback": "Student",
     "viewSelf": "My Progress",
-    "viewStudents": "Students"
+    "viewStudents": "Students",
+    "sandboxLabel": "Demo data",
+    "inviteRealStudents": "Invite real students"
   },
   "session": {
     "slowAnalysis": "Analysis is taking longer than usual. This is normal for long videos.",

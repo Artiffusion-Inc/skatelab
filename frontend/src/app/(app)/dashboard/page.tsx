@@ -13,10 +13,15 @@ import { EmptyState } from "@/components/onboarding"
 import { Users } from "lucide-react"
 import { CoachViewSwitcher, type ViewMode } from "@/components/layout/coach-view-switcher"
 import { SessionCard } from "@/components/session/session-card"
+import { DemoBadge } from "@/components/demo/demo-badge"
+import { useAuth } from "@/components/auth-provider"
+import { SANDBOX_STUDENTS } from "@/components/coach/coach-sandbox-data"
+import { Button } from "@/components/ui/button"
 
 export default function DashboardPage() {
   const connQuery = useConnections()
   const sessionsQuery = useSessions()
+  const { user } = useAuth()
   const { isFirstLoad, isError } = usePageStatus([connQuery])
   const ts = useTranslations("students")
   const tc = useTranslations("coach")
@@ -36,6 +41,7 @@ export default function DashboardPage() {
   )
 
   const hasStudents = students.length > 0
+  const isCoachWithNoStudents = !hasStudents && user?.onboarding_role === "coach"
 
   if (isFirstLoad) {
     return (
@@ -49,7 +55,7 @@ export default function DashboardPage() {
 
   if (isError) return <ErrorState onRetry={() => connQuery.refetch()} />
 
-  if (!hasStudents) {
+  if (!hasStudents && !isCoachWithNoStudents) {
     return (
       <EmptyState
         icon={<Users className="h-7 w-7 text-primary" />}
@@ -57,6 +63,37 @@ export default function DashboardPage() {
         description={ts("noStudentsHint")}
         primaryAction={{ label: ts("inviteStudent"), href: "/connections" }}
       />
+    )
+  }
+
+  // Coach sandbox: show demo students when coach has no real ones yet
+  if (isCoachWithNoStudents) {
+    return (
+      <div className="mx-auto max-w-2xl space-y-3 sm:max-w-3xl">
+        <div className="flex items-center gap-2">
+          <h1 className="sh-display-md">{ts("title")}</h1>
+          <DemoBadge />
+        </div>
+        {SANDBOX_STUDENTS.map(s => (
+          <div key={s.id} className="rounded-2xl border border-border p-4">
+            <div className="flex items-center gap-3">
+              <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center text-sm font-medium">
+                {s.display_name[0]}
+              </div>
+              <div className="flex-1">
+                <p className="font-medium text-sm">{s.display_name}</p>
+                <p className="text-xs text-muted-foreground">
+                  {s.sessions_this_week} {ts("progress").toLowerCase()} &middot; {s.latest_element}{" "}
+                  &middot; {s.latest_score}/10
+                </p>
+              </div>
+            </div>
+          </div>
+        ))}
+        <Button asChild variant="outline" className="w-full">
+          <Link href="/connections">{tc("inviteRealStudents")}</Link>
+        </Button>
+      </div>
     )
   }
 
