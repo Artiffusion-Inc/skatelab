@@ -541,7 +541,11 @@
     "share": "Поделиться",
     "delete": "Удалить",
     "deleteConfirm": "Удалить эту сессию? Это действие необратимо.",
-    "deleting": "Удаление..."
+    "deleting": "Удаление...",
+    "tabOverview": "Обзор",
+    "tabDetails": "Детали",
+    "tabExport": "Экспорт",
+    "showAllMetrics": "Показать все метрики"
   },
   "analysis": {
     "frameMetrics": "Метрики по кадрам",

@@ -503,7 +503,11 @@
     "share": "Share",
     "delete": "Delete",
     "deleteConfirm": "Delete this session? This action cannot be undone.",
-    "deleting": "Deleting..."
+    "deleting": "Deleting...",
+    "tabOverview": "Overview",
+    "tabDetails": "Details",
+    "tabExport": "Export",
+    "showAllMetrics": "Show all metrics"
   },
   "analysis": {
     "frameMetrics": "Frame Metrics",
