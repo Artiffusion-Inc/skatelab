@@ -1,5 +1,8 @@
 import { Skeleton } from "@/components/ui/skeleton"
 
+const STATS = ["stat-sessions", "stat-prs", "stat-avg", "stat-streak"] as const
+const ACTIVITY = ["act-1", "act-2", "act-3"] as const
+
 export function SkeletonProfile() {
   return (
     <div className="space-y-6">
@@ -13,8 +16,8 @@ export function SkeletonProfile() {
       </div>
       {/* Stats cards */}
       <div className="grid grid-cols-2 gap-3">
-        {Array.from({ length: 4 }).map((_, i) => (
-          <div key={i} className="rounded-xl border p-4">
+        {STATS.map(key => (
+          <div key={key} className="rounded-xl border p-4">
             <Skeleton className="h-3 w-16" />
             <Skeleton className="mt-2 h-6 w-12" />
           </div>
@@ -22,8 +25,8 @@ export function SkeletonProfile() {
       </div>
       {/* Recent activity */}
       <div className="space-y-3">
-        {Array.from({ length: 3 }).map((_, i) => (
-          <div key={i} className="flex items-center gap-3 rounded-xl border p-3">
+        {ACTIVITY.map(key => (
+          <div key={key} className="flex items-center gap-3 rounded-xl border p-3">
             <Skeleton className="h-10 w-10 shrink-0 rounded-lg" />
             <div className="flex-1 space-y-2">
               <Skeleton className="h-4 w-32" />

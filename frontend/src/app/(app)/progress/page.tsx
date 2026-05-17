@@ -35,7 +35,15 @@ export default function ProgressPage() {
     )
   }
 
-  if (isError) return <ErrorState onRetry={() => { registryQuery.refetch(); trendQuery.refetch() }} />
+  if (isError)
+    return (
+      <ErrorState
+        onRetry={() => {
+          registryQuery.refetch()
+          trendQuery.refetch()
+        }}
+      />
+    )
 
   if (!trendQuery.data || trendQuery.data.data_points.length === 0) {
     return (
@@ -78,7 +86,7 @@ export default function ProgressPage() {
         <PeriodSelector value={period} onChange={setPeriod} />
       </div>
 
-      <TrendChart data={trendQuery.data!} />
+      <TrendChart data={trendQuery.data as NonNullable<typeof trendQuery.data>} />
     </div>
   )
 }

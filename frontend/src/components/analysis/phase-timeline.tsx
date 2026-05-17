@@ -12,33 +12,13 @@ interface PhaseTimelineProps {
 export function PhaseTimeline({ totalFrames, phases }: PhaseTimelineProps) {
   const { currentFrame, setCurrentFrame } = useAnalysisStore()
 
-  if (!phases) return null
-
-  const percentage = (currentFrame / totalFrames) * 100
-
-  const handleSeek = (
-    e: React.MouseEvent<HTMLDivElement> | React.KeyboardEvent<HTMLDivElement>,
-  ) => {
-    const rect = e.currentTarget.getBoundingClientRect()
-    let x: number
-
-    if ("clientX" in e) {
-      x = e.clientX - rect.left
-    } else {
-      x = rect.width / 2 // Center for keyboard activation
-    }
-
-    const seekPercentage = x / rect.width
-    const targetFrame = Math.floor(seekPercentage * totalFrames)
-
-    setCurrentFrame(targetFrame)
-  }
-
-  // Build ordered phase entries for keyboard navigation
-  const phaseEntries = Object.entries(phases)
-    .filter(([, v]) => v != null)
-    .map(([key, v]) => ({ key, frame: (v as { frame: number }).frame }))
-    .sort((a, b) => a.frame - b.frame)
+  // Build ordered phase entries for keyboard navigation (must be before any early return)
+  const phaseEntries = phases
+    ? Object.entries(phases)
+        .filter(([, v]) => v != null)
+        .map(([key, v]) => ({ key, frame: (v as { frame: number }).frame }))
+        .sort((a, b) => a.frame - b.frame)
+    : []
 
   const activePhaseIndex = (() => {
     let idx = 0
@@ -47,6 +27,25 @@ export function PhaseTimeline({ totalFrames, phases }: PhaseTimelineProps) {
     }
     return idx
   })()
+
+  const handleSeek = useCallback(
+    (e: React.MouseEvent<HTMLDivElement> | React.KeyboardEvent<HTMLDivElement>) => {
+      const rect = e.currentTarget.getBoundingClientRect()
+      let x: number
+
+      if ("clientX" in e) {
+        x = e.clientX - rect.left
+      } else {
+        x = rect.width / 2 // Center for keyboard activation
+      }
+
+      const seekPercentage = x / rect.width
+      const targetFrame = Math.floor(seekPercentage * totalFrames)
+
+      setCurrentFrame(targetFrame)
+    },
+    [totalFrames, setCurrentFrame],
+  )
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLDivElement>) => {
@@ -59,8 +58,12 @@ export function PhaseTimeline({ totalFrames, phases }: PhaseTimelineProps) {
         handleSeek(e)
       }
     },
-    [activePhaseIndex, phaseEntries, setCurrentFrame],
+    [activePhaseIndex, phaseEntries, setCurrentFrame, handleSeek],
   )
+
+  if (!phases) return null
+
+  const percentage = (currentFrame / totalFrames) * 100
 
   const takeoffPercent = phases.takeoff ? (phases.takeoff.frame / totalFrames) * 100 : null
 

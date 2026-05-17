@@ -1,6 +1,7 @@
 "use client"
 
 import { Bluetooth, Radio, BarChart3 } from "lucide-react"
+import Image from "next/image"
 import { useTranslations } from "@/i18n"
 
 const icons = [Bluetooth, Radio, BarChart3]
@@ -15,13 +16,14 @@ function StepImage({
   className?: string
 }) {
   return (
-    <img
+    <Image
       src={src}
       alt={alt}
       className={className}
-      loading="lazy"
       aria-hidden="true"
-      style={{ objectFit: "cover", width: "100%", height: "100%" }}
+      fill
+      sizes="(max-width: 768px) 100vw, 33vw"
+      style={{ objectFit: "cover" }}
     />
   )
 }
