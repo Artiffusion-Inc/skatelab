@@ -1,9 +1,9 @@
 # UX Restructure Design
 
-**Date:** 2026-05-17 (revised)
+**Date:** 2026-05-17 (rev 2 — second-round review incorporated)
 **Scope:** Full frontend (Next.js 16 app)
-**Current Score:** 19/40 (Poor — Nielsen heuristics)
-**Target Score:** 30+/40 (Good)
+**Current Score:** 19/40 (Poor — Nielsen heuristics), 0/40 (WCAG 2.1 AA)
+**Target Score:** 30+/40 (Good — Nielsen), 24+/40 (WCAG AA)
 
 ---
 
@@ -40,6 +40,9 @@
 | P2 | Connections empty state href="#" | Dead end on primary CTA | Inline invite form |
 | P2 | No global error toast | API failures silently swallowed | QueryCache.onError handler |
 | P2 | Filter-empty vs data-empty not distinguished | "No sessions" when filter returns zero | Add "No matching sessions" state |
+| P0 | App scores 0/40 on WCAG 2.1 AA | Nested `role="button"` conflicts, PhaseTimeline not keyboard operable, 3D viewer mouse-only, color-only indicators | See Section 9 |
+| P0 | `detect.py` and `process.py` have NO AUTH | Anyone can enqueue GPU jobs and upload to R2 | Add `CurrentUser` dependency to both routes |
+| P1 | Missing rate limits on uploads, presign, sessions | GPU/R2 cost abuse vector | Add rate limiting middleware |
 
 ---
 
@@ -73,10 +76,13 @@ SKATE → RECORD → ANALYZE → IMPROVE
 - Flash risk: nav renders before `fetchMe()` resolves
 - Universal nav with role-based **page sections** is simpler and more robust
 
-**Coach-specific features as page sections, not separate nav:**
-- Progress page gets a "Мой прогресс / Ученики" tab for coaches
-- Dashboard (`/dashboard`) remains accessible via Profile and from coach-empty-state CTA
-- Students detail (`/students/[id]`) accessible from coach tabs
+**Center FAB caveat:** 4/10 confidence for utility apps (per competitive research). Social apps use center FAB for creation; SkateLab is a utility app where "upload" is the primary action but not the ONLY action. If center FAB causes accessibility or safe-area issues, fall back to a persistent "Загрузить видео" banner at the top of `/feed` (content-area FAB). The nav slot becomes a 4th item instead.
+
+**Coach-specific features — view switcher, not tabs:**
+- Progress and Dashboard pages use a **view switcher** (like ClassDojo's student/teacher toggle) instead of tabs
+- Switcher: "Мой прогресс ↔ Ученики" on Progress, "Мои сессии ↔ Ученики" on Dashboard
+- This follows dual-role UX norms: tabs imply separate sections, switcher implies same-place different lens
+- Switcher state persists per user (localStorage `coach_view_mode`)
 
 **Key renames (revised based on audit):**
 
@@ -169,6 +175,8 @@ SKATE → RECORD → ANALYZE → IMPROVE
 | [Удалить сессию] ← isolated, red, bottom               |
 +-------------------------------------------------------+
 ```
+
+**Note on Export tab vs overflow menu:** Competitive analysis shows no sports app has Export as a tab. The Export tab is retained for this spec because it consolidates all secondary actions (share, compare, delete, download) into one progressive-disclosure location, reducing visual clutter on Overview and Details tabs. If user testing shows low tab engagement, move Export actions to an `[...v]` overflow menu on Overview and remove the third tab entirely.
 
 **Processing state:** Sticky banner with progress bar instead of full-page replacement. Failed state keeps video playable (original `video_url`).
 
@@ -373,6 +381,9 @@ This preserves GPU cost protection while eliminating the dead-end verify page.
 **Frontend-only MVP (recommended for Phase 3):**
 - Hardcode a "demo session" tile in the feed that links to `/sessions/demo-axel`
 - `/sessions/demo-axel` renders a static page with pre-computed analysis data (no backend query)
+- Demo data served as **static JSON** (NOT bundled in JS — fetch from `/public/demo/session.json` to keep bundle size lean)
+- Demo video URL points to a public R2 object (no auth needed for this one asset)
+- "Демо" badge on session tile + persistent "Загрузить своё видео" CTA on demo detail
 - Avoids: DB migration, R2 asset duplication, GDPR concerns
 
 **Full backend version (future):**
@@ -393,8 +404,9 @@ This preserves GPU cost protection while eliminating the dead-end verify page.
 
 - Coach sees same demo session → aha
 - Then: prominent "Пригласите учеников" banner on empty dashboard
-- **Coach Sandbox:** Pre-populate dashboard with 2 fictitious students + sample sessions so coach sees value before inviting real students
+- **Coach Sandbox:** Pre-populate dashboard with 2 fictitious students + sample sessions so coach sees value before inviting real students. **Frontend-only MVP** — mock data in component, no DB rows. Avoids GDPR concerns with real-looking names.
 - Connections: inline invite form (fix `href="#"` bug)
+- Coach uses view switcher on Progress/Dashboard pages (see Section 2.2)
 
 ### 5.7 Missing Onboarding Considerations
 
@@ -430,36 +442,60 @@ This preserves GPU cost protection while eliminating the dead-end verify page.
 - [ ] Replace bare "Loading..." with proper skeletons on Dashboard, Choreography
 - [ ] Fix Connections empty state `href="#"` → inline invite form
 - [ ] Add "not found" CTA on Sessions/[id] (link back to feed)
+- [ ] Add "failed video playback" state — keep original `video_url` playable when processing fails
 - [ ] Fix Diagnostics heading ("Рекомендации" → "Диагностика")
 - [ ] Localize metric names in session cards via `registry?.label_ru`
 - [ ] Add Russian + English translations for new empty/error states to `ru.json` AND `en.json`
 - [ ] Add filter-empty state to Feed ("No matching sessions" + clear filters)
+- [ ] Add filter-empty state to Progress ("Нет данных по этому элементу" + clear)
 - [ ] Add show/hide password toggle to `FormField`
+- [ ] Add skip-nav link ("Перейти к содержимому") for WCAG 2.4.1
+- [ ] Add `focus-visible:ring-2 ring-ring` to all interactive elements
+- [ ] Fix nested `role="button"` on VideoWithSkeleton (WCAG 4.1.2)
+- [ ] Add `aria-live="polite"` region for SSE processing status updates
+- [ ] Add `role="status"` on empty state containers
+- [ ] Add `CurrentUser` auth to `detect.py` and `process.py` routes (P0 security)
+- [ ] Add rate limiting middleware for uploads, presign, sessions endpoints
 
 ### Phase 2 — Structural (page redesigns, nav)
 
 - [ ] Rename nav item: Planner → Программа (only this rename is clearly better)
+- [ ] CSS spike: center FAB with `safe-area-inset-bottom` — if fails, fall back to content-area FAB
 - [ ] Implement universal 4-item nav + center FAB (Записи, Прогресс, Программа, Профиль)
 - [ ] Add conditional Dashboard nav item for coaches (keep existing `hasStudents` logic + role check)
 - [ ] Move Connections, Settings under Profile submenu
-- [ ] Session detail: implement 3-tab layout (Overview/Details/Export) with URL param `?tab=`
+- [ ] Session detail: implement `[...v]` menu (Share, Compare, Print, Delete)
+- [ ] Session detail: implement 3-tab layout (Overview/Details/Export) with URL param `?tab=` via `replaceState`
 - [ ] Session detail: sticky processing banner instead of full-page replacement
 - [ ] Add `?element=` and `?metric=` query params to Progress page
 - [ ] Keep `/compare` as standalone route; add "Сравнить" entry point from session detail Export tab
-- [ ] Add "Загрузить своё видео" banner on demo session view
+- [ ] Add `GET /metrics/element-summary` batched endpoint for Progress L1
+- [ ] Add `queryClient.invalidateQueries({ queryKey: ["trend"] })` and `["diagnostics"]` to upload success handler
+- [ ] Gate polling on `hasProcessingSessions` flag
+- [ ] Coach view switcher on Progress and Dashboard pages (Мой прогресс ↔ Ученики)
+- [ ] PhaseTimeline: add keyboard navigation (arrow keys) + `aria-valuenow`/`aria-valuemax`
+- [ ] 3D viewer: add keyboard orbit controls (WASD + QE) + `aria-label`
+- [ ] Health indicators: add icons alongside color (✓/⚠/✗) for WCAG 1.4.1
 
 ### Phase 3 — Flow Optimization (onboarding, progressive disclosure)
 
-- [ ] Inline email verify modal (not redirect) — requires backend audit of `VerifiedUser` dependencies
-- [ ] Demo session: start with frontend-only static page `/sessions/demo-axel`
+- [ ] Inline email verify modal (not redirect) — backend `VerifiedUser` already matches, frontend-only change
+- [ ] Demo session: static JSON at `/public/demo/session.json`, demo video from public R2 link
+- [ ] Demo session detail: persistent "Демо" badge + "Загрузить своё видео" CTA
 - [ ] Move onboarding to post-first-analysis celebration
 - [ ] Registration: 2 fields (defer display name), remove confirm_password
 - [ ] Progress page: implement Level 0 (element cards) and Level 1 (element detail with metric cards)
 - [ ] Progress page: implement Level 2 (metric deep dive with reference range)
 - [ ] Add stale detection to SessionStatus (3 min / 10 min thresholds)
 - [ ] Global QueryCache.onError toast for non-401 errors
-- [ ] Coach Sandbox: pre-populate dashboard with sample students on first visit
+- [ ] Coach Sandbox: frontend mock data (2 fictitious students), no DB rows
 - [ ] Contextual tour on session detail (first 1-3 visits, localStorage counter)
+- [ ] "У меня нет видео" path on empty feed → "Как снимать видео" guide
+- [ ] Mobile deep link: `/upload?source=android` with instructions
+- [ ] Profile page: lift queries from sub-components to page level for proper state coverage (estimated 2-3x current complexity)
+- [ ] `prefers-reduced-motion`: disable 3D viewer auto-rotation
+- [ ] Audit touch targets for 44×44px minimum (WCAG 2.5.8)
+- [ ] Audit `text-muted-foreground` contrast ratios (WCAG 1.4.3)
 
 ---
 
@@ -472,6 +508,9 @@ This preserves GPU cost protection while eliminating the dead-end verify page.
 | Q4 | Compare standalone vs inline? | **Both**: Keep `/compare` route + add entry from session detail Export tab |
 | Q5 | Coach dashboard vs Feed? | Dashboard remains accessible via Profile/empty-state CTA. Coaches see Feed for their own sessions. |
 | Q6 | Email verification threshold? | **Upload, connections, sharing, delete require verification.** Viewing (including demo) does not. |
+| Q7 | Coach features as tabs or switcher? | **View switcher** (like ClassDojo) — same-place different lens, not separate sections |
+| Q8 | Demo session data delivery? | **Static JSON from `/public/demo/session.json`**, NOT bundled in JS |
+| Q9 | Backend changes for email verify? | **Zero backend changes.** `VerifiedUser` map already matches proposed policy. Frontend-only change. |
 
 ### Remaining
 
@@ -483,10 +522,118 @@ This preserves GPU cost protection while eliminating the dead-end verify page.
 | Q4 | Role switching UI | No UI to change role post-onboarding. Should `/settings` have a role switch? Or detect from behavior? |
 | Q5 | Coach sandbox data | Pre-populate with real-looking fictitious names (Алексей, Мария) or anonymized real data? GDPR implications? |
 | Q6 | Mobile deep link | Android → Web pairing mechanism. QR code? Direct API upload with JWT? Requires Android app changes. |
+| Q7 | Export tab vs overflow menu | Export as 3rd tab has no competitive precedent in sports apps. User test needed; fallback = overflow menu on Overview |
+| Q8 | Center FAB vs content-area FAB | Center FAB may cause accessibility/safe-area issues. CSS spike first; fallback = top-of-feed banner |
+| Q9 | 3-level progressive disclosure depth | L0→L1→L2 may be excessive for some users. Consider collapsing L2 into L1 with expand/collapse |
+| Q10 | Profile page state coverage complexity | Lifting queries from sub-components to page level is 2-3x current complexity. Worth it? Or keep sub-component states? |
+| Q11 | SSE `/process/{task_id}/stream` auth | Currently no auth — any user can subscribe to any task. Fix in Phase 1 or Phase 2? |
 
 ---
 
-## 8. Before/After Comparison
+## 8. Accessibility (WCAG 2.1 AA)
+
+**Current state:** 0/40 — app fails virtually all WCAG criteria.
+
+### Critical Issues (P0 — must fix before any restructure ships)
+
+| Issue | WCAG Criterion | Fix |
+|-------|---------------|-----|
+| Nested `role="button"` on video container | 4.1.2 Name/Role/Value | Remove outer `role`, apply to actual interactive element only |
+| PhaseTimeline not keyboard operable | 2.1.1 Keyboard | Add `tabIndex`, arrow-key navigation, `aria-valuenow`/`aria-valuemax` |
+| 3D skeleton viewer mouse-only | 2.1.1 Keyboard | Add orbit controls via keyboard (WASD + QE), `aria-label` describing view |
+| Color-only health indicators (green/yellow/red) | 1.4.1 Use of Color | Add icons/text: ✓ (improving), ⚠ (stagnant), ✗ (declining) |
+| No captions/transcript on video | 1.2.2 Captions | Add SRT/VTT support for coaching commentary (future); for now, `aria-label` describing video content |
+
+### Important Issues (P1 — same release as restructure)
+
+| Issue | WCAG Criterion | Fix |
+|-------|---------------|-----|
+| No skip-nav link | 2.4.1 Bypass Blocks | Add "Перейти к содержимому" skip link |
+| Tab navigation has no visible focus indicator | 2.4.7 Focus Visible | Use `focus-visible:ring-2 ring-ring` on all interactive elements |
+| Session cards have no heading structure | 1.3.1 Info and Relationships | Use `h2` for session name, `h3` for metrics within cards |
+| Form inputs missing `aria-describedby` | 3.3.2 Labels or Instructions | Link error messages via `aria-describedby` |
+| Dynamic content (SSE processing) not announced | 4.1.3 Status Messages | Use `aria-live="polite"` region for processing status updates |
+| Empty states not announced to screen readers | 4.1.3 Status Messages | Use `role="status"` on empty state containers |
+
+### Enhancement (P2 — post-restructure)
+
+| Issue | WCAG Criterion | Fix |
+|-------|---------------|-----|
+| No reduced-motion alternative for 3D viewer | 2.3.3 Animation from Interactions | Respect `prefers-reduced-motion`, disable auto-rotation |
+| Touch targets < 44×44px on some mobile elements | 2.5.8 Target Size | Audit and enlarge small touch targets |
+| Color contrast failures on muted text | 1.4.3 Contrast | Audit all `text-muted-foreground` against backgrounds |
+
+---
+
+## 9. Performance Considerations
+
+### API Batching
+
+**Problem:** Progress L1 (`/progress?element=axel`) fires 5-6 parallel API calls: `useTrend`, `useDiagnostics`, `useMetricRegistry`, `usePRs`, plus session queries. Waterfall on slow connections.
+
+**Solution:** Add `GET /metrics/element-summary?element=axel` batched endpoint returning trend, diagnostics, registry, and PRs in single response. Frontend uses this at L1; individual endpoints remain for L2 deep dive.
+
+**Phase:** Phase 2 (Progress page redesign). Backend change required.
+
+### Cache Invalidation
+
+**Missing invalidation:** When a new session is created, `["trend"]` and `["diagnostics"]` query caches become stale. Currently `useMutation` for upload only invalidates `["sessions"]`.
+
+**Fix:** Add `queryClient.invalidateQueries({ queryKey: ["trend"] })` and `["diagnostics"]` to upload success handler.
+
+### Tab State Management
+
+Use `window.history.replaceState` for `?tab=overview|details|export`, not `router.push`. Prevents back-button spam (each tab switch would otherwise push a history entry).
+
+### 3D Viewer Gating
+
+ThreeJSkeletonViewer is already `React.lazy` code-split. Tab gating (only mount on Details tab) provides marginal additional benefit — avoids GPU context creation when not visible. Keep it for battery savings on mobile.
+
+### Polling Optimization
+
+**Current:** `useSession` polls every 5s for `status === "processing"`. If multiple sessions are processing, this creates N parallel polls.
+
+**Fix:** Gate global polling on `hasProcessingSessions` flag. Single interval checks processing status; individual session polls only for the active session detail page.
+
+### Demo Session Data
+
+Demo session analysis must be **static JSON** served from `/public/demo/session.json`, NOT bundled in the JavaScript bundle. Video URL can be a public R2 link. This keeps bundle size unchanged.
+
+---
+
+## 10. Security
+
+### Critical: Unauthenticated Endpoints
+
+**`/detect` route (`backend/app/routes/detect.py`):** NO AUTHENTICATION. Anyone can enqueue person detection jobs.
+**`/process` route (`backend/app/routes/process.py`):** NO AUTHENTICATION. Anyone can enqueue GPU video processing jobs.
+
+**Impact:** GPU cost abuse ($0.50-2.00 per video), R2 storage abuse, potential DDoS vector.
+
+**Fix:** Add `CurrentUser` dependency (minimum) to both routes. Consider `VerifiedUser` to match upload policy.
+
+**SSE endpoint `/process/{task_id}/stream`:** Also has NO AUTH. Any user can subscribe to any task's status stream. Add `CurrentUser` + verify task belongs to user.
+
+### Rate Limiting
+
+No rate limits exist on: `POST /sessions`, `POST /uploads/presign`, `POST /uploads/complete`. These are the most expensive endpoints (GPU + storage).
+
+**Fix:** Add rate limiting middleware (e.g., `slowapi`) with:
+- Upload: 5/hour per user
+- Sessions: 20/hour per user
+- Presign: 10/hour per user
+
+### Email Verification Policy
+
+Backend `VerifiedUser` map already matches spec's proposed policy:
+- Upload, connections, sharing, delete → require `VerifiedUser` ✓
+- Viewing sessions, progress, profile → `CurrentUser` only ✓
+
+**Zero backend changes needed** for the inline verify modal. Frontend just needs to call `POST /auth/verify-email` and handle response in-context.
+
+---
+
+## 11. Before/After Comparison
 
 ### Navigation
 
@@ -496,7 +643,7 @@ This preserves GPU cost protection while eliminating the dead-end verify page.
 | Nav depth | 2 levels | 2 levels (3 with Profile submenu) |
 | Dead ends | Compare orphan, Connections `href="#"`, Email verify | All eliminated |
 | Labels | Already Russian via `ru.json`, but route paths English | Russian labels + metric localization |
-| Multi-role | Single role enforced, no switching | Universal nav + role-based page sections |
+| Multi-role | Single role enforced, no switching | Universal nav + view switcher on coach pages |
 
 ### Flows
 
@@ -532,3 +679,13 @@ This preserves GPU cost protection while eliminating the dead-end verify page.
 | H9: Error Recovery | 1 | 4 | +3 |
 | H10: Help | 1 | 2 | +1 |
 | **Total** | **19** | **30** | **+11** |
+
+### WCAG Score Target
+
+| Category | Before | After (target) |
+|----------|--------|-----------------|
+| Perceivable | 0/12 | 6/12 (color + contrast + captions) |
+| Operable | 0/12 | 8/12 (keyboard + focus + skip-nav) |
+| Understandable | 0/8 | 6/8 (labels + error ID + status messages) |
+| Robust | 0/8 | 4/8 (ARIA roles + name/role/value) |
+| **Total** | **0/40** | **24/40** |
