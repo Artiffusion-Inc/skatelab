@@ -579,7 +579,10 @@
     "tabOverview": "Обзор",
     "tabDetails": "Детали",
     "tabExport": "Экспорт",
-    "showAllMetrics": "Показать все метрики"
+    "showAllMetrics": "Показать все метрики",
+    "tourTabs": "Переключайте вкладки для подробностей",
+    "tourActions": "Нажмите для дополнительных действий",
+    "tour3d": "Вращайте 3D-модель клавишами WASD"
   },
   "analysis": {
     "frameMetrics": "Метрики по кадрам",
