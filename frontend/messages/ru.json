@@ -520,7 +520,9 @@
   },
   "coach": {
     "noProblems": "Проблем не обнаружено",
-    "studentFallback": "Ученик"
+    "studentFallback": "Ученик",
+    "viewSelf": "Мой прогресс",
+    "viewStudents": "Ученики"
   },
   "session": {
     "justNow": "только что",

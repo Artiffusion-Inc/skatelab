@@ -482,7 +482,9 @@
   },
   "coach": {
     "noProblems": "No problems detected",
-    "studentFallback": "Student"
+    "studentFallback": "Student",
+    "viewSelf": "My Progress",
+    "viewStudents": "Students"
   },
   "session": {
     "justNow": "just now",
