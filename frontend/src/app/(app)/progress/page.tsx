@@ -4,6 +4,8 @@ import { useState } from "react"
 import { BarChart3, Upload } from "lucide-react"
 import { PeriodSelector } from "@/components/progress/period-selector"
 import { SkeletonChart } from "@/components/skeleton-chart"
+import { ErrorState } from "@/components/error-state"
+import { usePageStatus } from "@/lib/hooks/use-page-status"
 import { TrendChart } from "@/components/progress/trend-chart"
 import { EmptyState } from "@/components/onboarding"
 import { useTranslations } from "@/i18n"
@@ -11,20 +13,21 @@ import { useMetricRegistry, useTrend } from "@/lib/api/metrics"
 import { ELEMENT_TYPE_KEYS } from "@/lib/constants"
 
 export default function ProgressPage() {
-  const { data: registry } = useMetricRegistry()
+  const registryQuery = useMetricRegistry()
   const [element, setElement] = useState("waltz_jump")
   const [metric, setMetric] = useState("max_height")
   const [period, setPeriod] = useState("30d")
-  const { data: trend, isLoading } = useTrend(undefined, element, metric, period)
+  const trendQuery = useTrend(undefined, element, metric, period)
+  const { isFirstLoad, isError } = usePageStatus([registryQuery, trendQuery])
   const te = useTranslations("elements")
   const tEmpty = useTranslations("emptyStates")
   const ELEMENTS = ELEMENT_TYPE_KEYS.map(id => ({ id, label: te(id) }))
 
-  const availableMetrics = registry
-    ? Object.entries(registry).filter(([, v]) => v.element_types.includes(element))
+  const availableMetrics = registryQuery.data
+    ? Object.entries(registryQuery.data).filter(([, v]) => v.element_types.includes(element))
     : []
 
-  if (isLoading) {
+  if (isFirstLoad) {
     return (
       <div className="mx-auto max-w-2xl space-y-4 sm:max-w-3xl">
         <SkeletonChart />
@@ -32,7 +35,9 @@ export default function ProgressPage() {
     )
   }
 
-  if (!trend || trend.data_points.length === 0) {
+  if (isError) return <ErrorState onRetry={() => { registryQuery.refetch(); trendQuery.refetch() }} />
+
+  if (!trendQuery.data || trendQuery.data.data_points.length === 0) {
     return (
       <EmptyState
         icon={<BarChart3 className="h-7 w-7 text-primary" />}
@@ -73,7 +78,7 @@ export default function ProgressPage() {
         <PeriodSelector value={period} onChange={setPeriod} />
       </div>
 
-      <TrendChart data={trend} />
+      <TrendChart data={trendQuery.data!} />
     </div>
   )
 }

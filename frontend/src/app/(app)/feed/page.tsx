@@ -4,6 +4,8 @@ import { useMemo, useState } from "react"
 import Link from "next/link"
 import { SessionCard } from "@/components/session/session-card"
 import { SkeletonCard } from "@/components/skeleton-card"
+import { ErrorState } from "@/components/error-state"
+import { usePageStatus } from "@/lib/hooks/use-page-status"
 import { useTranslations } from "@/i18n"
 import { useSessions, useBulkDeleteSessions } from "@/lib/api/sessions"
 import { ELEMENT_TYPE_KEYS } from "@/lib/constants"
@@ -11,7 +13,8 @@ import { Upload, UserPlus } from "lucide-react"
 import { EmptyState } from "@/components/onboarding"
 
 export default function FeedPage() {
-  const { data, isLoading } = useSessions()
+  const query = useSessions()
+  const { isFirstLoad, isError } = usePageStatus([query])
   const tf = useTranslations("feed")
   const tc = useTranslations("common")
   const te = useTranslations("elements")
@@ -25,8 +28,8 @@ export default function FeedPage() {
   const [dateFilter, setDateFilter] = useState("all")
 
   const filteredSessions = useMemo(() => {
-    if (!data?.sessions) return []
-    let sessions = [...data.sessions]
+    if (!query.data?.sessions) return []
+    let sessions = [...query.data.sessions]
     if (elementFilter) {
       sessions = sessions.filter(s => s.element_type === elementFilter)
     }
@@ -38,7 +41,7 @@ export default function FeedPage() {
       }
     }
     return sessions
-  }, [data, elementFilter, dateFilter])
+  }, [query.data, elementFilter, dateFilter])
 
   const toggleSelect = (id: string) => {
     setSelectedIds(prev => {
@@ -59,7 +62,7 @@ export default function FeedPage() {
     })
   }
 
-  if (isLoading) {
+  if (isFirstLoad) {
     return (
       <div className="mx-auto max-w-2xl space-y-3 sm:max-w-3xl">
         <SkeletonCard />
@@ -69,7 +72,9 @@ export default function FeedPage() {
     )
   }
 
-  if (!data?.sessions.length) {
+  if (isError) return <ErrorState onRetry={() => query.refetch()} />
+
+  if (!query.data?.sessions.length) {
     return (
       <EmptyState
         icon={<Upload className="h-7 w-7 text-primary" />}
@@ -135,15 +140,19 @@ export default function FeedPage() {
         </div>
       </div>
 
-      {filteredSessions.map(session => (
-        <SessionCard
-          key={session.id}
-          session={session}
-          selectable={selectionMode}
-          selected={selectedIds.has(session.id)}
-          onSelect={toggleSelect}
-        />
-      ))}
+      {filteredSessions.length === 0 ? (
+        <p className="py-10 text-center text-ink-mute">{tf("noSessions")}</p>
+      ) : (
+        filteredSessions.map(session => (
+          <SessionCard
+            key={session.id}
+            session={session}
+            selectable={selectionMode}
+            selected={selectedIds.has(session.id)}
+            onSelect={toggleSelect}
+          />
+        ))
+      )}
     </div>
   )
 }
