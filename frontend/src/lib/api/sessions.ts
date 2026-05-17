@@ -131,7 +131,11 @@ export function useCreateSession() {
       imu_right_key?: string
       manifest_key?: string
     }) => apiPost("/sessions", SessionSchema, body),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["sessions"] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["sessions"] })
+      qc.invalidateQueries({ queryKey: ["trend"] })
+      qc.invalidateQueries({ queryKey: ["diagnostics"] })
+    },
   })
 }
 

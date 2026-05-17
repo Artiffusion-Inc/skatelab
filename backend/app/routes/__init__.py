@@ -9,6 +9,7 @@ from app.routes.choreography import ChoreographyController
 from app.routes.connections import ConnectionsController
 from app.routes.detect import DetectController
 from app.routes.metrics import MetricsController
+from app.routes.metrics_summary import ElementSummaryController
 from app.routes.misc import MiscController
 from app.routes.models import ModelsController
 from app.routes.process import ProcessController
@@ -21,7 +22,7 @@ auth = Router(path="/auth", route_handlers=[AuthController])
 choreography = Router(path="/choreography", route_handlers=[ChoreographyController])
 connections = Router(path="/connections", route_handlers=[ConnectionsController])
 detect = Router(path="/detect", route_handlers=[DetectController])
-metrics = Router(path="/metrics", route_handlers=[MetricsController])
+metrics = Router(path="/metrics", route_handlers=[MetricsController, ElementSummaryController])
 misc = Router(path="", route_handlers=[MiscController])
 models = Router(path="/models", route_handlers=[ModelsController])
 process = Router(path="/process", route_handlers=[ProcessController])
