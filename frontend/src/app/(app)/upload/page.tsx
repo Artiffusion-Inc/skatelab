@@ -5,11 +5,13 @@ import { useRouter } from "next/navigation"
 import { Loader2, CheckCircle2, X } from "lucide-react"
 import { toast } from "sonner"
 import { useTranslations } from "@/i18n"
+import { useAuth } from "@/components/auth-provider"
 import { useMountEffect } from "@/lib/useMountEffect"
 import { ChunkedUploader, presignUpload, uploadToPresignedUrl } from "@/lib/api/uploads"
 import { useCreateSession, usePatchSession } from "@/lib/api/sessions"
 import { enqueueProcess } from "@/lib/api/process"
 import { parseZip, isZipFile, type ZipContents } from "@/lib/zip-parser"
+import { VerifyEmailModal } from "@/components/auth/verify-email-modal"
 import { DropZone } from "@/components/upload/drop-zone"
 import { FilePreview } from "@/components/upload/file-preview"
 import { useVideoCompression } from "@/lib/use-video-compression"
@@ -22,8 +24,10 @@ export default function UploadPage() {
   const createSession = useCreateSession()
   const patchSession = usePatchSession()
   const t = useTranslations("upload")
+  const { user } = useAuth()
 
   const [step, setStep] = useState<Step>("idle")
+  const [showVerifyModal, setShowVerifyModal] = useState(false)
   const [file, setFile] = useState<File | null>(null)
   const [zipContents, setZipContents] = useState<ZipContents | null>(null)
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
@@ -40,6 +44,10 @@ export default function UploadPage() {
   })
 
   async function handleFile(f: File) {
+    if (user && !user.is_verified) {
+      setShowVerifyModal(true)
+      return
+    }
     if (isZipFile(f)) {
       setStep("parsing")
       try {
@@ -286,23 +294,29 @@ export default function UploadPage() {
 
   if (step === "picked" && file) {
     return (
-      <FilePreview
-        file={file}
-        zipContents={zipContents}
-        previewUrl={previewUrl}
-        onRemove={handleRemove}
-        onUpload={handleUpload}
-      />
+      <>
+        <FilePreview
+          file={file}
+          zipContents={zipContents}
+          previewUrl={previewUrl}
+          onRemove={handleRemove}
+          onUpload={handleUpload}
+        />
+        <VerifyEmailModal open={showVerifyModal} onClose={() => setShowVerifyModal(false)} />
+      </>
     )
   }
 
   return (
-    <div className="flex flex-col items-center justify-center gap-4 px-4 py-8">
-      <DropZone
-        onFile={handleFile}
-        invalidFile={t("invalidFile")}
-        fileTooLarge={t("fileTooLarge")}
-      />
-    </div>
+    <>
+      <div className="flex flex-col items-center justify-center gap-4 px-4 py-8">
+        <DropZone
+          onFile={handleFile}
+          invalidFile={t("invalidFile")}
+          fileTooLarge={t("fileTooLarge")}
+        />
+      </div>
+      <VerifyEmailModal open={showVerifyModal} onClose={() => setShowVerifyModal(false)} />
+    </>
   )
 }

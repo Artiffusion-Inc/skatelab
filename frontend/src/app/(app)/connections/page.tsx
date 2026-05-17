@@ -5,6 +5,9 @@ import { toast } from "sonner"
 import { Users } from "lucide-react"
 import { useTranslations } from "@/i18n"
 import { EmptyState } from "@/components/onboarding"
+import { ErrorState } from "@/components/error-state"
+import { SkeletonConnection } from "@/components/skeleton-connection"
+import { usePageStatus } from "@/lib/hooks/use-page-status"
 import {
   useAcceptConnection,
   useConnections,
@@ -14,14 +17,16 @@ import {
 } from "@/lib/api/connections"
 
 export default function ConnectionsPage() {
-  const { data: conns } = useConnections()
-  const { data: pending } = usePendingConnections()
+  const connsQuery = useConnections()
+  const pendingQuery = usePendingConnections()
   const invite = useInviteConnection()
   const acceptConn = useAcceptConnection()
   const endConn = useEndConnection()
   const t = useTranslations("toast")
   const tc = useTranslations("connections")
   const tEmpty = useTranslations("emptyStates")
+
+  const { isFirstLoad, isError } = usePageStatus([connsQuery, pendingQuery])
 
   const [email, setEmail] = useState("")
 
@@ -36,6 +41,24 @@ export default function ConnectionsPage() {
     }
   }
 
+  if (isFirstLoad)
+    return (
+      <div className="mx-auto max-w-2xl sm:max-w-3xl">
+        <SkeletonConnection />
+      </div>
+    )
+  if (isError)
+    return (
+      <ErrorState
+        onRetry={() => {
+          connsQuery.refetch()
+          pendingQuery.refetch()
+        }}
+      />
+    )
+
+  const conns = connsQuery.data
+  const pending = pendingQuery.data
   const activeConns = (conns?.connections ?? []).filter(r => r.status === "active")
   const hasPending = pending && pending.connections.length > 0
   const hasActive = activeConns.length > 0
@@ -46,7 +69,7 @@ export default function ConnectionsPage() {
         icon={<Users className="h-7 w-7 text-primary" />}
         title={tEmpty("connectionsTitle")}
         description={tEmpty("connectionsDesc")}
-        primaryAction={{ label: tEmpty("connectionsAction"), href: "#" }}
+        primaryAction={{ label: tEmpty("connectionsAction"), href: "#invite" }}
       />
     )
   }
@@ -55,7 +78,7 @@ export default function ConnectionsPage() {
     <div className="mx-auto max-w-2xl space-y-6 sm:max-w-3xl">
       <h1 className="text-lg font-semibold">{tc("title")}</h1>
 
-      <div className="space-y-2">
+      <div id="invite" className="space-y-2">
         <p className="text-sm font-medium">{tc("inviteStudent")}</p>
         <div className="flex gap-2">
           <input

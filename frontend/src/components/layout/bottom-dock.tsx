@@ -1,12 +1,13 @@
 "use client"
 
 import { useQuery } from "@tanstack/react-query"
-import { BarChart3, Camera, Music, Newspaper, User, Users } from "lucide-react"
+import { BarChart3, Music, Newspaper, User, Users } from "lucide-react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { z } from "zod"
 import { useTranslations } from "@/i18n"
 import { apiFetch } from "@/lib/api-client"
+import { CenterFAB } from "./center-fab"
 
 const ConnectionListSchema = z.object({
   connections: z.array(z.object({ status: z.string(), connection_type: z.string() })),
@@ -24,11 +25,13 @@ export function BottomDock() {
     r => r.status === "active" && r.connection_type === "coaching",
   )
 
-  const tabs = [
+  const leftTabs = [
     { href: "/feed", icon: Newspaper, label: t("feed") },
-    { href: "/upload", icon: Camera, label: t("upload") },
-    { href: "/choreography", icon: Music, label: t("planner") },
     { href: "/progress", icon: BarChart3, label: t("progress") },
+  ] as const
+
+  const rightTabs = [
+    { href: "/choreography", icon: Music, label: t("planner") },
     ...(hasStudents ? [{ href: "/dashboard", icon: Users, label: t("students") }] : []),
     { href: "/profile", icon: User, label: t("profile") },
   ] as const
@@ -37,8 +40,8 @@ export function BottomDock() {
 
   return (
     <nav className="fixed inset-x-0 bottom-0 z-50 border-t border-hairline bg-background pb-[env(safe-area-inset-bottom)] lg:hidden">
-      <div className="flex h-16 items-center justify-around px-2">
-        {tabs.map(tab => {
+      <div className="relative flex h-16 items-center justify-around px-2">
+        {leftTabs.map(tab => {
           const Icon = tab.icon
           const active = isActive(tab.href)
           return (
@@ -47,7 +50,28 @@ export function BottomDock() {
               href={tab.href}
               aria-current={active ? "page" : undefined}
               aria-label={tab.label}
-              className={`flex flex-col items-center gap-0.5 rounded-md px-4 py-1.5 text-[10px] font-medium transition-colors ${
+              className={`flex min-h-[44px] flex-col items-center justify-center gap-0.5 rounded-md px-4 text-[10px] font-medium transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none ${
+                active ? "text-ink" : "text-ink-mute"
+              }`}
+            >
+              <Icon className="h-5 w-5" />
+              <span>{tab.label}</span>
+            </Link>
+          )
+        })}
+
+        <CenterFAB />
+
+        {rightTabs.map(tab => {
+          const Icon = tab.icon
+          const active = isActive(tab.href)
+          return (
+            <Link
+              key={tab.href}
+              href={tab.href}
+              aria-current={active ? "page" : undefined}
+              aria-label={tab.label}
+              className={`flex min-h-[44px] flex-col items-center justify-center gap-0.5 rounded-md px-4 text-[10px] font-medium transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none ${
                 active ? "text-ink" : "text-ink-mute"
               }`}
             >

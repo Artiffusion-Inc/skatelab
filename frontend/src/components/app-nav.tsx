@@ -1,10 +1,16 @@
 "use client"
 
 import { useQuery } from "@tanstack/react-query"
-import { BarChart3, Camera, Music, Newspaper, User, Users } from "lucide-react"
+import { BarChart3, Music, Newspaper, User, Users } from "lucide-react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { z } from "zod"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { useTranslations } from "@/i18n"
 import { apiFetch } from "@/lib/api-client"
 
@@ -25,10 +31,9 @@ export function AppNav() {
   )
 
   const tabs = [
-    { href: "/feed", icon: Newspaper, label: t("feed") },
-    { href: "/upload", icon: Camera, label: t("upload") },
-    { href: "/choreography", icon: Music, label: t("planner") },
+    { href: "/feed", icon: Newspaper, label: t("sessions") },
     { href: "/progress", icon: BarChart3, label: t("progress") },
+    { href: "/choreography", icon: Music, label: t("programs") },
     ...(hasStudents ? [{ href: "/dashboard", icon: Users, label: t("students") }] : []),
   ] as const
 
@@ -46,7 +51,7 @@ export function AppNav() {
               key={tab.href}
               href={tab.href}
               aria-current={active ? "page" : undefined}
-              className={`flex shrink-0 items-center gap-1.5 rounded-md px-3 py-2 text-sm font-medium transition-colors whitespace-nowrap ${
+              className={`flex shrink-0 items-center gap-1.5 rounded-md px-3 py-2 text-sm font-medium transition-colors whitespace-nowrap focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none ${
                 active ? "bg-muted text-ink" : "text-ink-mute hover:text-ink hover:bg-muted/50"
               }`}
             >
@@ -57,17 +62,34 @@ export function AppNav() {
         })}
       </div>
 
-      {/* Right-side actions */}
+      {/* Right-side profile dropdown */}
       <div className="ml-auto flex shrink-0 items-center gap-1">
-        <Link
-          href="/profile"
-          aria-label={t("profile")}
-          className={`flex items-center gap-1.5 rounded-md px-2 py-2 text-sm transition-colors hover:bg-muted hover:text-ink ${
-            isActive("/profile") ? "text-ink bg-muted" : "text-ink-mute"
-          }`}
-        >
-          <User className="h-4 w-4" />
-        </Link>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button
+              type="button"
+              aria-label={t("profile")}
+              className={`flex min-h-[44px] min-w-[44px] items-center justify-center rounded-md text-sm transition-colors hover:bg-muted hover:text-ink focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none ${
+                isActive("/profile") || isActive("/connections") || isActive("/settings")
+                  ? "text-ink bg-muted"
+                  : "text-ink-mute"
+              }`}
+            >
+              <User className="h-4 w-4" />
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem asChild>
+              <Link href="/profile">{t("profile")}</Link>
+            </DropdownMenuItem>
+            <DropdownMenuItem asChild>
+              <Link href="/connections">{t("connections")}</Link>
+            </DropdownMenuItem>
+            <DropdownMenuItem asChild>
+              <Link href="/settings">{t("settings")}</Link>
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
     </nav>
   )

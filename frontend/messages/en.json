@@ -36,6 +36,8 @@
     "passwordRequired": "Password is required",
     "passwordTooShort": "Password must be at least 8 characters",
     "passwordsMismatch": "Passwords do not match",
+    "showPassword": "Show password",
+    "hidePassword": "Hide password",
     "verifyEmail": "Verify Email",
     "verifyEmailSubtitle": "Enter the verification code from your email",
     "token": "Verification code",
@@ -47,6 +49,7 @@
     "verifySuccessTitle": "Email verified!",
     "verifySuccessSubtitle": "You can now sign in to your account",
     "verifyError": "Verification failed",
+    "verifyEmailError": "Failed to send email",
     "noVerificationCode": "No code?",
     "resendVerification": "Resend verification",
     "resendSuccess": "Email sent",
@@ -67,7 +70,11 @@
     "progress": "Progress",
     "planner": "Planner",
     "students": "Students",
-    "dashboard": "Students"
+    "dashboard": "Students",
+    "sessions": "Sessions",
+    "programs": "Programs",
+    "connections": "Connections",
+    "settings": "Settings"
   },
   "app": {
     "title": "AI Coach",
@@ -307,7 +314,15 @@
     "period7d": "7d",
     "period30d": "30d",
     "period90d": "90d",
-    "periodall": "All"
+    "periodall": "All",
+    "noVideo": "I don't have a video",
+    "guideTitle": "How to record video for analysis",
+    "guideAngleTitle": "Camera angle",
+    "guideAngleDesc": "Film from the side, 3-5 m away. The entire skater should be in frame.",
+    "guideLightTitle": "Lighting",
+    "guideLightDesc": "The rink should be well-lit. Avoid shooting against the light.",
+    "guideFormatTitle": "Format",
+    "guideFormatDesc": "MP4 or MOV, landscape orientation. Length 10-60 seconds."
   },
   "upload": {
     "uploadingVideo": "Uploading video...",
@@ -404,6 +419,10 @@
       "other": "Other"
     },
     "continue": "Continue",
+    "celebrationTitle": "Great! Your first analysis is ready.",
+    "celebrationSubtitle": "Choose a role to personalize your experience",
+    "bannerMessage": "Choose a role to personalize your experience",
+    "bannerDismiss": "Dismiss",
     "slides": {
       "skater": {
         "0": {
@@ -445,7 +464,9 @@
     "noTrendTitle": "No progress data",
     "noTrendDesc": "This student has no uploaded sessions for the selected element yet.",
     "noDiagnosticsTitle": "No diagnostics",
-    "noDiagnosticsDesc": "Diagnostics will appear after uploading and analyzing videos."
+    "noDiagnosticsDesc": "Diagnostics will appear after uploading and analyzing videos.",
+    "compareTitle": "No sessions to compare",
+    "compareDesc": "Upload videos to compare your elements and track progress."
   },
   "students": {
     "title": "Students",
@@ -472,17 +493,37 @@
       "30d": "30 d",
       "90d": "90 d",
       "all": "All"
-    }
+    },
+    "backToElements": "All elements",
+    "health": {
+      "improving": "Improving",
+      "stagnant": "Stagnant",
+      "declining": "Declining",
+      "no_data": "No data"
+    },
+    "allMetrics": "All metrics ({count})",
+    "alerts": "Alerts",
+    "noAlerts": "No alerts",
+    "referenceRange": "Reference range",
+    "personalRecord": "Personal record",
+    "backToMetrics": "All metrics"
   },
   "coach": {
     "noProblems": "No problems detected",
-    "studentFallback": "Student"
+    "studentFallback": "Student",
+    "viewSelf": "My Progress",
+    "viewStudents": "Students",
+    "sandboxLabel": "Demo data",
+    "inviteRealStudents": "Invite real students"
   },
   "session": {
+    "slowAnalysis": "Analysis is taking longer than usual. This is normal for long videos.",
+    "staleAnalysis": "Analysis is taking too long.",
     "justNow": "just now",
     "minsAgo": "{n} min ago",
     "hoursAgo": "{n} h ago",
     "daysAgo": "{n} d ago",
+    "queued": "Queued",
     "analyzing": "Analyzing...",
     "waiting": "Waiting...",
     "overallScore": "Overall Score",
@@ -490,11 +531,20 @@
     "cancel": "Cancel",
     "retry": "Retry",
     "retrying": "Retrying...",
+    "actions": "Actions",
+    "compare": "Compare",
     "printReport": "Print Report",
     "share": "Share",
     "delete": "Delete",
     "deleteConfirm": "Delete this session? This action cannot be undone.",
-    "deleting": "Deleting..."
+    "deleting": "Deleting...",
+    "tabOverview": "Overview",
+    "tabDetails": "Details",
+    "tabExport": "Export",
+    "showAllMetrics": "Show all metrics",
+    "tourTabs": "Switch tabs for details",
+    "tourActions": "Click for more actions",
+    "tour3d": "Rotate the 3D model with WASD keys"
   },
   "analysis": {
     "frameMetrics": "Frame Metrics",
@@ -625,5 +675,10 @@
     "title": "Compare",
     "selectLeft": "Select left session",
     "selectRight": "Select right session"
+  },
+  "demo": {
+    "badge": "Demo",
+    "uploadCta": "Upload your video",
+    "demoSessionLabel": "Try a demo analysis"
   }
 }

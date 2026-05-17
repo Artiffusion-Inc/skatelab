@@ -21,7 +21,7 @@ export function SessionStatus({ status: _status, progress, onCancel }: Props) {
         <p className="text-sm text-ink-mute">{progress}%</p>
       )}
       {onCancel && (
-        <Button variant="outline" size="sm" onClick={onCancel}>
+        <Button variant="outline" size="sm" onClick={onCancel} className="min-h-[44px]">
           <X className="mr-2 h-4 w-4" />
           {t("cancel")}
         </Button>

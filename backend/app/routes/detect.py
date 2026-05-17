@@ -10,6 +10,8 @@ from typing import ClassVar
 from litestar import Controller, Request, get, post
 from litestar.exceptions import ClientException
 
+from app.auth.deps import CurrentUser
+from app.middleware.rate_limit import check_rate_limit
 from app.schemas import (
     DetectQueueResponse,
     DetectResultResponse,
@@ -32,9 +34,12 @@ class DetectController(Controller):
     async def enqueue_detect(
         self,
         request: Request,
+        user: CurrentUser,
         tracking: str = "auto",
     ) -> DetectQueueResponse:
         """Upload video, enqueue detection job, return task_id immediately."""
+        await check_rate_limit(f"detect:enqueue:{user.id}", max_requests=10, window_seconds=60)
+
         form_data = await request.form()
         video = form_data.get("video")
         if not video:
@@ -52,7 +57,7 @@ class DetectController(Controller):
         task_id = f"det_{uuid.uuid4().hex[:12]}"
 
         valkey = get_valkey()
-        await create_task_state(task_id, video_key=video_key, valkey=valkey)
+        await create_task_state(task_id, video_key=video_key, valkey=valkey, user_id=str(user.id))
 
         await request.app.state.arq_pool.enqueue_job(
             "detect_video_task",
@@ -65,7 +70,7 @@ class DetectController(Controller):
         return DetectQueueResponse(task_id=task_id, video_key=video_key)
 
     @get("/{task_id:str}/status")
-    async def get_detect_status(self, task_id: str) -> TaskStatusResponse:
+    async def get_detect_status(self, task_id: str, user: CurrentUser) -> TaskStatusResponse:
         """Poll detection task status."""
         valkey = get_valkey()
         state = await get_task_state(task_id, valkey=valkey)
@@ -90,7 +95,7 @@ class DetectController(Controller):
         )
 
     @get("/{task_id:str}/result")
-    async def get_detect_result(self, task_id: str) -> DetectResultResponse:
+    async def get_detect_result(self, task_id: str, user: CurrentUser) -> DetectResultResponse:
         """Get detection result (persons, preview)."""
         valkey = get_valkey()
         state = await get_task_state(task_id, valkey=valkey)

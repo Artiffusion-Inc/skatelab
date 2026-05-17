@@ -6,7 +6,6 @@ import { devMockAuth, isDevelopment } from "@/lib/env"
 import type { UserResponse } from "@/lib/auth"
 import * as auth from "@/lib/auth"
 import { clearTokens, getAccessToken, getRefreshToken } from "@/lib/api-client"
-import { isPublicPage } from "@/lib/is-public-page"
 import { useMountEffect } from "@/lib/useMountEffect"
 
 interface AuthContextValue {
@@ -19,14 +18,6 @@ interface AuthContextValue {
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null)
-
-function needsVerificationRedirect(user: UserResponse): boolean {
-  if (user.is_verified) return false
-  if (typeof window === "undefined") return false
-  const path = window.location.pathname
-  if (path.startsWith("/verify-email") || path.startsWith("/resend-verification")) return false
-  return !isPublicPage(path)
-}
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const router = useRouter()
@@ -61,19 +52,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return
     }
 
-    const publicPage = typeof window !== "undefined" && isPublicPage(window.location.pathname)
-
     auth
       .fetchMe()
-      .then(u => {
-        setUser(u)
-        if (needsVerificationRedirect(u)) {
-          router.push("/verify-email")
-        }
-      })
+      .then(u => setUser(u))
       .catch(() => {
         clearTokens()
-        if (!publicPage) router.push("/login")
+        router.push("/login")
       })
       .finally(() => setIsLoading(false))
   })
@@ -83,9 +67,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     auth.setTokens(tokens.access_token, tokens.refresh_token)
     const u = await auth.fetchMe()
     setUser(u)
-    if (needsVerificationRedirect(u)) {
-      router.push("/verify-email")
-    }
   }
 
   async function register(email: string, password: string, displayName?: string) {
@@ -93,7 +74,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     auth.setTokens(tokens.access_token, tokens.refresh_token)
     const u = await auth.fetchMe()
     setUser(u)
-    router.push("/verify-email")
+    router.push("/feed")
   }
 
   async function logout() {

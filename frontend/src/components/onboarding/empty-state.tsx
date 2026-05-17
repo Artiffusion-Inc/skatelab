@@ -14,6 +14,7 @@ interface EmptyStateProps {
   secondaryAction?: {
     label: string
     href: string
+    onClick?: (e: React.MouseEvent<HTMLAnchorElement>) => void
   }
   className?: string
 }
@@ -28,6 +29,8 @@ export function EmptyState({
 }: EmptyStateProps) {
   return (
     <div
+      role="status"
+      aria-live="polite"
       className={cn("flex flex-col items-center justify-center py-20 px-4 text-center", className)}
     >
       {icon && (
@@ -50,7 +53,8 @@ export function EmptyState({
         {secondaryAction && (
           <Link
             href={secondaryAction.href}
-            className="text-sm font-medium text-ink-mute hover:text-foreground transition-colors"
+            onClick={secondaryAction.onClick}
+            className="inline-flex min-h-[44px] items-center px-3 text-sm font-medium text-ink-mute hover:text-foreground transition-colors"
           >
             {secondaryAction.label}
           </Link>

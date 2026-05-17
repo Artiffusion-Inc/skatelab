@@ -1,4 +1,5 @@
 export { OnboardingFlow } from "./onboarding-flow"
 export { OnboardingGate } from "./onboarding-gate"
 export { EmptyState } from "./empty-state"
+export { FirstAnalysisCelebration } from "./first-analysis-celebration"
 export type { UserRole, OnboardingData } from "./onboarding-flow"

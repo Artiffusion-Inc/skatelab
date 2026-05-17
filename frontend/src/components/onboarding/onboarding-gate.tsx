@@ -1,64 +1,63 @@
 "use client"
 
 import { useState } from "react"
-import { usePathname, useRouter } from "next/navigation"
+import Link from "next/link"
 import { fetchMe } from "@/lib/auth"
 import { useMountEffect } from "@/lib/useMountEffect"
+import { useTranslations } from "@/i18n"
+import { X } from "lucide-react"
 
 export function OnboardingGate({ children }: { children: React.ReactNode }) {
-  const router = useRouter()
-  const pathname = usePathname()
-  const [checked, setChecked] = useState(false)
+  const t = useTranslations("onboarding")
+  const [showBanner, setShowBanner] = useState(false)
+  const [dismissed, setDismissed] = useState(false)
 
   useMountEffect(() => {
-    // Skip check on onboarding page itself
-    if (pathname === "/onboarding") {
-      setChecked(true)
-      return
-    }
+    const localCompleted = localStorage.getItem("onboarding_completed")
+    if (localCompleted) return
 
-    // Skip for auth pages
-    if (pathname.startsWith("/login") || pathname.startsWith("/register")) {
-      setChecked(true)
-      return
-    }
-
+    // Fallback: check backend profile
     const check = async () => {
-      const localCompleted = localStorage.getItem("onboarding_completed")
-      if (localCompleted) {
-        setChecked(true)
-        return
-      }
-
-      // Fallback: check backend profile
       try {
         const user = await fetchMe()
         if (user.onboarding_role) {
           localStorage.setItem("onboarding_completed", "true")
           localStorage.setItem("onboarding_role", user.onboarding_role)
-          setChecked(true)
           return
         }
       } catch {
         // ignore
       }
 
-      router.push("/onboarding")
+      setShowBanner(true)
     }
 
     check()
   })
 
-  if (!checked) {
-    return (
-      <div className="flex min-h-screen items-center justify-center">
-        <div
-          className="h-8 w-8 animate-pulse rounded-full"
-          style={{ background: "oklch(0.42 0.12 240 / 0.2)" }}
-        />
-      </div>
-    )
-  }
+  const visible = showBanner && !dismissed
 
-  return <>{children}</>
+  return (
+    <>
+      {visible && (
+        <div className="flex items-center justify-between gap-3 border-b border-primary/20 bg-primary/5 px-4 py-2.5 text-sm">
+          <Link
+            href="/onboarding"
+            className="font-medium text-primary hover:text-primary/80 transition-colors"
+          >
+            {t("bannerMessage")}
+          </Link>
+          <button
+            type="button"
+            onClick={() => setDismissed(true)}
+            className="shrink-0 rounded-md p-1 text-ink-mute hover:text-foreground transition-colors"
+            aria-label={t("bannerDismiss")}
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+      )}
+      {children}
+    </>
+  )
 }

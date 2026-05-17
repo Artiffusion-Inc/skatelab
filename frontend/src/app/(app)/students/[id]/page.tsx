@@ -10,6 +10,9 @@ import { useTranslations } from "@/i18n"
 import { useDiagnostics, useTrend } from "@/lib/api/metrics"
 import { EmptyState } from "@/components/onboarding"
 import { BarChart3, Activity } from "lucide-react"
+import { usePageStatus } from "@/lib/hooks/use-page-status"
+import { ErrorState } from "@/components/error-state"
+import { SkeletonStudent } from "@/components/skeleton-student"
 
 const ELEMENT_IDS = [
   "three_turn",
@@ -33,8 +36,23 @@ export default function StudentProfilePage() {
   const ts = useTranslations("students")
   const tEmpty = useTranslations("emptyStates")
 
-  const { data: trend } = useTrend(id, element, metric, period)
-  const { data: diag } = useDiagnostics(id)
+  const trendQ = useTrend(id, element, metric, period)
+  const diagQ = useDiagnostics(id)
+  const { data: trend } = trendQ
+  const { data: diag } = diagQ
+
+  const { isFirstLoad, isError } = usePageStatus([trendQ, diagQ])
+
+  if (isFirstLoad) return <SkeletonStudent />
+  if (isError)
+    return (
+      <ErrorState
+        onRetry={() => {
+          trendQ.refetch()
+          diagQ.refetch()
+        }}
+      />
+    )
 
   return (
     <div className="mx-auto max-w-2xl space-y-4 sm:max-w-3xl">

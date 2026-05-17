@@ -25,7 +25,7 @@ export function SessionDownloads({ videoUrl, posesUrl, csvUrl }: Props) {
   return (
     <div className="flex flex-wrap gap-2">
       {available.map(({ key, url, label, icon: Icon }) => (
-        <Button key={key} variant="outline" size="sm" asChild>
+        <Button key={key} variant="outline" size="sm" className="min-h-[44px]" asChild>
           <a href={url ?? "#"} download>
             <Icon className="mr-2 h-4 w-4" />
             {label}

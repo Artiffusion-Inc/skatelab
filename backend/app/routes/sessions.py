@@ -18,6 +18,7 @@ from litestar.status_codes import (
 from app.auth.deps import CurrentUser, DbDep, VerifiedUser
 from app.crud.connection import is_connected_as
 from app.crud.session import count_by_user, create, get_by_id, list_by_user, soft_delete, update
+from app.middleware.rate_limit import check_rate_limit
 from app.models.connection import ConnectionType
 from app.schemas import (
     CreateSessionRequest,
@@ -78,6 +79,10 @@ class SessionsController(Controller):
     async def create_session(
         self, data: CreateSessionRequest, verified_user: VerifiedUser, db: DbDep
     ) -> SessionResponse:
+        await check_rate_limit(
+            f"session:create:{verified_user.id}", max_requests=20, window_seconds=60
+        )
+
         session = await create(
             db,
             user_id=verified_user.id,

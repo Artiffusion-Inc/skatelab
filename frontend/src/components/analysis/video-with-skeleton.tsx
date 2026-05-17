@@ -104,19 +104,10 @@ export function VideoWithSkeleton({
   }
 
   return (
-    // biome-ignore lint/a11y/useSemanticElements: div maintains aspect-video CSS
     <div
       ref={containerRef}
       className={`relative aspect-video ${className}`}
       style={{ backgroundColor: "oklch(var(--background))" }}
-      onKeyDown={e => {
-        if (e.key === " " || e.key === "Enter") {
-          e.preventDefault()
-          handleTogglePlay()
-        }
-      }}
-      role="button"
-      tabIndex={0}
     >
       {/* biome-ignore lint/a11y/useMediaCaption: Skating analysis video has no captions */}
       <video
@@ -128,8 +119,8 @@ export function VideoWithSkeleton({
       <SkeletonCanvas poseData={poseData} currentFrame={currentFrame} width={1920} height={1080} />
       {phases && <PhaseLabels phases={phases} currentFrame={totalFrames} width={1920} />}
       {poseData && (
-        // biome-ignore lint/a11y/noStaticElementInteractions: parent div handles keyboard
-        // biome-ignore lint/a11y/useKeyWithClickEvents: parent div has onKeyDown
+        // biome-ignore lint/a11y/noStaticElementInteractions: video overlay captures mouse movement for control reveal
+        // biome-ignore lint/a11y/useKeyWithClickEvents: inner <button> handles keyboard; overlay div is mouse-only hit area
         <div
           className={`absolute inset-0 flex items-center justify-center transition-opacity duration-300 ${showControls ? "opacity-100" : "opacity-0"}`}
           onClick={handleTogglePlay}
@@ -138,6 +129,7 @@ export function VideoWithSkeleton({
           <button
             type="button"
             className="rounded-full bg-black/50 p-4 text-white hover:bg-black/70"
+            aria-label={isPlaying ? "Pause" : "Play"}
           >
             {isPlaying ? <Pause className="h-8 w-8" /> : <Play className="h-8 w-8" />}
           </button>

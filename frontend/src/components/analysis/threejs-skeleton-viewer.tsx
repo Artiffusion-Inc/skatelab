@@ -3,7 +3,7 @@
 
 import { Environment, Grid, OrbitControls, PerspectiveCamera } from "@react-three/drei"
 import { Canvas, useThree } from "@react-three/fiber"
-import { Suspense, useEffect } from "react"
+import { Suspense, useEffect, useState } from "react"
 import { ChevronLeft, ChevronRight, Pause, Play } from "lucide-react"
 import { useTranslations } from "@/i18n"
 import { useAnalysisStore } from "@/stores/analysis"
@@ -56,23 +56,82 @@ function CameraController() {
   return null
 }
 
+function KeyboardOrbit({ reducedMotion }: { reducedMotion: boolean }) {
+  const { gl, camera } = useThree()
+
+  useEffect(() => {
+    if (reducedMotion) return
+
+    const el = gl.domElement.parentElement
+    if (!el) return
+
+    const ROTATE_STEP = 0.05
+    const ZOOM_STEP = 0.05
+
+    const handleKey = (e: KeyboardEvent) => {
+      if (!(e.target instanceof HTMLElement && el.contains(e.target))) return
+
+      switch (e.key.toLowerCase()) {
+        case "w":
+          camera.position.y += ROTATE_STEP
+          camera.lookAt(0, 0, 0)
+          camera.updateProjectionMatrix()
+          break
+        case "s":
+          camera.position.y -= ROTATE_STEP
+          camera.lookAt(0, 0, 0)
+          camera.updateProjectionMatrix()
+          break
+        case "a":
+          camera.position.x -= ROTATE_STEP
+          camera.lookAt(0, 0, 0)
+          camera.updateProjectionMatrix()
+          break
+        case "d":
+          camera.position.x += ROTATE_STEP
+          camera.lookAt(0, 0, 0)
+          camera.updateProjectionMatrix()
+          break
+        case "q":
+          camera.position.z = Math.max(0.5, camera.position.z - ZOOM_STEP)
+          camera.lookAt(0, 0, 0)
+          camera.updateProjectionMatrix()
+          break
+        case "e":
+          camera.position.z = Math.min(3, camera.position.z + ZOOM_STEP)
+          camera.lookAt(0, 0, 0)
+          camera.updateProjectionMatrix()
+          break
+      }
+    }
+
+    el.addEventListener("keydown", handleKey)
+    return () => el.removeEventListener("keydown", handleKey)
+  }, [gl, camera, reducedMotion])
+
+  return null
+}
+
 function Scene({
   poseData,
   frameMetrics,
+  reducedMotion,
 }: {
   poseData: PoseData
   frameMetrics: FrameMetrics | null
+  reducedMotion: boolean
 }) {
   const { currentFrame, renderMode } = useAnalysisStore()
 
   return (
     <>
       <CameraController />
+      <KeyboardOrbit reducedMotion={reducedMotion} />
       <PerspectiveCamera makeDefault position={[0, 0, 1.5]} fov={50} />
       <OrbitControls
-        enablePan={true}
+        enablePan={!reducedMotion}
         enableZoom={true}
-        enableRotate={true}
+        enableRotate={!reducedMotion}
         minDistance={0.5}
         maxDistance={3}
         target={[0, 0, 0]}
@@ -179,9 +238,26 @@ export function ThreeJSkeletonViewer({
   frameMetrics,
   className = "",
 }: ThreeJSkeletonViewerProps) {
+  const [reducedMotion, setReducedMotion] = useState(() => {
+    if (typeof window === "undefined") return false
+    return window.matchMedia("(prefers-reduced-motion: reduce)").matches
+  })
+
+  useEffect(() => {
+    if (typeof window === "undefined") return
+    const mq = window.matchMedia("(prefers-reduced-motion: reduce)")
+    const handler = (e: MediaQueryListEvent) => setReducedMotion(e.matches)
+    mq.addEventListener("change", handler)
+    return () => mq.removeEventListener("change", handler)
+  }, [])
+
   return (
     <div
-      className={`relative aspect-square bg-gradient-to-br from-slate-900 to-slate-800 ${className}`}
+      role="application"
+      // biome-ignore lint/a11y/noNoninteractiveTabindex: role=application makes this an interactive widget that requires keyboard focus
+      tabIndex={0}
+      aria-label="3D skeleton viewer. Use W and S to orbit up and down, A and D to orbit left and right, Q and E to zoom in and out."
+      className={`relative aspect-square bg-gradient-to-br from-slate-900 to-slate-800 outline-none focus-visible:ring-2 focus-visible:ring-ring ${className}`}
     >
       <Canvas
         dpr={[1, 2]} // Pixel ratio for sharp rendering
@@ -189,7 +265,7 @@ export function ThreeJSkeletonViewer({
         className="w-full h-full"
       >
         <Suspense fallback={<LoadingFallback />}>
-          <Scene poseData={poseData} frameMetrics={frameMetrics} />
+          <Scene poseData={poseData} frameMetrics={frameMetrics} reducedMotion={reducedMotion} />
         </Suspense>
       </Canvas>
 

@@ -1,5 +1,6 @@
 "use client"
 
+import { useCallback } from "react"
 import { useAnalysisStore } from "@/stores/analysis"
 import type { PhasesData } from "@/types"
 
@@ -11,27 +12,58 @@ interface PhaseTimelineProps {
 export function PhaseTimeline({ totalFrames, phases }: PhaseTimelineProps) {
   const { currentFrame, setCurrentFrame } = useAnalysisStore()
 
+  // Build ordered phase entries for keyboard navigation (must be before any early return)
+  const phaseEntries = phases
+    ? Object.entries(phases)
+        .filter(([, v]) => v != null)
+        .map(([key, v]) => ({ key, frame: (v as { frame: number }).frame }))
+        .sort((a, b) => a.frame - b.frame)
+    : []
+
+  const activePhaseIndex = (() => {
+    let idx = 0
+    for (let i = 0; i < phaseEntries.length; i++) {
+      if (currentFrame >= phaseEntries[i].frame) idx = i
+    }
+    return idx
+  })()
+
+  const handleSeek = useCallback(
+    (e: React.MouseEvent<HTMLDivElement> | React.KeyboardEvent<HTMLDivElement>) => {
+      const rect = e.currentTarget.getBoundingClientRect()
+      let x: number
+
+      if ("clientX" in e) {
+        x = e.clientX - rect.left
+      } else {
+        x = rect.width / 2 // Center for keyboard activation
+      }
+
+      const seekPercentage = x / rect.width
+      const targetFrame = Math.floor(seekPercentage * totalFrames)
+
+      setCurrentFrame(targetFrame)
+    },
+    [totalFrames, setCurrentFrame],
+  )
+
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLDivElement>) => {
+      if (e.key === "ArrowRight" || e.key === "ArrowLeft") {
+        e.preventDefault()
+        const dir = e.key === "ArrowRight" ? 1 : -1
+        const next = Math.max(0, Math.min(phaseEntries.length - 1, activePhaseIndex + dir))
+        setCurrentFrame(phaseEntries[next].frame)
+      } else if (e.key === "Enter") {
+        handleSeek(e)
+      }
+    },
+    [activePhaseIndex, phaseEntries, setCurrentFrame, handleSeek],
+  )
+
   if (!phases) return null
 
   const percentage = (currentFrame / totalFrames) * 100
-
-  const handleSeek = (
-    e: React.MouseEvent<HTMLDivElement> | React.KeyboardEvent<HTMLDivElement>,
-  ) => {
-    const rect = e.currentTarget.getBoundingClientRect()
-    let x: number
-
-    if ("clientX" in e) {
-      x = e.clientX - rect.left
-    } else {
-      x = rect.width / 2 // Center for keyboard activation
-    }
-
-    const seekPercentage = x / rect.width
-    const targetFrame = Math.floor(seekPercentage * totalFrames)
-
-    setCurrentFrame(targetFrame)
-  }
 
   const takeoffPercent = phases.takeoff ? (phases.takeoff.frame / totalFrames) * 100 : null
 
@@ -43,12 +75,12 @@ export function PhaseTimeline({ totalFrames, phases }: PhaseTimelineProps) {
     <div
       className="relative w-full h-12 bg-muted rounded-lg overflow-hidden cursor-pointer"
       onClick={handleSeek}
-      onKeyDown={e => e.key === "Enter" && handleSeek(e)}
+      onKeyDown={handleKeyDown}
       role="slider"
       aria-valuemin={0}
-      aria-valuemax={totalFrames}
-      aria-valuenow={currentFrame}
-      aria-label="Frame scrubber"
+      aria-valuemax={Math.max(0, phaseEntries.length - 1)}
+      aria-valuenow={activePhaseIndex}
+      aria-label="Phase timeline"
       tabIndex={0}
     >
       {/* Phase zones */}

@@ -36,6 +36,8 @@
     "passwordRequired": "Введите пароль",
     "passwordTooShort": "Пароль должен быть не менее 8 символов",
     "passwordsMismatch": "Пароли не совпадают",
+    "showPassword": "Показать пароль",
+    "hidePassword": "Скрыть пароль",
     "verifyEmail": "Подтверждение email",
     "verifyEmailSubtitle": "Введите код подтверждения из письма",
     "token": "Код подтверждения",
@@ -47,6 +49,7 @@
     "verifySuccessTitle": "Email подтверждён!",
     "verifySuccessSubtitle": "Теперь вы можете войти в аккаунт",
     "verifyError": "Ошибка подтверждения",
+    "verifyEmailError": "Не удалось отправить письмо",
     "noVerificationCode": "Нет кода?",
     "resendVerification": "Отправить повторно",
     "resendSuccess": "Письмо отправлено",
@@ -67,7 +70,11 @@
     "progress": "Прогресс",
     "planner": "Планировщик",
     "students": "Ученики",
-    "dashboard": "Ученики"
+    "dashboard": "Ученики",
+    "sessions": "Записи",
+    "programs": "Программа",
+    "connections": "Связи",
+    "settings": "Настройки"
   },
   "app": {
     "title": "AI Тренер",
@@ -317,7 +324,15 @@
     "period7d": "7 дн",
     "period30d": "30 дн",
     "period90d": "90 дн",
-    "periodall": "Всё"
+    "periodall": "Всё",
+    "noVideo": "У меня нет видео",
+    "guideTitle": "Как снимать видео для анализа",
+    "guideAngleTitle": "Ракурс",
+    "guideAngleDesc": "Снимайте сбоку, с расстояния 3-5 м. Весь фигурист должен быть в кадре.",
+    "guideLightTitle": "Освещение",
+    "guideLightDesc": "Каток должен быть хорошо освещён. Избегайте съёмки против света.",
+    "guideFormatTitle": "Формат",
+    "guideFormatDesc": "MP4 или MOV, горизонтальная ориентация. Длина 10-60 секунд."
   },
   "upload": {
     "uploadingVideo": "Загрузка видео...",
@@ -424,6 +439,10 @@
       "other": "Другое"
     },
     "continue": "Продолжить",
+    "celebrationTitle": "Отлично! Ваш первый разбор готов.",
+    "celebrationSubtitle": "Выберите роль для персонализации",
+    "bannerMessage": "Выберите роль для персонализации",
+    "bannerDismiss": "Скрыть",
     "slides": {
       "skater": {
         "0": {
@@ -483,7 +502,9 @@
     "noTrendTitle": "Нет данных о прогрессе",
     "noTrendDesc": "У этого ученика пока нет загруженных сессий для выбранного элемента.",
     "noDiagnosticsTitle": "Нет диагностики",
-    "noDiagnosticsDesc": "Диагностика появится после загрузки и анализа видео."
+    "noDiagnosticsDesc": "Диагностика появится после загрузки и анализа видео.",
+    "compareTitle": "Нет сессий для сравнения",
+    "compareDesc": "Загрузите видео, чтобы сравнивать свои элементы между собой и отслеживать прогресс."
   },
   "students": {
     "title": "Ученики",
@@ -510,17 +531,37 @@
       "30d": "30 дн",
       "90d": "90 дн",
       "all": "Всё"
-    }
+    },
+    "backToElements": "Все элементы",
+    "health": {
+      "improving": "Улучшается",
+      "stagnant": "Без изменений",
+      "declining": "Ухудшается",
+      "no_data": "Нет данных"
+    },
+    "allMetrics": "Все метрики ({count})",
+    "alerts": "Рекомендации",
+    "noAlerts": "Рекомендаций нет",
+    "referenceRange": "Эталонный диапазон",
+    "personalRecord": "Личный рекорд",
+    "backToMetrics": "Все метрики"
   },
   "coach": {
     "noProblems": "Проблем не обнаружено",
-    "studentFallback": "Ученик"
+    "studentFallback": "Ученик",
+    "viewSelf": "Мой прогресс",
+    "viewStudents": "Ученики",
+    "sandboxLabel": "Демо-данные",
+    "inviteRealStudents": "Пригласите реальных учеников"
   },
   "session": {
+    "slowAnalysis": "Анализ занимает дольше обычного. Это нормально для длинных видео.",
+    "staleAnalysis": "Анализ слишком долгий.",
     "justNow": "только что",
     "minsAgo": "{n} мин назад",
     "hoursAgo": "{n} ч назад",
     "daysAgo": "{n} дн назад",
+    "queued": "В очереди",
     "analyzing": "Анализ...",
     "waiting": "Ожидание...",
     "overallScore": "Общая оценка",
@@ -528,11 +569,20 @@
     "cancel": "Отменить",
     "retry": "Повторить",
     "retrying": "Повтор...",
+    "actions": "Действия",
+    "compare": "Сравнить",
     "printReport": "Печать отчёта",
     "share": "Поделиться",
     "delete": "Удалить",
     "deleteConfirm": "Удалить эту сессию? Это действие необратимо.",
-    "deleting": "Удаление..."
+    "deleting": "Удаление...",
+    "tabOverview": "Обзор",
+    "tabDetails": "Детали",
+    "tabExport": "Экспорт",
+    "showAllMetrics": "Показать все метрики",
+    "tourTabs": "Переключайте вкладки для подробностей",
+    "tourActions": "Нажмите для дополнительных действий",
+    "tour3d": "Вращайте 3D-модель клавишами WASD"
   },
   "analysis": {
     "frameMetrics": "Метрики по кадрам",
@@ -665,5 +715,10 @@
     "title": "Сравнение",
     "selectLeft": "Выберите левую сессию",
     "selectRight": "Выберите правую сессию"
+  },
+  "demo": {
+    "badge": "Демо",
+    "uploadCta": "Загрузить своё видео",
+    "demoSessionLabel": "Попробуйте демо-разбор"
   }
 }

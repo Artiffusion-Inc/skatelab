@@ -1,6 +1,7 @@
 "use client"
 
 import { useTranslations } from "@/i18n"
+import Image from "next/image"
 import { Film, LayoutDashboard, Box } from "lucide-react"
 
 const icons = [Film, LayoutDashboard, Box]
@@ -45,11 +46,12 @@ export function VisualShowcaseSection() {
               }`}
             >
               <div className={`relative ${isWide ? "aspect-[21/9]" : "aspect-video"}`}>
-                <img
+                <Image
                   src={img.src}
                   alt={img.alt}
+                  fill
+                  sizes="(max-width: 768px) 100vw, 50vw"
                   className="absolute inset-0 h-full w-full object-cover"
-                  loading="lazy"
                 />
               </div>
               <div className="p-6">

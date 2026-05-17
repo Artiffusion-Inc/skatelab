@@ -1,5 +1,6 @@
 "use client"
 
+import { Eye, EyeOff } from "lucide-react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { type FormEvent, useState } from "react"
@@ -18,8 +19,7 @@ export default function RegisterPage() {
   const t = useTranslations("auth")
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
-  const [confirmPassword, setConfirmPassword] = useState("")
-  const [displayName, setDisplayName] = useState("")
+  const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
 
   useMountEffect(() => {
@@ -38,13 +38,9 @@ export default function RegisterPage() {
       toast.error(t("passwordTooShort"), { duration: 3000 })
       return
     }
-    if (password !== confirmPassword) {
-      toast.error(t("passwordsMismatch"), { duration: 3000 })
-      return
-    }
     setLoading(true)
     try {
-      await register(email, password, displayName || undefined)
+      await register(email, password)
       toast.success(t("signUpSuccess"), { duration: 3000 })
       router.push("/feed")
     } catch (err) {
@@ -70,33 +66,31 @@ export default function RegisterPage() {
           onChange={e => setEmail(e.target.value)}
           placeholder="you@example.com"
         />
-        <FormField
-          label={t("nameOptional")}
-          id="name"
-          type="text"
-          value={displayName}
-          onChange={e => setDisplayName(e.target.value)}
-          placeholder={t("namePlaceholder")}
-        />
-        <FormField
-          label={t("password")}
-          id="password"
-          type="password"
-          required
-          minLength={8}
-          value={password}
-          onChange={e => setPassword(e.target.value)}
-          placeholder={t("passwordPlaceholder")}
-        />
-        <FormField
-          label={t("confirmPassword")}
-          id="confirm-password"
-          type="password"
-          required
-          value={confirmPassword}
-          onChange={e => setConfirmPassword(e.target.value)}
-          placeholder={t("passwordPlaceholder")}
-        />
+        <div className="space-y-1.5">
+          <label htmlFor="password" className="sh-caption font-medium text-ink">
+            {t("password")}
+          </label>
+          <div className="relative">
+            <input
+              id="password"
+              type={showPassword ? "text" : "password"}
+              required
+              minLength={8}
+              value={password}
+              onChange={e => setPassword(e.target.value)}
+              placeholder={t("passwordPlaceholder")}
+              className="w-full rounded-md border border-hairline bg-background px-3 py-2.5 pr-10 text-sm transition-colors duration-200 placeholder:text-ink-faint focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-ring/20 disabled:opacity-50"
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword(s => !s)}
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-ink-mute hover:text-ink transition-colors"
+              aria-label={showPassword ? t("hidePassword") : t("showPassword")}
+            >
+              {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+            </button>
+          </div>
+        </div>
         <Button type="submit" className="w-full" disabled={loading}>
           {loading ? t("signingUp") : t("signUpBtn")}
         </Button>
