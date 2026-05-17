@@ -36,6 +36,8 @@
     "passwordRequired": "Password is required",
     "passwordTooShort": "Password must be at least 8 characters",
     "passwordsMismatch": "Passwords do not match",
+    "showPassword": "Show password",
+    "hidePassword": "Hide password",
     "verifyEmail": "Verify Email",
     "verifyEmailSubtitle": "Enter the verification code from your email",
     "token": "Verification code",
@@ -640,5 +642,10 @@
     "title": "Compare",
     "selectLeft": "Select left session",
     "selectRight": "Select right session"
+  },
+  "demo": {
+    "badge": "Demo",
+    "uploadCta": "Upload your video",
+    "demoSessionLabel": "Try a demo analysis"
   }
 }
