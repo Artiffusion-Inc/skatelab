@@ -445,7 +445,9 @@
     "noTrendTitle": "No progress data",
     "noTrendDesc": "This student has no uploaded sessions for the selected element yet.",
     "noDiagnosticsTitle": "No diagnostics",
-    "noDiagnosticsDesc": "Diagnostics will appear after uploading and analyzing videos."
+    "noDiagnosticsDesc": "Diagnostics will appear after uploading and analyzing videos.",
+    "compareTitle": "No sessions to compare",
+    "compareDesc": "Upload videos to compare your elements and track progress."
   },
   "students": {
     "title": "Students",
