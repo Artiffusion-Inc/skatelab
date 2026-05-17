@@ -67,7 +67,11 @@
     "progress": "Progress",
     "planner": "Planner",
     "students": "Students",
-    "dashboard": "Students"
+    "dashboard": "Students",
+    "sessions": "Sessions",
+    "programs": "Programs",
+    "connections": "Connections",
+    "settings": "Settings"
   },
   "app": {
     "title": "AI Coach",

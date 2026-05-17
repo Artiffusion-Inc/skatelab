@@ -67,7 +67,11 @@
     "progress": "Прогресс",
     "planner": "Планировщик",
     "students": "Ученики",
-    "dashboard": "Ученики"
+    "dashboard": "Ученики",
+    "sessions": "Записи",
+    "programs": "Программа",
+    "connections": "Связи",
+    "settings": "Настройки"
   },
   "app": {
     "title": "AI Тренер",
