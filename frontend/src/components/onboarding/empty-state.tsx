@@ -14,6 +14,7 @@ interface EmptyStateProps {
   secondaryAction?: {
     label: string
     href: string
+    onClick?: (e: React.MouseEvent<HTMLAnchorElement>) => void
   }
   className?: string
 }
@@ -52,6 +53,7 @@ export function EmptyState({
         {secondaryAction && (
           <Link
             href={secondaryAction.href}
+            onClick={secondaryAction.onClick}
             className="text-sm font-medium text-ink-mute hover:text-foreground transition-colors"
           >
             {secondaryAction.label}

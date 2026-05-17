@@ -324,7 +324,15 @@
     "period7d": "7 дн",
     "period30d": "30 дн",
     "period90d": "90 дн",
-    "periodall": "Всё"
+    "periodall": "Всё",
+    "noVideo": "У меня нет видео",
+    "guideTitle": "Как снимать видео для анализа",
+    "guideAngleTitle": "Ракурс",
+    "guideAngleDesc": "Снимайте сбоку, с расстояния 3-5 м. Весь фигурист должен быть в кадре.",
+    "guideLightTitle": "Освещение",
+    "guideLightDesc": "Каток должен быть хорошо освещён. Избегайте съёмки против света.",
+    "guideFormatTitle": "Формат",
+    "guideFormatDesc": "MP4 или MOV, горизонтальная ориентация. Длина 10-60 секунд."
   },
   "upload": {
     "uploadingVideo": "Загрузка видео...",

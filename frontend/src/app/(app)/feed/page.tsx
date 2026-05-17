@@ -10,8 +10,9 @@ import { usePageStatus } from "@/lib/hooks/use-page-status"
 import { useTranslations } from "@/i18n"
 import { useSessions, useBulkDeleteSessions } from "@/lib/api/sessions"
 import { ELEMENT_TYPE_KEYS } from "@/lib/constants"
-import { Upload, UserPlus } from "lucide-react"
+import { Upload } from "lucide-react"
 import { EmptyState } from "@/components/onboarding"
+import { NoVideoGuide } from "./no-video-guide"
 
 export default function FeedPage() {
   const query = useSessions()
@@ -28,6 +29,7 @@ export default function FeedPage() {
 
   const [elementFilter, setElementFilter] = useState("")
   const [dateFilter, setDateFilter] = useState("all")
+  const [showGuide, setShowGuide] = useState(false)
 
   const filteredSessions = useMemo(() => {
     if (!query.data?.sessions) return []
@@ -97,8 +99,16 @@ export default function FeedPage() {
           title={tEmpty("feedTitle")}
           description={tEmpty("feedDesc")}
           primaryAction={{ label: tEmpty("feedAction"), href: "/upload" }}
-          secondaryAction={{ label: tEmpty("feedSecondaryAction"), href: "/connections" }}
+          secondaryAction={{
+            label: tf("noVideo"),
+            href: "#",
+            onClick: (e: React.MouseEvent) => {
+              e.preventDefault()
+              setShowGuide(!showGuide)
+            },
+          }}
         />
+        {showGuide && <NoVideoGuide />}
       </div>
     )
   }

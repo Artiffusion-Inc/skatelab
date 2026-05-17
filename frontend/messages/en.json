@@ -314,7 +314,15 @@
     "period7d": "7d",
     "period30d": "30d",
     "period90d": "90d",
-    "periodall": "All"
+    "periodall": "All",
+    "noVideo": "I don't have a video",
+    "guideTitle": "How to record video for analysis",
+    "guideAngleTitle": "Camera angle",
+    "guideAngleDesc": "Film from the side, 3-5 m away. The entire skater should be in frame.",
+    "guideLightTitle": "Lighting",
+    "guideLightDesc": "The rink should be well-lit. Avoid shooting against the light.",
+    "guideFormatTitle": "Format",
+    "guideFormatDesc": "MP4 or MOV, landscape orientation. Length 10-60 seconds."
   },
   "upload": {
     "uploadingVideo": "Uploading video...",
