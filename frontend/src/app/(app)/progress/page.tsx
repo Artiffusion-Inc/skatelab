@@ -2,6 +2,7 @@
 
 import { Suspense, useState } from "react"
 import { useSearchParams } from "next/navigation"
+import { BarChart3 } from "lucide-react"
 import { SkeletonChart } from "@/components/skeleton-chart"
 import { ErrorState } from "@/components/error-state"
 import { usePageStatus } from "@/lib/hooks/use-page-status"
@@ -15,7 +16,6 @@ import { CoachViewSwitcher, type ViewMode } from "@/components/layout/coach-view
 import { ElementCard, type HealthStatus } from "@/components/progress/element-card"
 import { ElementDetail } from "@/components/progress/element-detail"
 import Link from "next/link"
-import { BarChart3 } from "lucide-react"
 
 function deriveHealth(
   findings: { severity: string; element: string }[],
@@ -53,7 +53,6 @@ function ProgressContent() {
   )
   const hasStudents = students.length > 0
 
-  // L0: loading / error states (hooks must be called before any early return)
   const { isFirstLoad, isError } = usePageStatus([diagQuery])
 
   // L2: metric deep dive when both element and metric are in the URL
@@ -113,14 +112,14 @@ function ProgressContent() {
             <Link
               key={conn.id}
               href={`/students/${conn.to_user_id}`}
-              className="block rounded-2xl border border-border p-4 hover:bg-accent/30 transition-colors"
+              className="block rounded-2xl border border-border p-4 transition-colors hover:bg-accent/30"
             >
               <div className="flex items-center gap-3">
-                <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center text-sm font-medium">
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-muted text-sm font-medium">
                   {(conn.to_user_name ?? "?")[0].toUpperCase()}
                 </div>
                 <div>
-                  <p className="font-medium text-sm">
+                  <p className="text-sm font-medium">
                     {conn.to_user_name ?? tc("studentFallback")}
                   </p>
                   <p className="text-xs text-muted-foreground">{ts("progress")}</p>
@@ -136,7 +135,6 @@ function ProgressContent() {
   // L0: element cards grid
   const findings = diagQuery.data?.findings ?? []
 
-  // Show empty state when no diagnostics data at all (user hasn't uploaded anything)
   if (findings.length === 0 && !diagQuery.data) {
     return (
       <EmptyState
