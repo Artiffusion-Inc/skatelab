@@ -150,7 +150,13 @@ export default function SessionDetailPage() {
             {visitCount === 1 && !dismissed && (
               <div className="absolute -bottom-8 left-0 whitespace-nowrap rounded-lg bg-foreground px-3 py-1.5 text-xs text-background shadow-lg">
                 {tSession("tourTabs")}
-                <button type="button" onClick={() => setDismissed(true)} className="ml-2 opacity-70 hover:opacity-100">&times;</button>
+                <button
+                  type="button"
+                  onClick={() => setDismissed(true)}
+                  className="ml-2 opacity-70 hover:opacity-100"
+                >
+                  &times;
+                </button>
               </div>
             )}
             <p className="text-sm text-ink-mute">
@@ -164,11 +170,21 @@ export default function SessionDetailPage() {
             )}
           </div>
           <div className="relative">
-            <SessionActionMenu sessionId={session.id} onDelete={handleDelete} onShare={handleShare} />
+            <SessionActionMenu
+              sessionId={session.id}
+              onDelete={handleDelete}
+              onShare={handleShare}
+            />
             {visitCount === 2 && !dismissed && (
               <div className="absolute -bottom-8 right-0 whitespace-nowrap rounded-lg bg-foreground px-3 py-1.5 text-xs text-background shadow-lg">
                 {tSession("tourActions")}
-                <button type="button" onClick={() => setDismissed(true)} className="ml-2 opacity-70 hover:opacity-100">&times;</button>
+                <button
+                  type="button"
+                  onClick={() => setDismissed(true)}
+                  className="ml-2 opacity-70 hover:opacity-100"
+                >
+                  &times;
+                </button>
               </div>
             )}
           </div>
@@ -315,7 +331,13 @@ export default function SessionDetailPage() {
                 {visitCount === 3 && !dismissed && (
                   <div className="absolute -bottom-8 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-lg bg-foreground px-3 py-1.5 text-xs text-background shadow-lg">
                     {tSession("tour3d")}
-                    <button type="button" onClick={() => setDismissed(true)} className="ml-2 opacity-70 hover:opacity-100">&times;</button>
+                    <button
+                      type="button"
+                      onClick={() => setDismissed(true)}
+                      className="ml-2 opacity-70 hover:opacity-100"
+                    >
+                      &times;
+                    </button>
                   </div>
                 )}
               </div>
