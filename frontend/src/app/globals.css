@@ -11,7 +11,7 @@
   --color-background: oklch(0.99 0.005 250);
   --color-foreground: oklch(0.2 0.01 60);
   --color-muted: oklch(0.967 0 0);
-  --color-muted-foreground: oklch(0.55 0 0);
+  --color-muted-foreground: oklch(0.52 0 0);
   --color-border: oklch(0.815 0 0);
   --color-primary: oklch(0.52 0.08 205);
   --color-primary-foreground: oklch(1 0 0);
@@ -23,8 +23,8 @@
   --color-accent: oklch(0.905 0 0);
   --color-link: oklch(0.52 0.08 205);
   --color-ink: oklch(0.278 0.003 220);
-  --color-ink-mute: oklch(0.547 0.009 220);
-  --color-ink-faint: oklch(0.678 0.008 220);
+  --color-ink-mute: oklch(0.52 0.009 220);
+  --color-ink-faint: oklch(0.659 0.008 220);
   --color-canvas-soft: oklch(0.93 0.01 260);
   --color-surface-ice-soft: oklch(0.88 0.04 240);
   --color-surface-teal-deep: oklch(0.2 0.04 220);
@@ -101,7 +101,7 @@ body {
   --secondary: oklch(0.967 0 0);
   --secondary-foreground: oklch(0.2 0.01 60);
   --muted: oklch(0.98 0 0);
-  --muted-foreground: oklch(0.55 0 0);
+  --muted-foreground: oklch(0.52 0 0);
   --accent: oklch(0.905 0 0);
   --accent-foreground: oklch(0.2 0.01 60);
   --destructive: oklch(0.541 0.22 25);
@@ -136,7 +136,7 @@ body {
   font-variant-numeric: tabular-nums;
   line-height: 1;
   letter-spacing: 0.06em;
-  color: oklch(0.547 0.009 220 / 0.55);
+  color: oklch(0.52 0.009 220 / 0.55);
   position: absolute;
   top: 1.25rem;
   right: 1.25rem;
