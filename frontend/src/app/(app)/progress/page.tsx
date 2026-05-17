@@ -1,18 +1,29 @@
 "use client"
 
-import { useState } from "react"
+import { Suspense, useState } from "react"
 import { BarChart3, Upload } from "lucide-react"
+import { useSearchParams } from "next/navigation"
 import { PeriodSelector } from "@/components/progress/period-selector"
 import { SkeletonChart } from "@/components/skeleton-chart"
 import { TrendChart } from "@/components/progress/trend-chart"
+import { MetricDeepDive } from "@/components/progress/metric-deep-dive"
 import { EmptyState } from "@/components/onboarding"
 import { useTranslations } from "@/i18n"
 import { useMetricRegistry, useTrend } from "@/lib/api/metrics"
 import { ELEMENT_TYPE_KEYS } from "@/lib/constants"
 
-export default function ProgressPage() {
+function ProgressContent() {
+  const searchParams = useSearchParams()
+  const elementParam = searchParams.get("element")
+  const metricParam = searchParams.get("metric")
+
+  // L2: metric deep dive when both element and metric are in the URL
+  if (elementParam && metricParam) {
+    return <MetricDeepDive elementId={elementParam} metricName={metricParam} />
+  }
+
   const { data: registry } = useMetricRegistry()
-  const [element, setElement] = useState("waltz_jump")
+  const [element, setElement] = useState(elementParam ?? "waltz_jump")
   const [metric, setMetric] = useState("max_height")
   const [period, setPeriod] = useState("30d")
   const { data: trend, isLoading } = useTrend(undefined, element, metric, period)
@@ -75,5 +86,19 @@ export default function ProgressPage() {
 
       <TrendChart data={trend} />
     </div>
+  )
+}
+
+export default function ProgressPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="mx-auto max-w-2xl space-y-4 sm:max-w-3xl">
+          <SkeletonChart />
+        </div>
+      }
+    >
+      <ProgressContent />
+    </Suspense>
   )
 }
