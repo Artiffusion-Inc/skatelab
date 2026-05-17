@@ -489,6 +489,7 @@
     "minsAgo": "{n} min ago",
     "hoursAgo": "{n} h ago",
     "daysAgo": "{n} d ago",
+    "queued": "Queued",
     "analyzing": "Analyzing...",
     "waiting": "Waiting...",
     "overallScore": "Overall Score",

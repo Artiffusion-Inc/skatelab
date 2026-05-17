@@ -527,6 +527,7 @@
     "minsAgo": "{n} мин назад",
     "hoursAgo": "{n} ч назад",
     "daysAgo": "{n} дн назад",
+    "queued": "В очереди",
     "analyzing": "Анализ...",
     "waiting": "Ожидание...",
     "overallScore": "Общая оценка",
