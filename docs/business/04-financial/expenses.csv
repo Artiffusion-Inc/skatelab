@@ -1,0 +1,24 @@
+date,category,description,recipient,amount_rub,amount_usd,exchange_rate,period,invoice,notes
+2026-03-01,gpu,Vast.ai Serverless GPU,#78882260301260509,9610,104.46,92,2026-03-04,#78882260301260509,хранилище + трафик
+2026-03-01,ai-services,z.ai / Claude Max подписка $60,Глеб Дмитриевич С.,5750,60.00,92,2026-03-04,,
+2026-03-01,ai-services,Wafer.ai подписка $10,Глеб Дмитриевич С.,1100,10.00,92,2026-03-04,,
+2026-03-01,ai-services,Wafer.ai подписка $10,Глеб Дмитриевич С.,1120,10.00,92,2026-03-04,,
+2026-03-01,ai-services,OpenCode Go прокси $5,Глеб Дмитриевич С.,610,5.00,92,2026-03-04,,
+2026-03-01,ai-services,AI-сервис подписка $10,Глеб Дмитриевич С.,999,10.00,92,2026-03-04,,
+2026-03-01,ai-services,Claude Max x20 подписка $71,Артём Витальевич С.,7100,71.00,92,2026-03-04,,тот же посредник
+2026-03-01,ai-services,Ollama Cloud подписка $20,Артём Витальевич С.,1930,20.00,92,2026-03-04,,
+2026-03-01,ai-services,Claude доплата $4,Артём Витальевич С.,240,4.00,92,2026-03-04,,
+2026-03-01,ai-services,AI-подписка Plati Market,Plati Market,1112,,92,2026-03-04,,
+2026-03-01,ai-services,AI-подписка Plati Market,Plati Market,1112,,92,2026-03-04,,
+2026-03-01,ai-services,AI-подписка Plati Market,Plati Market,1112,,92,2026-03-04,,
+2026-03-01,ai-services,AI-подписка Plati Market QR,Plati Market,1076,,92,2026-03-04,,
+2026-04-19,ai-services,ChatGPT 5.4 PLUS 1M (авто),Plati Market / AccountBroker,389,,92,2026-04-19,,
+2026-03-01,infra,Хостинг проекта месяц 1,QWINS Hosting,1080,,92,2026-03-04,,
+2026-03-01,infra,Хостинг проекта месяц 2,QWINS Hosting,1080,,92,2026-03-04,,
+2026-03-01,infra,Хостинг проекта месяц 3,QWINS Hosting,1080,,92,2026-03-04,,
+2026-03-01,infra,Домен skatelab.ru,Рег.ру,169,,92,2026-03-04,,в выписке 51₽
+2026-03-01,equipment,WITMOTION датчик движения x2,Ozon,2380,,92,2026-03-04,,IMU-акселерометр
+2026-05-01,infra,QWINS Hosting dedicated server i7-6700/64GB/2x512GB SSD,QWINS,5850,65.00,90,2026-05,Germany $65/mo
+2026-05-01,infra,QWINS Hosting прочие списания,QWINS,210,,90,2026-05,
+2026-05-13,equipment,WITMOTION датчик движения x1,Ozon,1431,,90,2026-05,IMU-акселерометр
+2026-05-15,ai-services,fal.ai пополнение баланса $10,Глеб Дмитриевич С.,900,10.00,90,2026-05,

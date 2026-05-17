@@ -18,7 +18,9 @@ docs/business/
 ├── 03-competitive/
 │   └── landscape.md              # Конкурентный анализ
 ├── 04-financial/
-│   └── unit-economics.md         # Юнит-экономика, LTV/CAC, break-even, прогноз
+│   ├── unit-economics.md         # Юнит-экономика, LTV/CAC, break-even, прогноз
+│   ├── expense-tracker.md        # Учёт фактических расходов (человекочитаемый)
+│   └── expenses.csv              # Учёт расходов (машиночитаемый)
 ├── 05-ip-legal/
 │   └── ip-assets.md              # IP, лицензии, риски
 ├── 06-gtm/
@@ -40,6 +42,7 @@ docs/business/
 ### Для инвесторов
 - [TAM/SAM/SOM](02-market/tam-calculation.md)
 - [Юнит-экономика](04-financial/unit-economics.md)
+- [Учёт расходов](04-financial/expense-tracker.md) — фактические траты по категориям
 - [Конкурентный анализ](03-competitive/landscape.md)
 - [Бизнес-роадмап](09-roadmap/business-roadmap.md)
 
@@ -79,6 +82,7 @@ docs/business/
 | **Y1 (MVP)**                        | TBD                                                                       |
 | **Y2**                              | TBD                                                                       |
 | **Y3**                              | TBD                                                                       |
+| **Фактические затраты (за всё время)** | **47 440 ₽** (~$517) — см. [expense-tracker](04-financial/expense-tracker.md) |
 | TAM (bottom-up)                     | TBD                                                                       |
 | SAM (русскоязычные)                 | 85K–115K фигуристов (оценка; официальных данных ФФКР нет)                   |
 | CustDev interviews                  | 3 (тренеры + спортсмен)                                                  |
