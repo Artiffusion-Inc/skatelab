@@ -419,6 +419,10 @@
       "other": "Other"
     },
     "continue": "Continue",
+    "celebrationTitle": "Great! Your first analysis is ready.",
+    "celebrationSubtitle": "Choose a role to personalize your experience",
+    "bannerMessage": "Choose a role to personalize your experience",
+    "bannerDismiss": "Dismiss",
     "slides": {
       "skater": {
         "0": {

@@ -439,6 +439,10 @@
       "other": "Другое"
     },
     "continue": "Продолжить",
+    "celebrationTitle": "Отлично! Ваш первый разбор готов.",
+    "celebrationSubtitle": "Выберите роль для персонализации",
+    "bannerMessage": "Выберите роль для персонализации",
+    "bannerDismiss": "Скрыть",
     "slides": {
       "skater": {
         "0": {

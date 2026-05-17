@@ -11,7 +11,7 @@ import { useTranslations } from "@/i18n"
 import { useSessions, useBulkDeleteSessions } from "@/lib/api/sessions"
 import { ELEMENT_TYPE_KEYS } from "@/lib/constants"
 import { Upload } from "lucide-react"
-import { EmptyState } from "@/components/onboarding"
+import { EmptyState, FirstAnalysisCelebration } from "@/components/onboarding"
 import { NoVideoGuide } from "./no-video-guide"
 
 export default function FeedPage() {
@@ -30,6 +30,8 @@ export default function FeedPage() {
   const [elementFilter, setElementFilter] = useState("")
   const [dateFilter, setDateFilter] = useState("all")
   const [showGuide, setShowGuide] = useState(false)
+
+  const totalSessions = query.data?.sessions.length ?? 0
 
   const filteredSessions = useMemo(() => {
     if (!query.data?.sessions) return []
@@ -78,7 +80,6 @@ export default function FeedPage() {
 
   if (isError) return <ErrorState onRetry={() => query.refetch()} />
 
-  const totalSessions = query.data?.sessions.length ?? 0
   const showDemoTile = totalSessions < 3
 
   if (!totalSessions) {
@@ -115,6 +116,7 @@ export default function FeedPage() {
 
   return (
     <div className="mx-auto max-w-2xl space-y-3 sm:max-w-3xl">
+      <FirstAnalysisCelebration hasSessions={totalSessions > 0} />
       <div className="flex items-center justify-between">
         <button
           type="button"
