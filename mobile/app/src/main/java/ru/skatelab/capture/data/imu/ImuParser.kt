@@ -3,6 +3,7 @@ package ru.skatelab.capture.data.imu
 import java.io.File
 import java.io.FileInputStream
 import kotlin.math.acos
+import kotlin.math.roundToLong
 import kotlin.math.sqrt
 import ru.skatelab.capture.domain.model.ImuChartData
 import ru.skatelab.capture.domain.model.ImuSample
@@ -45,7 +46,7 @@ object ImuParser {
             val leftTs = leftSamples.getOrNull(i)?.timestampNs
             val rightTs = rightSamples.getOrNull(i)?.timestampNs
             val ts = leftTs ?: rightTs ?: t0Ns
-            timeSeconds[i] = (ts - t0Ns) / 1_000_000_000f
+            timeSeconds[i] = ((ts - t0Ns) / 1_000_000_000f).roundTo4()
 
             leftSamples.getOrNull(i)?.let { s ->
                 accMagLeft[i] = magnitude(s.accX, s.accY, s.accZ)
@@ -103,6 +104,11 @@ object ImuParser {
 
     private fun magnitude(x: Float, y: Float, z: Float): Float =
         sqrt(x * x + y * y + z * z)
+
+    private fun Float.roundTo4(): Float {
+        val factor = 10_000f
+        return (this * factor).roundToLong() / factor
+    }
 
     private class AccumulatedRotation {
         private var prevW: Float = 1f

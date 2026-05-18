@@ -51,15 +51,15 @@ class SessionDetailViewModel
 
         fun getPlayer(context: Context): ExoPlayer {
             return _exoPlayer ?: ExoPlayer.Builder(context).build().also {
-                _session.value?.let { session ->
-                    if (session.videoFile.exists()) {
-                        it.setMediaItem(
-                            MediaItem.fromUri(Uri.fromFile(session.videoFile)),
-                        )
-                        it.prepare()
-                    }
-                }
                 _exoPlayer = it
+            }
+        }
+
+        fun setVideoSource(player: ExoPlayer) {
+            val session = _session.value ?: return
+            if (session.videoFile.exists()) {
+                player.setMediaItem(MediaItem.fromUri(Uri.fromFile(session.videoFile)))
+                player.prepare()
             }
         }
 

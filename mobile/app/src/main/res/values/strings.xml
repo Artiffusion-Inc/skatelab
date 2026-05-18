@@ -62,6 +62,15 @@
     <string name="detail_resolution">Разрешение: %dx%d</string>
     <string name="detail_status_complete">Завершена</string>
     <string name="detail_status_incomplete">Незавершена</string>
+    <string name="detail_video_size">Видео: %s</string>
+    <string name="detail_imu_left">Левый датчик: %s</string>
+    <string name="detail_imu_right">Правый датчик: %s</string>
+    <string name="detail_timestamp_source">Таймстемпы: %s</string>
+    <string name="detail_fps_verified">FPS верифицирован: %s</string>
+    <string name="detail_file_absent">отсутствует</string>
+    <string name="detail_file_present">%s (%.1f КБ)</string>
+    <string name="detail_yes">да</string>
+    <string name="detail_no">нет</string>
     <string name="session_export">Экспорт</string>
     <string name="session_delete">Удалить</string>
     <string name="session_delete_title">Удалить сессию?</string>

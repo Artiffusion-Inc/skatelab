@@ -20,6 +20,7 @@ import androidx.compose.material.icons.filled.IosShare
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -55,6 +56,7 @@ import com.patrykandpatrick.vico.core.cartesian.data.lineSeries
 import ru.skatelab.capture.R
 import ru.skatelab.capture.domain.model.CaptureSession
 import ru.skatelab.capture.domain.model.ImuChartData
+import java.io.File
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -112,7 +114,12 @@ fun SessionDetailScreen(
 @Composable
 private fun VideoTab(viewModel: SessionDetailViewModel) {
     val context = LocalContext.current
+    val session by viewModel.session.collectAsState()
     val exoPlayer = remember { viewModel.getPlayer(context) }
+
+    LaunchedEffect(session?.id) {
+        session?.let { viewModel.setVideoSource(exoPlayer) }
+    }
 
     LaunchedEffect(exoPlayer) {
         while (true) {
@@ -252,21 +259,21 @@ private fun DetailsTab(
 
     Column(
         modifier = Modifier.fillMaxSize().padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        Text(
-            stringResource(R.string.detail_duration, session.durationMs / 1000),
-            style = MaterialTheme.typography.bodyLarge,
-        )
-        Text(
-            stringResource(R.string.detail_fps, session.actualFps),
-            style = MaterialTheme.typography.bodyLarge,
-        )
+        Text(stringResource(R.string.detail_duration, session.durationMs / 1000), style = MaterialTheme.typography.bodyLarge)
+        Text(stringResource(R.string.detail_fps, session.actualFps), style = MaterialTheme.typography.bodyLarge)
         if (session.videoWidth > 0 && session.videoHeight > 0) {
-            Text(
-                stringResource(R.string.detail_resolution, session.videoWidth, session.videoHeight),
-                style = MaterialTheme.typography.bodyLarge,
-            )
+            Text(stringResource(R.string.detail_resolution, session.videoWidth, session.videoHeight), style = MaterialTheme.typography.bodyLarge)
         }
+        Text(
+            stringResource(R.string.detail_fps_verified, if (session.fpsVerified) stringResource(R.string.detail_yes) else stringResource(R.string.detail_no)),
+            style = MaterialTheme.typography.bodyLarge,
+        )
+        Text(
+            stringResource(R.string.detail_timestamp_source, session.timestampSource),
+            style = MaterialTheme.typography.bodyLarge,
+        )
         Text(
             if (session.isComplete) stringResource(R.string.detail_status_complete)
             else stringResource(R.string.detail_status_incomplete),
@@ -274,7 +281,15 @@ private fun DetailsTab(
             color = if (session.isComplete) MaterialTheme.colorScheme.primary
             else MaterialTheme.colorScheme.error,
         )
-        Spacer(modifier = Modifier.height(24.dp))
+
+        Spacer(modifier = Modifier.height(8.dp))
+        Text("Файлы", style = MaterialTheme.typography.titleMedium)
+        HorizontalDivider()
+        Text(stringResource(R.string.detail_video_size, fileSizeLabel(session.videoFile)), style = MaterialTheme.typography.bodyMedium)
+        Text(stringResource(R.string.detail_imu_left, fileSizeLabel(session.imuLeftFile)), style = MaterialTheme.typography.bodyMedium)
+        Text(stringResource(R.string.detail_imu_right, fileSizeLabel(session.imuRightFile)), style = MaterialTheme.typography.bodyMedium)
+
+        Spacer(modifier = Modifier.height(16.dp))
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -288,5 +303,15 @@ private fun DetailsTab(
                 Text(stringResource(R.string.export_title))
             }
         }
+    }
+}
+
+@Composable
+private fun fileSizeLabel(file: File): String {
+    return if (file.exists()) {
+        val kb = file.length() / 1024.0
+        stringResource(R.string.detail_file_present, file.name, kb)
+    } else {
+        stringResource(R.string.detail_file_absent)
     }
 }
