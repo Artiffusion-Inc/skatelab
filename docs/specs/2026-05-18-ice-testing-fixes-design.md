@@ -140,7 +140,7 @@ When user seeks video, chart scrubber follows. When chart is tapped, video seeks
 | Media3 ExoPlayer | Video playback | ~2 MB |
 | Vico | Compose-native charting | ~500 KB |
 
-Vico preferred over MPAndroidChart: Compose-native, lighter, maintained. If Vico lacks needed features, fallback to Ycharts (another Compose charting lib).
+Vico preferred over MPAndroidChart: Compose-native, lighter, maintained. Start with Vico; if it lacks line-chart features needed here (multi-series, scrubber sync), switch to Ycharts (another Compose-native option).
 
 ### SessionDetailViewModel
 
