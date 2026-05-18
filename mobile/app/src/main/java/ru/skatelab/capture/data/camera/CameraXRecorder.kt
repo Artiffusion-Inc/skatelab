@@ -30,6 +30,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.guava.await
 import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.withTimeoutOrNull
 import ru.skatelab.capture.domain.repository.CameraRepository
 
 internal data class VideoMetadata(val width: Int, val height: Int, val bitrate: Long)
@@ -65,6 +66,7 @@ class CameraXRecorder
         private var recorder: Recorder? = null
         private var videoCapture: VideoCapture<Recorder>? = null
         private var preview: Preview? = null
+        private var finalizeDeferred: CompletableDeferred<VideoMetadata?>? = null
 
         suspend fun bindToLifecycle(lifecycleOwner: LifecycleOwner): Result<Unit> =
             runCatching {
@@ -148,6 +150,7 @@ class CameraXRecorder
                 val pendingRecording = capture.output.prepareRecording(context, outputOptions)
 
                 val startDeferred = CompletableDeferred<Unit>()
+                finalizeDeferred = CompletableDeferred()
 
                 activeRecording =
                     pendingRecording.start(cameraExecutor) { event ->
@@ -162,7 +165,9 @@ class CameraXRecorder
                                 if (event.hasError()) {
                                     _recordingError.value = "Video recording error: ${event.error}"
                                 }
-                                _videoMetadata.value = extractVideoMetadata(videoFile)
+                                val meta = extractVideoMetadata(videoFile)
+                                _videoMetadata.value = meta
+                                finalizeDeferred?.complete(meta)
                             }
                             else -> {}
                         }
@@ -190,10 +195,12 @@ class CameraXRecorder
                 rec.stop()
                 _isRecording.value = false
 
+                val meta = withTimeoutOrNull(3_000L) { finalizeDeferred?.await() }
+                finalizeDeferred = null
+
                 val actualFps = timestampTracker?.computeFps() ?: 0
                 val frameCount = timestampTracker?.getFrameCount() ?: 0
                 val firstFrameNs = timestampTracker?.getFirstFrameNs() ?: 0L
-                val meta = _videoMetadata.value
 
                 CameraRepository.RecordingStopResult(
                     actualFps = actualFps,
