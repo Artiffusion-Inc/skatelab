@@ -48,6 +48,8 @@ class ExportSessionUseCase
                 video {
                     filename(session.videoFile.name)
                     fps(session.actualFps)
+                    width(session.videoWidth)
+                    height(session.videoHeight)
                     actualFpsVerified(session.fpsVerified)
                     timestampSource(session.timestampSource)
                     videoStartDelayMs(session.videoStartDelayMs)

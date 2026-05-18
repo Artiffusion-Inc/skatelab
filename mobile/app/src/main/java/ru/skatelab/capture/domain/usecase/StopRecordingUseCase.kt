@@ -15,6 +15,8 @@ class StopRecordingUseCase
             val actualFps: Int,
             val fpsVerified: Boolean,
             val firstFrameNs: Long,
+            val actualWidth: Int = 0,
+            val actualHeight: Int = 0,
         )
 
         suspend operator fun invoke(): Result<StopResult> {
@@ -29,7 +31,13 @@ class StopRecordingUseCase
             cameraRepository.release()
 
             return Result.success(
-                StopResult(actualFps = stopResult.actualFps, fpsVerified = stopResult.fpsVerified, firstFrameNs = stopResult.firstFrameNs),
+                StopResult(
+                    actualFps = stopResult.actualFps,
+                    fpsVerified = stopResult.fpsVerified,
+                    firstFrameNs = stopResult.firstFrameNs,
+                    actualWidth = stopResult.actualWidth,
+                    actualHeight = stopResult.actualHeight,
+                ),
             )
         }
     }

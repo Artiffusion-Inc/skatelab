@@ -14,6 +14,8 @@ data class CaptureSession(
     val actualFps: Int,
     val fpsVerified: Boolean,
     val firstFrameNs: Long,
+    val videoWidth: Int = 0,
+    val videoHeight: Int = 0,
     val timestampSource: String,
     val videoStartDelayMs: Long,
     val imuStartDelayMs: Map<SensorId, Long>,
