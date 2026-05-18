@@ -137,7 +137,7 @@ class ManifestBuilderTest {
     }
 
     @Test
-    fun `video block defaults to 1920x1080 when no width height set`() {
+    fun `video block defaults to 0x0 when no width height set`() {
         val json =
             ManifestBuilder()
                 .version("2.0")
@@ -152,7 +152,7 @@ class ManifestBuilderTest {
 
         val root = JSONObject(json)
         val video = root.getJSONObject("video")
-        assertEquals(1920, video.getInt("width"))
-        assertEquals(1080, video.getInt("height"))
+        assertEquals(0, video.getInt("width"))
+        assertEquals(0, video.getInt("height"))
     }
 }

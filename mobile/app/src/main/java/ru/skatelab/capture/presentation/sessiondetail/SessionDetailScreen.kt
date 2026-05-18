@@ -1,15 +1,19 @@
 package ru.skatelab.capture.presentation.sessiondetail
 
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Color
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.IosShare
@@ -99,7 +103,7 @@ fun SessionDetailScreen(
 
         when (selectedTab) {
             0 -> VideoTab(viewModel)
-            1 -> ChartsTab(imuData, isImuLoading)
+            1 -> ChartsTab(imuData, isImuLoading, viewModel)
             2 -> DetailsTab(session, onExport = { session?.id?.let(onExport) })
         }
     }
@@ -134,7 +138,10 @@ private fun VideoTab(viewModel: SessionDetailViewModel) {
 private fun ChartsTab(
     imuData: ImuChartData?,
     isLoading: Boolean,
+    viewModel: SessionDetailViewModel,
 ) {
+    val playbackPositionMs by viewModel.playbackPositionMs.collectAsState()
+
     when {
         isLoading -> {
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -153,6 +160,7 @@ private fun ChartsTab(
                     timeSeconds = imuData.timeSeconds,
                     leftValues = imuData.accMagLeft,
                     rightValues = imuData.accMagRight,
+                    playheadTime = if (imuData.timeSeconds.isNotEmpty()) playbackPositionMs / 1000f else null,
                 )
                 Spacer(modifier = Modifier.height(24.dp))
                 ImuChartSection(
@@ -160,6 +168,15 @@ private fun ChartsTab(
                     timeSeconds = imuData.timeSeconds,
                     leftValues = imuData.angVelLeft,
                     rightValues = imuData.angVelRight,
+                    playheadTime = if (imuData.timeSeconds.isNotEmpty()) playbackPositionMs / 1000f else null,
+                )
+                Spacer(modifier = Modifier.height(24.dp))
+                ImuChartSection(
+                    label = stringResource(R.string.label_rotation),
+                    timeSeconds = imuData.timeSeconds,
+                    leftValues = imuData.rotLeft,
+                    rightValues = imuData.rotRight,
+                    playheadTime = if (imuData.timeSeconds.isNotEmpty()) playbackPositionMs / 1000f else null,
                 )
             }
         }
@@ -172,6 +189,7 @@ private fun ImuChartSection(
     timeSeconds: FloatArray,
     leftValues: FloatArray,
     rightValues: FloatArray,
+    playheadTime: Float? = null,
 ) {
     val modelProducer = remember { CartesianChartModelProducer() }
     LaunchedEffect(timeSeconds.contentHashCode(), leftValues.contentHashCode()) {
@@ -186,17 +204,37 @@ private fun ImuChartSection(
     Column {
         Text(label, style = MaterialTheme.typography.titleSmall)
         Spacer(modifier = Modifier.height(8.dp))
-        CartesianChartHost(
-            chart = rememberCartesianChart(
-                rememberLineCartesianLayer(),
-                startAxis = VerticalAxis.rememberStart(),
-                bottomAxis = HorizontalAxis.rememberBottom(),
-            ),
-            modelProducer = modelProducer,
-            modifier = Modifier.fillMaxWidth().height(200.dp),
-            scrollState = rememberVicoScrollState(),
-            zoomState = rememberVicoZoomState(),
-        )
+        Box(modifier = Modifier.fillMaxWidth().height(200.dp)) {
+            CartesianChartHost(
+                chart = rememberCartesianChart(
+                    rememberLineCartesianLayer(),
+                    startAxis = VerticalAxis.rememberStart(),
+                    bottomAxis = HorizontalAxis.rememberBottom(),
+                ),
+                modelProducer = modelProducer,
+                modifier = Modifier.fillMaxSize(),
+                scrollState = rememberVicoScrollState(),
+                zoomState = rememberVicoZoomState(),
+            )
+            if (playheadTime != null && timeSeconds.isNotEmpty()) {
+                val maxX = timeSeconds.last()
+                if (maxX > 0f && playheadTime in 0f..maxX) {
+                    val fraction = playheadTime / maxX
+                    Canvas(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(start = (fraction * 200).dp),
+                    ) {
+                        drawLine(
+                            color = Color.Red,
+                            start = Offset(0f, 0f),
+                            end = Offset(0f, size.height),
+                            strokeWidth = 2f,
+                        )
+                    }
+                }
+            }
+        }
     }
 }
 

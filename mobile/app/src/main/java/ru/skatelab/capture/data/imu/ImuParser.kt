@@ -2,6 +2,7 @@ package ru.skatelab.capture.data.imu
 
 import java.io.File
 import java.io.FileInputStream
+import kotlin.math.acos
 import kotlin.math.sqrt
 import ru.skatelab.capture.domain.model.ImuChartData
 import ru.skatelab.capture.domain.model.ImuSample
@@ -21,8 +22,10 @@ object ImuParser {
                 timeSeconds = FloatArray(0),
                 accMagLeft = FloatArray(0),
                 angVelLeft = FloatArray(0),
+                rotLeft = FloatArray(0),
                 accMagRight = FloatArray(0),
                 angVelRight = FloatArray(0),
+                rotRight = FloatArray(0),
             )
         }
 
@@ -30,8 +33,13 @@ object ImuParser {
         val timeSeconds = FloatArray(maxSize)
         val accMagLeft = FloatArray(maxSize)
         val angVelLeft = FloatArray(maxSize)
+        val rotLeft = FloatArray(maxSize)
         val accMagRight = FloatArray(maxSize)
         val angVelRight = FloatArray(maxSize)
+        val rotRight = FloatArray(maxSize)
+
+        val leftRotation = AccumulatedRotation()
+        val rightRotation = AccumulatedRotation()
 
         for (i in 0 until maxSize) {
             val leftTs = leftSamples.getOrNull(i)?.timestampNs
@@ -42,10 +50,12 @@ object ImuParser {
             leftSamples.getOrNull(i)?.let { s ->
                 accMagLeft[i] = magnitude(s.accX, s.accY, s.accZ)
                 angVelLeft[i] = magnitude(s.gyroX, s.gyroY, s.gyroZ)
+                rotLeft[i] = leftRotation.step(s.quatW, s.quatX, s.quatY, s.quatZ)
             }
             rightSamples.getOrNull(i)?.let { s ->
                 accMagRight[i] = magnitude(s.accX, s.accY, s.accZ)
                 angVelRight[i] = magnitude(s.gyroX, s.gyroY, s.gyroZ)
+                rotRight[i] = rightRotation.step(s.quatW, s.quatX, s.quatY, s.quatZ)
             }
         }
 
@@ -53,8 +63,10 @@ object ImuParser {
             timeSeconds = timeSeconds,
             accMagLeft = accMagLeft,
             angVelLeft = angVelLeft,
+            rotLeft = rotLeft,
             accMagRight = accMagRight,
             angVelRight = angVelRight,
+            rotRight = rotRight,
         )
     }
 
@@ -91,4 +103,32 @@ object ImuParser {
 
     private fun magnitude(x: Float, y: Float, z: Float): Float =
         sqrt(x * x + y * y + z * z)
+
+    private class AccumulatedRotation {
+        private var prevW: Float = 1f
+        private var prevX: Float = 0f
+        private var prevY: Float = 0f
+        private var prevZ: Float = 0f
+        private var accumulated: Float = 0f
+        private var first = true
+
+        fun step(w: Float, x: Float, y: Float, z: Float): Float {
+            if (first) {
+                prevW = w
+                prevX = x
+                prevY = y
+                prevZ = z
+                first = false
+                return 0f
+            }
+            val dot = (prevW * w + prevX * x + prevY * y + prevZ * z).coerceIn(-1f, 1f)
+            val stepAngle = 2f * acos(kotlin.math.abs(dot))
+            accumulated += stepAngle
+            prevW = w
+            prevX = x
+            prevY = y
+            prevZ = z
+            return accumulated
+        }
+    }
 }
