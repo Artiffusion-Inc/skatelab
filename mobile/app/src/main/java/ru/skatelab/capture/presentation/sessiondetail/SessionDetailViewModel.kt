@@ -34,6 +34,13 @@ class SessionDetailViewModel
         private val _isImuLoading = MutableStateFlow(false)
         val isImuLoading: StateFlow<Boolean> = _isImuLoading.asStateFlow()
 
+        private val _playbackPositionMs = MutableStateFlow(0L)
+        val playbackPositionMs: StateFlow<Long> = _playbackPositionMs.asStateFlow()
+
+        fun updatePlaybackPosition(positionMs: Long) {
+            _playbackPositionMs.value = positionMs
+        }
+
         private var _exoPlayer: ExoPlayer? = null
 
         fun loadSession(sessionId: String) {

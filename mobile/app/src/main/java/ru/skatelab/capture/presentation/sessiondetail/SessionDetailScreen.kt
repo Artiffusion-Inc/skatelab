@@ -1,32 +1,56 @@
 package ru.skatelab.capture.presentation.sessiondetail
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.IosShare
+import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Tab
+import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
+import androidx.compose.ui.viewinterop.AndroidView
+import androidx.media3.ui.PlayerView
+import com.patrykandpatrick.vico.compose.cartesian.CartesianChartHost
+import com.patrykandpatrick.vico.compose.cartesian.axis.rememberBottom
+import com.patrykandpatrick.vico.compose.cartesian.axis.rememberStart
+import com.patrykandpatrick.vico.compose.cartesian.layer.rememberLineCartesianLayer
+import com.patrykandpatrick.vico.compose.cartesian.rememberCartesianChart
+import com.patrykandpatrick.vico.compose.cartesian.rememberVicoScrollState
+import com.patrykandpatrick.vico.compose.cartesian.rememberVicoZoomState
+import com.patrykandpatrick.vico.core.cartesian.axis.HorizontalAxis
+import com.patrykandpatrick.vico.core.cartesian.axis.VerticalAxis
+import com.patrykandpatrick.vico.core.cartesian.data.CartesianChartModelProducer
+import com.patrykandpatrick.vico.core.cartesian.data.lineSeries
 import ru.skatelab.capture.R
+import ru.skatelab.capture.domain.model.CaptureSession
+import ru.skatelab.capture.domain.model.ImuChartData
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -37,67 +61,193 @@ fun SessionDetailScreen(
     onExport: (String) -> Unit,
 ) {
     val session by viewModel.session.collectAsState()
+    val imuData by viewModel.imuData.collectAsState()
+    val isImuLoading by viewModel.isImuLoading.collectAsState()
+    var selectedTab by remember { mutableIntStateOf(0) }
+    val tabs = listOf(
+        stringResource(R.string.tab_video),
+        stringResource(R.string.tab_charts),
+        stringResource(R.string.tab_details),
+    )
 
     LaunchedEffect(sessionId) {
         viewModel.loadSession(sessionId)
     }
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text(stringResource(R.string.session_detail_title)) },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-                    }
-                },
-            )
-        },
-    ) { padding ->
-        Column(
-            modifier = Modifier.fillMaxSize().padding(padding).padding(16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center,
-        ) {
-            session?.let { s ->
-                val dateFormat =
-                    SimpleDateFormat(
-                        stringResource(R.string.session_date_format),
-                        Locale.getDefault(),
-                    )
-                Text(
-                    dateFormat.format(Date(s.createdAt)),
-                    style = MaterialTheme.typography.headlineMedium,
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    stringResource(R.string.session_duration, s.durationMs / 1000),
-                    style = MaterialTheme.typography.bodyLarge,
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    if (s.isComplete) {
-                        stringResource(R.string.session_complete)
-                    } else {
-                        stringResource(R.string.session_incomplete)
+    Column(modifier = Modifier.fillMaxSize()) {
+        TopAppBar(
+            title = { Text(stringResource(R.string.session_detail_title)) },
+            navigationIcon = {
+                IconButton(onClick = onBack) {
+                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                }
+            },
+        )
+
+        TabRow(selectedTabIndex = selectedTab) {
+            tabs.forEachIndexed { index, title ->
+                Tab(
+                    selected = selectedTab == index,
+                    onClick = {
+                        selectedTab = index
+                        if (index == 1) viewModel.loadImuData()
                     },
-                    style = MaterialTheme.typography.labelLarge,
-                    color =
-                        if (s.isComplete) {
-                            MaterialTheme.colorScheme.primary
-                        } else {
-                            MaterialTheme.colorScheme.error
-                        },
+                    text = { Text(title) },
+                )
+            }
+        }
+
+        when (selectedTab) {
+            0 -> VideoTab(viewModel)
+            1 -> ChartsTab(imuData, isImuLoading)
+            2 -> DetailsTab(session, onExport = { session?.id?.let(onExport) })
+        }
+    }
+}
+
+@Composable
+private fun VideoTab(viewModel: SessionDetailViewModel) {
+    val context = LocalContext.current
+    val exoPlayer = remember { viewModel.getPlayer(context) }
+
+    LaunchedEffect(exoPlayer) {
+        while (true) {
+            if (exoPlayer.isPlaying) {
+                viewModel.updatePlaybackPosition(exoPlayer.currentPosition)
+            }
+            kotlinx.coroutines.delay(100L)
+        }
+    }
+
+    AndroidView(
+        factory = { ctx ->
+            PlayerView(ctx).apply {
+                player = exoPlayer
+                useController = true
+            }
+        },
+        modifier = Modifier.fillMaxSize(),
+    )
+}
+
+@Composable
+private fun ChartsTab(
+    imuData: ImuChartData?,
+    isLoading: Boolean,
+) {
+    when {
+        isLoading -> {
+            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                CircularProgressIndicator()
+            }
+        }
+        imuData == null || imuData.timeSeconds.isEmpty() -> {
+            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                Text(stringResource(R.string.imu_no_data))
+            }
+        }
+        else -> {
+            Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
+                ImuChartSection(
+                    label = stringResource(R.string.label_acc_mag),
+                    timeSeconds = imuData.timeSeconds,
+                    leftValues = imuData.accMagLeft,
+                    rightValues = imuData.accMagRight,
                 )
                 Spacer(modifier = Modifier.height(24.dp))
-                androidx.compose.material3.Button(onClick = { onExport(s.id) }) {
-                    Text(stringResource(R.string.session_export))
-                }
-            } ?: run {
-                Text(
-                    stringResource(R.string.session_no_sessions),
-                    style = MaterialTheme.typography.bodyLarge,
+                ImuChartSection(
+                    label = stringResource(R.string.label_ang_vel),
+                    timeSeconds = imuData.timeSeconds,
+                    leftValues = imuData.angVelLeft,
+                    rightValues = imuData.angVelRight,
                 )
+            }
+        }
+    }
+}
+
+@Composable
+private fun ImuChartSection(
+    label: String,
+    timeSeconds: FloatArray,
+    leftValues: FloatArray,
+    rightValues: FloatArray,
+) {
+    val modelProducer = remember { CartesianChartModelProducer() }
+    LaunchedEffect(timeSeconds.contentHashCode(), leftValues.contentHashCode()) {
+        modelProducer.runTransaction {
+            lineSeries {
+                series(timeSeconds.toList(), leftValues.toList())
+                series(timeSeconds.toList(), rightValues.toList())
+            }
+        }
+    }
+
+    Column {
+        Text(label, style = MaterialTheme.typography.titleSmall)
+        Spacer(modifier = Modifier.height(8.dp))
+        CartesianChartHost(
+            chart = rememberCartesianChart(
+                rememberLineCartesianLayer(),
+                startAxis = VerticalAxis.rememberStart(),
+                bottomAxis = HorizontalAxis.rememberBottom(),
+            ),
+            modelProducer = modelProducer,
+            modifier = Modifier.fillMaxWidth().height(200.dp),
+            scrollState = rememberVicoScrollState(),
+            zoomState = rememberVicoZoomState(),
+        )
+    }
+}
+
+@Composable
+private fun DetailsTab(
+    session: CaptureSession?,
+    onExport: () -> Unit,
+) {
+    if (session == null) {
+        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            CircularProgressIndicator()
+        }
+        return
+    }
+
+    Column(
+        modifier = Modifier.fillMaxSize().padding(16.dp),
+    ) {
+        Text(
+            stringResource(R.string.detail_duration, session.durationMs / 1000),
+            style = MaterialTheme.typography.bodyLarge,
+        )
+        Text(
+            stringResource(R.string.detail_fps, session.actualFps),
+            style = MaterialTheme.typography.bodyLarge,
+        )
+        if (session.videoWidth > 0 && session.videoHeight > 0) {
+            Text(
+                stringResource(R.string.detail_resolution, session.videoWidth, session.videoHeight),
+                style = MaterialTheme.typography.bodyLarge,
+            )
+        }
+        Text(
+            if (session.isComplete) stringResource(R.string.detail_status_complete)
+            else stringResource(R.string.detail_status_incomplete),
+            style = MaterialTheme.typography.bodyLarge,
+            color = if (session.isComplete) MaterialTheme.colorScheme.primary
+            else MaterialTheme.colorScheme.error,
+        )
+        Spacer(modifier = Modifier.height(24.dp))
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Button(
+                onClick = onExport,
+                modifier = Modifier.weight(1f),
+            ) {
+                Icon(Icons.Default.IosShare, contentDescription = null)
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(stringResource(R.string.export_title))
             }
         }
     }
