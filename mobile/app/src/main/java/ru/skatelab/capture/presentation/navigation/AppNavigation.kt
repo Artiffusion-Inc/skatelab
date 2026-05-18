@@ -51,7 +51,7 @@ fun AppNavigation() {
 
     NavHost(
         navController = navController,
-        startDestination = Routes.BLE_SCAN,
+        startDestination = Routes.SESSIONS,
     ) {
         composable(Routes.BLE_SCAN) {
             val viewModel: BleScanViewModel = hiltViewModel()
