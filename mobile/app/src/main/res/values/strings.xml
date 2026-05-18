@@ -48,6 +48,7 @@
     <string name="session_complete">Завершена</string>
     <string name="session_incomplete">Незавершена</string>
     <string name="session_no_sessions">Нет сохранённых сессий</string>
+    <string name="session_detail_title">Сессия</string>
     <string name="session_export">Экспорт</string>
     <string name="session_delete">Удалить</string>
     <string name="session_delete_title">Удалить сессию?</string>
