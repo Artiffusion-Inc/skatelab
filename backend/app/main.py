@@ -5,6 +5,7 @@ from __future__ import annotations
 import sentry_sdk
 import structlog
 from litestar import Litestar, Router
+from litestar.config.compression import CompressionConfig
 from litestar.config.cors import CORSConfig
 from litestar.config.response_cache import ResponseCacheConfig
 from litestar.exceptions import HTTPException
@@ -118,11 +119,11 @@ def create_app() -> Litestar:
         route_handlers=[api_v1],
         lifespan=[app_lifespan],
         cors_config=cors_config,
+        compression_config=CompressionConfig(backend="gzip"),
         response_cache_config=ResponseCacheConfig(default_expiration=60),
         middleware=[rate_limit_config.middleware],
         exception_handlers={HTTPException: http_exception_handler},
         debug=settings.app.log_level == "DEBUG",
-        openapi_config=None,
         on_app_init=[jwt_auth.on_app_init],
         dependencies=dependencies,
     )

@@ -60,9 +60,9 @@ async def provide_db_session() -> AsyncGenerator[AsyncSession, None]:
 
 
 dependencies = {
-    "settings": Provide(provide_settings, sync_to_thread=False),
-    "db": Provide(db_proxy, sync_to_thread=False),
-    "db_session": Provide(db_session_proxy, sync_to_thread=False),
-    "user": Provide(get_current_user, sync_to_thread=False),
-    "verified_user": Provide(get_verified_user, sync_to_thread=False),
+    "settings": Provide(provide_settings),
+    "db": Provide(db_proxy),
+    "db_session": Provide(db_session_proxy),
+    "user": Provide(get_current_user),
+    "verified_user": Provide(get_verified_user),
 }
