@@ -1,17 +1,19 @@
 package ru.skatelab.capture.presentation.sessiondetail
 
+import android.view.LayoutInflater
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.material.icons.Icons
@@ -53,10 +55,12 @@ import com.patrykandpatrick.vico.core.cartesian.axis.HorizontalAxis
 import com.patrykandpatrick.vico.core.cartesian.axis.VerticalAxis
 import com.patrykandpatrick.vico.core.cartesian.data.CartesianChartModelProducer
 import com.patrykandpatrick.vico.core.cartesian.data.lineSeries
+import com.patrykandpatrick.vico.core.cartesian.Zoom
 import ru.skatelab.capture.R
 import ru.skatelab.capture.domain.model.CaptureSession
 import ru.skatelab.capture.domain.model.ImuChartData
 import java.io.File
+import kotlin.math.roundToInt
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -132,10 +136,10 @@ private fun VideoTab(viewModel: SessionDetailViewModel) {
 
     AndroidView(
         factory = { ctx ->
-            PlayerView(ctx).apply {
-                player = exoPlayer
-                useController = true
-            }
+            LayoutInflater.from(ctx).inflate(R.layout.player_view_texture, null) as PlayerView
+        },
+        update = { view ->
+            view.player = exoPlayer
         },
         modifier = Modifier.fillMaxSize(),
     )
@@ -161,57 +165,132 @@ private fun ChartsTab(
             }
         }
         else -> {
-            Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
+            val playheadSec = playbackPositionMs / 1000f
+
+            Column(modifier = Modifier.fillMaxSize().padding(16.dp).verticalScroll(rememberScrollState())) {
+                Text(
+                    stringResource(R.string.charts_summary_title),
+                    style = MaterialTheme.typography.titleMedium,
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    stringResource(R.string.charts_summary_hint),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+
                 ImuChartSection(
                     label = stringResource(R.string.label_acc_mag),
+                    unit = stringResource(R.string.unit_mps2),
                     timeSeconds = imuData.timeSeconds,
                     leftValues = imuData.accMagLeft,
                     rightValues = imuData.accMagRight,
-                    playheadTime = if (imuData.timeSeconds.isNotEmpty()) playbackPositionMs / 1000f else null,
+                    playheadTime = playheadSec,
                 )
-                Spacer(modifier = Modifier.height(24.dp))
+                Spacer(modifier = Modifier.height(20.dp))
                 ImuChartSection(
                     label = stringResource(R.string.label_ang_vel),
+                    unit = stringResource(R.string.unit_dps),
                     timeSeconds = imuData.timeSeconds,
                     leftValues = imuData.angVelLeft,
                     rightValues = imuData.angVelRight,
-                    playheadTime = if (imuData.timeSeconds.isNotEmpty()) playbackPositionMs / 1000f else null,
+                    playheadTime = playheadSec,
                 )
-                Spacer(modifier = Modifier.height(24.dp))
+                Spacer(modifier = Modifier.height(20.dp))
                 ImuChartSection(
                     label = stringResource(R.string.label_rotation),
+                    unit = stringResource(R.string.unit_rad),
                     timeSeconds = imuData.timeSeconds,
                     leftValues = imuData.rotLeft,
                     rightValues = imuData.rotRight,
-                    playheadTime = if (imuData.timeSeconds.isNotEmpty()) playbackPositionMs / 1000f else null,
+                    playheadTime = playheadSec,
                 )
             }
         }
     }
 }
 
+private const val MAX_CHART_POINTS = 400
+
+private fun downsample(arr: FloatArray, targetSize: Int): FloatArray {
+    if (arr.size <= targetSize) return arr
+    val step = arr.size.toFloat() / targetSize
+    return FloatArray(targetSize) { i ->
+        arr[(i * step).roundToInt()]
+    }
+}
+
 @Composable
 private fun ImuChartSection(
     label: String,
+    unit: String,
     timeSeconds: FloatArray,
     leftValues: FloatArray,
     rightValues: FloatArray,
     playheadTime: Float? = null,
 ) {
     val modelProducer = remember { CartesianChartModelProducer() }
-    LaunchedEffect(timeSeconds.contentHashCode(), leftValues.contentHashCode()) {
+    val leftPeak = remember(leftValues.contentHashCode()) { leftValues.maxOrNull()?.let { (it * 10).roundToInt() / 10f } ?: 0f }
+    val rightPeak = remember(rightValues.contentHashCode()) { rightValues.maxOrNull()?.let { (it * 10).roundToInt() / 10f } ?: 0f }
+    val leftAvg = remember(leftValues.contentHashCode()) { if (leftValues.isNotEmpty()) (leftValues.average() * 10).roundToInt() / 10f else 0f }
+    val rightAvg = remember(rightValues.contentHashCode()) { if (rightValues.isNotEmpty()) (rightValues.average() * 10).roundToInt() / 10f else 0f }
+
+    val dsTime = remember(timeSeconds.contentHashCode()) { downsample(timeSeconds, MAX_CHART_POINTS) }
+    val dsLeft = remember(leftValues.contentHashCode()) { downsample(leftValues, MAX_CHART_POINTS) }
+    val dsRight = remember(rightValues.contentHashCode()) { downsample(rightValues, MAX_CHART_POINTS) }
+
+    LaunchedEffect(dsTime.contentHashCode(), dsLeft.contentHashCode()) {
         modelProducer.runTransaction {
             lineSeries {
-                series(timeSeconds.toList(), leftValues.toList())
-                series(timeSeconds.toList(), rightValues.toList())
+                series(dsTime.toList(), dsLeft.toList())
+                series(dsTime.toList(), dsRight.toList())
             }
         }
     }
 
     Column {
-        Text(label, style = MaterialTheme.typography.titleSmall)
-        Spacer(modifier = Modifier.height(8.dp))
-        Box(modifier = Modifier.fillMaxWidth().height(200.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(label, style = MaterialTheme.typography.titleSmall)
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Canvas(modifier = Modifier.width(12.dp).height(3.dp)) {
+                        drawLine(color = LeftColor, start = Offset(0f, size.height / 2), end = Offset(size.width, size.height / 2), strokeWidth = 3f)
+                    }
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("Левый", style = MaterialTheme.typography.labelSmall, color = LeftColor)
+                }
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Canvas(modifier = Modifier.width(12.dp).height(3.dp)) {
+                        drawLine(color = RightColor, start = Offset(0f, size.height / 2), end = Offset(size.width, size.height / 2), strokeWidth = 3f)
+                    }
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("Правый", style = MaterialTheme.typography.labelSmall, color = RightColor)
+                }
+            }
+        }
+        Spacer(modifier = Modifier.height(2.dp))
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+        ) {
+            Text(
+                "Л: пик ${leftPeak}${unit}, средн ${leftAvg}${unit}",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Text(
+                "П: пик ${rightPeak}${unit}, средн ${rightAvg}${unit}",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        Spacer(modifier = Modifier.height(4.dp))
+        Box(modifier = Modifier.fillMaxWidth().height(180.dp)) {
             CartesianChartHost(
                 chart = rememberCartesianChart(
                     rememberLineCartesianLayer(),
@@ -220,8 +299,8 @@ private fun ImuChartSection(
                 ),
                 modelProducer = modelProducer,
                 modifier = Modifier.fillMaxSize(),
-                scrollState = rememberVicoScrollState(),
-                zoomState = rememberVicoZoomState(),
+                scrollState = rememberVicoScrollState(scrollEnabled = true),
+                zoomState = rememberVicoZoomState(zoomEnabled = true, initialZoom = Zoom.Content),
             )
             if (playheadTime != null && timeSeconds.isNotEmpty()) {
                 val maxX = timeSeconds.last()
@@ -230,10 +309,10 @@ private fun ImuChartSection(
                     Canvas(
                         modifier = Modifier
                             .fillMaxSize()
-                            .padding(start = (fraction * 200).dp),
+                            .padding(start = (fraction * 180).dp),
                     ) {
                         drawLine(
-                            color = Color.Red,
+                            color = PlayheadColor,
                             start = Offset(0f, 0f),
                             end = Offset(0f, size.height),
                             strokeWidth = 2f,
@@ -244,6 +323,10 @@ private fun ImuChartSection(
         }
     }
 }
+
+private val LeftColor = Color(0xFF2196F3)
+private val RightColor = Color(0xFFFF5722)
+private val PlayheadColor = Color(0xFFE91E63)
 
 @Composable
 private fun DetailsTab(

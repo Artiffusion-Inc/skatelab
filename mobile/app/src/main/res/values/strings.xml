@@ -56,7 +56,12 @@
     <string name="imu_no_data">Нет данных IMU</string>
     <string name="label_acc_mag">|a| м/с²</string>
     <string name="label_ang_vel">|ω| °/с</string>
-<string name="label_rotation">Накопленный поворот (рад)</string>
+<string name="label_rotation">Накопленный поворот</string>
+    <string name="unit_mps2"> м/с²</string>
+    <string name="unit_dps"> °/с</string>
+    <string name="unit_rad"> рад</string>
+    <string name="charts_summary_title">Данные датчиков</string>
+    <string name="charts_summary_hint">Лентяйте и масштабируйте графики. Красная линия — позиция видео.</string>
     <string name="detail_duration">Длительность: %d с</string>
     <string name="detail_fps">FPS: %d</string>
     <string name="detail_resolution">Разрешение: %dx%d</string>

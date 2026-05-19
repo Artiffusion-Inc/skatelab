@@ -107,6 +107,8 @@ class SessionRepositoryImpl
                 appendLine("  \"calibration\": {$calEntries},")
                 appendLine("  \"clockOffsetNs\": {$clockOffsetEntries},")
                 appendLine("  \"createdAt\": ${s.createdAt},")
+                appendLine("  \"videoWidth\": ${s.videoWidth},")
+                appendLine("  \"videoHeight\": ${s.videoHeight},")
                 appendLine("  \"isComplete\": ${s.isComplete}")
                 append("}")
             }
@@ -167,6 +169,8 @@ class SessionRepositoryImpl
                     calibration = calibration,
                     clockOffsetNs = clockOffsetNs,
                     createdAt = o.getLong("createdAt"),
+                    videoWidth = o.optInt("videoWidth", 0),
+                    videoHeight = o.optInt("videoHeight", 0),
                     isComplete = o.optBoolean("isComplete", false),
                 )
             } catch (e: Exception) {
