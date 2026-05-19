@@ -21,11 +21,11 @@ import ru.skatelab.capture.presentation.calibration.CalibrationViewModel
 import ru.skatelab.capture.presentation.export.ExportScreen
 import ru.skatelab.capture.presentation.export.ExportViewModel
 import ru.skatelab.capture.presentation.recording.RecordingScreen
-import ru.skatelab.capture.presentation.sessiondetail.SessionDetailScreen
-import ru.skatelab.capture.presentation.sessiondetail.SessionDetailViewModel
 import ru.skatelab.capture.presentation.recording.RecordingViewModel
 import ru.skatelab.capture.presentation.session.SessionListScreen
 import ru.skatelab.capture.presentation.session.SessionListViewModel
+import ru.skatelab.capture.presentation.sessiondetail.SessionDetailScreen
+import ru.skatelab.capture.presentation.sessiondetail.SessionDetailViewModel
 
 object Routes {
     const val BLE_SCAN = "ble_scan"
@@ -36,6 +36,7 @@ object Routes {
     const val SESSION_DETAIL = "session_detail/{sessionId}"
 
     fun export(sessionId: String) = "export/$sessionId"
+
     fun sessionDetail(sessionId: String) = "session_detail/$sessionId"
 }
 

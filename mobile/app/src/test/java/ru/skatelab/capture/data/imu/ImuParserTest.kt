@@ -4,11 +4,10 @@ import java.io.File
 import java.io.FileOutputStream
 import kotlin.math.sqrt
 import org.junit.Assert.assertEquals
-import org.junit.After
 import org.junit.Before
+import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TemporaryFolder
-import org.junit.Rule
 import ru.skatelab.capture.proto.Imu.IMUGap
 import ru.skatelab.capture.proto.Imu.IMURecord
 import ru.skatelab.capture.proto.Imu.IMUSample
@@ -30,12 +29,13 @@ class ImuParserTest {
 
     @Test
     fun accMagnitude_sqrtOfSumOfSquares() {
-        val sample = buildSample(
-            timestampNs = 1_000_000_000L,
-            accX = 3f,
-            accY = 4f,
-            accZ = 0f,
-        )
+        val sample =
+            buildSample(
+                timestampNs = 1_000_000_000L,
+                accX = 3f,
+                accY = 4f,
+                accZ = 0f,
+            )
         writeRecords(leftFile, listOf(sample))
         writeRecords(rightFile, listOf(buildSample(timestampNs = 1_000_000_000L)))
 
@@ -46,12 +46,13 @@ class ImuParserTest {
 
     @Test
     fun angVelMagnitude_sqrtOfSumOfSquares() {
-        val sample = buildSample(
-            timestampNs = 1_000_000_000L,
-            gyroX = 1f,
-            gyroY = 2f,
-            gyroZ = 2f,
-        )
+        val sample =
+            buildSample(
+                timestampNs = 1_000_000_000L,
+                gyroX = 1f,
+                gyroY = 2f,
+                gyroZ = 2f,
+            )
         writeRecords(leftFile, listOf(sample))
         writeRecords(rightFile, listOf(buildSample(timestampNs = 1_000_000_000L)))
 
@@ -62,12 +63,13 @@ class ImuParserTest {
 
     @Test
     fun accMagnitude_threeAxisNonTrivial() {
-        val sample = buildSample(
-            timestampNs = 1_000_000_000L,
-            accX = 1f,
-            accY = 2f,
-            accZ = 3f,
-        )
+        val sample =
+            buildSample(
+                timestampNs = 1_000_000_000L,
+                accX = 1f,
+                accY = 2f,
+                accZ = 3f,
+            )
         writeRecords(leftFile, listOf(sample))
         writeRecords(rightFile, listOf(buildSample(timestampNs = 1_000_000_000L)))
 
@@ -92,14 +94,20 @@ class ImuParserTest {
     fun secondSampleAtOneSecond() {
         val t0 = 5_000_000_000L
         val t1 = 6_000_000_000L
-        writeRecords(leftFile, listOf(
-            buildSample(timestampNs = t0),
-            buildSample(timestampNs = t1),
-        ))
-        writeRecords(rightFile, listOf(
-            buildSample(timestampNs = t0),
-            buildSample(timestampNs = t1),
-        ))
+        writeRecords(
+            leftFile,
+            listOf(
+                buildSample(timestampNs = t0),
+                buildSample(timestampNs = t1),
+            ),
+        )
+        writeRecords(
+            rightFile,
+            listOf(
+                buildSample(timestampNs = t0),
+                buildSample(timestampNs = t1),
+            ),
+        )
 
         val data = ImuParser.parse(leftFile, rightFile)
         assertEquals(0f, data.timeSeconds[0], 0.001f)
@@ -157,9 +165,10 @@ class ImuParserTest {
     @Test
     fun proto3DefaultValues_missingFieldsAreZero() {
         // Build a sample with only timestamp set — all float fields default to 0.0 in proto3
-        val protoSample = IMUSample.newBuilder()
-            .setTimestampNs(1_000_000_000L)
-            .build() // acc/gyro/quat all 0.0 by default
+        val protoSample =
+            IMUSample.newBuilder()
+                .setTimestampNs(1_000_000_000L)
+                .build() // acc/gyro/quat all 0.0 by default
         val record = IMURecord.newBuilder().setSample(protoSample).build()
 
         writeRecords(leftFile, listOf(record))
@@ -175,11 +184,12 @@ class ImuParserTest {
     @Test
     fun gapRecordsSkipped_onlySamplesExtracted() {
         val sampleRecord = buildSample(timestampNs = 1_000_000_000L, accX = 3f, accY = 4f)
-        val gap = IMUGap.newBuilder()
-            .setLastSampleNs(900_000_000L)
-            .setFirstSampleNs(950_000_000L)
-            .setReconnectSeq(1)
-            .build()
+        val gap =
+            IMUGap.newBuilder()
+                .setLastSampleNs(900_000_000L)
+                .setFirstSampleNs(950_000_000L)
+                .setReconnectSeq(1)
+                .build()
         val gapRecord = IMURecord.newBuilder().setGap(gap).build()
 
         FileOutputStream(leftFile).use { fos ->
@@ -197,10 +207,11 @@ class ImuParserTest {
 
     @Test
     fun parseFile_returnsCorrectSamples() {
-        val samples = listOf(
-            buildSample(timestampNs = 1_000_000_000L, accX = 1f, gyroX = 10f),
-            buildSample(timestampNs = 2_000_000_000L, accX = 2f, gyroX = 20f),
-        )
+        val samples =
+            listOf(
+                buildSample(timestampNs = 1_000_000_000L, accX = 1f, gyroX = 10f),
+                buildSample(timestampNs = 2_000_000_000L, accX = 2f, gyroX = 20f),
+            )
         writeRecords(leftFile, samples)
 
         val result = ImuParser.parseFile(leftFile)
@@ -216,13 +227,19 @@ class ImuParserTest {
 
     @Test
     fun differentLengthFiles_paddedWithZeros() {
-        writeRecords(leftFile, listOf(
-            buildSample(timestampNs = 1_000_000_000L, accX = 1f),
-            buildSample(timestampNs = 2_000_000_000L, accX = 2f),
-        ))
-        writeRecords(rightFile, listOf(
-            buildSample(timestampNs = 1_000_000_000L, accX = 10f),
-        ))
+        writeRecords(
+            leftFile,
+            listOf(
+                buildSample(timestampNs = 1_000_000_000L, accX = 1f),
+                buildSample(timestampNs = 2_000_000_000L, accX = 2f),
+            ),
+        )
+        writeRecords(
+            rightFile,
+            listOf(
+                buildSample(timestampNs = 1_000_000_000L, accX = 10f),
+            ),
+        )
 
         val data = ImuParser.parse(leftFile, rightFile)
         assertEquals(2, data.timeSeconds.size)
@@ -244,23 +261,27 @@ class ImuParserTest {
         quatY: Float = 0f,
         quatZ: Float = 0f,
     ): IMURecord {
-        val sample = IMUSample.newBuilder()
-            .setTimestampNs(timestampNs)
-            .setAccX(accX)
-            .setAccY(accY)
-            .setAccZ(accZ)
-            .setGyroX(gyroX)
-            .setGyroY(gyroY)
-            .setGyroZ(gyroZ)
-            .setQuatW(quatW)
-            .setQuatX(quatX)
-            .setQuatY(quatY)
-            .setQuatZ(quatZ)
-            .build()
+        val sample =
+            IMUSample.newBuilder()
+                .setTimestampNs(timestampNs)
+                .setAccX(accX)
+                .setAccY(accY)
+                .setAccZ(accZ)
+                .setGyroX(gyroX)
+                .setGyroY(gyroY)
+                .setGyroZ(gyroZ)
+                .setQuatW(quatW)
+                .setQuatX(quatX)
+                .setQuatY(quatY)
+                .setQuatZ(quatZ)
+                .build()
         return IMURecord.newBuilder().setSample(sample).build()
     }
 
-    private fun writeRecords(file: File, records: List<IMURecord>) {
+    private fun writeRecords(
+        file: File,
+        records: List<IMURecord>,
+    ) {
         FileOutputStream(file).use { fos ->
             for (record in records) {
                 record.writeDelimitedTo(fos)

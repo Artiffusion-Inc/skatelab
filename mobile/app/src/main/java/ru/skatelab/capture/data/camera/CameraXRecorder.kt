@@ -1,6 +1,7 @@
 package ru.skatelab.capture.data.camera
 
 import android.content.Context
+import android.media.MediaMetadataRetriever
 import android.os.SystemClock
 import androidx.camera.core.Camera
 import androidx.camera.core.CameraSelector
@@ -8,7 +9,6 @@ import androidx.camera.core.ImageAnalysis
 import androidx.camera.core.Preview
 import androidx.camera.core.SurfaceRequest
 import androidx.camera.lifecycle.ProcessCameraProvider
-import android.media.MediaMetadataRetriever
 import androidx.camera.video.FallbackStrategy
 import androidx.camera.video.FileOutputOptions
 import androidx.camera.video.Quality
@@ -238,7 +238,10 @@ class CameraXRecorder
             } catch (_: Exception) {
                 null
             } finally {
-                try { retriever.release() } catch (_: Exception) {}
+                try {
+                    retriever.release()
+                } catch (_: Exception) {
+                }
             }
         }
     }

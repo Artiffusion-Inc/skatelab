@@ -26,8 +26,9 @@ class SessionListViewModel
 
         fun loadSessions() {
             viewModelScope.launch {
-                _sessions.value = sessionRepository.getSessions()
-                    .sortedByDescending { it.createdAt }
+                _sessions.value =
+                    sessionRepository.getSessions()
+                        .sortedByDescending { it.createdAt }
             }
         }
 
