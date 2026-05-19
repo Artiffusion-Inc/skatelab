@@ -102,6 +102,15 @@ dependencies {
     implementation("androidx.camera:camera-video:$cameraxVersion")
     implementation("androidx.camera:camera-compose:$cameraxVersion")
 
+    // Media3 ExoPlayer
+    val media3Version = "1.6.0"
+    implementation("androidx.media3:media3-exoplayer:$media3Version")
+    implementation("androidx.media3:media3-ui:$media3Version")
+
+    // Vico charts
+    implementation("com.patrykandpatrick.vico:compose:2.1.0")
+    implementation("com.patrykandpatrick.vico:core:2.1.0")
+
     // Protobuf
     implementation("com.google.protobuf:protobuf-javalite:4.30.2")
 

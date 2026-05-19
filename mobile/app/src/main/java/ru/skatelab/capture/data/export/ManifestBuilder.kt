@@ -74,8 +74,8 @@ class ManifestBuilder
         class VideoBuilder : ManifestWriter.VideoBlock {
             private var filename: String = ""
             private var fps: Int = 60
-            private var width: Int = 1920
-            private var height: Int = 1080
+            private var width: Int = 0
+            private var height: Int = 0
             private var actualFpsVerified: Boolean = false
             private var frameTimestampsFile: String = ""
             private var timestampSource: String = "UNKNOWN"

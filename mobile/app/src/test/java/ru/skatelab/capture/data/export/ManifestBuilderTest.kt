@@ -113,4 +113,46 @@ class ManifestBuilderTest {
         assertEquals(1000L, root.getLong("t0_ns"))
         assertEquals(100L, root.getLong("duration_ms"))
     }
+
+    @Test
+    fun `video block uses actual width and height`() {
+        val json =
+            ManifestBuilder()
+                .version("2.0")
+                .t0Ns(1000L)
+                .durationMs(5000L)
+                .video {
+                    filename("video.mp4")
+                    fps(30)
+                    width(1280)
+                    height(720)
+                }
+                .createdAt("2026-01-01T00:00:00Z")
+                .build()
+
+        val root = JSONObject(json)
+        val video = root.getJSONObject("video")
+        assertEquals(1280, video.getInt("width"))
+        assertEquals(720, video.getInt("height"))
+    }
+
+    @Test
+    fun `video block defaults to 0x0 when no width height set`() {
+        val json =
+            ManifestBuilder()
+                .version("2.0")
+                .t0Ns(0L)
+                .durationMs(0L)
+                .video {
+                    filename("video.mp4")
+                    fps(60)
+                }
+                .createdAt("")
+                .build()
+
+        val root = JSONObject(json)
+        val video = root.getJSONObject("video")
+        assertEquals(0, video.getInt("width"))
+        assertEquals(0, video.getInt("height"))
+    }
 }

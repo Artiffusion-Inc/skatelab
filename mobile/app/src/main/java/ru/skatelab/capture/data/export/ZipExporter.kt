@@ -27,8 +27,9 @@ class ZipExporter
         companion object {
             private const val BUFFER_SIZE = 16_384
 
-            // Already-compressed formats — use STORED to avoid wasted CPU
-            private val STORED_EXTENSIONS = setOf("mp4", "binpb")
+            // STORED requires size/crc pre-computation. Safe for atomically-written binpb,
+            // but MP4 is excluded because it may still be finalizing when export runs.
+            private val STORED_EXTENSIONS = setOf("binpb")
         }
 
         /**

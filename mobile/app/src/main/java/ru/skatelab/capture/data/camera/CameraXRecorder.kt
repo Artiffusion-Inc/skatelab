@@ -8,7 +8,11 @@ import androidx.camera.core.ImageAnalysis
 import androidx.camera.core.Preview
 import androidx.camera.core.SurfaceRequest
 import androidx.camera.lifecycle.ProcessCameraProvider
+import android.media.MediaMetadataRetriever
+import androidx.camera.video.FallbackStrategy
 import androidx.camera.video.FileOutputOptions
+import androidx.camera.video.Quality
+import androidx.camera.video.QualitySelector
 import androidx.camera.video.Recorder
 import androidx.camera.video.Recording
 import androidx.camera.video.VideoCapture
@@ -26,7 +30,10 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.guava.await
 import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.withTimeoutOrNull
 import ru.skatelab.capture.domain.repository.CameraRepository
+
+internal data class VideoMetadata(val width: Int, val height: Int, val bitrate: Long)
 
 @Singleton
 class CameraXRecorder
@@ -43,6 +50,12 @@ class CameraXRecorder
         private val _surfaceRequest = MutableStateFlow<SurfaceRequest?>(null)
         val surfaceRequest: StateFlow<SurfaceRequest?> = _surfaceRequest.asStateFlow()
 
+        private val _videoMetadata = MutableStateFlow<VideoMetadata?>(null)
+        internal val videoMetadata: StateFlow<VideoMetadata?> = _videoMetadata.asStateFlow()
+
+        private val _recordingError = MutableStateFlow<String?>(null)
+        val recordingError: StateFlow<String?> = _recordingError.asStateFlow()
+
         private var cameraProvider: ProcessCameraProvider? = null
         private var camera: Camera? = null
         private var activeRecording: Recording? = null
@@ -53,6 +66,7 @@ class CameraXRecorder
         private var recorder: Recorder? = null
         private var videoCapture: VideoCapture<Recorder>? = null
         private var preview: Preview? = null
+        private var finalizeDeferred: CompletableDeferred<VideoMetadata?>? = null
 
         suspend fun bindToLifecycle(lifecycleOwner: LifecycleOwner): Result<Unit> =
             runCatching {
@@ -74,6 +88,12 @@ class CameraXRecorder
                 val r =
                     Recorder.Builder()
                         .setAspectRatio(androidx.camera.core.AspectRatio.RATIO_16_9)
+                        .setQualitySelector(
+                            QualitySelector.fromOrderedList(
+                                listOf(Quality.HD, Quality.SD),
+                                FallbackStrategy.lowerQualityOrHigherThan(Quality.SD),
+                            ),
+                        )
                         .build()
                 recorder = r
                 val vc = VideoCapture.withOutput(r)
@@ -130,6 +150,7 @@ class CameraXRecorder
                 val pendingRecording = capture.output.prepareRecording(context, outputOptions)
 
                 val startDeferred = CompletableDeferred<Unit>()
+                finalizeDeferred = CompletableDeferred()
 
                 activeRecording =
                     pendingRecording.start(cameraExecutor) { event ->
@@ -141,6 +162,12 @@ class CameraXRecorder
                             is VideoRecordEvent.Finalize -> {
                                 _isRecording.value = false
                                 timestampTracker?.close()
+                                if (event.hasError()) {
+                                    _recordingError.value = "Video recording error: ${event.error}"
+                                }
+                                val meta = extractVideoMetadata(videoFile)
+                                _videoMetadata.value = meta
+                                finalizeDeferred?.complete(meta)
                             }
                             else -> {}
                         }
@@ -168,6 +195,9 @@ class CameraXRecorder
                 rec.stop()
                 _isRecording.value = false
 
+                val meta = withTimeoutOrNull(3_000L) { finalizeDeferred?.await() }
+                finalizeDeferred = null
+
                 val actualFps = timestampTracker?.computeFps() ?: 0
                 val frameCount = timestampTracker?.getFrameCount() ?: 0
                 val firstFrameNs = timestampTracker?.getFirstFrameNs() ?: 0L
@@ -176,6 +206,8 @@ class CameraXRecorder
                     actualFps = actualFps,
                     fpsVerified = frameCount > 10 && actualFps > 0,
                     firstFrameNs = firstFrameNs,
+                    actualWidth = meta?.width ?: 0,
+                    actualHeight = meta?.height ?: 0,
                 )
             }
 
@@ -192,5 +224,21 @@ class CameraXRecorder
             _surfaceRequest.value = null
             _isPreviewReady.value = false
             _isRecording.value = false
+        }
+
+        private fun extractVideoMetadata(videoFile: File): VideoMetadata? {
+            val retriever = MediaMetadataRetriever()
+            return try {
+                retriever.setDataSource(videoFile.absolutePath)
+                VideoMetadata(
+                    width = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_WIDTH)?.toIntOrNull() ?: 0,
+                    height = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_HEIGHT)?.toIntOrNull() ?: 0,
+                    bitrate = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_BITRATE)?.toLongOrNull() ?: 0L,
+                )
+            } catch (_: Exception) {
+                null
+            } finally {
+                try { retriever.release() } catch (_: Exception) {}
+            }
         }
     }

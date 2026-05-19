@@ -39,5 +39,7 @@ interface CameraRepository {
         val actualFps: Int,
         val fpsVerified: Boolean,
         val firstFrameNs: Long,
+        val actualWidth: Int = 0,
+        val actualHeight: Int = 0,
     )
 }

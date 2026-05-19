@@ -21,6 +21,8 @@ import ru.skatelab.capture.presentation.calibration.CalibrationViewModel
 import ru.skatelab.capture.presentation.export.ExportScreen
 import ru.skatelab.capture.presentation.export.ExportViewModel
 import ru.skatelab.capture.presentation.recording.RecordingScreen
+import ru.skatelab.capture.presentation.sessiondetail.SessionDetailScreen
+import ru.skatelab.capture.presentation.sessiondetail.SessionDetailViewModel
 import ru.skatelab.capture.presentation.recording.RecordingViewModel
 import ru.skatelab.capture.presentation.session.SessionListScreen
 import ru.skatelab.capture.presentation.session.SessionListViewModel
@@ -31,8 +33,10 @@ object Routes {
     const val RECORDING = "recording"
     const val EXPORT = "export/{sessionId}"
     const val SESSIONS = "sessions"
+    const val SESSION_DETAIL = "session_detail/{sessionId}"
 
     fun export(sessionId: String) = "export/$sessionId"
+    fun sessionDetail(sessionId: String) = "session_detail/$sessionId"
 }
 
 @InstallIn(SingletonComponent::class)
@@ -47,7 +51,7 @@ fun AppNavigation() {
 
     NavHost(
         navController = navController,
-        startDestination = Routes.BLE_SCAN,
+        startDestination = Routes.SESSIONS,
     ) {
         composable(Routes.BLE_SCAN) {
             val viewModel: BleScanViewModel = hiltViewModel()
@@ -86,7 +90,7 @@ fun AppNavigation() {
                 outputDir = outputDir,
                 calibration = sessionState.calibration,
                 onRecordingComplete = { sessionId ->
-                    navController.navigate(Routes.export(sessionId)) {
+                    navController.navigate(Routes.sessionDetail(sessionId)) {
                         popUpTo(Routes.SESSIONS) { inclusive = false }
                     }
                 },
@@ -110,11 +114,28 @@ fun AppNavigation() {
             )
         }
 
+        composable(
+            route = Routes.SESSION_DETAIL,
+            arguments = listOf(navArgument("sessionId") { type = NavType.StringType }),
+        ) { backStackEntry ->
+            val sessionId = backStackEntry.arguments?.getString("sessionId") ?: ""
+            val viewModel: SessionDetailViewModel = hiltViewModel()
+            SessionDetailScreen(
+                viewModel = viewModel,
+                sessionId = sessionId,
+                onBack = { navController.popBackStack() },
+                onExport = { navController.navigate(Routes.export(it)) },
+            )
+        }
+
         composable(Routes.SESSIONS) {
             val viewModel: SessionListViewModel = hiltViewModel()
             SessionListScreen(
                 viewModel = viewModel,
                 onSessionClick = { sessionId ->
+                    navController.navigate(Routes.sessionDetail(sessionId))
+                },
+                onExportSession = { sessionId ->
                     navController.navigate(Routes.export(sessionId))
                 },
                 onNewRecording = {

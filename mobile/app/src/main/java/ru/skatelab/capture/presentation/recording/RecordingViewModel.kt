@@ -82,6 +82,8 @@ class RecordingViewModel
         private var actualVideoFps: Int = 0
         private var fpsVerified: Boolean = false
         private var firstFrameNs: Long = 0L
+        private var actualVideoWidth: Int = 0
+        private var actualVideoHeight: Int = 0
 
         private var preparedVideoFile: File? = null
         private var preparedFramesFile: File? = null
@@ -284,9 +286,11 @@ class RecordingViewModel
                         actualVideoFps = stopResult.actualFps
                         fpsVerified = stopResult.fpsVerified
                         firstFrameNs = stopResult.firstFrameNs
+                        actualVideoWidth = stopResult.actualWidth
+                        actualVideoHeight = stopResult.actualHeight
                         appLogger.i(
                             TAG,
-                            "Stopped: actualFps=${stopResult.actualFps} verified=${stopResult.fpsVerified} firstFrameNs=${stopResult.firstFrameNs}",
+                            "Stopped: actualFps=${stopResult.actualFps} verified=${stopResult.fpsVerified} firstFrameNs=${stopResult.firstFrameNs} resolution=${stopResult.actualWidth}x${stopResult.actualHeight}",
                         )
                     }
                     .onFailure {
@@ -334,6 +338,8 @@ class RecordingViewModel
                         actualFps = actualVideoFps,
                         fpsVerified = fpsVerified,
                         firstFrameNs = if (startInfo.t0Ns > 0 && firstFrameNs > 0) firstFrameNs - startInfo.t0Ns else 0L,
+                        videoWidth = actualVideoWidth,
+                        videoHeight = actualVideoHeight,
                         timestampSource = startInfo.timestampSource,
                         videoStartDelayMs = startInfo.videoStartDelayMs,
                         imuStartDelayMs = startInfo.imuStartDelayMs,

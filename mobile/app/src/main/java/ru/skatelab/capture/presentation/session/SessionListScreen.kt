@@ -14,6 +14,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.IosShare
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.FloatingActionButton
@@ -43,6 +44,7 @@ import ru.skatelab.capture.domain.model.CaptureSession
 fun SessionListScreen(
     viewModel: SessionListViewModel,
     onSessionClick: (String) -> Unit,
+    onExportSession: (String) -> Unit = {},
     onNewRecording: () -> Unit,
 ) {
     val sessions by viewModel.sessions.collectAsState()
@@ -104,6 +106,7 @@ fun SessionListScreen(
                         SessionRow(
                             session = session,
                             onClick = { onSessionClick(session.id) },
+                            onExport = { onExportSession(session.id) },
                             onDelete = { sessionToDelete = session },
                         )
                     }
@@ -117,6 +120,7 @@ fun SessionListScreen(
 private fun SessionRow(
     session: CaptureSession,
     onClick: () -> Unit,
+    onExport: () -> Unit = {},
     onDelete: () -> Unit,
 ) {
     Card(
@@ -157,6 +161,14 @@ private fun SessionRow(
                         MaterialTheme.colorScheme.error
                     },
             )
+            IconButton(onClick = onExport, modifier = Modifier.size(32.dp)) {
+                Icon(
+                    Icons.Default.IosShare,
+                    contentDescription = stringResource(R.string.session_export),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(18.dp),
+                )
+            }
             IconButton(onClick = onDelete, modifier = Modifier.size(32.dp)) {
                 Icon(
                     Icons.Default.Delete,

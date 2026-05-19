@@ -1,11 +1,13 @@
 package ru.skatelab.capture.data.export
 
 import java.io.File
+import java.util.zip.ZipEntry
 import java.util.zip.ZipFile
 import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -84,6 +86,31 @@ class ZipExporterTest {
             assertTrue("ZIP should contain frames file", entryNames.contains("frames.csv"))
             assertTrue("ZIP should contain manifest file", entryNames.contains("manifest.json"))
             assertEquals("ZIP should contain exactly 5 entries", 5, entryNames.size)
+        }
+
+    @Test
+    fun mp4FilesUseDeflatedNotStored() =
+        runTest {
+            val session = createSessionWithFiles()
+            val zipFile = File(tempDir, "export_deflated.zip")
+
+            exporter.export(session, zipFile)
+
+            val zip = ZipFile(zipFile)
+            val mp4Entry = zip.getEntry("video.mp4")
+            val binpbEntry = zip.getEntry("imu_left.binpb")
+
+            assertNotEquals(
+                "MP4 must NOT be STORED",
+                ZipEntry.STORED,
+                mp4Entry.method,
+            )
+            assertEquals(
+                "binpb must be STORED",
+                ZipEntry.STORED,
+                binpbEntry.method,
+            )
+            zip.close()
         }
 
     @Test
