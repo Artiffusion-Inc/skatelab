@@ -10,14 +10,18 @@ import ru.skatelab.capture.domain.model.ImuSample
 import ru.skatelab.capture.proto.Imu.IMURecord
 
 object ImuParser {
-    fun parse(leftFile: File, rightFile: File): ImuChartData {
+    fun parse(
+        leftFile: File,
+        rightFile: File,
+    ): ImuChartData {
         val leftSamples = parseFile(leftFile)
         val rightSamples = parseFile(rightFile)
 
-        val t0Ns = minOf(
-            leftSamples.firstOrNull()?.timestampNs ?: Long.MAX_VALUE,
-            rightSamples.firstOrNull()?.timestampNs ?: Long.MAX_VALUE,
-        )
+        val t0Ns =
+            minOf(
+                leftSamples.firstOrNull()?.timestampNs ?: Long.MAX_VALUE,
+                rightSamples.firstOrNull()?.timestampNs ?: Long.MAX_VALUE,
+            )
         if (t0Ns == Long.MAX_VALUE) {
             return ImuChartData(
                 timeSeconds = FloatArray(0),
@@ -102,8 +106,11 @@ object ImuParser {
         return samples
     }
 
-    private fun magnitude(x: Float, y: Float, z: Float): Float =
-        sqrt(x * x + y * y + z * z)
+    private fun magnitude(
+        x: Float,
+        y: Float,
+        z: Float,
+    ): Float = sqrt(x * x + y * y + z * z)
 
     private fun Float.roundTo4(): Float {
         val factor = 10_000f
@@ -118,7 +125,12 @@ object ImuParser {
         private var accumulated: Float = 0f
         private var first = true
 
-        fun step(w: Float, x: Float, y: Float, z: Float): Float {
+        fun step(
+            w: Float,
+            x: Float,
+            y: Float,
+            z: Float,
+        ): Float {
             if (first) {
                 prevW = w
                 prevX = x
