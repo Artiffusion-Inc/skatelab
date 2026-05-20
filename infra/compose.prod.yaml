@@ -1,75 +1,44 @@
-# ============================================
-# Production Compose — self-contained stack
-# PostgreSQL + Valkey + Backend + Frontend + Caddy + Prometheus
-# ============================================
+# SkateLab Production — separate compose stack on dedic
+# Deployed to /opt/skatelab/compose.yaml
+# Shares infra postgres + valkey (same Docker network)
+# Infra Caddy (separate stack) proxies skatelab.ru → these services
+
+name: skatelab
 
 services:
-  # --- Database ---
-  postgres:
-    image: docker.io/library/postgres:16-alpine
-    restart: unless-stopped
-    environment:
-      POSTGRES_DB: ${POSTGRES_DB}
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-    volumes:
-      - postgres-data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-skatelab}"]
-      interval: 10s
-      timeout: 3s
-      retries: 5
-      start_period: 10s
-    networks:
-      - app
-
-  # --- Task Queue ---
-  valkey:
-    image: docker.io/valkey/valkey:8-alpine
-    restart: unless-stopped
-    volumes:
-      - valkey-data:/data
-    healthcheck:
-      test: ["CMD", "valkey-cli", "ping"]
-      interval: 10s
-      timeout: 3s
-      retries: 5
-      start_period: 10s
-    networks:
-      - app
-
-  # --- Backend API ---
   backend:
-    image: ghcr.io/${GHCR_OWNER:-Artiffusion-Inc}/skatelab-backend:${TAG:-latest}
+    image: ghcr.io/${GHCR_OWNER:-artiffusion-inc}/skatelab-backend:${TAG:-latest}
     restart: unless-stopped
     environment:
-      DATABASE_URL: ${DATABASE_URL}
-      VALKEY_URL: ${VALKEY_URL:-redis://valkey:6379/0}
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-skatelab}:${POSTGRES_PASSWORD}@infra-postgres-1/${POSTGRES_DB:-skatelab}
+      VALKEY_URL: redis://infra-valkey-1:6379/3
       R2_ENDPOINT_URL: ${R2_ENDPOINT_URL}
       R2_ACCESS_KEY_ID: ${R2_ACCESS_KEY_ID}
       R2_SECRET_ACCESS_KEY: ${R2_SECRET_ACCESS_KEY}
       R2_BUCKET: ${R2_BUCKET}
       JWT_SECRET: ${JWT_SECRET}
       VASTAI_API_KEY: ${VASTAI_API_KEY}
+      RESEND_API_KEY: ${RESEND_API_KEY}
       LOG_LEVEL: ${LOG_LEVEL:-info}
     healthcheck:
-      test: ["CMD-SHELL", "bash -c 'python -c \"import urllib.request; urllib.request.urlopen(\\\"http://127.0.0.1:8000/api/v1/health\\\", timeout=2)\"'"]
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/v1/health', timeout=2)\""]
       interval: 30s
       timeout: 3s
       retries: 3
       start_period: 15s
-    depends_on:
-      postgres:
-        condition: service_healthy
-      valkey:
-        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          memory: 2g
     networks:
-      - app
+      - infra
 
-  # --- Frontend ---
   frontend:
-    image: ghcr.io/${GHCR_OWNER:-Artiffusion-Inc}/skating-frontend:${TAG:-latest}
+    image: ghcr.io/${GHCR_OWNER:-artiffusion-inc}/skatelab-frontend:${TAG:-latest}
     restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
     environment:
       NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-/api}
     healthcheck:
@@ -78,35 +47,13 @@ services:
       timeout: 3s
       retries: 3
       start_period: 10s
-    depends_on:
-      backend:
-        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          memory: 512m
     networks:
-      - app
+      - infra
 
-  # --- Reverse Proxy ---
-  caddy:
-    image: ghcr.io/caddybuilds/caddy-cloudflare:latest
-    restart: unless-stopped
-    ports:
-      - "80:80"
-      - "443:443"
-    environment:
-      - CLOUDFLARE_API_TOKEN=${CLOUDFLARE_API_TOKEN}
-      - DOMAIN=${DOMAIN}
-    volumes:
-      - ./Caddyfile:/etc/caddy/Caddyfile:ro
-      - caddy-data:/data
-      - caddy-config:/config
-    depends_on:
-      backend:
-        condition: service_healthy
-      frontend:
-        condition: service_healthy
-    networks:
-      - app
-
-  # --- Prometheus ---
   prometheus:
     image: docker.io/prom/prometheus:v3.3.0
     restart: unless-stopped
@@ -126,16 +73,17 @@ services:
       timeout: 3s
       retries: 5
       start_period: 10s
+    deploy:
+      resources:
+        limits:
+          memory: 512m
     networks:
-      - app
+      - infra
 
 volumes:
-  postgres-data:
-  valkey-data:
-  caddy-data:
-  caddy-config:
   prometheus-data:
 
 networks:
-  app:
-    driver: bridge
+  infra:
+    name: infra_app_network
+    external: true

@@ -138,56 +138,74 @@ jobs:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
-          source: "infra/deploy.yaml,infra/Caddyfile,infra/prometheus.yml,infra/prometheus/rules"
+          source: "infra/compose.prod.yaml,infra/Caddyfile,infra/prometheus.yml,infra/prometheus/rules"
           target: "/opt/skatelab/"
           strip_components: 1
 
-      - name: Login to GHCR
-        id: login
-        uses: appleboy/ssh-action@v1.2.5
-        with:
-          host: ${{ secrets.VPS_HOST }}
-          username: ${{ secrets.VPS_USER }}
-          key: ${{ secrets.VPS_SSH_KEY }}
-          command_timeout: 1m
-          script: |
-            echo "${{ secrets.GHCR_PAT }}" | podman login ghcr.io -u ${{ github.actor }} --password-stdin
-
-      - name: Deploy pod
+      - name: Deploy skatelab stack
         id: deploy
         uses: appleboy/ssh-action@v1.2.5
+        env:
+          GHCR_OWNER: ${{ steps.ghcr.outputs.owner }}
+          TAG: ${{ github.sha }}
         with:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
           command_timeout: 3m
           script: |
+            set -e
+
+            # Ensure external network exists
+            docker network create infra_app_network 2>/dev/null || true
+
+            # Copy compose.prod.yaml → compose.yaml (canonical name on server)
+            cp /opt/skatelab/compose.prod.yaml /opt/skatelab/compose.yaml
+
+            # Write .env for skatelab stack
+            cat > /opt/skatelab/.env <<ENVEOF
+            GHCR_OWNER=${GHCR_OWNER}
+            TAG=${TAG}
+            POSTGRES_PASSWORD=${{ secrets.SKATELAB_DB_PASSWORD }}
+            R2_ENDPOINT_URL=${{ secrets.CF_R2_ENDPOINT_URL }}
+            R2_ACCESS_KEY_ID=${{ secrets.CF_R2_ACCESS_KEY_ID }}
+            R2_SECRET_ACCESS_KEY=${{ secrets.CF_R2_SECRET_ACCESS_KEY }}
+            R2_BUCKET=${{ secrets.CF_R2_BUCKET }}
+            JWT_SECRET=${{ secrets.JWT_SECRET }}
+            VASTAI_API_KEY=${{ secrets.VASTAI_API_KEY }}
+            RESEND_API_KEY=${{ secrets.RESEND_API_KEY }}
+            ENVEOF
+
+            # Pull new images and recreate changed services
             cd /opt/skatelab
-            export POSTGRES_PASSWORD="${{ secrets.POSTGRES_PASSWORD }}"
-            export DATABASE_URL="postgresql+asyncpg://skatelab:${{ secrets.POSTGRES_PASSWORD }}@127.0.0.1:5432/skatelab"
-            export R2_ENDPOINT_URL="${{ secrets.CF_R2_ENDPOINT_URL }}"
-            export R2_ACCESS_KEY_ID="${{ secrets.CF_R2_ACCESS_KEY_ID }}"
-            export R2_SECRET_ACCESS_KEY="${{ secrets.CF_R2_SECRET_ACCESS_KEY }}"
-            export R2_BUCKET="${{ secrets.CF_R2_BUCKET }}"
-            export JWT_SECRET="${{ secrets.JWT_SECRET }}"
-            export VASTAI_API_KEY="${{ secrets.VASTAI_API_KEY }}"
-            export RESEND_API_KEY="${{ secrets.RESEND_API_KEY }}"
-            export CLOUDFLARE_API_TOKEN="${{ secrets.CLOUDFLARE_API_TOKEN }}"
-            export TAG="${{ github.sha }}"
-            export GHCR_OWNER="${{ steps.ghcr.outputs.owner }}"
+            docker compose pull backend frontend
+            docker compose up -d --remove-orphans
 
-            envsubst < deploy.yaml > deploy-rendered.yaml
-            sed -i "s|ghcr.io/artiffusion-inc/skatelab-backend:latest|ghcr.io/${GHCR_OWNER}/skatelab-backend:${TAG}|g" deploy-rendered.yaml
-            sed -i "s|ghcr.io/artiffusion-inc/skatelab-frontend:latest|ghcr.io/${GHCR_OWNER}/skatelab-frontend:${TAG}|g" deploy-rendered.yaml
+      - name: Add Caddy route for skatelab.ru
+        id: caddy
+        uses: appleboy/ssh-action@v1.2.5
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          command_timeout: 30s
+          script: |
+            # Ensure skatelab.ru route exists in infra Caddyfile
+            CADDYFILE=/opt/infra/services/caddy/Caddyfile
+            if ! grep -q "skatelab.ru" "$CADDYFILE"; then
+              cat >> "$CADDYFILE" <<'CADDYEOF'
 
-            # Clean up old compose containers and pods before kube play
-            for pod_name in skatelab skating-app; do
-              podman stop $(podman ps -aq --filter name=$pod_name) 2>/dev/null || true
-              podman rm -f $(podman ps -aq --filter name=$pod_name) 2>/dev/null || true
-              podman pod rm -f $(podman pod ps -q --filter name=$pod_name) 2>/dev/null || true
-            done
-
-            podman kube play --replace deploy-rendered.yaml
+            skatelab.ru {
+              handle /api/* {
+                reverse_proxy backend:8000
+              }
+              handle {
+                reverse_proxy frontend:3000
+              }
+            }
+            CADDYEOF
+              docker exec infra-caddy-1 caddy reload --config /etc/caddy/Caddyfile
+            fi
 
       - name: Run database migrations
         id: migrate
@@ -199,12 +217,7 @@ jobs:
           command_timeout: 1m
           script: |
             sleep 10
-            # Ensure skatelab role and database exist (idempotent)
-            podman exec skatelab-postgres psql -U skating -d skating -c \
-              "DO $$ BEGIN IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'skatelab') THEN CREATE ROLE skatelab WITH LOGIN PASSWORD '${{ secrets.POSTGRES_PASSWORD }}' SUPERUSER CREATEDB; END IF; END $$;" 2>/dev/null || true
-            podman exec skatelab-postgres psql -U skatelab -d postgres -c \
-              "SELECT 'CREATE DATABASE skatelab' WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = 'skatelab')\\gexec" 2>/dev/null || true
-            podman exec skatelab-backend alembic upgrade head
+            docker exec skatelab-backend-1 alembic upgrade head
 
       - name: Health check
         id: health
@@ -217,13 +230,10 @@ jobs:
           script: |
             timeout 120 bash -c '
               while true; do
-                status=$(podman pod ps --format "{{.Name}}\t{{.Status}}" | grep skatelab | awk "{print \$2}")
-                if [ "$status" = "Running" ]; then
-                  if podman exec skatelab-backend \
-                    bash -c "python -c \"import urllib.request; urllib.request.urlopen(\\\"http://127.0.0.1:8000/api/v1/health\\\", timeout=2)\"" 2>/dev/null; then
-                    echo "All services healthy"
-                    exit 0
-                  fi
+                if docker exec skatelab-backend-1 \
+                  python -c "import urllib.request; urllib.request.urlopen(\"http://127.0.0.1:8000/api/v1/health\", timeout=2)" 2>/dev/null; then
+                  echo "Backend healthy"
+                  exit 0
                 fi
                 sleep 10
               done
@@ -239,7 +249,7 @@ jobs:
           key: ${{ secrets.VPS_SSH_KEY }}
           command_timeout: 1m
           script: |
-            podman image prune -f --filter "until=24h" > /dev/null 2>&1
+            docker image prune -f --filter "until=24h" > /dev/null 2>&1
 
       - name: Deploy summary
         if: always()
@@ -250,8 +260,8 @@ jobs:
           | Step | Status |
           |------|--------|
           | Sync files | \`${{ steps.sync.outcome }}\` |
-          | Login GHCR | \`${{ steps.login.outcome }}\` |
-          | Kube play replace | \`${{ steps.deploy.outcome }}\` |
+          | Docker compose up | \`${{ steps.deploy.outcome }}\` |
+          | Caddy route | \`${{ steps.caddy.outcome }}\` |
           | Migrations | \`${{ steps.migrate.outcome }}\` |
           | Health check | \`${{ steps.health.outcome }}\` |
           | Cleanup | \`${{ steps.cleanup.outcome }}\` |
