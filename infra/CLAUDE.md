@@ -3,9 +3,13 @@
 ## Architecture
 
 ```
-Caddy (:80)
-  ├── /api/* → FastAPI (:8000)
-  └── /* → Next.js standalone (:3000)
+Dedic (176.9.0.156) — three Docker Compose stacks:
+  /opt/infra/compose.yaml     — infra services + Caddy (owns :80/:443)
+  /opt/skatelab/compose.yaml  — SkateLab prod (backend, frontend, prometheus)
+  /home/dev/skatelab/docker/  — dev (postgres, valkey, headscale)
+
+Infra Caddy proxies skatelab.ru → skatelab backend/frontend via shared network.
+SkateLab shares infra postgres + valkey (separate DBs, valkey DB index 3).
 ```
 
 ## Files
@@ -13,8 +17,9 @@ Caddy (:80)
 | File | Purpose |
 |------|---------|
 | `Containerfile` | Multi-stage build: Python 3.11 + uv + bun, builds frontend, runs uvicorn |
-| `Caddyfile` | Reverse proxy: API routing, static files, WebSocket for HMR |
+| `Caddyfile` | Reverse proxy: skatelab.ru API → backend:8000, /* → frontend:3000 |
 | `compose.yaml` | Local dev services: Valkey (task queue) + PostgreSQL (database) |
+| `compose.prod.yaml` | Production stack: backend, frontend, prometheus. Shares infra DBs. |
 | `.containerignore` | Docker build exclusion rules |
 
 ## Local Development Services
@@ -28,6 +33,12 @@ podman compose down     # Stop services
 **PostgreSQL**: `localhost:5432` — SQLAlchemy async (db: `src`, user: `skatelab`)
 
 Defaults in `compose.yaml` use env vars with `:-` fallbacks (`VALKEY_HOST_PORT`, `POSTGRES_DB`, etc.).
+
+## Production Deploy
+
+CI/CD (`deploy.yml`): build → push GHCR → SCP compose.prod.yaml → `docker compose up -d`.
+
+SkateLab prod uses infra postgres (`infra-postgres-1`) and infra valkey (`infra-valkey-1:6379/3`) via shared `infra_app_network`.
 
 ## Container Build
 

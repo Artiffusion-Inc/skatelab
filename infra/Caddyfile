@@ -1,4 +1,4 @@
-{$DOMAIN} {
+skatelab.ru {
 	tls {
 		dns cloudflare {env.CLOUDFLARE_API_TOKEN} {
 			propagation_timeout -1
