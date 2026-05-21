@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import contextlib
+import logging
 from contextlib import asynccontextmanager
 from typing import TYPE_CHECKING
 from urllib.parse import urlparse
@@ -20,6 +22,8 @@ if TYPE_CHECKING:
 
     from litestar import Litestar
 
+logger = logging.getLogger(__name__)
+
 
 def _parse_redis_url(url: str) -> dict:
     parsed = urlparse(url)
@@ -36,16 +40,27 @@ async def app_lifespan(app: Litestar) -> AsyncGenerator[None, None]:
     """Initialize and tear down shared resources."""
     settings = get_settings()
 
-    # Valkey pool (used by task_manager module)
-    await init_valkey_pool()
+    # 1. Valkey pool — non-fatal: app starts in degraded mode if unavailable
+    try:
+        await init_valkey_pool(max_connections=20)
+    except (ConnectionError, OSError) as e:
+        logger.warning("Valkey pool init failed — task tracking disabled: %s", e)
 
-    # Response cache store via Litestar StoreRegistry
+    # 2. R2 async client — eager init to fail fast on bad credentials
+    from app.storage import close_r2_clients, get_r2_async_client
+
+    try:
+        await get_r2_async_client()
+    except Exception as e:
+        logger.warning("R2 client init failed: %s", e)
+
+    # 3. Response cache store (separate pool, decode_responses=False)
     url = settings.valkey.build_url()
     redis_client = aioredis.Redis.from_url(url, decode_responses=False)
     root_store = RedisStore(redis=redis_client)
     app.stores = StoreRegistry(default_factory=root_store.with_namespace)
 
-    # arq pool for background job enqueue
+    # 4. arq pool
     arq_cfg = _parse_redis_url(url)
     app.state.arq_pool = await create_pool(
         RedisSettings(
@@ -59,5 +74,12 @@ async def app_lifespan(app: Litestar) -> AsyncGenerator[None, None]:
     try:
         yield
     finally:
-        await app.state.arq_pool.close()
-        await close_valkey_pool()
+        # Close in reverse order; use suppress to avoid cascade failures
+        with contextlib.suppress(Exception):
+            await app.state.arq_pool.close()
+        with contextlib.suppress(Exception):
+            await close_valkey_pool()
+        with contextlib.suppress(Exception):
+            await close_r2_clients()
+        with contextlib.suppress(Exception):
+            await redis_client.aclose()

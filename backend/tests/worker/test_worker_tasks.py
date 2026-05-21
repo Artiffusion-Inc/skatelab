@@ -58,6 +58,16 @@ def mock_valkey():
     return AsyncMock()
 
 
+@pytest.fixture(autouse=True)
+def _inject_test_pool(mock_valkey):
+    """Inject mock_valkey via _set_test_pool so all get_valkey() calls return it."""
+    from app.task_manager import _set_test_pool
+
+    _set_test_pool(mock_valkey)
+    yield
+    _set_test_pool(None)
+
+
 # ---------------------------------------------------------------------------
 # process_video_task
 # ---------------------------------------------------------------------------
@@ -72,12 +82,11 @@ class TestProcessVideoTask:
         from app.worker import process_video_task
 
         with (
-            patch("app.worker.get_valkey_client", return_value=mock_valkey),
             patch(
                 "app.vastai.client.process_video_remote_async", new_callable=AsyncMock
             ) as mock_remote,
             # async_session is imported inside process_video_task body
-            patch("app.database.async_session", create=True) as mock_async_session,
+            patch("app.database.async_session_factory", create=True) as mock_async_session,
         ):
             mock_db = AsyncMock()
             mock_async_session.return_value = _make_async_session_cm(mock_db)
@@ -102,13 +111,12 @@ class TestProcessVideoTask:
         from app.worker import process_video_task
 
         with (
-            patch("app.worker.get_valkey_client", return_value=mock_valkey),
             patch("app.worker.is_cancelled", return_value=True) as mock_cancelled,
             patch("app.worker.mark_cancelled", new_callable=AsyncMock) as mock_mark,
             patch(
                 "app.vastai.client.process_video_remote_async", new_callable=AsyncMock
             ) as mock_remote,
-            patch("app.database.async_session", create=True),
+            patch("app.database.async_session_factory", create=True),
         ):
             result = await process_video_task(
                 ctx={},
@@ -128,13 +136,12 @@ class TestProcessVideoTask:
         from app.worker import process_video_task
 
         with (
-            patch("app.worker.get_valkey_client", return_value=mock_valkey),
             patch("app.worker.is_cancelled", new_callable=AsyncMock) as mock_cancelled,
             patch("app.worker.mark_cancelled", new_callable=AsyncMock) as mock_mark,
             patch(
                 "app.vastai.client.process_video_remote_async", new_callable=AsyncMock
             ) as mock_remote,
-            patch("app.database.async_session", create=True),
+            patch("app.database.async_session_factory", create=True),
         ):
             mock_remote.return_value = _make_vast_result()
             # First call: not cancelled (before GPU). Second call: cancelled (after GPU).
@@ -157,12 +164,11 @@ class TestProcessVideoTask:
         from app.worker import process_video_task
 
         with (
-            patch("app.worker.get_valkey_client", return_value=mock_valkey),
             patch(
                 "app.vastai.client.process_video_remote_async", new_callable=AsyncMock
             ) as mock_remote,
             patch("app.worker.store_error", new_callable=AsyncMock) as mock_store_err,
-            patch("app.database.async_session", create=True),
+            patch("app.database.async_session_factory", create=True),
         ):
             # Use an error message that does NOT contain "timeout"/"connection"/"network"
             # to avoid triggering the Retry logic in the worker
@@ -188,12 +194,11 @@ class TestProcessVideoTask:
         from arq import Retry
 
         with (
-            patch("app.worker.get_valkey_client", return_value=mock_valkey),
             patch(
                 "app.vastai.client.process_video_remote_async", new_callable=AsyncMock
             ) as mock_remote,
             patch("app.worker.store_error", new_callable=AsyncMock),
-            patch("app.database.async_session", create=True),
+            patch("app.database.async_session_factory", create=True),
         ):
             mock_remote.side_effect = ConnectionError("Network unreachable")
 
@@ -211,11 +216,10 @@ class TestProcessVideoTask:
         from app.worker import process_video_task
 
         with (
-            patch("app.worker.get_valkey_client", return_value=mock_valkey),
             patch(
                 "app.vastai.client.process_video_remote_async", new_callable=AsyncMock
             ) as mock_remote,
-            patch("app.database.async_session", create=True) as mock_async_session,
+            patch("app.database.async_session_factory", create=True) as mock_async_session,
             patch("app.crud.session.get_by_id", new_callable=AsyncMock) as mock_get_session,
             patch("app.crud.session.update_session_analysis", new_callable=AsyncMock),
             patch(
@@ -256,13 +260,12 @@ class TestProcessVideoTask:
         poses_data = np.random.rand(50, 17, 3).astype(np.float32)
 
         with (
-            patch("app.worker.get_valkey_client", return_value=mock_valkey),
             patch(
                 "app.vastai.client.process_video_remote_async", new_callable=AsyncMock
             ) as mock_remote,
             patch("app.worker.download_file") as mock_download,
             patch("numpy.load", return_value=poses_data),
-            patch("app.database.async_session", create=True),
+            patch("app.database.async_session_factory", create=True),
         ):
             mock_remote.return_value = _make_vast_result(
                 poses_key="output/poses.npy",
@@ -293,12 +296,11 @@ class TestProcessVideoTask:
         from app.worker import process_video_task
 
         with (
-            patch("app.worker.get_valkey_client", return_value=mock_valkey),
             patch(
                 "app.vastai.client.process_video_remote_async", new_callable=AsyncMock
             ) as mock_remote,
             patch("app.worker.store_error", new_callable=AsyncMock),
-            patch("app.database.async_session", create=True),
+            patch("app.database.async_session_factory", create=True),
         ):
             mock_remote.return_value = _make_vast_result()
             if remote_side_effect is not None:
@@ -320,21 +322,18 @@ class TestProcessVideoTask:
                     person_click={"x": 100, "y": 200},
                 )
 
-        mock_valkey.close.assert_awaited_once()
-
     @pytest.mark.asyncio
     async def test_progress_updates_sent(self, mock_valkey):
         """Progress and events are published at expected stages."""
         from app.worker import process_video_task
 
         with (
-            patch("app.worker.get_valkey_client", return_value=mock_valkey),
             patch(
                 "app.vastai.client.process_video_remote_async", new_callable=AsyncMock
             ) as mock_remote,
             patch("app.worker.update_progress", new_callable=AsyncMock) as mock_progress,
             patch("app.worker.publish_task_event", new_callable=AsyncMock),
-            patch("app.database.async_session", create=True),
+            patch("app.database.async_session_factory", create=True),
         ):
             mock_remote.return_value = _make_vast_result()
 
@@ -357,11 +356,10 @@ class TestProcessVideoTask:
         from app.worker import process_video_task
 
         with (
-            patch("app.worker.get_valkey_client", return_value=mock_valkey),
             patch(
                 "app.vastai.client.process_video_remote_async", new_callable=AsyncMock
             ) as mock_remote,
-            patch("app.database.async_session", create=True) as mock_async_session,
+            patch("app.database.async_session_factory", create=True) as mock_async_session,
             patch("app.crud.session.get_by_id", new_callable=AsyncMock) as mock_get_session,
         ):
             mock_remote.return_value = _make_vast_result()
@@ -393,14 +391,13 @@ class TestProcessVideoTask:
         poses_data = np.random.rand(50, 17, 3).astype(np.float32)
 
         with (
-            patch("app.worker.get_valkey_client", return_value=mock_valkey),
             patch(
                 "app.vastai.client.process_video_remote_async", new_callable=AsyncMock
             ) as mock_remote,
             patch("app.worker.download_file"),
             patch("numpy.load", return_value=poses_data),
             patch("app.worker._compute_frame_metrics", side_effect=RuntimeError("metric boom")),
-            patch("app.database.async_session", create=True),
+            patch("app.database.async_session_factory", create=True),
         ):
             mock_remote.return_value = _make_vast_result(
                 poses_key="output/poses.npy",
@@ -423,11 +420,10 @@ class TestProcessVideoTask:
         from app.worker import process_video_task
 
         with (
-            patch("app.worker.get_valkey_client", return_value=mock_valkey),
             patch(
                 "app.vastai.client.process_video_remote_async", new_callable=AsyncMock
             ) as mock_remote,
-            patch("app.database.async_session", create=True) as mock_async_session,
+            patch("app.database.async_session_factory", create=True) as mock_async_session,
             patch("app.crud.session.get_by_id", new_callable=AsyncMock),
             patch(
                 "app.services.session_saver.save_analysis_results",
@@ -464,14 +460,13 @@ class TestProcessVideoTask:
         from app.worker import process_video_task
 
         with (
-            patch("app.worker.get_valkey_client", return_value=mock_valkey),
             patch(
                 "app.vastai.client.process_video_remote_async", new_callable=AsyncMock
             ) as mock_remote,
             patch("app.worker.store_error", new_callable=AsyncMock),
             # publish_task_event succeeds during normal flow, fails only in error handler
             patch("app.worker.publish_task_event", new_callable=AsyncMock) as mock_publish,
-            patch("app.database.async_session", create=True),
+            patch("app.database.async_session_factory", create=True),
         ):
             mock_remote.side_effect = RuntimeError("GPU out of memory")
 
@@ -496,13 +491,12 @@ class TestProcessVideoTask:
         poses_data = np.random.rand(50, 17, 3).astype(np.float32)
 
         with (
-            patch("app.worker.get_valkey_client", return_value=mock_valkey),
             patch(
                 "app.vastai.client.process_video_remote_async", new_callable=AsyncMock
             ) as mock_remote,
             patch("app.worker.download_file"),
             patch("numpy.load", return_value=poses_data),
-            patch("app.database.async_session", create=True) as mock_async_session,
+            patch("app.database.async_session_factory", create=True) as mock_async_session,
             patch("app.crud.session.get_by_id", new_callable=AsyncMock) as mock_get_session,
             patch(
                 "app.crud.session.update_session_analysis", new_callable=AsyncMock
@@ -625,7 +619,6 @@ class TestDetectVideoTask:
         from app.worker import detect_video_task
 
         with (
-            patch("app.worker.get_valkey_client", return_value=mock_valkey),
             patch("app.worker.get_settings"),
             patch("asyncio.to_thread", side_effect=empty_detect_thread),
         ):
@@ -647,7 +640,6 @@ class TestDetectVideoTask:
         from app.worker import detect_video_task
 
         with (
-            patch("app.worker.get_valkey_client", return_value=mock_valkey),
             patch("app.worker.get_settings"),
             patch("app.worker.store_error", new_callable=AsyncMock) as mock_store_err,
         ):
@@ -678,7 +670,6 @@ class TestDetectVideoTask:
         from app.worker import detect_video_task
 
         with (
-            patch("app.worker.get_valkey_client", return_value=mock_valkey),
             patch("app.worker.get_settings"),
             patch("app.worker.store_error", new_callable=AsyncMock),
         ):
@@ -703,15 +694,12 @@ class TestDetectVideoTask:
                         tracking="auto",
                     )
 
-        mock_valkey.close.assert_awaited_once()
-
     @pytest.mark.asyncio
     async def test_result_contains_expected_keys_when_empty(self, mock_valkey, empty_detect_thread):
         """Result dict for empty detection has expected top-level keys."""
         from app.worker import detect_video_task
 
         with (
-            patch("app.worker.get_valkey_client", return_value=mock_valkey),
             patch("app.worker.get_settings"),
             patch("asyncio.to_thread", side_effect=empty_detect_thread),
         ):
@@ -734,7 +722,6 @@ class TestDetectVideoTask:
         from app.worker import detect_video_task
 
         with (
-            patch("app.worker.get_valkey_client", return_value=mock_valkey),
             patch("app.worker.get_settings"),
             patch("asyncio.to_thread", side_effect=single_person_thread),
         ):
@@ -796,7 +783,6 @@ class TestDetectVideoTask:
         from app.worker import detect_video_task
 
         with (
-            patch("app.worker.get_valkey_client", return_value=mock_valkey),
             patch("app.worker.get_settings"),
             patch("asyncio.to_thread", side_effect=mock_to_thread),
         ):
@@ -817,7 +803,6 @@ class TestDetectVideoTask:
         from app.worker import detect_video_task
 
         with (
-            patch("app.worker.get_valkey_client", return_value=mock_valkey),
             patch("app.worker.get_settings"),
             patch("app.worker.store_error", new_callable=AsyncMock),
             # publish_task_event: first 3 calls succeed (progress), 4th fails (error handler)
@@ -871,7 +856,6 @@ class TestDetectVideoTask:
             return None
 
         with (
-            patch("app.worker.get_valkey_client", return_value=mock_valkey),
             patch("app.worker.get_settings"),
             patch("asyncio.to_thread", side_effect=mock_to_thread),
         ):
@@ -921,7 +905,6 @@ class TestDetectVideoTask:
             return None
 
         with (
-            patch("app.worker.get_valkey_client", return_value=mock_valkey),
             patch("app.worker.get_settings"),
             patch("asyncio.to_thread", side_effect=mock_to_thread),
         ):
@@ -948,7 +931,6 @@ class TestAnalyzeMusicTaskExtended:
         from app.worker import analyze_music_task
 
         with (
-            patch("app.worker.get_valkey_client", return_value=mock_valkey),
             patch("asyncio.to_thread", return_value="a" * 32),
             patch("app.database.async_session_factory") as mock_session_factory,
             patch("app.crud.choreography.get_music_analysis_by_id", return_value=None) as mock_get,
@@ -973,7 +955,6 @@ class TestAnalyzeMusicTaskExtended:
         from app.worker import analyze_music_task
 
         with (
-            patch("app.worker.get_valkey_client", return_value=mock_valkey),
             patch("asyncio.to_thread", return_value=None),
             patch("app.database.async_session_factory") as mock_session_factory,
             patch("app.crud.choreography.get_music_analysis_by_id") as mock_get,
@@ -1003,7 +984,6 @@ class TestAnalyzeMusicTaskExtended:
         from app.worker import analyze_music_task
 
         with (
-            patch("app.worker.get_valkey_client", return_value=mock_valkey),
             patch("asyncio.to_thread") as mock_to_thread,
             patch("app.database.async_session_factory") as mock_session_factory,
             patch("app.crud.choreography.get_music_analysis_by_id") as mock_get,
@@ -1045,7 +1025,6 @@ class TestAnalyzeMusicTaskExtended:
         from app.worker import analyze_music_task
 
         with (
-            patch("app.worker.get_valkey_client", return_value=mock_valkey),
             patch("asyncio.to_thread", return_value=None),
             patch("app.database.async_session_factory") as mock_session_factory,
             patch("app.crud.choreography.get_music_analysis_by_id") as mock_get,
@@ -1065,15 +1044,12 @@ class TestAnalyzeMusicTaskExtended:
                     r2_key="music/test.mp3",
                 )
 
-        mock_valkey.close.assert_awaited_once()
-
     @pytest.mark.asyncio
     async def test_update_music_status_failed_exception_swallowed(self, mock_valkey):
         """When update_music_analysis raises in the error handler, the original error is still raised."""
         from app.worker import analyze_music_task
 
         with (
-            patch("app.worker.get_valkey_client", return_value=mock_valkey),
             patch("asyncio.to_thread") as mock_to_thread,
             patch("app.database.async_session_factory") as mock_session_factory,
             patch("app.crud.choreography.get_music_analysis_by_id") as mock_get,
@@ -1119,7 +1095,6 @@ class TestAnalyzeMusicTaskExtended:
         from app.worker import analyze_music_task
 
         with (
-            patch("app.worker.get_valkey_client", return_value=mock_valkey),
             patch("asyncio.to_thread", return_value="e" * 32),
             patch("app.database.async_session_factory") as mock_session_factory,
             patch("app.crud.choreography.get_music_analysis_by_id") as mock_get,
@@ -1160,7 +1135,6 @@ class TestAnalyzeMusicTaskExtended:
         from app.worker import analyze_music_task
 
         with (
-            patch("app.worker.get_valkey_client", return_value=mock_valkey),
             patch("asyncio.to_thread") as mock_to_thread,
             patch("app.database.async_session_factory") as mock_session_factory,
             patch("app.crud.choreography.get_music_analysis_by_id") as mock_get,
@@ -1217,28 +1191,37 @@ class TestWorkerLifecycle:
 
     @pytest.mark.asyncio
     async def test_startup_completes_without_error(self):
-        """startup() is a no-op that just logs; it should not raise."""
+        """startup() initializes pools; should not raise when pools succeed."""
         from app.worker import startup
 
-        await startup(ctx={})
+        with (
+            patch("app.worker.init_valkey_pool", new_callable=AsyncMock),
+            patch("app.worker.close_valkey_pool", new_callable=AsyncMock),
+        ):
+            await startup(ctx={})
 
     @pytest.mark.asyncio
     async def test_shutdown_closes_pool(self):
-        """shutdown() closes the redis/valkey pool from ctx if present."""
+        """shutdown() closes the valkey pool and R2 clients."""
         from app.worker import shutdown
 
-        mock_pool = AsyncMock()
-        ctx = {"redis": mock_pool}
-
-        await shutdown(ctx)
-
-        mock_pool.close.assert_awaited_once()
+        with (
+            patch("app.worker.close_valkey_pool", new_callable=AsyncMock) as mock_close_valkey,
+            patch("app.storage.close_r2_clients", new_callable=AsyncMock) as mock_close_r2,
+        ):
+            await shutdown(ctx={})
+            mock_close_valkey.assert_awaited_once()
+            mock_close_r2.assert_awaited_once()
 
     @pytest.mark.asyncio
     async def test_shutdown_without_pool(self):
-        """shutdown() does nothing when ctx has no 'redis' key."""
+        """shutdown() does nothing when pools are not initialized."""
         from app.worker import shutdown
 
-        mock_pool = AsyncMock()
-        await shutdown(ctx={})
-        mock_pool.close.assert_not_awaited()
+        with (
+            patch("app.worker.close_valkey_pool", new_callable=AsyncMock) as mock_close_valkey,
+            patch("app.storage.close_r2_clients", new_callable=AsyncMock) as mock_close_r2,
+        ):
+            await shutdown(ctx={})
+            mock_close_valkey.assert_awaited_once()
+            mock_close_r2.assert_awaited_once()

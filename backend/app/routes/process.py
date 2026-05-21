@@ -7,7 +7,7 @@ import json
 import logging
 import uuid
 from collections.abc import Sequence  # noqa: TC003
-from typing import ClassVar
+from typing import Any, ClassVar
 
 from litestar import Controller, Request, get, post
 from litestar.exceptions import ClientException, NotAuthorizedException
@@ -52,10 +52,7 @@ class ProcessController(Controller):
 
         task_id = f"proc_{uuid.uuid4().hex[:12]}"
 
-        valkey = get_valkey()
-        await create_task_state(
-            task_id, video_key=data.video_key, valkey=valkey, user_id=str(user.id)
-        )
+        await create_task_state(task_id, video_key=data.video_key, user_id=str(user.id))
 
         ml_flags = MLModelFlags(
             depth=data.depth,
@@ -83,8 +80,7 @@ class ProcessController(Controller):
     @get("/{task_id:str}/status")
     async def get_process_status(self, task_id: str, user: CurrentUser) -> TaskStatusResponse:
         """Poll task status."""
-        valkey = get_valkey()
-        state = await get_task_state(task_id, valkey=valkey)
+        state = await get_task_state(task_id)
 
         if state is None:
             raise ClientException(
@@ -122,7 +118,7 @@ class ProcessController(Controller):
             await pubsub.subscribe(channel)
             try:
                 # Send initial state
-                state = await get_task_state(task_id, valkey=valkey)
+                state = await get_task_state(task_id)
                 if state:
                     # Ownership check: reject if task belongs to another user
                     task_user_id = state.get("user_id")
@@ -145,8 +141,8 @@ class ProcessController(Controller):
             except TimeoutError:
                 # No messages for 60s — poll final state and yield timeout event
                 logger.warning("SSE stream timeout for task %s", task_id)
-                state = await get_task_state(task_id, valkey=valkey)
-                payload = state or {"status": "unknown"}
+                state = await get_task_state(task_id)
+                payload: dict[str, Any] = state or {"status": "unknown"}
                 payload["_timeout"] = True
                 yield {"data": json.dumps(payload)}
             finally:

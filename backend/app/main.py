@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 import sentry_sdk
 import structlog
 from litestar import Litestar, Router
@@ -12,6 +14,11 @@ from litestar.exceptions import HTTPException
 from litestar.middleware.rate_limit import RateLimitConfig
 from litestar.security.jwt import JWTAuth
 from sentry_sdk.integrations.litestar import LitestarIntegration
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
+    from litestar.config.app import AppConfig
 
 from app.auth.deps import retrieve_user_handler
 from app.config import get_settings
@@ -56,7 +63,12 @@ configure_logging()
 logger = structlog.get_logger()
 
 
-def create_app() -> Litestar:
+def create_app(
+    *,
+    on_app_init: Callable[[AppConfig], AppConfig]
+    | list[Callable[[AppConfig], AppConfig]]
+    | None = None,
+) -> Litestar:
     """Build and return the Litestar application."""
     settings = get_settings()
 
@@ -115,6 +127,10 @@ def create_app() -> Litestar:
         ],
     )
 
+    init_handlers: list[Callable[[AppConfig], AppConfig]] = [jwt_auth.on_app_init]
+    if on_app_init:
+        init_handlers.extend(on_app_init if isinstance(on_app_init, list) else [on_app_init])
+
     return Litestar(
         route_handlers=[api_v1],
         lifespan=[app_lifespan],
@@ -124,7 +140,7 @@ def create_app() -> Litestar:
         middleware=[rate_limit_config.middleware],
         exception_handlers={HTTPException: http_exception_handler},
         debug=settings.app.log_level == "DEBUG",
-        on_app_init=[jwt_auth.on_app_init],
+        on_app_init=init_handlers,
         dependencies=dependencies,
     )
 

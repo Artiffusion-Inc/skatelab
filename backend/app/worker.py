@@ -29,7 +29,9 @@ from app.config import get_settings
 from app.storage import download_file
 from app.task_manager import (
     TaskStatus,
-    get_valkey_client,
+    close_valkey_pool,
+    get_valkey,
+    init_valkey_pool,
     is_cancelled,
     mark_cancelled,
     publish_task_event,
@@ -198,15 +200,34 @@ def _compute_frame_metrics(poses: np.ndarray) -> dict:
 
 
 async def startup(ctx: dict[str, Any]) -> None:
-    logger.info("Video processing worker starting up")
+    """Initialize shared pools. Retry on Valkey failure."""
+    import asyncio as _asyncio
+
+    for attempt in range(5):
+        try:
+            await init_valkey_pool(max_connections=5)
+            logger.info("Valkey pool initialized (attempt %d)", attempt + 1)
+            break
+        except (OSError, RuntimeError, ConnectionError) as e:
+            wait = min(2**attempt, 30)
+            logger.warning(
+                "Valkey pool init failed (attempt %d/5): %s, retry in %ds",
+                attempt + 1,
+                e,
+                wait,
+            )
+            await _asyncio.sleep(wait)
+    else:
+        raise RuntimeError("Failed to initialize Valkey pool after 5 attempts")
 
 
 async def shutdown(ctx: dict[str, Any]) -> None:
-    logger.info("Video processing worker shutting down")
-    pool = ctx.get("redis")
-    if pool:
-        await pool.close()
-        logger.info("Worker valkey pool closed")
+    """Close shared pools. arq's own Redis pool is closed by Worker.close() automatically."""
+    from app.storage import close_r2_clients
+
+    logger.info("Worker shutting down")
+    await close_valkey_pool()
+    await close_r2_clients()
 
 
 async def process_video_task(
@@ -231,7 +252,7 @@ async def process_video_task(
             "inpainting": False,
         }
     settings = get_settings()
-    valkey = await get_valkey_client()
+    valkey = get_valkey()
 
     try:
         now = datetime.now(UTC).isoformat()
@@ -239,34 +260,33 @@ async def process_video_task(
             f"task:{task_id}",
             mapping={"status": TaskStatus.RUNNING, "started_at": now},
         )
-        await update_progress(task_id, 0.0, "Starting...", valkey=valkey)
+        await update_progress(task_id, 0.0, "Starting...")
         await publish_task_event(
-            task_id, {"status": "running", "progress": 0.0, "message": "Starting..."}, valkey=valkey
+            task_id, {"status": "running", "progress": 0.0, "message": "Starting..."}
         )
 
         from app.crud.session import get_by_id
-        from app.database import async_session  # type: ignore[import-untyped]
+        from app.database import async_session_factory  # type: ignore[import-untyped]
         from app.vastai.client import process_video_remote_async
 
         # Fetch element_type from session if session_id provided
         element_type = None
         if session_id:
-            async with async_session() as db:
+            async with async_session_factory() as db:
                 session = await get_by_id(db, session_id)
                 if session:
                     element_type = session.element_type
 
         logger.info("Dispatching task %s to Vast.ai (video_key=%s)", task_id, video_key)
-        await update_progress(task_id, 0.1, "Dispatching to GPU...", valkey=valkey)
+        await update_progress(task_id, 0.1, "Dispatching to GPU...")
         await publish_task_event(
             task_id,
             {"status": "running", "progress": 0.1, "message": "Dispatching to GPU..."},
-            valkey=valkey,
         )
 
         # Cancellation check before expensive GPU dispatch
-        if await is_cancelled(task_id, valkey=valkey):
-            await mark_cancelled(task_id, valkey=valkey)
+        if await is_cancelled(task_id):
+            await mark_cancelled(task_id)
             return {"status": "cancelled"}
 
         async with _VASTAI_SEMAPHORE:
@@ -281,16 +301,15 @@ async def process_video_task(
                 element_type=element_type,
             )
         logger.info("Vast.ai processing complete for task %s", task_id)
-        await update_progress(task_id, 0.7, "GPU processing complete", valkey=valkey)
+        await update_progress(task_id, 0.7, "GPU processing complete")
         await publish_task_event(
             task_id,
             {"status": "running", "progress": 0.7, "message": "GPU processing complete"},
-            valkey=valkey,
         )
 
         # Cancellation check after GPU returns (skip post-processing)
-        if await is_cancelled(task_id, valkey=valkey):
-            await mark_cancelled(task_id, valkey=valkey)
+        if await is_cancelled(task_id):
+            await mark_cancelled(task_id)
             return {"status": "cancelled"}
 
         # Prepare pose data for JSON storage (if poses available)
@@ -322,11 +341,10 @@ async def process_video_task(
                         len(sampled["frames"]),
                         len(poses),
                     )
-                    await update_progress(task_id, 0.85, "Preparing results...", valkey=valkey)
+                    await update_progress(task_id, 0.85, "Preparing results...")
                     await publish_task_event(
                         task_id,
                         {"status": "running", "progress": 0.85, "message": "Preparing results..."},
-                        valkey=valkey,
                     )
             except (OSError, ValueError, RuntimeError) as pose_err:
                 logger.warning("Failed to prepare pose data: %s", pose_err)
@@ -337,11 +355,6 @@ async def process_video_task(
             "stats": vast_result.stats,
             "status": "Analysis complete!",
         }
-        await store_result(task_id, response_data, valkey=valkey)
-        await update_progress(task_id, 1.0, "Done", valkey=valkey)
-        await publish_task_event(
-            task_id, {"status": "completed", "progress": 1.0, "message": "Done"}, valkey=valkey
-        )
         if session_id:
             try:
                 from app.crud.session import (
@@ -349,63 +362,74 @@ async def process_video_task(
                     get_by_id,
                     update_session_analysis,
                 )
-                from app.database import async_session  # type: ignore[import-untyped]
+                from app.database import async_session_factory  # type: ignore[import-untyped]
                 from app.services.session_saver import save_analysis_results
 
-                async with async_session() as db:
-                    # Save pose data and frame metrics as JSON
-                    if pose_data or frame_metrics:
-                        await update_session_analysis(
-                            db,
-                            session_id=session_id,
-                            pose_data=pose_data,
-                            frame_metrics=frame_metrics,
-                            phases=vast_result.phases,  # type: ignore[arg-type]
-                        )
+                async with async_session_factory() as db:
+                    try:
+                        # Save pose data and frame metrics as JSON
+                        if pose_data or frame_metrics:
+                            await update_session_analysis(
+                                db,
+                                session_id=session_id,
+                                pose_data=pose_data,
+                                frame_metrics=frame_metrics,
+                                phases=vast_result.phases,  # type: ignore[arg-type]
+                            )
 
-                    # Save metrics and recommendations
-                    if vast_result.metrics:
-                        await save_analysis_results(
-                            db,
-                            session_id=session_id,
-                            metrics=vast_result.metrics,
-                            phases=vast_result.phases,
-                            recommendations=vast_result.recommendations or [],
-                        )
+                        # Save metrics and recommendations
+                        if vast_result.metrics:
+                            await save_analysis_results(
+                                db,
+                                session_id=session_id,
+                                metrics=vast_result.metrics,
+                                phases=vast_result.phases,
+                                recommendations=vast_result.recommendations or [],
+                            )
 
-                    # Save timeline segments (same transaction as metrics)
-                    if vast_result.segments:
-                        seg_confidence = float(
-                            np.mean([s["confidence"] for s in vast_result.segments])
-                        )
-                        await batch_insert_elements(
-                            db,
-                            session_id,
-                            vast_result.segments,
-                            segmentation_confidence=seg_confidence,
-                        )
+                        # Save timeline segments (same transaction as metrics)
+                        if vast_result.segments:
+                            seg_confidence = float(
+                                np.mean([s["confidence"] for s in vast_result.segments])
+                            )
+                            await batch_insert_elements(
+                                db,
+                                session_id,
+                                vast_result.segments,
+                                segmentation_confidence=seg_confidence,
+                            )
 
-                    # Update segmentation_status atomically
-                    session_obj = await get_by_id(db, session_id)
-                    if session_obj:
-                        if vast_result.segments is not None:
-                            session_obj.segmentation_status = "done"
-                        else:
-                            session_obj.segmentation_status = "failed"
+                        # Update segmentation_status atomically
+                        session_obj = await get_by_id(db, session_id)
+                        if session_obj:
+                            if vast_result.segments is not None:
+                                session_obj.segmentation_status = "done"
+                            else:
+                                session_obj.segmentation_status = "failed"
 
-                    # Single commit for metrics + segments + status
-                    await db.commit()
+                        # Single commit for metrics + segments + status
+                        await db.commit()
+                    except Exception:
+                        await db.rollback()
+                        raise
             except (OSError, ValueError, RuntimeError) as save_err:
                 logger.warning("Failed to save session data: %s", save_err)
+
+        # Write Valkey status LAST, after DB commit (if any)
+        await store_result(task_id, response_data)
+        await update_progress(task_id, 1.0, "Done")
+        await publish_task_event(
+            task_id, {"status": "completed", "progress": 1.0, "message": "Done"}
+        )
 
         return response_data
 
     except (OSError, ValueError, RuntimeError, ConnectionError, TimeoutError) as e:
         logger.exception("Pipeline task %s failed", task_id)
-        await store_error(task_id, str(e), valkey=valkey)
+        await store_error(task_id, str(e))
         try:
             await publish_task_event(
-                task_id, {"status": "failed", "progress": 0.0, "message": str(e)}, valkey=valkey
+                task_id, {"status": "failed", "progress": 0.0, "message": str(e)}
             )
         except (OSError, RuntimeError):
             logger.warning("Failed to publish error event for task %s", task_id)
@@ -413,9 +437,6 @@ async def process_video_task(
         if any(term in error_msg for term in ["timeout", "connection", "network"]):
             raise Retry(defer=ctx.get("job_try", 1) * 10) from e
         raise
-
-    finally:
-        await valkey.close()
 
 
 async def detect_video_task(
@@ -431,7 +452,7 @@ async def detect_video_task(
     otherwise runs locally on GPU.
     """
     settings = get_settings()
-    valkey = await get_valkey_client()
+    valkey = get_valkey()
 
     try:
         now = datetime.now(UTC).isoformat()
@@ -439,11 +460,10 @@ async def detect_video_task(
             f"task:{task_id}",
             mapping={"status": TaskStatus.RUNNING, "started_at": now},
         )
-        await update_progress(task_id, 0.0, "Starting detection...", valkey=valkey)
+        await update_progress(task_id, 0.0, "Starting detection...")
         await publish_task_event(
             task_id,
             {"status": "running", "progress": 0.0, "message": "Starting detection..."},
-            valkey=valkey,
         )
 
         # --- Remote path (Vast.ai Serverless) ---
@@ -453,15 +473,14 @@ async def detect_video_task(
             logger.info(
                 "Dispatching detection task %s to Vast.ai (video_key=%s)", task_id, video_key
             )
-            await update_progress(task_id, 0.1, "Dispatching to GPU...", valkey=valkey)
+            await update_progress(task_id, 0.1, "Dispatching to GPU...")
             await publish_task_event(
                 task_id,
                 {"status": "running", "progress": 0.1, "message": "Dispatching to GPU..."},
-                valkey=valkey,
             )
 
-            if await is_cancelled(task_id, valkey=valkey):
-                await mark_cancelled(task_id, valkey=valkey)
+            if await is_cancelled(task_id):
+                await mark_cancelled(task_id)
                 return {"status": "cancelled"}
 
             async with _VASTAI_SEMAPHORE:
@@ -485,10 +504,10 @@ async def detect_video_task(
                 "auto_click": detect_result.auto_click,
                 "status": detect_result.status,
             }
-            await store_result(task_id, result_data, valkey=valkey)
-            await update_progress(task_id, 1.0, "Done", valkey=valkey)
+            await store_result(task_id, result_data)
+            await update_progress(task_id, 1.0, "Done")
             await publish_task_event(
-                task_id, {"status": "completed", "progress": 1.0, "message": "Done"}, valkey=valkey
+                task_id, {"status": "completed", "progress": 1.0, "message": "Done"}
             )
             return result_data
 
@@ -535,11 +554,10 @@ async def detect_video_task(
                 )
             return annotated
 
-        await update_progress(task_id, 0.1, "Downloading video...", valkey=valkey)
+        await update_progress(task_id, 0.1, "Downloading video...")
         await publish_task_event(
             task_id,
             {"status": "running", "progress": 0.1, "message": "Downloading video..."},
-            valkey=valkey,
         )
 
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -558,11 +576,10 @@ async def detect_video_task(
             persons, _ = await asyncio.to_thread(
                 extractor.preview_persons, video_path, num_frames=30
             )
-            await update_progress(task_id, 0.8, "Extracting poses...", valkey=valkey)
+            await update_progress(task_id, 0.8, "Extracting poses...")
             await publish_task_event(
                 task_id,
                 {"status": "running", "progress": 0.8, "message": "Extracting poses..."},
-                valkey=valkey,
             )
 
             if not persons:
@@ -573,7 +590,7 @@ async def detect_video_task(
                     "auto_click": None,
                     "status": "Люди не найдены. Попробуйте другое видео.",
                 }
-                await store_result(task_id, result_data, valkey=valkey)
+                await store_result(task_id, result_data)
                 return result_data
 
             cap = await asyncio.to_thread(cv2.VideoCapture, str(video_path))
@@ -625,27 +642,27 @@ async def detect_video_task(
                 "auto_click": auto_click,
                 "status": status_msg,
             }
-            await store_result(task_id, result_data, valkey=valkey)
-            await update_progress(task_id, 1.0, "Done", valkey=valkey)
+            await store_result(task_id, result_data)
+            await update_progress(task_id, 1.0, "Done")
             await publish_task_event(
-                task_id, {"status": "completed", "progress": 1.0, "message": "Done"}, valkey=valkey
+                task_id, {"status": "completed", "progress": 1.0, "message": "Done"}
             )
             return result_data
 
     except (httpx.TimeoutException, httpx.ConnectError, ConnectionError, TimeoutError) as e:
         logger.warning("Vast.ai connection error for detect task %s: %s", task_id, e)
-        await store_error(task_id, str(e), valkey=valkey)
+        await store_error(task_id, str(e))
         with contextlib.suppress(OSError, RuntimeError):
             await publish_task_event(
-                task_id, {"status": "failed", "progress": 0.0, "message": str(e)}, valkey=valkey
+                task_id, {"status": "failed", "progress": 0.0, "message": str(e)}
             )
         raise Retry(defer=ctx.get("job_try", 1) * 10) from e
     except (OSError, ValueError, RuntimeError) as e:
         logger.exception("Detection task %s failed", task_id)
-        await store_error(task_id, str(e), valkey=valkey)
+        await store_error(task_id, str(e))
         try:
             await publish_task_event(
-                task_id, {"status": "failed", "progress": 0.0, "message": str(e)}, valkey=valkey
+                task_id, {"status": "failed", "progress": 0.0, "message": str(e)}
             )
         except (OSError, RuntimeError):
             logger.warning("Failed to publish error event for task %s", task_id)
@@ -653,8 +670,6 @@ async def detect_video_task(
         if any(term in error_msg for term in ["timeout", "connection", "network"]):
             raise Retry(defer=ctx.get("job_try", 1) * 10) from e
         raise
-    finally:
-        await valkey.close()
 
 
 async def analyze_music_task(
@@ -672,7 +687,7 @@ async def analyze_music_task(
     Returns:
         dict with status and analysis results
     """
-    valkey = await get_valkey_client()
+    valkey = get_valkey()
 
     try:
         from app.crud.choreography import (
@@ -791,9 +806,6 @@ async def analyze_music_task(
             logger.warning("Failed to update music status to failed")
 
         raise
-
-    finally:
-        await valkey.close()
 
 
 class FastWorkerSettings:

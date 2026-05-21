@@ -215,6 +215,12 @@ def mock_valkey():
     _store = {}
 
     class FakeValkey:
+        async def ping(self):
+            return True
+
+        async def aclose(self):
+            pass
+
         def pipeline(self):
             class _Pipe:
                 async def execute(self):
@@ -239,9 +245,9 @@ def mock_valkey():
 
 async def test_register_rate_limit_by_ip(client, mock_valkey):
     """After 5 register requests from same IP, 6th returns 429."""
-    import app.task_manager as _tm
+    from app.task_manager import _set_test_pool
 
-    _tm._pool["valkey"] = mock_valkey
+    _set_test_pool(mock_valkey)
     try:
         for i in range(5):
             resp = await client.post(
@@ -257,7 +263,7 @@ async def test_register_rate_limit_by_ip(client, mock_valkey):
         assert resp.status_code == 429
         assert "Rate limit" in resp.json()["message"]
     finally:
-        _tm._pool.pop("valkey", None)
+        _set_test_pool(None)
 
 
 async def test_login_rate_limit_by_email(client, db_session, mock_valkey):
@@ -266,9 +272,9 @@ async def test_login_rate_limit_by_email(client, db_session, mock_valkey):
     db_session.add(user)
     await db_session.flush()
 
-    import app.task_manager as _tm
+    from app.task_manager import _set_test_pool
 
-    _tm._pool["valkey"] = mock_valkey
+    _set_test_pool(mock_valkey)
     try:
         for i in range(5):
             resp = await client.post(
@@ -283,7 +289,7 @@ async def test_login_rate_limit_by_email(client, db_session, mock_valkey):
         )
         assert resp.status_code == 429
     finally:
-        _tm._pool.pop("valkey", None)
+        _set_test_pool(None)
 
 
 # ---------------------------------------------------------------------------
@@ -328,9 +334,9 @@ async def test_forgot_password_nonexistent_email(client):
 
 async def test_forgot_password_rate_limit(client, mock_valkey):
     """After 3 forgot-password requests, 4th returns 429."""
-    import app.task_manager as _tm
+    from app.task_manager import _set_test_pool
 
-    _tm._pool["valkey"] = mock_valkey
+    _set_test_pool(mock_valkey)
     try:
         for i in range(3):
             resp = await client.post(
@@ -345,7 +351,7 @@ async def test_forgot_password_rate_limit(client, mock_valkey):
         )
         assert resp.status_code == 429
     finally:
-        _tm._pool.pop("valkey", None)
+        _set_test_pool(None)
 
 
 async def test_reset_password_valid_token(client, db_session: AsyncSession):
@@ -426,9 +432,9 @@ async def test_reset_password_expired_token(client, db_session: AsyncSession):
 
 async def test_reset_password_rate_limit(client, mock_valkey):
     """After 5 reset-password requests, 6th returns 429."""
-    import app.task_manager as _tm
+    from app.task_manager import _set_test_pool
 
-    _tm._pool["valkey"] = mock_valkey
+    _set_test_pool(mock_valkey)
     try:
         for i in range(5):
             resp = await client.post(
@@ -444,7 +450,7 @@ async def test_reset_password_rate_limit(client, mock_valkey):
         )
         assert resp.status_code == 429
     finally:
-        _tm._pool.pop("valkey", None)
+        _set_test_pool(None)
 
 
 # ---------------------------------------------------------------------------

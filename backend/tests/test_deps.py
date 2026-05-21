@@ -82,7 +82,7 @@ async def test_get_current_user_skip_auth_mode(db_session: AsyncSession):
         mock_settings.app.skip_auth = True
         mock_get.return_value = mock_settings
         request = MagicMock()
-        result = await get_current_user(request=request, db_session=db_session)
+        result = await get_current_user(request=request, db=db_session)
     assert result.id == "dev-user"
 
 
@@ -95,7 +95,7 @@ async def test_get_current_user_skip_auth_no_active_users(db_session: AsyncSessi
         mock_get.return_value = mock_settings
         request = MagicMock()
         with pytest.raises(NotAuthorizedException, match="No active users"):
-            await get_current_user(request=request, db_session=db_session)
+            await get_current_user(request=request, db=db_session)
 
 
 @pytest.mark.asyncio
@@ -108,7 +108,7 @@ async def test_get_current_user_normal_mode_no_user(db_session: AsyncSession):
         request = MagicMock()
         request.user = None
         with pytest.raises(NotAuthorizedException, match="Could not validate"):
-            await get_current_user(request=request, db_session=db_session)
+            await get_current_user(request=request, db=db_session)
 
 
 @pytest.mark.asyncio
@@ -126,4 +126,4 @@ async def test_get_current_user_normal_mode_inactive_user(db_session: AsyncSessi
         request = MagicMock()
         request.user = user
         with pytest.raises(NotAuthorizedException, match="Could not validate"):
-            await get_current_user(request=request, db_session=db_session)
+            await get_current_user(request=request, db=db_session)
