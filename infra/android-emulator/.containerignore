@@ -1,0 +1,10 @@
+# Version control
+.git
+.gitignore
+
+# Documentation
+*.md
+
+# IDE
+.vscode
+.idea
