@@ -86,7 +86,7 @@ class TestProcessVideoTask:
                 "app.vastai.client.process_video_remote_async", new_callable=AsyncMock
             ) as mock_remote,
             # async_session is imported inside process_video_task body
-            patch("app.database.async_session", create=True) as mock_async_session,
+            patch("app.database.async_session_factory", create=True) as mock_async_session,
         ):
             mock_db = AsyncMock()
             mock_async_session.return_value = _make_async_session_cm(mock_db)
@@ -116,7 +116,7 @@ class TestProcessVideoTask:
             patch(
                 "app.vastai.client.process_video_remote_async", new_callable=AsyncMock
             ) as mock_remote,
-            patch("app.database.async_session", create=True),
+            patch("app.database.async_session_factory", create=True),
         ):
             result = await process_video_task(
                 ctx={},
@@ -141,7 +141,7 @@ class TestProcessVideoTask:
             patch(
                 "app.vastai.client.process_video_remote_async", new_callable=AsyncMock
             ) as mock_remote,
-            patch("app.database.async_session", create=True),
+            patch("app.database.async_session_factory", create=True),
         ):
             mock_remote.return_value = _make_vast_result()
             # First call: not cancelled (before GPU). Second call: cancelled (after GPU).
@@ -168,7 +168,7 @@ class TestProcessVideoTask:
                 "app.vastai.client.process_video_remote_async", new_callable=AsyncMock
             ) as mock_remote,
             patch("app.worker.store_error", new_callable=AsyncMock) as mock_store_err,
-            patch("app.database.async_session", create=True),
+            patch("app.database.async_session_factory", create=True),
         ):
             # Use an error message that does NOT contain "timeout"/"connection"/"network"
             # to avoid triggering the Retry logic in the worker
@@ -198,7 +198,7 @@ class TestProcessVideoTask:
                 "app.vastai.client.process_video_remote_async", new_callable=AsyncMock
             ) as mock_remote,
             patch("app.worker.store_error", new_callable=AsyncMock),
-            patch("app.database.async_session", create=True),
+            patch("app.database.async_session_factory", create=True),
         ):
             mock_remote.side_effect = ConnectionError("Network unreachable")
 
@@ -219,7 +219,7 @@ class TestProcessVideoTask:
             patch(
                 "app.vastai.client.process_video_remote_async", new_callable=AsyncMock
             ) as mock_remote,
-            patch("app.database.async_session", create=True) as mock_async_session,
+            patch("app.database.async_session_factory", create=True) as mock_async_session,
             patch("app.crud.session.get_by_id", new_callable=AsyncMock) as mock_get_session,
             patch("app.crud.session.update_session_analysis", new_callable=AsyncMock),
             patch(
@@ -265,7 +265,7 @@ class TestProcessVideoTask:
             ) as mock_remote,
             patch("app.worker.download_file") as mock_download,
             patch("numpy.load", return_value=poses_data),
-            patch("app.database.async_session", create=True),
+            patch("app.database.async_session_factory", create=True),
         ):
             mock_remote.return_value = _make_vast_result(
                 poses_key="output/poses.npy",
@@ -300,7 +300,7 @@ class TestProcessVideoTask:
                 "app.vastai.client.process_video_remote_async", new_callable=AsyncMock
             ) as mock_remote,
             patch("app.worker.store_error", new_callable=AsyncMock),
-            patch("app.database.async_session", create=True),
+            patch("app.database.async_session_factory", create=True),
         ):
             mock_remote.return_value = _make_vast_result()
             if remote_side_effect is not None:
@@ -333,7 +333,7 @@ class TestProcessVideoTask:
             ) as mock_remote,
             patch("app.worker.update_progress", new_callable=AsyncMock) as mock_progress,
             patch("app.worker.publish_task_event", new_callable=AsyncMock),
-            patch("app.database.async_session", create=True),
+            patch("app.database.async_session_factory", create=True),
         ):
             mock_remote.return_value = _make_vast_result()
 
@@ -359,7 +359,7 @@ class TestProcessVideoTask:
             patch(
                 "app.vastai.client.process_video_remote_async", new_callable=AsyncMock
             ) as mock_remote,
-            patch("app.database.async_session", create=True) as mock_async_session,
+            patch("app.database.async_session_factory", create=True) as mock_async_session,
             patch("app.crud.session.get_by_id", new_callable=AsyncMock) as mock_get_session,
         ):
             mock_remote.return_value = _make_vast_result()
@@ -397,7 +397,7 @@ class TestProcessVideoTask:
             patch("app.worker.download_file"),
             patch("numpy.load", return_value=poses_data),
             patch("app.worker._compute_frame_metrics", side_effect=RuntimeError("metric boom")),
-            patch("app.database.async_session", create=True),
+            patch("app.database.async_session_factory", create=True),
         ):
             mock_remote.return_value = _make_vast_result(
                 poses_key="output/poses.npy",
@@ -423,7 +423,7 @@ class TestProcessVideoTask:
             patch(
                 "app.vastai.client.process_video_remote_async", new_callable=AsyncMock
             ) as mock_remote,
-            patch("app.database.async_session", create=True) as mock_async_session,
+            patch("app.database.async_session_factory", create=True) as mock_async_session,
             patch("app.crud.session.get_by_id", new_callable=AsyncMock),
             patch(
                 "app.services.session_saver.save_analysis_results",
@@ -466,7 +466,7 @@ class TestProcessVideoTask:
             patch("app.worker.store_error", new_callable=AsyncMock),
             # publish_task_event succeeds during normal flow, fails only in error handler
             patch("app.worker.publish_task_event", new_callable=AsyncMock) as mock_publish,
-            patch("app.database.async_session", create=True),
+            patch("app.database.async_session_factory", create=True),
         ):
             mock_remote.side_effect = RuntimeError("GPU out of memory")
 
@@ -496,7 +496,7 @@ class TestProcessVideoTask:
             ) as mock_remote,
             patch("app.worker.download_file"),
             patch("numpy.load", return_value=poses_data),
-            patch("app.database.async_session", create=True) as mock_async_session,
+            patch("app.database.async_session_factory", create=True) as mock_async_session,
             patch("app.crud.session.get_by_id", new_callable=AsyncMock) as mock_get_session,
             patch(
                 "app.crud.session.update_session_analysis", new_callable=AsyncMock

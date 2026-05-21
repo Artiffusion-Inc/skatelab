@@ -48,7 +48,9 @@ async def test_health_endpoint(client):
     """GET /api/v1/health returns 200 and status ok."""
     response = await client.get("/api/v1/health")
     assert response.status_code == 200
-    assert response.json() == {"status": "ok"}
+    data = response.json()
+    assert data["status"] in ("ok", "degraded")
+    assert "valkey" in data
 
 
 @pytest.mark.anyio
