@@ -1,5 +1,6 @@
 plugins {
     id("android-app-convention")
+    id("serialization-convention")
     alias(libs.plugins.protobuf)
     alias(libs.plugins.kover)
 }
@@ -75,6 +76,10 @@ dependencies {
     implementation(libs.lifecycle.viewmodel.compose)
     implementation(libs.activity.compose)
     implementation(libs.navigation.compose)
+    implementation(libs.kotlinx.serialization.json)
+
+    // Ktor (for DI-provided SkateLabClient)
+    implementation(libs.ktor.client.okhttp)
 
     // Hilt (KSP — migrated from kapt)
     implementation(libs.hilt.android)

@@ -5,6 +5,7 @@ import io.ktor.client.call.*
 import io.ktor.client.request.*
 import io.ktor.http.*
 import ru.skatelab.shared.models.UploadInitResponse
+import kotlinx.serialization.Serializable
 import ru.skatelab.shared.models.CompletedPart
 
 class UploadsApi(private val client: HttpClient) {
@@ -36,5 +37,5 @@ class UploadsApi(private val client: HttpClient) {
         }.body()
 }
 
-@kotlinx.serialization.Serializable
+@Serializable
 data class PresignResponse(val url: String, val key: String)

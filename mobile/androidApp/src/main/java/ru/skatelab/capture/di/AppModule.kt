@@ -1,9 +1,12 @@
 package ru.skatelab.capture.di
 
+import android.content.Context
 import android.os.SystemClock
 import dagger.Binds
 import dagger.Module
+import dagger.Provides
 import dagger.hilt.InstallIn
+import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import javax.inject.Named
 import javax.inject.Singleton
@@ -23,6 +26,10 @@ import ru.skatelab.capture.domain.service.Logger
 import ru.skatelab.capture.domain.service.ManifestWriter
 import ru.skatelab.capture.domain.service.SessionExporter
 import ru.skatelab.capture.domain.service.TimeSynchronizer
+import io.ktor.client.engine.okhttp.*
+import ru.skatelab.shared.auth.AuthRepository
+import ru.skatelab.shared.auth.TokenStorage
+import ru.skatelab.shared.api.SkateLabClient
 
 @Module
 @InstallIn(SingletonComponent::class)
@@ -56,17 +63,35 @@ abstract class AppModule {
     abstract fun bindTimeSynchronizer(impl: TimeSynchronizerImpl): TimeSynchronizer
 
     companion object {
-        @dagger.Provides
+        @Provides
         @Named("Io")
         fun provideIoDispatcher(): CoroutineDispatcher = Dispatchers.IO
 
-        @dagger.Provides
+        @Provides
         @Named("ImuIo")
         @Singleton
         fun provideImuIoDispatcher(): CoroutineDispatcher = Dispatchers.IO.limitedParallelism(4)
 
-        @dagger.Provides
+        @Provides
         @Named("clockNanos")
         fun provideClockNanos(): () -> Long = { SystemClock.elapsedRealtimeNanos() }
+
+        @Provides
+        @Singleton
+        fun provideSkateLabClient(): SkateLabClient =
+            SkateLabClient(
+                baseUrl = "https://api.skatelab.ru/api/v1",
+                engine = OkHttp.create(),
+            )
+
+        @Provides
+        @Singleton
+        fun provideTokenStorage(@ApplicationContext context: Context): TokenStorage =
+            TokenStorage().also { it.init(context) }
+
+        @Provides
+        @Singleton
+        fun provideAuthRepository(client: SkateLabClient, tokenStorage: TokenStorage): AuthRepository =
+            AuthRepository(client.auth, tokenStorage)
     }
 }

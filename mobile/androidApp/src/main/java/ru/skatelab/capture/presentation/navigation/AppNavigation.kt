@@ -2,17 +2,27 @@ package ru.skatelab.capture.presentation.navigation
 
 import android.os.Environment
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.hilt.navigation.compose.hiltViewModel
-import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
-import androidx.navigation.navArgument
 import dagger.hilt.EntryPoint
 import dagger.hilt.InstallIn
 import dagger.hilt.android.EntryPointAccessors
 import dagger.hilt.components.SingletonComponent
 import java.io.File
+import ru.skatelab.capture.navigation.BleScanRoute
+import ru.skatelab.capture.navigation.CalibrationRoute
+import ru.skatelab.capture.navigation.CameraRoute
+import ru.skatelab.capture.navigation.ExportRoute
+import ru.skatelab.capture.navigation.LoginRoute
+import ru.skatelab.capture.navigation.RecordingRoute
+import ru.skatelab.capture.navigation.RegisterRoute
+import ru.skatelab.capture.navigation.SessionDetailRoute
+import ru.skatelab.capture.navigation.SessionsRoute
+import ru.skatelab.capture.navigation.SplashRoute
 import ru.skatelab.capture.presentation.SessionState
 import ru.skatelab.capture.presentation.ble.BleScanScreen
 import ru.skatelab.capture.presentation.ble.BleScanViewModel
@@ -26,19 +36,11 @@ import ru.skatelab.capture.presentation.session.SessionListScreen
 import ru.skatelab.capture.presentation.session.SessionListViewModel
 import ru.skatelab.capture.presentation.sessiondetail.SessionDetailScreen
 import ru.skatelab.capture.presentation.sessiondetail.SessionDetailViewModel
-
-object Routes {
-    const val BLE_SCAN = "ble_scan"
-    const val CALIBRATION = "calibration"
-    const val RECORDING = "recording"
-    const val EXPORT = "export/{sessionId}"
-    const val SESSIONS = "sessions"
-    const val SESSION_DETAIL = "session_detail/{sessionId}"
-
-    fun export(sessionId: String) = "export/$sessionId"
-
-    fun sessionDetail(sessionId: String) = "session_detail/$sessionId"
-}
+import ru.skatelab.capture.ui.auth.AuthViewModel
+import ru.skatelab.capture.ui.auth.LoginScreen
+import ru.skatelab.capture.ui.auth.RegisterScreen
+import ru.skatelab.capture.ui.auth.SplashScreen
+import ru.skatelab.shared.state.AuthUiState
 
 @InstallIn(SingletonComponent::class)
 @EntryPoint
@@ -49,28 +51,92 @@ interface SessionStateEntryPoint {
 @Composable
 fun AppNavigation() {
     val navController = rememberNavController()
+    val authViewModel: AuthViewModel = hiltViewModel()
+    val authState by authViewModel.uiState.collectAsState()
 
     NavHost(
         navController = navController,
-        startDestination = Routes.SESSIONS,
+        startDestination = SplashRoute,
     ) {
-        composable(Routes.BLE_SCAN) {
+        // --- Auth flow ---
+        composable<SplashRoute> {
+            SplashScreen(
+                uiState = authState,
+                onCheckLogin = { authViewModel.checkLogin() },
+                onNavigateToLogin = {
+                    navController.navigate(LoginRoute) {
+                        popUpTo<SplashRoute> { inclusive = true }
+                    }
+                },
+                onNavigateToCamera = {
+                    navController.navigate(CameraRoute) {
+                        popUpTo<SplashRoute> { inclusive = true }
+                    }
+                },
+            )
+        }
+
+        composable<LoginRoute> {
+            LoginScreen(
+                uiState = authState,
+                onLogin = { email, password -> authViewModel.login(email, password) },
+                onNavigateToRegister = {
+                    navController.navigate(RegisterRoute)
+                },
+                onNavigateToCamera = {
+                    navController.navigate(CameraRoute) {
+                        popUpTo<LoginRoute> { inclusive = true }
+                    }
+                },
+            )
+        }
+
+        composable<RegisterRoute> {
+            RegisterScreen(
+                uiState = authState,
+                onRegister = { email, password, displayName ->
+                    authViewModel.register(email, password, displayName)
+                },
+                onNavigateToLogin = {
+                    navController.popBackStack()
+                },
+                onNavigateToCamera = {
+                    navController.navigate(CameraRoute) {
+                        popUpTo<RegisterRoute> { inclusive = true }
+                    }
+                },
+            )
+        }
+
+        // --- Camera placeholder (OOFSkate main screen) ---
+        composable<CameraRoute> {
+            // Placeholder: navigate to sessions for now.
+            // This will be replaced with the actual Camera screen in a later task.
+            androidx.compose.runtime.LaunchedEffect(Unit) {
+                navController.navigate(SessionsRoute) {
+                    popUpTo<CameraRoute> { inclusive = true }
+                }
+            }
+        }
+
+        // --- IMU capture flow (existing) ---
+        composable<BleScanRoute> {
             val viewModel: BleScanViewModel = hiltViewModel()
             BleScanScreen(
                 viewModel = viewModel,
-                onProceed = { navController.navigate(Routes.CALIBRATION) },
+                onProceed = { navController.navigate(CalibrationRoute) },
             )
         }
 
-        composable(Routes.CALIBRATION) {
+        composable<CalibrationRoute> {
             val viewModel: CalibrationViewModel = hiltViewModel()
             CalibrationScreen(
                 viewModel = viewModel,
-                onProceed = { navController.navigate(Routes.RECORDING) },
+                onProceed = { navController.navigate(RecordingRoute) },
             )
         }
 
-        composable(Routes.RECORDING) {
+        composable<RecordingRoute> {
             val viewModel: RecordingViewModel = hiltViewModel()
             val context = androidx.compose.ui.platform.LocalContext.current
             val outputDir =
@@ -91,57 +157,51 @@ fun AppNavigation() {
                 outputDir = outputDir,
                 calibration = sessionState.calibration,
                 onRecordingComplete = { sessionId ->
-                    navController.navigate(Routes.sessionDetail(sessionId)) {
-                        popUpTo(Routes.SESSIONS) { inclusive = false }
+                    navController.navigate(SessionDetailRoute(sessionId)) {
+                        popUpTo<SessionsRoute> { inclusive = false }
                     }
                 },
             )
         }
 
-        composable(
-            route = Routes.EXPORT,
-            arguments = listOf(navArgument("sessionId") { type = NavType.StringType }),
-        ) { backStackEntry ->
+        composable<ExportRoute> { backStackEntry ->
             val sessionId = backStackEntry.arguments?.getString("sessionId") ?: ""
             val viewModel: ExportViewModel = hiltViewModel()
             ExportScreen(
                 viewModel = viewModel,
                 sessionId = sessionId,
                 onExportComplete = {
-                    navController.navigate(Routes.SESSIONS) {
-                        popUpTo(Routes.SESSIONS) { inclusive = true }
+                    navController.navigate(SessionsRoute) {
+                        popUpTo<SessionsRoute> { inclusive = true }
                     }
                 },
             )
         }
 
-        composable(
-            route = Routes.SESSION_DETAIL,
-            arguments = listOf(navArgument("sessionId") { type = NavType.StringType }),
-        ) { backStackEntry ->
+        composable<SessionDetailRoute> { backStackEntry ->
             val sessionId = backStackEntry.arguments?.getString("sessionId") ?: ""
             val viewModel: SessionDetailViewModel = hiltViewModel()
             SessionDetailScreen(
                 viewModel = viewModel,
                 sessionId = sessionId,
                 onBack = { navController.popBackStack() },
-                onExport = { navController.navigate(Routes.export(it)) },
+                onExport = { navController.navigate(ExportRoute(it)) },
             )
         }
 
-        composable(Routes.SESSIONS) {
+        composable<SessionsRoute> {
             val viewModel: SessionListViewModel = hiltViewModel()
             SessionListScreen(
                 viewModel = viewModel,
                 onSessionClick = { sessionId ->
-                    navController.navigate(Routes.sessionDetail(sessionId))
+                    navController.navigate(SessionDetailRoute(sessionId))
                 },
                 onExportSession = { sessionId ->
-                    navController.navigate(Routes.export(sessionId))
+                    navController.navigate(ExportRoute(sessionId))
                 },
                 onNewRecording = {
-                    navController.navigate(Routes.BLE_SCAN) {
-                        popUpTo(Routes.SESSIONS) { inclusive = true }
+                    navController.navigate(BleScanRoute) {
+                        popUpTo<SessionsRoute> { inclusive = true }
                     }
                 },
             )
