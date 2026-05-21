@@ -136,12 +136,11 @@ jobs:
           cat > deploy.sh <<'SCRIPTEOF'
           #!/usr/bin/env bash
           set -e
-          export PATH="/usr/local/bin:/usr/bin:/bin"
-          docker network create infra_app_network 2>/dev/null || true
+          /usr/bin/docker network create infra_app_network 2>/dev/null || true
           cp /opt/skatelab/compose.prod.yaml /opt/skatelab/compose.yaml
           cd /opt/skatelab
-          docker compose pull backend frontend
-          docker compose up -d --remove-orphans
+          /usr/bin/docker compose pull backend frontend
+          /usr/bin/docker compose up -d --remove-orphans
           SCRIPTEOF
 
           cat > skatelab.env <<ENVEOF
