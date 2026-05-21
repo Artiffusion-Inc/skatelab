@@ -22,7 +22,6 @@ from app.task_manager import (
     TaskStatus,
     create_task_state,
     get_task_state,
-    get_valkey,
 )
 
 
@@ -56,8 +55,7 @@ class DetectController(Controller):
 
         task_id = f"det_{uuid.uuid4().hex[:12]}"
 
-        valkey = get_valkey()
-        await create_task_state(task_id, video_key=video_key, valkey=valkey, user_id=str(user.id))
+        await create_task_state(task_id, video_key=video_key, user_id=str(user.id))
 
         await request.app.state.arq_pool.enqueue_job(
             "detect_video_task",
@@ -72,8 +70,7 @@ class DetectController(Controller):
     @get("/{task_id:str}/status")
     async def get_detect_status(self, task_id: str, user: CurrentUser) -> TaskStatusResponse:
         """Poll detection task status."""
-        valkey = get_valkey()
-        state = await get_task_state(task_id, valkey=valkey)
+        state = await get_task_state(task_id)
 
         if state is None:
             raise ClientException(
@@ -97,8 +94,7 @@ class DetectController(Controller):
     @get("/{task_id:str}/result")
     async def get_detect_result(self, task_id: str, user: CurrentUser) -> DetectResultResponse:
         """Get detection result (persons, preview)."""
-        valkey = get_valkey()
-        state = await get_task_state(task_id, valkey=valkey)
+        state = await get_task_state(task_id)
 
         if state is None:
             raise ClientException(

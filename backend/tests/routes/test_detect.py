@@ -18,7 +18,6 @@ async def test_enqueue_detect(client, auth_headers):
     video_content = b"fake-video-bytes"
 
     with (
-        patch("app.routes.detect.get_valkey", return_value=MagicMock()),
         patch("app.routes.detect.create_task_state", new_callable=AsyncMock),
         patch("app.routes.detect.upload_bytes_async", new_callable=AsyncMock),
     ):
@@ -51,7 +50,6 @@ async def test_enqueue_detect_custom_tracking(client, auth_headers):
     video_content = b"fake-video-bytes"
 
     with (
-        patch("app.routes.detect.get_valkey", return_value=MagicMock()),
         patch("app.routes.detect.create_task_state", new_callable=AsyncMock),
         patch("app.routes.detect.upload_bytes_async", new_callable=AsyncMock),
     ):
@@ -85,7 +83,6 @@ async def test_detect_status(client, auth_headers):
     }
 
     with (
-        patch("app.routes.detect.get_valkey", return_value=MagicMock()),
         patch("app.routes.detect.get_task_state", new_callable=AsyncMock, return_value=fake_state),
     ):
         response = await client.get("/api/v1/detect/det_abc123/status", headers=auth_headers)
@@ -104,7 +101,6 @@ async def test_detect_status(client, auth_headers):
 async def test_detect_status_not_found(client, auth_headers):
     """GET /detect/{task_id}/status returns 404 when task not found."""
     with (
-        patch("app.routes.detect.get_valkey", return_value=MagicMock()),
         patch("app.routes.detect.get_task_state", new_callable=AsyncMock, return_value=None),
     ):
         response = await client.get("/api/v1/detect/det_nonexist/status", headers=auth_headers)
@@ -127,7 +123,6 @@ async def test_detect_status_with_error(client, auth_headers):
     }
 
     with (
-        patch("app.routes.detect.get_valkey", return_value=MagicMock()),
         patch("app.routes.detect.get_task_state", new_callable=AsyncMock, return_value=fake_state),
     ):
         response = await client.get("/api/v1/detect/det_fail/status", headers=auth_headers)
@@ -171,7 +166,6 @@ async def test_detect_status_with_result_type_mismatch(client, auth_headers):
     }
 
     with (
-        patch("app.routes.detect.get_valkey", return_value=MagicMock()),
         patch("app.routes.detect.get_task_state", new_callable=AsyncMock, return_value=fake_state),
     ):
         response = await client.get("/api/v1/detect/det_abc123/status", headers=auth_headers)
@@ -211,7 +205,6 @@ async def test_detect_result(client, auth_headers):
     }
 
     with (
-        patch("app.routes.detect.get_valkey", return_value=MagicMock()),
         patch("app.routes.detect.get_task_state", new_callable=AsyncMock, return_value=fake_state),
     ):
         response = await client.get("/api/v1/detect/det_done/result", headers=auth_headers)
@@ -244,7 +237,6 @@ async def test_detect_result_with_auto_click(client, auth_headers):
     }
 
     with (
-        patch("app.routes.detect.get_valkey", return_value=MagicMock()),
         patch("app.routes.detect.get_task_state", new_callable=AsyncMock, return_value=fake_state),
     ):
         response = await client.get("/api/v1/detect/det_auto/result", headers=auth_headers)
@@ -258,7 +250,6 @@ async def test_detect_result_with_auto_click(client, auth_headers):
 async def test_detect_result_not_found(client, auth_headers):
     """GET /detect/{task_id}/result returns 404 when task not found."""
     with (
-        patch("app.routes.detect.get_valkey", return_value=MagicMock()),
         patch("app.routes.detect.get_task_state", new_callable=AsyncMock, return_value=None),
     ):
         response = await client.get("/api/v1/detect/det_ghost/result", headers=auth_headers)
@@ -281,7 +272,6 @@ async def test_detect_result_not_completed(client, auth_headers):
     }
 
     with (
-        patch("app.routes.detect.get_valkey", return_value=MagicMock()),
         patch("app.routes.detect.get_task_state", new_callable=AsyncMock, return_value=fake_state),
     ):
         response = await client.get("/api/v1/detect/det_running/result", headers=auth_headers)
@@ -304,7 +294,6 @@ async def test_detect_result_no_result(client, auth_headers):
     }
 
     with (
-        patch("app.routes.detect.get_valkey", return_value=MagicMock()),
         patch("app.routes.detect.get_task_state", new_callable=AsyncMock, return_value=fake_state),
     ):
         response = await client.get("/api/v1/detect/det_empty/result", headers=auth_headers)

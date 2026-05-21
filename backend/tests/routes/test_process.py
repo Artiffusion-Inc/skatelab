@@ -28,7 +28,6 @@ async def test_enqueue_process(client, auth_headers):
     }
 
     with (
-        patch("app.routes.process.get_valkey", return_value=MagicMock()),
         patch("app.routes.process.create_task_state", new_callable=AsyncMock),
     ):
         response = await client.post("/api/v1/process/queue", json=req_body, headers=auth_headers)
@@ -71,7 +70,6 @@ async def test_enqueue_process_with_ml_flags(client, auth_headers):
     }
 
     with (
-        patch("app.routes.process.get_valkey", return_value=MagicMock()),
         patch("app.routes.process.create_task_state", new_callable=AsyncMock),
     ):
         response = await client.post("/api/v1/process/queue", json=req_body, headers=auth_headers)
@@ -97,7 +95,6 @@ async def test_enqueue_process_defaults(client, auth_headers):
     }
 
     with (
-        patch("app.routes.process.get_valkey", return_value=MagicMock()),
         patch("app.routes.process.create_task_state", new_callable=AsyncMock),
     ):
         response = await client.post("/api/v1/process/queue", json=req_body, headers=auth_headers)
@@ -128,7 +125,6 @@ async def test_process_status(client, auth_headers):
     }
 
     with (
-        patch("app.routes.process.get_valkey", return_value=MagicMock()),
         patch("app.routes.process.get_task_state", new_callable=AsyncMock, return_value=fake_state),
     ):
         response = await client.get("/api/v1/process/proc_abc/status", headers=auth_headers)
@@ -146,7 +142,6 @@ async def test_process_status(client, auth_headers):
 async def test_process_status_not_found(client, auth_headers):
     """GET /process/{task_id}/status returns 404 when task not found."""
     with (
-        patch("app.routes.process.get_valkey", return_value=MagicMock()),
         patch("app.routes.process.get_task_state", new_callable=AsyncMock, return_value=None),
     ):
         response = await client.get("/api/v1/process/proc_nonexist/status", headers=auth_headers)
@@ -181,7 +176,6 @@ async def test_process_status_with_result(client, auth_headers):
     }
 
     with (
-        patch("app.routes.process.get_valkey", return_value=MagicMock()),
         patch("app.routes.process.get_task_state", new_callable=AsyncMock, return_value=fake_state),
     ):
         response = await client.get("/api/v1/process/proc_done/status", headers=auth_headers)
@@ -207,7 +201,6 @@ async def test_process_status_with_error(client, auth_headers):
     }
 
     with (
-        patch("app.routes.process.get_valkey", return_value=MagicMock()),
         patch("app.routes.process.get_task_state", new_callable=AsyncMock, return_value=fake_state),
     ):
         response = await client.get("/api/v1/process/proc_fail/status", headers=auth_headers)
