@@ -1,0 +1,152 @@
+name: Mobile CI
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - 'mobile/**'
+      - 'backend/app/**'
+      - 'ml/src/analysis/**'
+      - '.github/workflows/mobile.yml'
+      - '.github/actions/setup-android/**'
+  pull_request:
+    branches: [master]
+    paths:
+      - 'mobile/**'
+      - 'backend/app/**'
+      - 'ml/src/analysis/**'
+      - '.github/workflows/mobile.yml'
+      - '.github/actions/setup-android/**'
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ── Detect which modules changed ──────────────────────────────
+  changes:
+    name: Detect changes
+    runs-on: ubuntu-latest
+    outputs:
+      shared: ${{ steps.filter.outputs.shared }}
+      android: ${{ steps.filter.outputs.android }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            shared:
+              - 'mobile/shared/**'
+              - 'mobile/build-logic/**'
+              - 'mobile/gradle/**'
+              - 'mobile/build.gradle.kts'
+              - 'mobile/settings.gradle.kts'
+              - 'mobile/gradle.properties'
+              - 'backend/app/**'
+              - 'ml/src/analysis/**'
+            android:
+              - 'mobile/androidApp/**'
+              - 'mobile/build-logic/**'
+              - 'mobile/gradle/**'
+              - 'mobile/build.gradle.kts'
+              - 'mobile/settings.gradle.kts'
+              - 'mobile/gradle.properties'
+              - 'mobile/proto/**'
+
+  # ── Shared module JVM tests ───────────────────────────────────
+  shared-test:
+    name: Shared module JVM tests
+    needs: changes
+    if: needs.changes.outputs.shared == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mobile
+    steps:
+      - uses: actions/checkout@v5
+      - uses: ./.github/actions/setup-android
+
+      - name: Run shared module JVM tests
+        run: ./gradlew :shared:jvmTest
+
+      - name: Generate Kover coverage report
+        if: success()
+        run: ./gradlew :shared:koverXmlReport
+
+      - name: Upload coverage report
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: shared-coverage-xml
+          path: mobile/shared/build/reports/kover/report.xml
+          retention-days: 14
+
+  # ── Android lint + build check ────────────────────────────────
+  android-lint:
+    name: Android lint
+    needs: changes
+    if: needs.changes.outputs.android == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mobile
+    steps:
+      - uses: actions/checkout@v5
+      - uses: ./.github/actions/setup-android
+
+      - name: Run ktlint
+        run: ./gradlew ktlintCheck
+
+  # ── Android build + unit tests ────────────────────────────────
+  android-test:
+    name: Android unit tests
+    needs: changes
+    if: needs.changes.outputs.android == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mobile
+    steps:
+      - uses: actions/checkout@v5
+      - uses: ./.github/actions/setup-android
+
+      - name: Compile debug Kotlin
+        run: ./gradlew :androidApp:compileDebugKotlin
+
+      - name: Run Android unit tests
+        run: ./gradlew :androidApp:testDebugUnitTest
+
+      - name: Generate Kover coverage report
+        if: success()
+        run: ./gradlew :androidApp:koverXmlReportDebug
+
+      - name: Upload coverage report
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-coverage-xml
+          path: mobile/androidApp/build/reports/kover/debug/report.xml
+          retention-days: 14
+
+  # ── Debug APK build ──────────────────────────────────────────
+  android-build-debug:
+    name: Build debug APK
+    needs: [android-lint, android-test]
+    if: needs.changes.outputs.android == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mobile
+    steps:
+      - uses: actions/checkout@v5
+      - uses: ./.github/actions/setup-android
+
+      - name: Build debug APK
+        run: ./gradlew assembleDebug
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: apk-debug
+          path: mobile/androidApp/build/outputs/apk/debug/*.apk
