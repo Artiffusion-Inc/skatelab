@@ -136,6 +136,7 @@ jobs:
           cat > /tmp/deploy.sh <<'SCRIPTEOF'
           #!/usr/bin/env bash
           set -e
+          export PATH="/usr/local/bin:/usr/bin:/bin"
           docker network create infra_app_network 2>/dev/null || true
           cp /opt/skatelab/compose.prod.yaml /opt/skatelab/compose.yaml
           cd /opt/skatelab
