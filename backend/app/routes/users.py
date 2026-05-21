@@ -2,11 +2,13 @@
 
 import asyncio
 from collections.abc import Sequence  # noqa: TC003
-from typing import ClassVar
+from typing import Annotated, ClassVar
 
 from litestar import Controller, get, patch, post
 from litestar.datastructures import UploadFile  # noqa: TC002
+from litestar.enums import RequestEncodingType
 from litestar.exceptions import ClientException
+from litestar.params import Body
 from litestar.status_codes import HTTP_422_UNPROCESSABLE_ENTITY
 
 from app.auth.deps import CurrentUser, DbDep
@@ -79,22 +81,22 @@ class UsersController(Controller):
         updated = await update(db, user, onboarding_role=data.onboarding_role)
         return UserResponse.model_validate(updated)
 
-    @post("/avatar")
+    @post("/avatar", status_code=200)
     async def upload_avatar(
         self,
         user: CurrentUser,
         db: DbDep,
-        file: UploadFile,
+        data: Annotated[UploadFile, Body(media_type=RequestEncodingType.MULTI_PART)],
     ) -> UserResponse:
         """Upload a profile picture for the current user."""
-        if file.content_type not in ALLOWED_CONTENT_TYPES:
+        if data.content_type not in ALLOWED_CONTENT_TYPES:
             raise ClientException(
                 status_code=HTTP_422_UNPROCESSABLE_ENTITY,
-                detail=f"Unsupported image type: {file.content_type}. "
+                detail=f"Unsupported image type: {data.content_type}. "
                 f"Allowed: {', '.join(sorted(ALLOWED_CONTENT_TYPES))}",
             )
 
-        content = await file.read()
+        content = await data.read()
         if len(content) > MAX_AVATAR_SIZE:
             raise ClientException(
                 status_code=HTTP_422_UNPROCESSABLE_ENTITY,
@@ -106,7 +108,7 @@ class UsersController(Controller):
             "image/png": ".png",
             "image/jpeg": ".jpg",
             "image/webp": ".webp",
-        }[file.content_type]
+        }[data.content_type]
         key = f"avatars/{user.id}{ext}"
 
         # Upload to R2 (sync boto3 — run in thread pool to avoid blocking)
