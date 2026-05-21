@@ -131,7 +131,32 @@ jobs:
         id: ghcr
         run: echo "owner=${GITHUB_REPOSITORY_OWNER,,}" >> "$GITHUB_OUTPUT"
 
-      - name: Sync deploy files to VPS
+      - name: Write .env and deploy script on runner
+        run: |
+          cat > /tmp/deploy.sh <<'SCRIPTEOF'
+          #!/usr/bin/env bash
+          set -e
+          docker network create infra_app_network 2>/dev/null || true
+          cp /opt/skatelab/compose.prod.yaml /opt/skatelab/compose.yaml
+          cd /opt/skatelab
+          docker compose pull backend frontend
+          docker compose up -d --remove-orphans
+          SCRIPTEOF
+
+          cat > /tmp/skatelab.env <<ENVEOF
+          GHCR_OWNER=${{ steps.ghcr.outputs.owner }}
+          TAG=${{ github.sha }}
+          POSTGRES_PASSWORD=${{ secrets.SKATELAB_DB_PASSWORD }}
+          R2_ENDPOINT_URL=${{ secrets.CF_R2_ENDPOINT_URL }}
+          R2_ACCESS_KEY_ID=${{ secrets.CF_R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY=${{ secrets.CF_R2_SECRET_ACCESS_KEY }}
+          R2_BUCKET=${{ secrets.CF_R2_BUCKET }}
+          JWT_SECRET=${{ secrets.JWT_SECRET }}
+          VASTAI_API_KEY=${{ secrets.VASTAI_API_KEY }}
+          RESEND_API_KEY=${{ secrets.RESEND_API_KEY }}
+          ENVEOF
+
+      - name: SCP deploy files to VPS
         id: sync
         uses: appleboy/scp-action@v1
         with:
@@ -139,43 +164,23 @@ jobs:
           port: 22
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
-          source: "infra/compose.prod.yaml,infra/Caddyfile,infra/prometheus.yml,infra/prometheus/rules"
+          source: "infra/compose.prod.yaml,infra/Caddyfile,infra/prometheus.yml,infra/prometheus/rules,/tmp/deploy.sh,/tmp/skatelab.env"
           target: "/opt/skatelab/"
           strip_components: 1
 
       - name: Deploy skatelab stack
         id: deploy
         uses: appleboy/ssh-action@v1.2.5
-        env:
-          GHCR_OWNER: ${{ steps.ghcr.outputs.owner }}
-          TAG: ${{ github.sha }}
         with:
           host: ${{ secrets.VPS_HOST }}
           port: 22
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
           command_timeout: 3m
+          request_pty: true
           script: |
-            bash -s <<'DEPLOY'
-            set -e
-            /usr/bin/docker network create infra_app_network 2>/dev/null || true
-            cp /opt/skatelab/compose.prod.yaml /opt/skatelab/compose.yaml
-            cat > /opt/skatelab/.env <<ENVEOF
-            GHCR_OWNER=${GHCR_OWNER}
-            TAG=${TAG}
-            POSTGRES_PASSWORD=${{ secrets.SKATELAB_DB_PASSWORD }}
-            R2_ENDPOINT_URL=${{ secrets.CF_R2_ENDPOINT_URL }}
-            R2_ACCESS_KEY_ID=${{ secrets.CF_R2_ACCESS_KEY_ID }}
-            R2_SECRET_ACCESS_KEY=${{ secrets.CF_R2_SECRET_ACCESS_KEY }}
-            R2_BUCKET=${{ secrets.CF_R2_BUCKET }}
-            JWT_SECRET=${{ secrets.JWT_SECRET }}
-            VASTAI_API_KEY=${{ secrets.VASTAI_API_KEY }}
-            RESEND_API_KEY=${{ secrets.RESEND_API_KEY }}
-            ENVEOF
-            cd /opt/skatelab
-            /usr/bin/docker compose pull backend frontend
-            /usr/bin/docker compose up -d --remove-orphans
-            DEPLOY
+            mv /opt/skatelab/skatelab.env /opt/skatelab/.env
+            bash /opt/skatelab/deploy.sh
 
       - name: Add Caddy route for skatelab.ru
         id: caddy
@@ -186,24 +191,11 @@ jobs:
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
           command_timeout: 30s
+          request_pty: true
           script: |
-            bash -s <<'CADDY'
-            CADDYFILE=/opt/infra/services/caddy/Caddyfile
-            if ! grep -q "skatelab.ru" "$CADDYFILE"; then
-              cat >> "$CADDYFILE" <<'CADDYEOF'
-
-            skatelab.ru {
-              handle /api/* {
-                reverse_proxy backend:8000
-              }
-              handle {
-                reverse_proxy frontend:3000
-              }
-            }
-            CADDYEOF
-              /usr/bin/docker exec infra-caddy-1 caddy reload --config /etc/caddy/Caddyfile
-            fi
-            CADDY
+            grep -q "skatelab.ru" /opt/infra/services/caddy/Caddyfile && exit 0
+            echo 'skatelab.ru { handle /api/* { reverse_proxy backend:8000 } handle { reverse_proxy frontend:3000 } }' >> /opt/infra/services/caddy/Caddyfile
+            docker exec infra-caddy-1 caddy reload --config /etc/caddy/Caddyfile
 
       - name: Run database migrations
         id: migrate
@@ -214,8 +206,10 @@ jobs:
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
           command_timeout: 1m
+          request_pty: true
           script: |
-            bash -c 'sleep 10 && /usr/bin/docker exec skatelab-backend-1 alembic upgrade head'
+            sleep 10
+            docker exec skatelab-backend-1 alembic upgrade head
 
       - name: Health check
         id: health
@@ -226,17 +220,9 @@ jobs:
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
           command_timeout: 3m
+          request_pty: true
           script: |
-            timeout 120 bash -c '
-              while true; do
-                if /usr/bin/docker exec skatelab-backend-1 \
-                  python -c "import urllib.request; urllib.request.urlopen(\"http://127.0.0.1:8000/api/v1/health\", timeout=2)" 2>/dev/null; then
-                  echo "Backend healthy"
-                  exit 0
-                fi
-                sleep 10
-              done
-            '
+            timeout 120 bash -c 'while true; do docker exec skatelab-backend-1 python -c "import urllib.request; urllib.request.urlopen(\"http://127.0.0.1:8000/api/v1/health\", timeout=2)" 2>/dev/null && echo "Backend healthy" && exit 0; sleep 10; done'
 
       - name: Cleanup
         id: cleanup
@@ -248,8 +234,8 @@ jobs:
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
           command_timeout: 1m
-          script: |
-            /usr/bin/docker image prune -f --filter "until=24h" 2>&1 || true
+          request_pty: true
+          script: docker image prune -f --filter "until=24h" || true
 
       - name: Deploy summary
         if: always()
