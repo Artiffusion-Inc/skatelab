@@ -133,7 +133,7 @@ jobs:
 
       - name: Write .env and deploy script on runner
         run: |
-          cat > /tmp/deploy.sh <<'SCRIPTEOF'
+          cat > deploy.sh <<'SCRIPTEOF'
           #!/usr/bin/env bash
           set -e
           export PATH="/usr/local/bin:/usr/bin:/bin"
@@ -144,7 +144,7 @@ jobs:
           docker compose up -d --remove-orphans
           SCRIPTEOF
 
-          cat > /tmp/skatelab.env <<ENVEOF
+          cat > skatelab.env <<ENVEOF
           GHCR_OWNER=${{ steps.ghcr.outputs.owner }}
           TAG=${{ github.sha }}
           POSTGRES_PASSWORD=${{ secrets.SKATELAB_DB_PASSWORD }}
@@ -165,7 +165,7 @@ jobs:
           port: 22
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
-          source: "infra/compose.prod.yaml,infra/Caddyfile,infra/prometheus.yml,infra/prometheus/rules,/tmp/deploy.sh,/tmp/skatelab.env"
+          source: "infra/compose.prod.yaml,infra/Caddyfile,infra/prometheus.yml,infra/prometheus/rules,deploy.sh,skatelab.env"
           target: "/opt/skatelab/"
           strip_components: 1
 
