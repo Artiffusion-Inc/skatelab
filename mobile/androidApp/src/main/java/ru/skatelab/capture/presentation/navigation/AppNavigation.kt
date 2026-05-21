@@ -35,9 +35,9 @@ import ru.skatelab.capture.presentation.export.ExportScreen
 import ru.skatelab.capture.presentation.export.ExportViewModel
 import ru.skatelab.capture.presentation.recording.RecordingScreen
 import ru.skatelab.capture.presentation.recording.RecordingViewModel
-import ru.skatelab.capture.presentation.session.SessionListScreen
+import ru.skatelab.capture.presentation.session.SessionListScreen as LocalSessionListScreen
 import ru.skatelab.capture.presentation.session.SessionListViewModel
-import ru.skatelab.capture.presentation.sessiondetail.SessionDetailScreen
+import ru.skatelab.capture.presentation.sessiondetail.SessionDetailScreen as LocalSessionDetailScreen
 import ru.skatelab.capture.presentation.sessiondetail.SessionDetailViewModel
 import ru.skatelab.capture.navigation.ResultsRoute
 import ru.skatelab.capture.ui.auth.AuthViewModel
@@ -46,8 +46,8 @@ import ru.skatelab.capture.ui.auth.RegisterScreen
 import ru.skatelab.capture.ui.auth.SplashScreen
 import ru.skatelab.capture.ui.processing.ProcessingScreen
 import ru.skatelab.capture.ui.session.AndroidSessionsViewModel
-import ru.skatelab.capture.ui.session.SessionDetailScreen
-import ru.skatelab.capture.ui.session.SessionListScreen
+import ru.skatelab.capture.ui.session.SessionDetailScreen as ResultDetailScreen
+import ru.skatelab.capture.ui.session.SessionListScreen as ResultListScreen
 import ru.skatelab.shared.state.AuthUiState
 
 @InstallIn(SingletonComponent::class)
@@ -143,7 +143,7 @@ fun AppNavigation() {
         // --- Results (server sessions) ---
         composable<ResultsRoute> {
             val viewModel: AndroidSessionsViewModel = hiltViewModel()
-            SessionListScreen(
+            ResultListScreen(
                 viewModel = viewModel,
                 onSessionClick = { sessionId ->
                     navController.navigate(ResultDetailRoute(sessionId))
@@ -155,7 +155,7 @@ fun AppNavigation() {
         composable<ResultDetailRoute> { backStackEntry ->
             val route = backStackEntry.toRoute<ResultDetailRoute>()
             val viewModel: AndroidSessionsViewModel = hiltViewModel()
-            SessionDetailScreen(
+            ResultDetailScreen(
                 viewModel = viewModel,
                 sessionId = route.sessionId,
                 onBack = { navController.popBackStack() },
@@ -224,7 +224,7 @@ fun AppNavigation() {
         composable<SessionDetailRoute> { backStackEntry ->
             val sessionId = backStackEntry.arguments?.getString("sessionId") ?: ""
             val viewModel: SessionDetailViewModel = hiltViewModel()
-            SessionDetailScreen(
+            LocalSessionDetailScreen(
                 viewModel = viewModel,
                 sessionId = sessionId,
                 onBack = { navController.popBackStack() },
@@ -234,7 +234,7 @@ fun AppNavigation() {
 
         composable<SessionsRoute> {
             val viewModel: SessionListViewModel = hiltViewModel()
-            SessionListScreen(
+            LocalSessionListScreen(
                 viewModel = viewModel,
                 onSessionClick = { sessionId ->
                     navController.navigate(SessionDetailRoute(sessionId))
