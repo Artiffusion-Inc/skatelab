@@ -6,6 +6,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.compose.NavHost
+import androidx.navigation.toRoute
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import dagger.hilt.EntryPoint
@@ -18,8 +19,10 @@ import ru.skatelab.capture.navigation.CalibrationRoute
 import ru.skatelab.capture.navigation.CameraRoute
 import ru.skatelab.capture.navigation.ExportRoute
 import ru.skatelab.capture.navigation.LoginRoute
+import ru.skatelab.capture.navigation.ProcessingRoute
 import ru.skatelab.capture.navigation.RecordingRoute
 import ru.skatelab.capture.navigation.RegisterRoute
+import ru.skatelab.capture.navigation.ResultDetailRoute
 import ru.skatelab.capture.navigation.SessionDetailRoute
 import ru.skatelab.capture.navigation.SessionsRoute
 import ru.skatelab.capture.navigation.SplashRoute
@@ -36,10 +39,15 @@ import ru.skatelab.capture.presentation.session.SessionListScreen
 import ru.skatelab.capture.presentation.session.SessionListViewModel
 import ru.skatelab.capture.presentation.sessiondetail.SessionDetailScreen
 import ru.skatelab.capture.presentation.sessiondetail.SessionDetailViewModel
+import ru.skatelab.capture.navigation.ResultsRoute
 import ru.skatelab.capture.ui.auth.AuthViewModel
 import ru.skatelab.capture.ui.auth.LoginScreen
 import ru.skatelab.capture.ui.auth.RegisterScreen
 import ru.skatelab.capture.ui.auth.SplashScreen
+import ru.skatelab.capture.ui.processing.ProcessingScreen
+import ru.skatelab.capture.ui.session.AndroidSessionsViewModel
+import ru.skatelab.capture.ui.session.SessionDetailScreen
+import ru.skatelab.capture.ui.session.SessionListScreen
 import ru.skatelab.shared.state.AuthUiState
 
 @InstallIn(SingletonComponent::class)
@@ -108,15 +116,50 @@ fun AppNavigation() {
             )
         }
 
-        // --- Camera placeholder (OOFSkate main screen) ---
+        // --- Main app (tabbed) ---
         composable<CameraRoute> {
-            // Placeholder: navigate to sessions for now.
-            // This will be replaced with the actual Camera screen in a later task.
-            androidx.compose.runtime.LaunchedEffect(Unit) {
-                navController.navigate(SessionsRoute) {
-                    popUpTo<CameraRoute> { inclusive = true }
-                }
-            }
+            ru.skatelab.capture.ui.tabs.MainTabsScreen(
+                onNavigateToBleScan = {
+                    navController.navigate(BleScanRoute)
+                },
+            )
+        }
+
+        // --- Processing (SSE progress) ---
+        composable<ProcessingRoute> { backStackEntry ->
+            val route = backStackEntry.toRoute<ProcessingRoute>()
+            ProcessingScreen(
+                videoKey = route.videoKey,
+                sessionId = route.sessionId,
+                onCompleted = { taskId ->
+                    navController.navigate(ResultDetailRoute(taskId)) {
+                        popUpTo<ProcessingRoute> { inclusive = true }
+                    }
+                },
+                onBack = { navController.popBackStack() },
+            )
+        }
+
+        // --- Results (server sessions) ---
+        composable<ResultsRoute> {
+            val viewModel: AndroidSessionsViewModel = hiltViewModel()
+            SessionListScreen(
+                viewModel = viewModel,
+                onSessionClick = { sessionId ->
+                    navController.navigate(ResultDetailRoute(sessionId))
+                },
+                onBack = { navController.popBackStack() },
+            )
+        }
+
+        composable<ResultDetailRoute> { backStackEntry ->
+            val route = backStackEntry.toRoute<ResultDetailRoute>()
+            val viewModel: AndroidSessionsViewModel = hiltViewModel()
+            SessionDetailScreen(
+                viewModel = viewModel,
+                sessionId = route.sessionId,
+                onBack = { navController.popBackStack() },
+            )
         }
 
         // --- IMU capture flow (existing) ---

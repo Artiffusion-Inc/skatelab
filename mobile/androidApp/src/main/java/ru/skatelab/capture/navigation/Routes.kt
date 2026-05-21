@@ -11,7 +11,7 @@ import kotlinx.serialization.Serializable
 @Serializable object CameraRoute
 @Serializable object ResultsRoute
 @Serializable data class ResultDetailRoute(val sessionId: String)
-@Serializable object ProcessingRoute
+@Serializable data class ProcessingRoute(val videoKey: String, val sessionId: String? = null)
 @Serializable object ProfileRoute
 @Serializable object MoreRoute
 
