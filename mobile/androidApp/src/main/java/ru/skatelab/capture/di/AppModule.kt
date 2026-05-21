@@ -9,11 +9,13 @@ import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import javax.inject.Named
+import javax.inject.Qualifier
 import javax.inject.Singleton
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import ru.skatelab.capture.AppLogger
-import ru.skatelab.capture.data.ble.BleRepositoryImpl
+import ru.skatelab.capture.data.ble.KableBleRepository
+import ru.skatelab.capture.data.ble.NoOpBleRepository
 import ru.skatelab.capture.data.export.ManifestBuilder
 import ru.skatelab.capture.data.export.ZipExporter
 import ru.skatelab.capture.data.recording.ImuCollector
@@ -31,12 +33,21 @@ import ru.skatelab.shared.auth.AuthRepository
 import ru.skatelab.shared.auth.TokenStorage
 import ru.skatelab.shared.api.SkateLabClient
 
+@Qualifier
+@Retention(AnnotationRetention.BINARY)
+annotation class NoOpBle
+
 @Module
 @InstallIn(SingletonComponent::class)
 abstract class AppModule {
     @Binds
     @Singleton
-    abstract fun bindBleRepository(impl: BleRepositoryImpl): BleRepository
+    abstract fun bindBleRepository(impl: KableBleRepository): BleRepository
+
+    @Binds
+    @Singleton
+    @NoOpBle
+    abstract fun bindNoOpBleRepository(impl: NoOpBleRepository): BleRepository
 
     @Binds
     @Singleton

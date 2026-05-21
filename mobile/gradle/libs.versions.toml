@@ -11,7 +11,7 @@ media3 = "1.6.0"
 vico = "2.1.0"
 room = "2.7.1"
 work = "2.10.1"
-kable = "2.3.1"
+kable = "0.32.0"
 mokkery = "2.7.0"
 kover = "0.9.1"
 navigation = "2.9.0"
@@ -66,6 +66,7 @@ protobuf-javalite = { module = "com.google.protobuf:protobuf-javalite", version.
 kotlinx-coroutines-android = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-android", version.ref = "coroutines" }
 kotlinx-coroutines-play-services = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-play-services", version.ref = "coroutines" }
 kotlinx-coroutines-guava = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-guava", version.ref = "coroutines" }
+kable-core = { module = "com.juul.kable:core", version.ref = "kable" }
 
 # Testing
 junit = { module = "junit:junit", version = "4.13.2" }
