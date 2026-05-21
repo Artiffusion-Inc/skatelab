@@ -137,7 +137,11 @@ jobs:
           cat > deploy.sh <<'SCRIPTEOF'
           #!/usr/bin/env bash
           set -e
+          set -a
+          source /opt/skatelab/.env
+          set +a
           /usr/bin/docker network create infra_app_network 2>/dev/null || true
+          echo "$GHCR_PAT" | /usr/bin/docker login ghcr.io -u "$GHCR_OWNER" --password-stdin
           cp /opt/skatelab/compose.prod.yaml /opt/skatelab/compose.yaml
           cd /opt/skatelab
           /usr/bin/docker compose pull backend frontend
@@ -147,8 +151,8 @@ jobs:
           DEPLOY_B64=$(base64 -w0 deploy.sh)
           echo "deploy_b64=$DEPLOY_B64" >> "$GITHUB_OUTPUT"
 
-          ENV_B64=$(printf 'GHCR_OWNER=%s\nTAG=%s\nPOSTGRES_PASSWORD=%s\nR2_ENDPOINT_URL=%s\nR2_ACCESS_KEY_ID=%s\nR2_SECRET_ACCESS_KEY=%s\nR2_BUCKET=%s\nJWT_SECRET=%s\nVASTAI_API_KEY=%s\nRESEND_API_KEY=%s\n' \
-            "${{ steps.ghcr.outputs.owner }}" "${{ github.sha }}" "${{ secrets.SKATELAB_DB_PASSWORD }}" \
+          ENV_B64=$(printf 'GHCR_OWNER=%s\nGHCR_PAT=%s\nTAG=%s\nPOSTGRES_PASSWORD=%s\nR2_ENDPOINT_URL=%s\nR2_ACCESS_KEY_ID=%s\nR2_SECRET_ACCESS_KEY=%s\nR2_BUCKET=%s\nJWT_SECRET=%s\nVASTAI_API_KEY=%s\nRESEND_API_KEY=%s\n' \
+            "${{ steps.ghcr.outputs.owner }}" "${{ secrets.GHCR_PAT }}" "${{ github.sha }}" "${{ secrets.SKATELAB_DB_PASSWORD }}" \
             "${{ secrets.CF_R2_ENDPOINT_URL }}" "${{ secrets.CF_R2_ACCESS_KEY_ID }}" "${{ secrets.CF_R2_SECRET_ACCESS_KEY }}" \
             "${{ secrets.CF_R2_BUCKET }}" "${{ secrets.JWT_SECRET }}" "${{ secrets.VASTAI_API_KEY }}" "${{ secrets.RESEND_API_KEY }}" | base64 -w0)
           echo "env_b64=$ENV_B64" >> "$GITHUB_OUTPUT"
