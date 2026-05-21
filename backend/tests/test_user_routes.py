@@ -1,5 +1,8 @@
 """Tests for user API routes."""
 
+import io
+from unittest.mock import patch
+
 import pytest
 from app.auth.security import hash_password
 from app.models.user import User
@@ -49,3 +52,19 @@ async def test_update_settings(client, auth_headers):
     data = response.json()
     assert data["language"] == "en"
     assert data["theme"] == "dark"
+
+
+async def test_update_angular_unit(client, auth_headers):
+    """Test PATCH /api/users/me/settings updates angular_unit preference."""
+    resp = await client.patch(
+        "/api/v1/users/me/settings",
+        json={"angular_unit": "rpm"},
+        headers=auth_headers,
+    )
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["angular_unit"] == "rpm"
+
+    # Verify persists
+    resp2 = await client.get("/api/v1/users/me", headers=auth_headers)
+    assert resp2.json()["angular_unit"] == "rpm"
