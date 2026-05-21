@@ -303,6 +303,45 @@ def get_element_def(element_type: str) -> ElementDef | None:
     return ELEMENT_DEFS.get(element_type)
 
 
+@dataclass(frozen=True)
+class SpinDef:
+    """Definition of a figure skating spin type.
+
+    Attributes:
+        name: Spin identifier (e.g., 'upright_spin').
+        name_ru: Russian name for display.
+        min_duration_s: Minimum spin duration in seconds.
+        hip_y_range_max: Max hip vertical displacement (normalized).
+    """
+
+    name: str
+    name_ru: str
+    min_duration_s: float
+    hip_y_range_max: float
+
+
+SPIN_TYPES: dict[str, SpinDef] = {
+    "upright_spin": SpinDef(
+        name="upright_spin",
+        name_ru="Вертикальное вращение",
+        min_duration_s=1.0,
+        hip_y_range_max=0.1,
+    ),
+    "one_foot_spin": SpinDef(
+        name="one_foot_spin",
+        name_ru="Вращение на одной ноге",
+        min_duration_s=1.0,
+        hip_y_range_max=0.15,
+    ),
+    "scratch_spin": SpinDef(
+        name="scratch_spin",
+        name_ru="Скрестное вращение",
+        min_duration_s=1.5,
+        hip_y_range_max=0.2,
+    ),
+}
+
+
 def list_supported_elements() -> list[str]:
     """List all supported element types.
 

@@ -43,7 +43,13 @@ JUMP_ELEMENTS = (
     "axel",
 )
 
-ALL_ELEMENTS = (*JUMP_ELEMENTS, "three_turn")
+SPIN_ELEMENTS = (
+    "upright_spin",
+    "one_foot_spin",
+    "scratch_spin",
+)
+
+ALL_ELEMENTS = (*JUMP_ELEMENTS, "three_turn", *SPIN_ELEMENTS)
 
 
 # Metric registry
@@ -175,6 +181,25 @@ METRIC_REGISTRY: dict[str, MetricDef] = {
         direction="higher",
         element_types=("three_turn",),
         ideal_range=(0.1, 0.5),
+    ),
+    # Spin-specific metrics
+    "spin_type": MetricDef(
+        name="spin_type",
+        label_ru="Тип вращения",
+        unit="score",
+        format=".2f",
+        direction="higher",
+        element_types=SPIN_ELEMENTS,
+        ideal_range=(0.5, 1.0),
+    ),
+    "spin_peak_velocity": MetricDef(
+        name="spin_peak_velocity",
+        label_ru="Пиковая скорость вращения",
+        unit="deg/s",
+        format=".0f",
+        direction="higher",
+        element_types=SPIN_ELEMENTS,
+        ideal_range=(300, 600),
     ),
     # Universal metrics
     "symmetry": MetricDef(
