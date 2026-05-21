@@ -13,7 +13,7 @@ import pytest
 
 
 @pytest.mark.asyncio
-async def test_enqueue_detect(client, app, auth_headers):
+async def test_enqueue_detect(client, auth_headers):
     """POST /detect uploads video, creates task state, enqueues job."""
     video_content = b"fake-video-bytes"
 
@@ -36,7 +36,7 @@ async def test_enqueue_detect(client, app, auth_headers):
     assert data["video_key"].endswith(".mp4")
     assert data["status"] == "pending"
 
-    app.state.arq_pool.enqueue_job.assert_awaited_once_with(
+    client.app.state.arq_pool.enqueue_job.assert_awaited_once_with(
         "detect_video_task",
         task_id=data["task_id"],
         video_key=data["video_key"],
@@ -46,7 +46,7 @@ async def test_enqueue_detect(client, app, auth_headers):
 
 
 @pytest.mark.asyncio
-async def test_enqueue_detect_custom_tracking(client, app, auth_headers):
+async def test_enqueue_detect_custom_tracking(client, auth_headers):
     """POST /detect passes the tracking query parameter to the job."""
     video_content = b"fake-video-bytes"
 
@@ -63,7 +63,7 @@ async def test_enqueue_detect_custom_tracking(client, app, auth_headers):
 
     assert response.status_code == 200
 
-    call_kwargs = app.state.arq_pool.enqueue_job.call_args.kwargs
+    call_kwargs = client.app.state.arq_pool.enqueue_job.call_args.kwargs
     assert call_kwargs["tracking"] == "manual"
 
 

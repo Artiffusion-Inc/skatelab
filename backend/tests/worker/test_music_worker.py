@@ -14,6 +14,17 @@ sys.modules["aiobotocore"] = _mock_aiobotocore
 sys.modules["aiobotocore.session"] = _mock_aiobotocore_session
 
 
+@pytest.fixture(autouse=True)
+def _inject_test_pool():
+    """Inject mock Valkey via _set_test_pool for all music worker tests."""
+    from app.task_manager import _set_test_pool
+
+    mock_valkey = AsyncMock()
+    _set_test_pool(mock_valkey)
+    yield
+    _set_test_pool(None)
+
+
 @pytest.mark.asyncio
 async def test_analyze_music_task_duplicate_found():
     """Test analyze_music_task when duplicate fingerprint is found."""
@@ -26,7 +37,6 @@ async def test_analyze_music_task_duplicate_found():
 
     # Mock all external dependencies
     with (
-        patch("app.worker.get_valkey_client") as mock_get_valkey,
         patch("asyncio.to_thread") as mock_to_thread,
         patch("app.database.async_session_factory") as mock_async_session_factory,
         patch("app.worker.download_file"),
@@ -37,11 +47,6 @@ async def test_analyze_music_task_duplicate_found():
         patch("app.crud.choreography.find_music_by_fingerprint") as mock_find_duplicate,
         patch("app.crud.choreography.update_music_analysis") as mock_update_music,
     ):
-        # Setup mocks
-        mock_valkey = AsyncMock()
-        mock_valkey.close = AsyncMock()
-        mock_get_valkey.return_value = mock_valkey
-
         # Mock asyncio.to_thread to return different values based on function
         def mock_to_thread_side_effect(func, *args, **kwargs):
             # Check by string representation since mocks don't have __name__
@@ -117,7 +122,6 @@ async def test_analyze_music_task_full_analysis():
     r2_key = "music/user_123/music_123.mp3"
 
     with (
-        patch("app.worker.get_valkey_client") as mock_get_valkey,
         patch("asyncio.to_thread") as mock_to_thread,
         patch("app.database.async_session_factory") as mock_async_session_factory,
         patch("app.worker.download_file"),
@@ -129,11 +133,6 @@ async def test_analyze_music_task_full_analysis():
         patch("app.services.choreography.music_analyzer.analyze_music_sync") as mock_analyze,
         patch("app.crud.choreography.update_music_analysis") as mock_update_music,
     ):
-        # Setup mocks
-        mock_valkey = AsyncMock()
-        mock_valkey.close = AsyncMock()
-        mock_get_valkey.return_value = mock_valkey
-
         # Mock asyncio.to_thread to return different values based on function
         def mock_to_thread_side_effect(func, *args, **kwargs):
             # Check by string representation since mocks don't have __name__
@@ -208,16 +207,10 @@ async def test_analyze_music_task_failure():
     r2_key = "music/user_123/music_123.mp3"
 
     with (
-        patch("app.worker.get_valkey_client") as mock_get_valkey,
         patch("app.database.async_session_factory") as mock_async_session_factory,
         patch("app.crud.choreography.get_music_analysis_by_id") as mock_get_music,
         patch("app.crud.choreography.update_music_analysis") as mock_update_music,
     ):
-        # Setup mocks
-        mock_valkey = AsyncMock()
-        mock_valkey.close = AsyncMock()
-        mock_get_valkey.return_value = mock_valkey
-
         # Mock download to raise error
         async def mock_download_error(*args, **kwargs):
             raise RuntimeError("Download failed")

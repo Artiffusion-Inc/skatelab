@@ -15,7 +15,7 @@ import pytest
 
 
 @pytest.mark.asyncio
-async def test_enqueue_process(client, app, auth_headers):
+async def test_enqueue_process(client, auth_headers):
     """POST /process/queue creates task state and enqueues job with correct params."""
     req_body = {
         "video_key": "input/test.mp4",
@@ -38,8 +38,8 @@ async def test_enqueue_process(client, app, auth_headers):
     assert data["task_id"].startswith("proc_")
     assert data["status"] == "pending"
 
-    app.state.arq_pool.enqueue_job.assert_awaited_once()
-    call_kwargs = app.state.arq_pool.enqueue_job.call_args.kwargs
+    client.app.state.arq_pool.enqueue_job.assert_awaited_once()
+    call_kwargs = client.app.state.arq_pool.enqueue_job.call_args.kwargs
     assert call_kwargs["task_id"] == data["task_id"]
     assert call_kwargs["video_key"] == "input/test.mp4"
     assert call_kwargs["person_click"] == {"x": 150, "y": 300}
@@ -59,7 +59,7 @@ async def test_enqueue_process(client, app, auth_headers):
 
 
 @pytest.mark.asyncio
-async def test_enqueue_process_with_ml_flags(client, app, auth_headers):
+async def test_enqueue_process_with_ml_flags(client, auth_headers):
     """POST /process/queue passes ML model flags to the job."""
     req_body = {
         "video_key": "input/flags.mp4",
@@ -78,7 +78,7 @@ async def test_enqueue_process_with_ml_flags(client, app, auth_headers):
 
     assert response.status_code == 200
 
-    call_kwargs = app.state.arq_pool.enqueue_job.call_args.kwargs
+    call_kwargs = client.app.state.arq_pool.enqueue_job.call_args.kwargs
     ml_flags = call_kwargs["ml_flags"]
     assert ml_flags.depth is True
     assert ml_flags.optical_flow is True
@@ -89,7 +89,7 @@ async def test_enqueue_process_with_ml_flags(client, app, auth_headers):
 
 
 @pytest.mark.asyncio
-async def test_enqueue_process_defaults(client, app, auth_headers):
+async def test_enqueue_process_defaults(client, auth_headers):
     """POST /process/queue uses default values for optional fields."""
     req_body = {
         "video_key": "input/minimal.mp4",
@@ -104,7 +104,7 @@ async def test_enqueue_process_defaults(client, app, auth_headers):
 
     assert response.status_code == 200
 
-    call_kwargs = app.state.arq_pool.enqueue_job.call_args.kwargs
+    call_kwargs = client.app.state.arq_pool.enqueue_job.call_args.kwargs
     assert call_kwargs["frame_skip"] == 1
     assert call_kwargs["tracking"] == "auto"
     assert call_kwargs["session_id"] is None

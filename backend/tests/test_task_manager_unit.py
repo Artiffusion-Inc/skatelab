@@ -15,11 +15,14 @@ from app.task_manager import (
 
 @pytest.fixture(autouse=True)
 def reset_pool():
-    """Reset module-level _pool dict before each test."""
-    original = tm_module._pool.copy()
-    tm_module._pool = {}
+    """Reset module-level pool and test pool before each test."""
+    original_pool = tm_module._pool
+    original_test_pool = tm_module._test_pool
+    tm_module._pool = None
+    tm_module._test_pool = None
     yield
-    tm_module._pool = original
+    tm_module._pool = original_pool
+    tm_module._test_pool = original_test_pool
 
 
 def _mock_settings():
@@ -46,15 +49,12 @@ async def test_init_valkey_pool():
         patch("app.task_manager.get_settings", return_value=mock_settings),
         patch("app.task_manager.aioredis.Redis") as MockRedis,
     ):
+        mock_instance = AsyncMock()
+        mock_instance.ping = AsyncMock(return_value=True)
+        MockRedis.return_value = mock_instance
         await tm_module.init_valkey_pool()
-        MockRedis.assert_called_once_with(
-            host="localhost",
-            port=6379,
-            db=0,
-            password=None,
-            decode_responses=True,
-        )
-        assert "valkey" in tm_module._pool
+        MockRedis.assert_called_once()
+        assert tm_module._pool is mock_instance
 
 
 async def test_init_valkey_pool_idempotent():
@@ -64,6 +64,9 @@ async def test_init_valkey_pool_idempotent():
         patch("app.task_manager.get_settings", return_value=mock_settings),
         patch("app.task_manager.aioredis.Redis") as MockRedis,
     ):
+        mock_instance = AsyncMock()
+        mock_instance.ping = AsyncMock(return_value=True)
+        MockRedis.return_value = mock_instance
         await tm_module.init_valkey_pool()
         await tm_module.init_valkey_pool()
         MockRedis.assert_called_once()
@@ -72,9 +75,19 @@ async def test_init_valkey_pool_idempotent():
 def test_get_valkey_returns_connection():
     """get_valkey returns pooled connection."""
     fake_conn = MagicMock()
-    tm_module._pool["valkey"] = fake_conn
+    tm_module._pool = fake_conn
     result = tm_module.get_valkey()
     assert result is fake_conn
+
+
+def test_get_valkey_returns_test_pool_first():
+    """get_valkey prefers _test_pool over _pool."""
+    test_conn = MagicMock()
+    real_conn = MagicMock()
+    tm_module._test_pool = test_conn
+    tm_module._pool = real_conn
+    result = tm_module.get_valkey()
+    assert result is test_conn
 
 
 def test_get_valkey_raises_if_not_initialized():
@@ -86,10 +99,10 @@ def test_get_valkey_raises_if_not_initialized():
 async def test_close_valkey_pool():
     """close_valkey_pool closes and removes connection from pool."""
     mock_conn = AsyncMock()
-    tm_module._pool["valkey"] = mock_conn
+    tm_module._pool = mock_conn
     await tm_module.close_valkey_pool()
     mock_conn.aclose.assert_awaited_once()
-    assert "valkey" not in tm_module._pool
+    assert tm_module._pool is None
 
 
 async def test_close_valkey_pool_noop():
@@ -97,38 +110,30 @@ async def test_close_valkey_pool_noop():
     await tm_module.close_valkey_pool()  # should not raise
 
 
-async def test_get_valkey_client():
-    """get_valkey_client returns a new Redis instance with correct params."""
-    mock_settings = _mock_settings()
-    with (
-        patch("app.task_manager.get_settings", return_value=mock_settings),
-        patch("app.task_manager.aioredis.Redis") as MockRedis,
-    ):
-        client = await tm_module.get_valkey_client()
-        MockRedis.assert_called_once_with(
-            host="localhost",
-            port=6379,
-            db=0,
-            password=None,
-            decode_responses=True,
-        )
-        assert client is MockRedis.return_value
+def test_set_test_pool():
+    """_set_test_pool overrides the pool used by get_valkey."""
+    fake_pool = MagicMock()
+    tm_module._set_test_pool(fake_pool)
+    assert tm_module.get_valkey() is fake_pool
+    tm_module._set_test_pool(None)
+    # After clearing test pool, get_valkey should raise
+    with pytest.raises(RuntimeError):
+        tm_module.get_valkey()
 
 
 # ---------------------------------------------------------------------------
-# Task state operations with auto-client (valkey=None)
+# Task state operations using get_valkey() (pool-based)
 # ---------------------------------------------------------------------------
 
 
-@patch("app.task_manager.get_valkey_client")
-@patch("app.task_manager.get_settings")
-async def test_create_task_state(mock_settings, mock_get_client):
-    """create_task_state sets hash fields, calls expire, and closes client."""
-    mock_settings.return_value = _mock_settings()
+async def test_create_task_state():
+    """create_task_state sets hash fields and calls expire."""
     mock_redis = AsyncMock()
-    mock_get_client.return_value = mock_redis
+    tm_module._test_pool = mock_redis
 
-    await tm_module.create_task_state("t1", "input/video.mp4")
+    with patch("app.task_manager.get_settings") as mock_settings:
+        mock_settings.return_value = _mock_settings()
+        await tm_module.create_task_state("t1", "input/video.mp4")
 
     mock_redis.hset.assert_awaited_once()
     call_args = mock_redis.hset.call_args
@@ -142,14 +147,12 @@ async def test_create_task_state(mock_settings, mock_get_client):
     assert mapping["error"] == ""
 
     mock_redis.expire.assert_awaited_once_with(f"{TASK_KEY_PREFIX}t1", 3600)
-    mock_redis.close.assert_awaited_once()
 
 
-@patch("app.task_manager.get_valkey_client")
-async def test_update_progress(mock_get_client):
+async def test_update_progress():
     """update_progress updates progress and message fields."""
     mock_redis = AsyncMock()
-    mock_get_client.return_value = mock_redis
+    tm_module._test_pool = mock_redis
 
     await tm_module.update_progress("t1", 0.5, "Processing...")
 
@@ -160,14 +163,11 @@ async def test_update_progress(mock_get_client):
     assert mapping["progress"] == "0.5"
     assert mapping["message"] == "Processing..."
 
-    mock_redis.close.assert_awaited_once()
 
-
-@patch("app.task_manager.get_valkey_client")
-async def test_store_result(mock_get_client):
+async def test_store_result():
     """store_result sets status=completed, progress=1.0, and stores JSON result."""
     mock_redis = AsyncMock()
-    mock_get_client.return_value = mock_redis
+    tm_module._test_pool = mock_redis
 
     result_data = {"video_path": "output.mp4", "frames": 100}
     await tm_module.store_result("t1", result_data)
@@ -179,14 +179,11 @@ async def test_store_result(mock_get_client):
     assert mapping["message"] == "Done"
     assert json.loads(mapping["result"]) == result_data
 
-    mock_redis.close.assert_awaited_once()
 
-
-@patch("app.task_manager.get_valkey_client")
-async def test_store_error(mock_get_client):
+async def test_store_error():
     """store_error sets status=failed and stores error message."""
     mock_redis = AsyncMock()
-    mock_get_client.return_value = mock_redis
+    tm_module._test_pool = mock_redis
 
     await tm_module.store_error("t1", "OOM error")
 
@@ -196,14 +193,11 @@ async def test_store_error(mock_get_client):
     assert mapping["error"] == "OOM error"
     assert mapping["completed_at"]  # timestamp set
 
-    mock_redis.close.assert_awaited_once()
 
-
-@patch("app.task_manager.get_valkey_client")
-async def test_mark_cancelled(mock_get_client):
+async def test_mark_cancelled():
     """mark_cancelled sets status=cancelled."""
     mock_redis = AsyncMock()
-    mock_get_client.return_value = mock_redis
+    tm_module._test_pool = mock_redis
 
     await tm_module.mark_cancelled("t1")
 
@@ -212,14 +206,11 @@ async def test_mark_cancelled(mock_get_client):
     assert mapping["status"] == TaskStatus.CANCELLED
     assert mapping["message"] == "Cancelled"
 
-    mock_redis.close.assert_awaited_once()
 
-
-@patch("app.task_manager.get_valkey_client")
-async def test_get_task_state(mock_get_client):
+async def test_get_task_state():
     """get_task_state retrieves hash and parses JSON result field."""
     mock_redis = AsyncMock()
-    mock_get_client.return_value = mock_redis
+    tm_module._test_pool = mock_redis
 
     result_json = json.dumps({"video_path": "out.mp4"})
     mock_redis.hgetall.return_value = {
@@ -240,28 +231,23 @@ async def test_get_task_state(mock_get_client):
     assert state["result"] == {"video_path": "out.mp4"}
     assert state["error"] == ""
 
-    mock_redis.close.assert_awaited_once()
 
-
-@patch("app.task_manager.get_valkey_client")
-async def test_get_task_state_nonexistent(mock_get_client):
+async def test_get_task_state_nonexistent():
     """get_task_state returns None for missing keys."""
     mock_redis = AsyncMock()
-    mock_get_client.return_value = mock_redis
+    tm_module._test_pool = mock_redis
 
     mock_redis.hgetall.return_value = {}
 
     state = await tm_module.get_task_state("nonexistent")
 
     assert state is None
-    mock_redis.close.assert_awaited_once()
 
 
-@patch("app.task_manager.get_valkey_client")
-async def test_get_task_state_no_result_field(mock_get_client):
+async def test_get_task_state_no_result_field():
     """get_task_state handles hash without result field (sets result=None)."""
     mock_redis = AsyncMock()
-    mock_get_client.return_value = mock_redis
+    tm_module._test_pool = mock_redis
 
     mock_redis.hgetall.return_value = {
         "task_id": "t1",
@@ -276,11 +262,10 @@ async def test_get_task_state_no_result_field(mock_get_client):
     assert state["progress"] == 0.0
 
 
-@patch("app.task_manager.get_valkey_client")
-async def test_is_cancelled(mock_get_client):
+async def test_is_cancelled():
     """is_cancelled returns True when cancel signal is set."""
     mock_redis = AsyncMock()
-    mock_get_client.return_value = mock_redis
+    tm_module._test_pool = mock_redis
 
     mock_redis.get.return_value = "1"
 
@@ -288,14 +273,12 @@ async def test_is_cancelled(mock_get_client):
 
     assert result is True
     mock_redis.get.assert_awaited_once_with(f"{TASK_CANCEL_PREFIX}t1")
-    mock_redis.close.assert_awaited_once()
 
 
-@patch("app.task_manager.get_valkey_client")
-async def test_is_cancelled_false(mock_get_client):
+async def test_is_cancelled_false():
     """is_cancelled returns False when no cancel signal."""
     mock_redis = AsyncMock()
-    mock_get_client.return_value = mock_redis
+    tm_module._test_pool = mock_redis
 
     mock_redis.get.return_value = None
 
@@ -304,25 +287,22 @@ async def test_is_cancelled_false(mock_get_client):
     assert result is False
 
 
-@patch("app.task_manager.get_valkey_client")
-@patch("app.task_manager.get_settings")
-async def test_set_cancel_signal(mock_settings, mock_get_client):
+async def test_set_cancel_signal():
     """set_cancel_signal sets key with TTL."""
-    mock_settings.return_value = _mock_settings()
     mock_redis = AsyncMock()
-    mock_get_client.return_value = mock_redis
+    tm_module._test_pool = mock_redis
 
-    await tm_module.set_cancel_signal("t1")
+    with patch("app.task_manager.get_settings") as mock_settings:
+        mock_settings.return_value = _mock_settings()
+        await tm_module.set_cancel_signal("t1")
 
     mock_redis.setex.assert_awaited_once_with(f"{TASK_CANCEL_PREFIX}t1", 3600, "1")
-    mock_redis.close.assert_awaited_once()
 
 
-@patch("app.task_manager.get_valkey_client")
-async def test_publish_task_event(mock_get_client):
+async def test_publish_task_event():
     """publish_task_event publishes JSON to correct channel."""
     mock_redis = AsyncMock()
-    mock_get_client.return_value = mock_redis
+    tm_module._test_pool = mock_redis
 
     event_data = {"status": "running", "progress": 0.5}
     await tm_module.publish_task_event("t1", event_data)
@@ -332,122 +312,16 @@ async def test_publish_task_event(mock_get_client):
     assert channel == f"{TASK_EVENTS_PREFIX}t1"
     assert json.loads(message) == event_data
 
-    mock_redis.close.assert_awaited_once()
-
-
-# ---------------------------------------------------------------------------
-# With explicit valkey (no auto-close)
-# ---------------------------------------------------------------------------
-
-
-async def test_create_task_state_with_valkey_no_close():
-    """When valkey is provided, create_task_state should NOT close it."""
-    mock_valkey = AsyncMock()
-
-    with patch("app.task_manager.get_settings") as mock_settings:
-        mock_settings.return_value = _mock_settings()
-        await tm_module.create_task_state("t1", "input/video.mp4", valkey=mock_valkey)
-
-    mock_valkey.hset.assert_awaited_once()
-    mock_valkey.expire.assert_awaited_once()
-    mock_valkey.close.assert_not_awaited()
-
-
-async def test_get_task_state_with_valkey_no_close():
-    """When valkey is provided, get_task_state should NOT close it."""
-    mock_valkey = AsyncMock()
-    mock_valkey.hgetall.return_value = {"task_id": "t1", "status": "pending", "progress": "0"}
-
-    state = await tm_module.get_task_state("t1", valkey=mock_valkey)
-
-    assert state is not None
-    mock_valkey.hgetall.assert_awaited_once()
-    mock_valkey.close.assert_not_awaited()
-
-
-async def test_publish_task_event_with_valkey_no_close():
-    """When valkey is provided, publish_task_event should NOT close it."""
-    mock_valkey = AsyncMock()
-
-    await tm_module.publish_task_event("t1", {"status": "done"}, valkey=mock_valkey)
-
-    mock_valkey.publish.assert_awaited_once()
-    mock_valkey.close.assert_not_awaited()
-
-
-async def test_update_progress_with_valkey_no_close():
-    """When valkey is provided, update_progress should NOT close it."""
-    mock_valkey = AsyncMock()
-
-    await tm_module.update_progress("t1", 0.75, "Almost done", valkey=mock_valkey)
-
-    mock_valkey.hset.assert_awaited_once()
-    mock_valkey.close.assert_not_awaited()
-
-
-async def test_store_result_with_valkey_no_close():
-    """When valkey is provided, store_result should NOT close it."""
-    mock_valkey = AsyncMock()
-
-    await tm_module.store_result("t1", {"key": "val"}, valkey=mock_valkey)
-
-    mock_valkey.hset.assert_awaited_once()
-    mock_valkey.close.assert_not_awaited()
-
-
-async def test_store_error_with_valkey_no_close():
-    """When valkey is provided, store_error should NOT close it."""
-    mock_valkey = AsyncMock()
-
-    await tm_module.store_error("t1", "fail", valkey=mock_valkey)
-
-    mock_valkey.hset.assert_awaited_once()
-    mock_valkey.close.assert_not_awaited()
-
-
-async def test_mark_cancelled_with_valkey_no_close():
-    """When valkey is provided, mark_cancelled should NOT close it."""
-    mock_valkey = AsyncMock()
-
-    await tm_module.mark_cancelled("t1", valkey=mock_valkey)
-
-    mock_valkey.hset.assert_awaited_once()
-    mock_valkey.close.assert_not_awaited()
-
-
-async def test_is_cancelled_with_valkey_no_close():
-    """When valkey is provided, is_cancelled should NOT close it."""
-    mock_valkey = AsyncMock()
-    mock_valkey.get.return_value = "1"
-
-    result = await tm_module.is_cancelled("t1", valkey=mock_valkey)
-
-    assert result is True
-    mock_valkey.close.assert_not_awaited()
-
-
-async def test_set_cancel_signal_with_valkey_no_close():
-    """When valkey is provided, set_cancel_signal should NOT close it."""
-    mock_valkey = AsyncMock()
-
-    with patch("app.task_manager.get_settings") as mock_settings:
-        mock_settings.return_value = _mock_settings()
-        await tm_module.set_cancel_signal("t1", valkey=mock_valkey)
-
-    mock_valkey.setex.assert_awaited_once()
-    mock_valkey.close.assert_not_awaited()
-
 
 # ---------------------------------------------------------------------------
 # Edge cases
 # ---------------------------------------------------------------------------
 
 
-@patch("app.task_manager.get_valkey_client")
-async def test_update_progress_rounding(mock_get_client):
+async def test_update_progress_rounding():
     """update_progress rounds fraction to 3 decimal places."""
     mock_redis = AsyncMock()
-    mock_get_client.return_value = mock_redis
+    tm_module._test_pool = mock_redis
 
     await tm_module.update_progress("t1", 0.123456, "msg")
 
@@ -455,11 +329,10 @@ async def test_update_progress_rounding(mock_get_client):
     assert mapping["progress"] == "0.123"
 
 
-@patch("app.task_manager.get_valkey_client")
-async def test_get_task_state_progress_default(mock_get_client):
+async def test_get_task_state_progress_default():
     """get_task_state defaults progress to 0.0 when field is missing."""
     mock_redis = AsyncMock()
-    mock_get_client.return_value = mock_redis
+    tm_module._test_pool = mock_redis
 
     mock_redis.hgetall.return_value = {"task_id": "t1"}
 
