@@ -81,6 +81,16 @@ dependencies {
     // Ktor (for DI-provided SkateLabClient)
     implementation(libs.ktor.client.okhttp)
 
+    // Room
+    implementation(libs.room.runtime)
+    implementation(libs.room.ktx)
+    ksp(libs.room.compiler)
+
+    // WorkManager
+    implementation(libs.work.runtime.ktx)
+    implementation(libs.hilt.work)
+    ksp(libs.hilt.compiler)
+
     // Hilt (KSP — migrated from kapt)
     implementation(libs.hilt.android)
     ksp(libs.hilt.compiler)
