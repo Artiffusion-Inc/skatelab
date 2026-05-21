@@ -156,11 +156,10 @@ jobs:
           key: ${{ secrets.VPS_SSH_KEY }}
           command_timeout: 3m
           script: |
-            export PATH="/usr/local/bin:/usr/bin:/bin"
             set -e
 
             # Ensure external network exists
-            docker network create infra_app_network 2>/dev/null || true
+            /usr/bin/docker network create infra_app_network 2>/dev/null || true
 
             # Copy compose.prod.yaml → compose.yaml (canonical name on server)
             cp /opt/skatelab/compose.prod.yaml /opt/skatelab/compose.yaml
@@ -181,8 +180,8 @@ jobs:
 
             # Pull new images and recreate changed services
             cd /opt/skatelab
-            docker compose pull backend frontend
-            docker compose up -d --remove-orphans
+            /usr/bin/docker compose pull backend frontend
+            /usr/bin/docker compose up -d --remove-orphans
 
       - name: Add Caddy route for skatelab.ru
         id: caddy
@@ -194,8 +193,6 @@ jobs:
           key: ${{ secrets.VPS_SSH_KEY }}
           command_timeout: 30s
           script: |
-            export PATH="/usr/local/bin:/usr/bin:/bin"
-
             # Ensure skatelab.ru route exists in infra Caddyfile
             CADDYFILE=/opt/infra/services/caddy/Caddyfile
             if ! grep -q "skatelab.ru" "$CADDYFILE"; then
@@ -210,7 +207,7 @@ jobs:
               }
             }
             CADDYEOF
-              docker exec infra-caddy-1 caddy reload --config /etc/caddy/Caddyfile
+              /usr/bin/docker exec infra-caddy-1 caddy reload --config /etc/caddy/Caddyfile
             fi
 
       - name: Run database migrations
@@ -223,9 +220,8 @@ jobs:
           key: ${{ secrets.VPS_SSH_KEY }}
           command_timeout: 1m
           script: |
-            export PATH="/usr/local/bin:/usr/bin:/bin"
             sleep 10
-            docker exec skatelab-backend-1 alembic upgrade head
+            /usr/bin/docker exec skatelab-backend-1 alembic upgrade head
 
       - name: Health check
         id: health
@@ -237,10 +233,9 @@ jobs:
           key: ${{ secrets.VPS_SSH_KEY }}
           command_timeout: 3m
           script: |
-            export PATH="/usr/local/bin:/usr/bin:/bin"
             timeout 120 bash -c '
               while true; do
-                if docker exec skatelab-backend-1 \
+                if /usr/bin/docker exec skatelab-backend-1 \
                   python -c "import urllib.request; urllib.request.urlopen(\"http://127.0.0.1:8000/api/v1/health\", timeout=2)" 2>/dev/null; then
                   echo "Backend healthy"
                   exit 0
@@ -260,8 +255,7 @@ jobs:
           key: ${{ secrets.VPS_SSH_KEY }}
           command_timeout: 1m
           script: |
-            export PATH="/usr/local/bin:/usr/bin:/bin"
-            docker image prune -f --filter "until=24h" > /dev/null 2>&1
+            /usr/bin/docker image prune -f --filter "until=24h" > /dev/null 2>&1
 
       - name: Deploy summary
         if: always()
