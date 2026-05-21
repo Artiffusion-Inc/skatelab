@@ -288,6 +288,76 @@ ELEMENT_DEFS: dict[str, ElementDef] = {
             "goe_score": (5.0, 10.0),
         },
     ),
+    # Spin elements — rotations=0, classified by spin detection
+    "upright_spin": ElementDef(
+        name="upright_spin",
+        name_ru="Вертикальное вращение",
+        rotations=0,
+        has_toe_pick=False,
+        key_joints=[
+            H36Key.LHIP,
+            H36Key.RHIP,
+            H36Key.LKNEE,
+            H36Key.RKNEE,
+            H36Key.LFOOT,
+            H36Key.RFOOT,
+            H36Key.LSHOULDER,
+            H36Key.RSHOULDER,
+        ],
+        ideal_metrics={
+            "spin_type": (0.5, 1.0),
+            "spin_peak_velocity": (300, 600),
+            "total_rotation_deg": (360, 1440),
+            "rotation_count": (1.0, 4.0),
+            "symmetry": (0.6, 1.0),
+        },
+    ),
+    "one_foot_spin": ElementDef(
+        name="one_foot_spin",
+        name_ru="Вращение на одной ноге",
+        rotations=0,
+        has_toe_pick=False,
+        key_joints=[
+            H36Key.LHIP,
+            H36Key.RHIP,
+            H36Key.LKNEE,
+            H36Key.RKNEE,
+            H36Key.LFOOT,
+            H36Key.RFOOT,
+            H36Key.LSHOULDER,
+            H36Key.RSHOULDER,
+        ],
+        ideal_metrics={
+            "spin_type": (0.5, 1.0),
+            "spin_peak_velocity": (300, 600),
+            "total_rotation_deg": (360, 1440),
+            "rotation_count": (1.0, 4.0),
+            "symmetry": (0.6, 1.0),
+        },
+    ),
+    "scratch_spin": ElementDef(
+        name="scratch_spin",
+        name_ru="Скрестное вращение",
+        rotations=0,
+        has_toe_pick=False,
+        key_joints=[
+            H36Key.LHIP,
+            H36Key.RHIP,
+            H36Key.LKNEE,
+            H36Key.RKNEE,
+            H36Key.LFOOT,
+            H36Key.RFOOT,
+            H36Key.LSHOULDER,
+            H36Key.RSHOULDER,
+        ],
+        ideal_metrics={
+            "spin_type": (0.5, 1.0),
+            "spin_peak_velocity": (300, 600),
+            "total_rotation_deg": (360, 1440),
+            "rotation_count": (1.0, 4.0),
+            "symmetry": (0.6, 1.0),
+        },
+    ),
 }
 
 
@@ -342,6 +412,9 @@ SPIN_TYPES: dict[str, SpinDef] = {
 }
 
 
+SPIN_TYPE_NAMES: set[str] = {s.name for s in SPIN_TYPES.values()}
+
+
 def list_supported_elements() -> list[str]:
     """List all supported element types.
 
@@ -362,3 +435,15 @@ def is_jump(element_type: str) -> bool:
     """
     element_def = get_element_def(element_type)
     return element_def.rotations > 0 if element_def else False
+
+
+def is_spin(element_type: str) -> bool:
+    """Check if element is a spin.
+
+    Args:
+        element_type: Element identifier.
+
+    Returns:
+        True if element is a spin type.
+    """
+    return element_type in SPIN_TYPE_NAMES

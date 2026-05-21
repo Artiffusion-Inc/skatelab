@@ -122,6 +122,11 @@ fun AppNavigation() {
                 onNavigateToBleScan = {
                     navController.navigate(BleScanRoute)
                 },
+                onLogout = {
+                    navController.navigate(LoginRoute) {
+                        popUpTo<SplashRoute> { inclusive = true }
+                    }
+                },
             )
         }
 

@@ -40,6 +40,7 @@ private val TABS = listOf(
 @Composable
 fun MainTabsScreen(
     onNavigateToBleScan: () -> Unit,
+    onLogout: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val tabNavController = rememberNavController()
@@ -72,6 +73,7 @@ fun MainTabsScreen(
         MainTabsNavHost(
             navController = tabNavController,
             onNavigateToBleScan = onNavigateToBleScan,
+            onLogout = onLogout,
             modifier = Modifier.padding(innerPadding),
         )
     }

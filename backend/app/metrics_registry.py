@@ -133,7 +133,7 @@ METRIC_REGISTRY: dict[str, MetricDef] = {
         unit="deg",
         format=".0f",
         direction="higher",
-        element_types=JUMP_ELEMENTS,
+        element_types=(*JUMP_ELEMENTS, *SPIN_ELEMENTS),
         ideal_range=(360, 1620),
     ),
     "rotation_count": MetricDef(
@@ -142,7 +142,7 @@ METRIC_REGISTRY: dict[str, MetricDef] = {
         unit="score",
         format=".1f",
         direction="higher",
-        element_types=JUMP_ELEMENTS,
+        element_types=(*JUMP_ELEMENTS, *SPIN_ELEMENTS),
         ideal_range=(1.0, 4.5),
     ),
     "under_rotation_deg": MetricDef(

@@ -26,6 +26,9 @@ from ..utils.geometry import (
     calculate_com_trajectory,
     calculate_com_trajectory_2d,
 )
+from .element_defs import is_spin
+from .jump_classifier import classify_jump
+from .spin_classifier import classify_spin, detect_spin
 
 if TYPE_CHECKING:
     from .element_defs import ElementDef
@@ -137,6 +140,9 @@ class BiomechanicsAnalyzer:
         if self._element_def.rotations > 0:
             # Jump metrics
             results.extend(self._analyze_jump(poses, phases, fps, com_trajectory=com_trajectory))
+        elif is_spin(self._element_def.name):
+            # Spin metrics
+            results.extend(self._analyze_spin(poses, phases, fps))
         else:
             # Step/edge metrics
             results.extend(self._analyze_step(poses, phases, fps))
@@ -342,6 +348,62 @@ class BiomechanicsAnalyzer:
             )
         )
 
+        # Total rotation & rotation count
+        total_rotation_deg, rotation_count = self.compute_total_rotation_from_poses(
+            poses, phases, fps
+        )
+        results.append(
+            MetricResult(
+                name="total_rotation_deg",
+                value=total_rotation_deg,
+                unit="deg",
+                is_good=False,
+                reference_range=(0, 0),
+            )
+        )
+        results.append(
+            MetricResult(
+                name="rotation_count",
+                value=rotation_count,
+                unit="score",
+                is_good=False,
+                reference_range=(0, 0),
+            )
+        )
+
+        # Under-rotation (target based on element definition)
+        target_rotations = float(self._element_def.rotations)
+        if self._element_def.name == "axel":
+            target_rotations = float(self._element_def.rotations) + 0.5
+        under_rotation_deg = compute_under_rotation(total_rotation_deg, target_rotations)
+        results.append(
+            MetricResult(
+                name="under_rotation_deg",
+                value=under_rotation_deg,
+                unit="deg",
+                is_good=False,
+                reference_range=(0, 0),
+            )
+        )
+
+        # Jump type classification
+        has_toe_pick = bool(self._element_def.has_toe_pick)
+        takeoff_direction = "forward" if self._element_def.name == "axel" else "backward"
+        _jump_type_name, jump_type_confidence = classify_jump(
+            rotation_count=rotation_count,
+            has_toe_pick_signal=has_toe_pick,
+            takeoff_direction=takeoff_direction,
+        )
+        results.append(
+            MetricResult(
+                name="jump_type",
+                value=jump_type_confidence,
+                unit="score",
+                is_good=False,
+                reference_range=(0, 0),
+            )
+        )
+
         return results
 
     def _analyze_step(
@@ -394,6 +456,97 @@ class BiomechanicsAnalyzer:
             MetricResult(
                 name="edge_change_smoothness",
                 value=edge_change,
+                unit="score",
+                is_good=False,
+                reference_range=(0, 0),
+            )
+        )
+
+        return results
+
+    def _analyze_spin(
+        self,
+        poses: NormalizedPose,
+        phases: ElementPhase,
+        fps: float,
+    ) -> list[MetricResult]:
+        """Analyze spin-specific metrics.
+
+        Detects spin segments, classifies spin type, and computes
+        angular velocity metrics.
+
+        Args:
+            poses: NormalizedPose (num_frames, 17, 2).
+            phases: Element phase boundaries.
+            fps: Frame rate.
+
+        Returns:
+            List of MetricResult for spin metrics.
+        """
+        results: list[MetricResult] = []
+
+        # Compute shoulder axis angular velocity for spin detection
+        left_shoulder = poses[:, H36Key.LSHOULDER]
+        right_shoulder = poses[:, H36Key.RSHOULDER]
+        shoulder_vector = right_shoulder - left_shoulder
+        angles = np.arctan2(shoulder_vector[:, 1], shoulder_vector[:, 0])
+        unwrapped = np.unwrap(angles)
+        angular_velocity = np.abs(np.gradient(unwrapped) * fps) * (180.0 / np.pi)
+
+        # Hip Y position for spin detection
+        hip_y = (poses[:, H36Key.LHIP][:, 1] + poses[:, H36Key.RHIP][:, 1]) / 2.0
+
+        # Detect spin
+        is_spinning, duration_s, hip_y_range = detect_spin(
+            angular_velocity_series=angular_velocity,
+            hip_y_series=hip_y,
+            fps=fps,
+        )
+
+        # Spin peak velocity (maximum angular velocity during spin)
+        peak_velocity = float(np.max(angular_velocity)) if len(angular_velocity) > 0 else 0.0
+        results.append(
+            MetricResult(
+                name="spin_peak_velocity",
+                value=peak_velocity,
+                unit="deg/s",
+                is_good=False,
+                reference_range=(0, 0),
+            )
+        )
+
+        # Classify spin type
+        mean_velocity = float(np.mean(angular_velocity)) if len(angular_velocity) > 0 else 0.0
+        _spin_type_name, spin_type_confidence = classify_spin(
+            duration_s=duration_s if is_spinning else 0.0,
+            hip_y_range=hip_y_range,
+            angular_velocity_mean=mean_velocity,
+        )
+        results.append(
+            MetricResult(
+                name="spin_type",
+                value=spin_type_confidence,
+                unit="score",
+                is_good=False,
+                reference_range=(0, 0),
+            )
+        )
+
+        # Also compute rotation metrics for spins
+        total_rotation_deg, rotation_count = compute_total_rotation(unwrapped, fps)
+        results.append(
+            MetricResult(
+                name="total_rotation_deg",
+                value=total_rotation_deg,
+                unit="deg",
+                is_good=False,
+                reference_range=(0, 0),
+            )
+        )
+        results.append(
+            MetricResult(
+                name="rotation_count",
+                value=rotation_count,
                 unit="score",
                 is_good=False,
                 reference_range=(0, 0),
