@@ -206,7 +206,7 @@ jobs:
           script: |
             bash /opt/skatelab/deploy.sh
 
-      - name: Add Caddy route for skatelab.ru
+      - name: Update infra Caddyfile
         id: caddy
         uses: appleboy/ssh-action@v1.2.5
         with:
@@ -217,9 +217,8 @@ jobs:
           command_timeout: 30s
           request_pty: true
           script: |
-            grep -q "^skatelab.ru " /opt/infra/services/caddy/Caddyfile && exit 0
-            cat /opt/skatelab/Caddyfile >> /opt/infra/services/caddy/Caddyfile
-            /usr/bin/docker exec infra-caddy-1 caddy reload --config /etc/caddy/Caddyfile
+            cp /opt/skatelab/Caddyfile /opt/infra/services/caddy/Caddyfile
+            /usr/bin/docker restart infra-caddy-1
 
       - name: Run database migrations
         id: migrate

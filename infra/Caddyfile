@@ -1,40 +1,125 @@
+rss.{$DOMAIN} {
+  reverse_proxy miniflux:8080
+}
+
+feeds.{$DOMAIN} {
+  reverse_proxy rsshub:1200
+}
+
+wm.{$DOMAIN} {
+  reverse_proxy /ws/* windmill_lsp:3001
+  reverse_proxy /* windmill_server:8000
+}
+
+search.{$DOMAIN} {
+  reverse_proxy searxng:8080 {
+    header_up X-Real-IP {remote_host}
+  }
+}
+
+monitor.{$DOMAIN} {
+  basic_auth {
+    admin $2a$14$qCujhVVkXSQPVUwRJunm8uYOgfiOM.Mox1K9lVoCQqWm1XieVs7DG
+  }
+  reverse_proxy cadvisor:8080
+}
+
+ntfy.{$DOMAIN} {
+  request_body {
+    max_size 0
+  }
+  reverse_proxy ntfy:80 {
+    header_up Upgrade websocket
+    header_up Connection upgrade
+    header_up X-Forwarded-Proto https
+  }
+}
+
+9r.{$DOMAIN} {
+  reverse_proxy 9router:20128
+}
+
+ov.{$DOMAIN} {
+  @console path /console /console/*
+  handle @console {
+    reverse_proxy openviking:8020
+  }
+
+  handle {
+    reverse_proxy openviking:1933
+  }
+}
+
+sync.{$DOMAIN} {
+  reverse_proxy syncthing:8384
+}
+
+qbit.{$DOMAIN} {
+  reverse_proxy qbittorrent:8080
+}
+
+dav.{$DOMAIN} {
+  redir /.well-known/carddav /dav.php 301
+  redir /.well-known/caldav /dav.php 301
+  reverse_proxy baikal:80
+}
+
+mqtt.{$DOMAIN} {
+  reverse_proxy mosquitto:9001 {
+    header_up Host {host}
+    header_up X-Real-IP {remote_host}
+  }
+}
+
+mf.{$DOMAIN} {
+  reverse_proxy mirofish:3000 {
+    flush_interval -1
+  }
+}
+
+headscale.skatelab.ru {
+  reverse_proxy headscale:8080 {
+    flush_interval -1
+    header_up Upgrade {http_upgrade}
+    header_up Connection "upgrade"
+    header_up X-Real-IP {remote_host}
+    header_up X-Forwarded-Proto https
+  }
+}
+
 skatelab.ru {
-	tls {
-		dns cloudflare {env.CLOUDFLARE_API_TOKEN} {
-			propagation_timeout -1
-		}
-	}
+  tls {
+    dns cloudflare {env.CLOUDFLARE_API_TOKEN} {
+      propagation_timeout -1
+    }
+  }
 
-	# Security headers (CSP is set by Next.js middleware with per-request nonce)
-	header {
-		Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
-		X-Content-Type-Options "nosniff"
-		X-Frame-Options "DENY"
-		X-XSS-Protection "1; mode=block"
-		Referrer-Policy "strict-origin-when-cross-origin"
-		-permissions-policy "accelerometer=(), camera=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), payment=(), usb=()"
-	}
+  header {
+    Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+    X-Content-Type-Options "nosniff"
+    X-Frame-Options "DENY"
+    X-XSS-Protection "1; mode=block"
+    Referrer-Policy "strict-origin-when-cross-origin"
+    -permissions-policy "accelerometer=(), camera=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), payment=(), usb=()"
+  }
 
-	# Backend API
-	handle /api/* {
-		reverse_proxy backend:8000 {
-			health_uri /api/v1/health
-			health_interval 10s
-			health_timeout 5s
-		}
-	}
+  handle /api/* {
+    reverse_proxy backend:8000 {
+      health_uri /api/v1/health
+      health_interval 10s
+      health_timeout 5s
+    }
+  }
 
-	# Prometheus (internal only — block external)
-	handle /prometheus/* {
-		respond "Forbidden" 403
-	}
+  handle /prometheus/* {
+    respond "Forbidden" 403
+  }
 
-	# Frontend (Next.js standalone)
-	handle {
-		reverse_proxy frontend:3000 {
-			health_uri /
-			health_interval 10s
-			health_timeout 5s
-		}
-	}
+  handle {
+    reverse_proxy frontend:3000 {
+      health_uri /
+      health_interval 10s
+      health_timeout 5s
+    }
+  }
 }
