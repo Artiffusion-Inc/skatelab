@@ -18,15 +18,20 @@
 
 `check_declining_trend` always flags `slope < 0` as decline. For "lower is better" metrics, a decreasing slope is improvement. `check_stagnation` and `check_high_variability` are direction-agnostic and are correct.
 
+### 4. PR batch fetch uses wrong value for "lower" metrics
+
+`get_current_best_batch` in `crud/session_metric.py` always uses `func.max()` for every metric. For `direction="lower"` metrics, the best value is the minimum, not maximum. This feeds incorrect `current_best` to `check_pr`, causing false positive PRs.
+
 ## Design Decisions
 
 | Decision | Choice | Rationale |
 |----------|--------|-----------|
 | Pagination style | Keyset cursor on `(created_at, id)` | Stable across inserts/deletes, no skipping or duplication |
 | Sort order | `created_at DESC` only | `overall_score` has no uniqueness guarantee; client-side sort or separate endpoint later |
-| Cursor encoding | Base64 of `created_at\|id` | Opaque to client, easy to decode server-side |
-| Direction logic | Inline `if/else` on `mdef.direction` in route and diagnostics | Simple condition, no need for MetricDef methods — direction is a 2-branch check |
-| PR calculation | Worker must set `is_pr` direction-aware | Verify and fix worker PR logic; route `get_prs` reads `is_pr=True` from DB, no change needed |
+| Cursor encoding | Raw ISO timestamp + UUID separated by `\|` | URL-safe, debuggable in DevTools, no encryption needed |
+| Direction logic | Inline `if/else` on `mdef.direction` | Simple condition, no need for MetricDef methods |
+| PR batch fetch | `func.min()` for "lower", `func.max()` for "higher" | Fixes false positive PRs for knee_angle, trunk_lean |
+| Backward compat | Drop offset entirely | Frontend doesn't use offset/sort params, clean break |
 
 ## Changes
 
@@ -66,7 +71,7 @@ async def list_by_user(
 
 The `limit + 1` trick: fetch one extra row to determine `has_more` without a separate count query.
 
-`count_by_user` stays for the initial `total` count only (first page).
+`count_by_user` stays for `total` (returned on every page since frontend uses it for stats summary).
 
 ### 2. Keyset Pagination — `routes/sessions.py`
 
@@ -85,10 +90,15 @@ async def list_sessions(
     limit: int = Parameter(default=20, ge=1, le=100),
     cursor: str | None = Parameter(default=None),
 ) -> SessionListResponse:
-    # Decode cursor
+    target_user_id = user_id if user_id else user.id
+    # ... authorization check ...
+
     parsed_cursor = None
     if cursor:
-        parsed_cursor = _decode_cursor(cursor)
+        try:
+            parsed_cursor = _decode_cursor(cursor)
+        except (ValueError, KeyError):
+            raise ClientException(status_code=400, detail="Invalid cursor")
 
     sessions = await list_by_user(
         db, user_id=target_user_id, element_type=element_type,
@@ -116,38 +126,19 @@ async def list_sessions(
 Cursor encoding helpers:
 
 ```python
-import base64
-
 def _encode_cursor(created_at: datetime, session_id: str) -> str:
-    payload = f"{created_at.isoformat()}|{session_id}"
-    return base64.urlsafe_b64encode(payload.encode()).decode()
+    return f"{created_at.isoformat()}|{session_id}"
 
 def _decode_cursor(cursor: str) -> tuple[datetime, str]:
-    payload = base64.urlsafe_b64decode(cursor.encode()).decode()
-    dt_str, sid = payload.split("|", 1)
+    dt_str, sid = cursor.split("|", 1)
     return datetime.fromisoformat(dt_str), sid
 ```
 
+Invalid cursor → 400 Bad Request.
+
 ### 3. Schema — `schemas.py`
 
-Replace `PaginatedResponse` with cursor-aware response.
-
-**Current:**
-
-```python
-class PaginatedResponse(BaseModel):
-    total: int
-    page: int = 1
-    page_size: int = 20
-    pages: int = 1
-
-    @property
-    def has_next(self) -> bool: ...
-    @property
-    def has_prev(self) -> bool: ...
-```
-
-**Target:**
+Keep `PaginatedResponse` for `ConnectionListResponse` and `ProgramListResponse`. Replace only `SessionListResponse`:
 
 ```python
 class SessionListResponse(BaseModel):
@@ -157,20 +148,19 @@ class SessionListResponse(BaseModel):
     has_more: bool = False
 ```
 
-Drop `PaginatedResponse`, `page`, `page_size`, `pages`, `has_next`, `has_prev`. Only `SessionListResponse` uses pagination.
+Remove `SessionListResponse`'s inheritance from `PaginatedResponse`.
 
-### 4. Direction-aware Trend — `routes/metrics.py:get_trend`
+### 4. Database Index
 
-**Current:**
+Add composite index for keyset pagination:
 
 ```python
-if slope > 0 and r_sq > 0.3:
-    trend = "improving"
-elif slope < 0 and r_sq > 0.3:
-    trend = "declining"
+Index("ix_sessions_user_element_created_id_desc", "user_id", "element_type", "created_at", "id")
 ```
 
-**Target:**
+This covers `WHERE user_id = ? AND element_type = ? ORDER BY created_at DESC, id DESC` and the keyset `WHERE` clause.
+
+### 5. Direction-aware Trend — `routes/metrics.py:get_trend`
 
 ```python
 improving = (slope > 0) if mdef.direction == "higher" else (slope < 0)
@@ -181,18 +171,7 @@ elif declining and r_sq > 0.3:
     trend = "declining"
 ```
 
-### 5. Direction-aware Diagnostics — `services/diagnostics.py:check_declining_trend`
-
-**Current:**
-
-```python
-def check_declining_trend(*, element, metric, values, metric_label):
-    ...
-    if slope < 0 and r_squared > 0.5:
-        return Finding(...)
-```
-
-**Target:**
+### 6. Direction-aware Diagnostics — `services/diagnostics.py:check_declining_trend`
 
 ```python
 def check_declining_trend(*, element, metric, values, metric_label, direction):
@@ -204,26 +183,96 @@ def check_declining_trend(*, element, metric, values, metric_label, direction):
 
 Caller in `routes/metrics.py:get_diagnostics` passes `direction=mdef.direction`.
 
-### 6. Worker PR Calculation — `worker.py`
+### 7. PR Batch Fetch — `crud/session_metric.py:get_current_best_batch`
 
-Verify how `is_pr` and `prev_best` are set. The worker should:
+**Current:**
 
-- For `direction="higher"` metrics: `is_pr = (value > prev_best)` or `is_pr = True` if no previous
-- For `direction="lower"` metrics: `is_pr = (value < prev_best)` or `is_pr = True` if no previous
+```python
+func.max(SessionMetric.metric_value).label("best_value")
+```
 
-If the worker currently only checks `value > prev_best` (always "higher is better"), fix to use `mdef.direction`.
+**Target:** Direction-aware batch fetch. Two queries: one for "higher" metrics (max), one for "lower" metrics (min), merged.
+
+```python
+async def get_current_best_batch(
+    db: AsyncSession, user_id: str, element_type: str
+) -> dict[str, float]:
+    """Get current best value per metric, considering direction."""
+    from app.metrics_registry import METRIC_REGISTRY
+
+    higher_metrics = [name for name, m in METRIC_REGISTRY.items() if m.direction == "higher"]
+    lower_metrics = [name for name, m in METRIC_REGISTRY.items() if m.direction == "lower"]
+
+    bests: dict[str, float] = {}
+
+    # Higher is better → max value
+    if higher_metrics:
+        result = await db.execute(
+            select(
+                SessionMetric.metric_name,
+                func.max(SessionMetric.metric_value).label("best_value"),
+            )
+            .join(Session)
+            .where(
+                Session.user_id == user_id,
+                Session.element_type == element_type,
+                Session.status == "done",
+                SessionMetric.metric_name.in_(higher_metrics),
+            )
+            .group_by(SessionMetric.metric_name)
+        )
+        bests.update({row.metric_name: row.best_value for row in result.all()})
+
+    # Lower is better → min value
+    if lower_metrics:
+        result = await db.execute(
+            select(
+                SessionMetric.metric_name,
+                func.min(SessionMetric.metric_value).label("best_value"),
+            )
+            .join(Session)
+            .where(
+                Session.user_id == user_id,
+                Session.element_type == element_type,
+                Session.status == "done",
+                SessionMetric.metric_name.in_(lower_metrics),
+            )
+            .group_by(SessionMetric.metric_name)
+        )
+        bests.update({row.metric_name: row.best_value for row in result.all()})
+
+    return bests
+```
+
+Also fix `get_current_best` (single metric) to accept direction and use `desc()` for "higher" / `asc()` for "lower".
+
+### 8. Data Migration — Recalculate `is_pr` and `prev_best`
+
+Historical data for `direction="lower"` metrics has incorrect `is_pr` and `prev_best` values. Add an Alembic migration that:
+
+1. For each `(user_id, element_type, metric_name)` group where direction="lower":
+   - Order rows by `metric_value ASC` (lower is better)
+   - Mark the minimum as `is_pr=True`, set `prev_best` to the previous minimum
+   - Mark all others as `is_pr=False`, `prev_best=None`
+
+2. For each group where direction="higher":
+   - Order rows by `metric_value DESC`
+   - Mark the maximum as `is_pr=True`, set `prev_best` to the previous maximum
+   - Mark all others as `is_pr=False`, `prev_best=None`
 
 ## Files Changed
 
 | File | Action | Lines |
 |------|--------|-------|
 | `crud/session.py` | Replace offset with keyset cursor in `list_by_user` | ~20 |
-| `routes/sessions.py` | Replace offset/sort params with cursor, encode/decode | ~25 |
-| `schemas.py` | Replace `PaginatedResponse` with `SessionListResponse` (cursor-based) | ~10 |
+| `crud/session_metric.py` | Fix `get_current_best_batch` for direction, fix `get_current_best` for direction | ~30 |
+| `routes/sessions.py` | Replace offset/sort params with cursor, encode/decode, error handling | ~30 |
+| `schemas.py` | `SessionListResponse` stops inheriting `PaginatedResponse`, add `next_cursor`/`has_more` | ~10 |
+| `models/session.py` | Add composite index for keyset pagination | ~3 |
 | `routes/metrics.py` | Direction-aware trend in `get_trend`, pass `direction` to diagnostics | ~10 |
 | `services/diagnostics.py` | Add `direction` param to `check_declining_trend` | ~5 |
-| `worker.py` | Direction-aware `is_pr` calculation | ~10 |
-| Tests | Update session pagination tests, add direction-aware trend/diagnostics tests | ~80 |
+| `alembic/` | Migration to recalculate `is_pr`/`prev_best` for "lower" metrics | ~50 |
+| Tests | Update session pagination tests, add direction-aware trend/diagnostics/PR tests | ~100 |
 
 ## Out of Scope
 
@@ -231,3 +280,5 @@ If the worker currently only checks `value > prev_best` (always "higher is bette
 - Auth/security hardening (Phase 1b)
 - DB connection pool tuning (`pool_size`, `max_overflow`)
 - Metric registry expansion
+- Rate limiting for `GET /sessions`
+- Frontend infinite scroll implementation (frontend currently fetches all sessions)
