@@ -153,7 +153,22 @@ jobs:
             "${{ secrets.CF_R2_BUCKET }}" "${{ secrets.JWT_SECRET }}" "${{ secrets.VASTAI_API_KEY }}" "${{ secrets.RESEND_API_KEY }}" | base64 -w0)
           echo "env_b64=$ENV_B64" >> "$GITHUB_OUTPUT"
 
-      - name: Write deploy files to VPS
+          COMPOSE_B64=$(base64 -w0 infra/compose.prod.yaml)
+          echo "compose_b64=$COMPOSE_B64" >> "$GITHUB_OUTPUT"
+
+          CADDY_B64=$(base64 -w0 infra/Caddyfile)
+          echo "caddy_b64=$CADDY_B64" >> "$GITHUB_OUTPUT"
+
+          PROM_B64=$(base64 -w0 infra/prometheus.yml)
+          echo "prom_b64=$PROM_B64" >> "$GITHUB_OUTPUT"
+
+          ALERTS_B64=$(base64 -w0 infra/prometheus/rules/alerts.yml)
+          echo "alerts_b64=$ALERTS_B64" >> "$GITHUB_OUTPUT"
+
+          RECORDING_B64=$(base64 -w0 infra/prometheus/rules/recording.yml)
+          echo "recording_b64=$RECORDING_B64" >> "$GITHUB_OUTPUT"
+
+      - name: Write all files to VPS
         id: sync
         uses: appleboy/ssh-action@v1.2.5
         with:
@@ -168,18 +183,11 @@ jobs:
             echo '${{ steps.prepare.outputs.deploy_b64 }}' | base64 -d > /opt/skatelab/deploy.sh
             chmod +x /opt/skatelab/deploy.sh
             echo '${{ steps.prepare.outputs.env_b64 }}' | base64 -d > /opt/skatelab/.env
-
-      - name: SCP config files to VPS
-        id: scp-config
-        uses: appleboy/scp-action@v1
-        with:
-          host: ${{ secrets.VPS_HOST }}
-          port: 22
-          username: ${{ secrets.VPS_USER }}
-          key: ${{ secrets.VPS_SSH_KEY }}
-          source: "infra/compose.prod.yaml,infra/Caddyfile,infra/prometheus.yml,infra/prometheus/rules/alerts.yml,infra/prometheus/rules/recording.yml"
-          target: "/opt/skatelab/"
-          strip_components: 1
+            echo '${{ steps.prepare.outputs.compose_b64 }}' | base64 -d > /opt/skatelab/compose.prod.yaml
+            echo '${{ steps.prepare.outputs.caddy_b64 }}' | base64 -d > /opt/skatelab/Caddyfile
+            echo '${{ steps.prepare.outputs.prom_b64 }}' | base64 -d > /opt/skatelab/prometheus.yml
+            echo '${{ steps.prepare.outputs.alerts_b64 }}' | base64 -d > /opt/skatelab/prometheus/rules/alerts.yml
+            echo '${{ steps.prepare.outputs.recording_b64 }}' | base64 -d > /opt/skatelab/prometheus/rules/recording.yml
 
       - name: Deploy skatelab stack
         id: deploy
@@ -257,8 +265,7 @@ jobs:
 
           | Step | Status |
           |------|--------|
-          | Write config on VPS | \`${{ steps.sync.outcome }}\` |
-          | SCP config files | \`${{ steps.scp-config.outcome }}\` |
+          | Write files to VPS | \`${{ steps.sync.outcome }}\` |
           | Docker compose up | \`${{ steps.deploy.outcome }}\` |
           | Caddy route | \`${{ steps.caddy.outcome }}\` |
           | Migrations | \`${{ steps.migrate.outcome }}\` |
