@@ -9,4 +9,5 @@ plugins {
     alias(libs.plugins.kover) apply false
     alias(libs.plugins.ktlint) apply false
     alias(libs.plugins.mokkery.plugin) apply false
+    alias(libs.plugins.protobuf) apply false
 }
