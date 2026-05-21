@@ -27,6 +27,7 @@ import ru.skatelab.capture.domain.usecase.ReadSensorInfoUseCase
 import ru.skatelab.capture.domain.usecase.RecordingStartInfo
 import ru.skatelab.capture.domain.usecase.StartRecordingUseCase
 import ru.skatelab.capture.domain.usecase.StopRecordingUseCase
+import ru.skatelab.capture.upload.UploadScheduler
 
 @HiltViewModel
 class CameraViewModel
@@ -183,6 +184,9 @@ class CameraViewModel
                 )
                 pendingUploadDao.insert(pendingUpload)
                 appLogger.i(TAG, "PendingUpload saved: $uploadId")
+
+                // Enqueue upload with network constraints
+                UploadScheduler.enqueue(appContext, uploadId)
 
                 currentStartInfo = null
                 _isPreviewReady.value = false

@@ -13,6 +13,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -28,6 +29,16 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import ru.skatelab.shared.state.AuthUiState
+
+private fun isNetworkError(message: String): Boolean {
+    val lower = message.lowercase()
+    return lower.contains("network") || lower.contains("connection") ||
+        lower.contains("timeout") || lower.contains("socket") ||
+        lower.contains("unreachable") || lower.contains("resolve") ||
+        lower.contains("connectexception") || lower.contains("ioexception") ||
+        lower.contains("unable to resolve host") || lower.contains("connection reset") ||
+        lower.contains("connection refused")
+}
 
 @Composable
 fun LoginScreen(
@@ -75,6 +86,7 @@ fun LoginScreen(
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
             modifier = Modifier.fillMaxWidth(),
             enabled = uiState !is AuthUiState.Loading,
+            isError = uiState is AuthUiState.Error,
         )
         Spacer(Modifier.height(12.dp))
 
@@ -87,16 +99,30 @@ fun LoginScreen(
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
             modifier = Modifier.fillMaxWidth(),
             enabled = uiState !is AuthUiState.Loading,
+            isError = uiState is AuthUiState.Error,
         )
         Spacer(Modifier.height(8.dp))
 
         if (uiState is AuthUiState.Error) {
+            val msg = uiState.message
+            val displayMsg = if (isNetworkError(msg)) {
+                "Нет подключения к интернету. Проверьте сеть и повторите."
+            } else {
+                msg
+            }
             Text(
-                text = uiState.message,
+                text = displayMsg,
                 color = MaterialTheme.colorScheme.error,
                 style = MaterialTheme.typography.bodySmall,
                 modifier = Modifier.fillMaxWidth(),
             )
+            Spacer(Modifier.height(8.dp))
+            OutlinedButton(
+                onClick = { onLogin(email.trim(), password) },
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text("Повторить")
+            }
         }
 
         Spacer(Modifier.height(16.dp))

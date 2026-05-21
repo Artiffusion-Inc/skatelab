@@ -8,8 +8,12 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CloudOff
+import androidx.compose.material.icons.filled.ErrorOutline
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -90,14 +94,26 @@ fun ProcessingScreen(
             }
 
             is ProcessingUiState.Failed -> {
+                val isNetworkError = state.message.lowercase().let { msg ->
+                    msg.contains("network") || msg.contains("connection") ||
+                        msg.contains("timeout") || msg.contains("socket") ||
+                        msg.contains("unreachable") || msg.contains("resolve")
+                }
+                Icon(
+                    imageVector = if (isNetworkError) Icons.Default.CloudOff else Icons.Default.ErrorOutline,
+                    contentDescription = null,
+                    modifier = Modifier.size(48.dp),
+                    tint = MaterialTheme.colorScheme.error,
+                )
+                Spacer(Modifier.height(12.dp))
                 Text(
-                    text = "Processing failed",
+                    text = if (isNetworkError) "Нет подключения" else "Ошибка обработки",
                     style = MaterialTheme.typography.headlineSmall,
                     color = MaterialTheme.colorScheme.error,
                 )
                 Spacer(Modifier.height(8.dp))
                 Text(
-                    text = state.message,
+                    text = if (isNetworkError) "Проверьте подключение к интернету и повторите." else state.message,
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )

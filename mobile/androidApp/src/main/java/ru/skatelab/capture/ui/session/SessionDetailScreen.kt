@@ -13,11 +13,13 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
+import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -33,7 +35,9 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -42,6 +46,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.media3.common.MediaItem
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.compose.ui.graphics.Color
+import ru.skatelab.capture.ui.skeleton.Keypoint
+import ru.skatelab.capture.ui.skeleton.SkeletonOverlay
 import com.patrykandpatrick.vico.compose.cartesian.CartesianChartHost
 import com.patrykandpatrick.vico.compose.cartesian.axis.rememberBottom
 import com.patrykandpatrick.vico.compose.cartesian.axis.rememberStart
@@ -103,14 +110,26 @@ fun SessionDetailScreen(
                 )
             }
             uiState is SessionsUiState.Error -> {
-                Box(
+                Column(
                     modifier = Modifier.fillMaxSize().padding(padding),
-                    contentAlignment = Alignment.Center,
+                    verticalArrangement = Arrangement.Center,
+                    horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
                     Text(
-                        "Ошибка: ${(uiState as SessionsUiState.Error).message}",
+                        "Ошибка загрузки",
+                        style = MaterialTheme.typography.titleMedium,
                         color = MaterialTheme.colorScheme.error,
                     )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        (uiState as SessionsUiState.Error).message,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Button(onClick = { viewModel.loadSession(sessionId) }) {
+                        Text("Повторить")
+                    }
                 }
             }
         }
@@ -123,17 +142,42 @@ private fun SessionDetailContent(
     session: SessionResponse,
     modifier: Modifier = Modifier,
 ) {
+    var showSkeleton by remember { mutableStateOf(false) }
+
     Column(
         modifier = modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState()),
     ) {
-        // Video player
-        session.processedVideoUrl?.let { videoUrl ->
-            VideoPlayer(url = videoUrl)
-            Spacer(modifier = Modifier.height(12.dp))
-        } ?: session.videoUrl?.let { videoUrl ->
-            VideoPlayer(url = videoUrl)
+        // Video player with optional skeleton overlay
+        val videoUrl = session.processedVideoUrl ?: session.videoUrl
+        if (videoUrl != null) {
+            Box {
+                VideoPlayer(url = videoUrl)
+                if (showSkeleton) {
+                    // Demo skeleton: a sample pose to verify overlay works.
+                    // Real pose data will be wired from backend API in a future task.
+                    SkeletonOverlay(
+                        keypoints = DEMO_SKELETON,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .aspectRatio(16f / 9f),
+                    )
+                }
+                // Skeleton toggle button
+                IconButton(
+                    onClick = { showSkeleton = !showSkeleton },
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(8.dp),
+                ) {
+                    Icon(
+                        imageVector = if (showSkeleton) Icons.Filled.VisibilityOff else Icons.Filled.Visibility,
+                        contentDescription = if (showSkeleton) "Скрыть скелет" else "Показать скелет",
+                        tint = Color.White.copy(alpha = 0.8f),
+                    )
+                }
+            }
             Spacer(modifier = Modifier.height(12.dp))
         }
 
@@ -358,3 +402,34 @@ private fun formatElementType(elementType: String): String {
         else -> elementType.replace('_', ' ').replaceFirstChar { it.uppercase() }
     }
 }
+
+/**
+ * Demo skeleton pose (standing figure, normalized 0-1 coords) to verify overlay rendering.
+ * Real pose data will be wired from backend API in a future task.
+ *
+ * H3.6M 17-keypoint order:
+ * 0=hip_center, 1=r_hip, 2=r_knee, 3=r_foot,
+ * 4=l_hip, 5=l_knee, 6=l_foot,
+ * 7=spine, 8=thorax, 9=neck, 10=head_top,
+ * 11=l_shoulder, 12=l_elbow, 13=l_wrist,
+ * 14=r_shoulder, 15=r_elbow, 16=r_wrist
+ */
+private val DEMO_SKELETON: List<Keypoint?> = listOf(
+    Keypoint(0.50f, 0.60f, 0.95f),  // 0: hip_center
+    Keypoint(0.55f, 0.60f, 0.90f),  // 1: r_hip
+    Keypoint(0.55f, 0.73f, 0.88f),  // 2: r_knee
+    Keypoint(0.55f, 0.86f, 0.85f),  // 3: r_foot
+    Keypoint(0.45f, 0.60f, 0.92f),  // 4: l_hip
+    Keypoint(0.45f, 0.73f, 0.89f),  // 5: l_knee
+    Keypoint(0.45f, 0.86f, 0.87f),  // 6: l_foot
+    Keypoint(0.50f, 0.53f, 0.94f),  // 7: spine
+    Keypoint(0.50f, 0.44f, 0.93f),  // 8: thorax
+    Keypoint(0.50f, 0.38f, 0.91f),  // 9: neck
+    Keypoint(0.50f, 0.30f, 0.90f),  // 10: head_top
+    Keypoint(0.40f, 0.40f, 0.88f),  // 11: l_shoulder
+    Keypoint(0.34f, 0.50f, 0.85f),  // 12: l_elbow
+    Keypoint(0.30f, 0.60f, 0.82f),  // 13: l_wrist
+    Keypoint(0.60f, 0.40f, 0.87f),  // 14: r_shoulder
+    Keypoint(0.66f, 0.50f, 0.84f),  // 15: r_elbow
+    Keypoint(0.70f, 0.60f, 0.80f),  // 16: r_wrist
+)

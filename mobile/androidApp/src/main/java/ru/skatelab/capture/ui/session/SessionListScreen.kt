@@ -13,6 +13,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -53,6 +54,13 @@ fun SessionListScreen(
         viewModel.loadSessions()
     }
 
+    // Reset refresh flag when data loads or errors
+    LaunchedEffect(uiState) {
+        if (uiState !is SessionsUiState.Loading) {
+            isRefreshing = false
+        }
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -84,13 +92,17 @@ fun SessionListScreen(
                     verticalArrangement = Arrangement.Center,
                     horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
-                    Text("Ошибка: $message", color = MaterialTheme.colorScheme.error)
-                    Spacer(modifier = Modifier.height(12.dp))
+                    Text("Ошибка загрузки", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.error)
+                    Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        "Потяните вниз, чтобы обновить",
+                        message,
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Button(onClick = { viewModel.loadSessions() }) {
+                        Text("Повторить")
+                    }
                 }
             }
             is SessionsUiState.Loaded -> {
@@ -119,9 +131,6 @@ fun SessionListScreen(
                             )
                         }
                     } else {
-                        LaunchedEffect(uiState) {
-                            isRefreshing = false
-                        }
                         LazyColumn(
                             modifier = Modifier.fillMaxSize(),
                             verticalArrangement = Arrangement.spacedBy(8.dp),
