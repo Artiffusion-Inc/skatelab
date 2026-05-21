@@ -961,6 +961,37 @@ class BiomechanicsAnalyzer:
 
         return edge_indicator
 
+    def compute_total_rotation_from_poses(
+        self,
+        poses: NormalizedPose,
+        phases: ElementPhase,
+        fps: float,
+    ) -> tuple[float, float]:
+        """Compute total rotation from pose sequence during flight.
+
+        Extracts unwrapped shoulder axis angles during the flight phase
+        and delegates to compute_total_rotation().
+
+        Args:
+            poses: NormalizedPose (num_frames, 17, 2).
+            phases: Element phase boundaries.
+            fps: Frame rate.
+
+        Returns:
+            (total_degrees, rotation_count).
+        """
+        if phases.takeoff >= phases.landing or phases.landing >= len(poses):
+            return 0.0, 0.0
+
+        flight_poses = poses[phases.takeoff : phases.landing]
+        left_shoulder = flight_poses[:, H36Key.LSHOULDER]
+        right_shoulder = flight_poses[:, H36Key.RSHOULDER]
+        shoulder_vector = right_shoulder - left_shoulder
+        angles = np.arctan2(shoulder_vector[:, 1], shoulder_vector[:, 0])
+        unwrapped = np.unwrap(angles)
+
+        return compute_total_rotation(unwrapped, fps)
+
     def compute_rotation_speed(
         self,
         poses: NormalizedPose,
@@ -1151,6 +1182,44 @@ class BiomechanicsAnalyzer:
             + approach_score * 0.10
         )
         return float(goe * 10.0)
+
+
+def compute_total_rotation(
+    shoulder_angles_unwrapped: np.ndarray,
+    fps: float,
+) -> tuple[float, float]:
+    """Compute total rotation from unwrapped shoulder angle series.
+
+    Args:
+        shoulder_angles_unwrapped: Unwrapped shoulder axis angles in radians (N,).
+        fps: Frame rate.
+
+    Returns:
+        (total_degrees, rotation_count).
+    """
+    if len(shoulder_angles_unwrapped) < 2:
+        return 0.0, 0.0
+    total_radians = float(abs(shoulder_angles_unwrapped[-1] - shoulder_angles_unwrapped[0]))
+    total_degrees = np.degrees(total_radians)
+    rotation_count = total_degrees / 360.0
+    return total_degrees, rotation_count
+
+
+def compute_under_rotation(
+    measured_degrees: float,
+    target_rotations: float,
+) -> float:
+    """Compute under-rotation in degrees.
+
+    Args:
+        measured_degrees: Measured total rotation in degrees.
+        target_rotations: Expected number of rotations (e.g., 3 for triple).
+
+    Returns:
+        Under-rotation in degrees. Positive = under-rotated, negative = over-rotated.
+    """
+    target_degrees = target_rotations * 360.0
+    return target_degrees - measured_degrees
 
 
 @dataclass

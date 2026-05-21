@@ -121,6 +121,33 @@ METRIC_REGISTRY: dict[str, MetricDef] = {
         element_types=JUMP_ELEMENTS,
         ideal_range=(300, 550),
     ),
+    "total_rotation_deg": MetricDef(
+        name="total_rotation_deg",
+        label_ru="Полное вращение",
+        unit="deg",
+        format=".0f",
+        direction="higher",
+        element_types=JUMP_ELEMENTS,
+        ideal_range=(360, 1620),
+    ),
+    "rotation_count": MetricDef(
+        name="rotation_count",
+        label_ru="Количество вращений",
+        unit="score",
+        format=".1f",
+        direction="higher",
+        element_types=JUMP_ELEMENTS,
+        ideal_range=(1.0, 4.5),
+    ),
+    "under_rotation_deg": MetricDef(
+        name="under_rotation_deg",
+        label_ru="Недокрут",
+        unit="deg",
+        format=".0f",
+        direction="lower",
+        element_types=JUMP_ELEMENTS,
+        ideal_range=(0, 90),
+    ),
     # Step-specific metrics
     "knee_angle": MetricDef(
         name="knee_angle",
