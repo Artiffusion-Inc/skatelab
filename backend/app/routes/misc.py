@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextlib
 from collections.abc import Sequence  # noqa: TC003
 from pathlib import Path
 from typing import ClassVar
@@ -28,7 +29,12 @@ class MiscController(Controller):
 
     @get("/health")
     async def health(self) -> dict:
-        return {"status": "ok"}
+        valkey_ok = False
+        with contextlib.suppress(Exception):
+            from app.task_manager import get_valkey
+
+            valkey_ok = await get_valkey().ping()
+        return {"status": "ok" if valkey_ok else "degraded", "valkey": valkey_ok}
 
     @get("/outputs/{key:path}")
     async def serve_output(self, key: str) -> Stream:
