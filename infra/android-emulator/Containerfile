@@ -1,0 +1,37 @@
+FROM docker.io/library/ubuntu:24.04
+ENV ANDROID_HOME=/opt/android-sdk
+ENV PATH="${ANDROID_HOME}/cmdline-tools/latest/bin:${ANDROID_HOME}/platform-tools:${PATH}"
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    openjdk-17-jdk-headless unzip curl wget xz-utils \
+    libgl1-mesa-dri libgl1-mesa-glx dbus-x11 \
+    novnc websockify supervisor \
+    && rm -rf /var/lib/apt/lists/*
+
+# Android SDK
+RUN mkdir -p ${ANDROID_HOME}/cmdline-tools \
+    && curl -fsSL https://dl.google.com/android/repository/commandlinetools-linux-11006723_latest.zip -o /tmp/cmdtools.zip \
+    && unzip /tmp/cmdtools.zip -d ${ANDROID_HOME}/cmdline-tools \
+    && mv ${ANDROID_HOME}/cmdline-tools/cmdline-tools ${ANDROID_HOME}/cmdline-tools/latest \
+    && rm /tmp/cmdtools.zip
+
+RUN yes | sdkmanager \
+    "platform-tools" \
+    "platforms;android-35" \
+    "build-tools;35.0.0" \
+    "system-images;android-35;google_apis;x86_64" \
+    "emulator"
+
+# AVD
+RUN avdmanager create avd \
+    -n skatelab -k "system-images;android-35;google_apis;x86_64" -d "pixel_6"
+
+# Disable ADB TCP listening (security: no remote ADB)
+RUN mkdir -p /root/.android/avd/skatelab.avd && \
+    echo "hw.adbPort=0" >> /root/.android/avd/skatelab.avd/config.ini
+
+# noVNC + supervisor
+COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
+EXPOSE 6080
+
+CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]

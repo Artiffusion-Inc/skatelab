@@ -80,8 +80,46 @@ services:
     networks:
       - infra
 
+  android-emulator:
+    build: /opt/skatelab/android-emulator
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:6080:6080"
+    devices:
+      - /dev/kvm:/dev/kvm
+    group_add:
+      - "kvm"
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /run
+      - /var/run
+    cap_drop:
+      - ALL
+    volumes:
+      - android-avd:/root/.android/avd
+      - /opt/skatelab/apk:/apk:ro
+    deploy:
+      resources:
+        limits:
+          memory: 4G
+          cpus: "2.0"
+        reservations:
+          memory: 2G
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/android-sdk/platform-tools/adb wait-for-device && /opt/android-sdk/platform-tools/adb shell getprop sys.boot_completed | grep -q 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 120s
+    networks:
+      - infra
+
 volumes:
   prometheus-data:
+  android-avd:
 
 networks:
   infra:
