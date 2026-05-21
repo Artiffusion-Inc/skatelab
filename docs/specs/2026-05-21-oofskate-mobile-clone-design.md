@@ -91,7 +91,7 @@ CameraScreen → [Record] → ProcessingScreen (SSE progress)
 
 | Секция | Контент |
 |--------|---------|
-| Видео | ExoPlayer + скелетный оверлей (toggle) |
+| Видео | ExoPlayer + 2D скелетный оверлей (toggle, keypoints поверх видео) |
 | Тип элемента | Автоклассификация (Axel, Lutz, Spin...) |
 | Метрики-карточки | Высота, Airtime, Угловая скорость (пик/средняя), Вращения, Under-rotation, Качество приземления |
 | GOE proxy | Оценка от бэкенда |
