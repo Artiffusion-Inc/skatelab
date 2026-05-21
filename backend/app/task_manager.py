@@ -90,7 +90,7 @@ def get_valkey() -> aioredis.Redis:
     return _pool
 
 
-def _set_test_pool(pool: aioredis.Redis | None) -> None:
+def _set_test_pool(pool: aioredis.Redis | None) -> None:  # pyright: ignore[reportUnusedFunction]
     global _test_pool  # noqa: PLW0603
     _test_pool = pool
 
