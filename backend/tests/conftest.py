@@ -56,7 +56,7 @@ import pytest
 import pytest_asyncio
 from app.auth.security import create_access_token, hash_password
 from app.config import get_settings
-from app.di import DbSessionProxy, db_proxy, db_session_proxy
+from app.di import dependencies
 from app.models import Base
 from app.models.user import User
 from litestar.di import Provide
@@ -204,9 +204,14 @@ def app():
 @pytest.fixture
 async def client(app, db_session):
     """Provide an AsyncTestClient with the db dependency overridden to use the test session."""
-    DbSessionProxy._session = db_session
+    # Override the "db" DI provider to yield the test session directly.
+    # Task 7 will replace this with on_app_init; for now patch the provider.
+
+    async def _provide_test_db():
+        yield db_session
+
+    app.dependencies["db"] = Provide(_provide_test_db)
     app.state.test_db_session = db_session
     async with AsyncTestClient(app) as c:
         yield c
-    DbSessionProxy._session = None
     app.state.test_db_session = None

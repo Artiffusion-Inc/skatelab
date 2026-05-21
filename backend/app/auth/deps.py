@@ -41,14 +41,14 @@ async def retrieve_user_handler(token: Any, connection: ASGIConnection) -> User 
     return result.scalar_one_or_none()
 
 
-async def get_current_user(request: Request, db_session: AsyncSession) -> User:
+async def get_current_user(request: Request, db: AsyncSession) -> User:
     """Return the currently authenticated user.
 
     Used as a dependency provider for routes that need the user object.
     When APP_SKIP_AUTH=true, returns the first active user.
     """
     if get_settings().app.skip_auth:
-        result = await db_session.execute(
+        result = await db.execute(
             select(User).where(User.is_active.is_(True)).order_by(User.created_at).limit(1)
         )
         user = result.scalar_one_or_none()
