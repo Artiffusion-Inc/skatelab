@@ -77,18 +77,6 @@ mf.{$DOMAIN} {
   }
 }
 
-emu.skatelab.ru {
-	basic_auth {
-		admin $2a$14$qCujhVVkXSQPVUwRJunm8uYOgfiOM.Mox1K9lVoCQqWm1XieVs7DG
-	}
-	header {
-		Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
-		X-Content-Type-Options "nosniff"
-		X-Frame-Options "DENY"
-	}
-	reverse_proxy android-emulator:6080
-}
-
 headscale.skatelab.ru {
   reverse_proxy headscale:8080 {
     flush_interval -1
