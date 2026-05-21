@@ -154,6 +154,15 @@ METRIC_REGISTRY: dict[str, MetricDef] = {
         element_types=JUMP_ELEMENTS,
         ideal_range=(0, 90),
     ),
+    "jump_type": MetricDef(
+        name="jump_type",
+        label_ru="Тип прыжка",
+        unit="score",
+        format=".2f",
+        direction="higher",
+        element_types=JUMP_ELEMENTS,
+        ideal_range=(0.5, 1.0),
+    ),
     # Step-specific metrics
     "knee_angle": MetricDef(
         name="knee_angle",
