@@ -131,134 +131,52 @@ jobs:
         id: ghcr
         run: echo "owner=${GITHUB_REPOSITORY_OWNER,,}" >> "$GITHUB_OUTPUT"
 
-      - name: Prepare deploy files
-        id: prepare
+      - name: Setup SSH key
         run: |
-          cat > deploy.sh <<'SCRIPTEOF'
-          #!/usr/bin/env bash
-          set -e
-          set -a
-          source /opt/skatelab/.env
-          set +a
-          /usr/bin/docker network create infra_app_network 2>/dev/null || true
-          echo "$GHCR_PAT" | /usr/bin/docker login ghcr.io -u "$GHCR_OWNER" --password-stdin
-          cp /opt/skatelab/compose.prod.yaml /opt/skatelab/compose.yaml
-          cd /opt/skatelab
-          /usr/bin/docker compose pull backend frontend
-          /usr/bin/docker compose up -d --remove-orphans
-          SCRIPTEOF
+          mkdir -p ~/.ssh
+          echo "${{ secrets.VPS_SSH_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -p 43210 ${{ secrets.VPS_HOST }} >> ~/.ssh/known_hosts 2>/dev/null
 
-          DEPLOY_B64=$(base64 -w0 deploy.sh)
-          echo "deploy_b64=$DEPLOY_B64" >> "$GITHUB_OUTPUT"
+      - name: SCP deploy files to VPS
+        run: |
+          DST="${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}:/opt/skatelab"
+          scp -i ~/.ssh/deploy_key -P 43210 \
+            infra/deploy.sh \
+            infra/compose.prod.yaml \
+            infra/Caddyfile \
+            infra/prometheus.yml \
+            $DST/
+          scp -i ~/.ssh/deploy_key -P 43210 \
+            infra/prometheus/rules/alerts.yml \
+            infra/prometheus/rules/recording.yml \
+            $DST/prometheus/rules/
 
-          ENV_B64=$(printf 'GHCR_OWNER=%s\nGHCR_PAT=%s\nTAG=%s\nPOSTGRES_PASSWORD=%s\nR2_ENDPOINT_URL=%s\nR2_ACCESS_KEY_ID=%s\nR2_SECRET_ACCESS_KEY=%s\nR2_BUCKET=%s\nJWT_SECRET=%s\nVASTAI_API_KEY=%s\nRESEND_API_KEY=%s\n' \
-            "${{ steps.ghcr.outputs.owner }}" "${{ secrets.GHCR_PAT }}" "${{ github.sha }}" "${{ secrets.SKATELAB_DB_PASSWORD }}" \
-            "${{ secrets.CF_R2_ENDPOINT_URL }}" "${{ secrets.CF_R2_ACCESS_KEY_ID }}" "${{ secrets.CF_R2_SECRET_ACCESS_KEY }}" \
-            "${{ secrets.CF_R2_BUCKET }}" "${{ secrets.JWT_SECRET }}" "${{ secrets.VASTAI_API_KEY }}" "${{ secrets.RESEND_API_KEY }}" | base64 -w0)
-          echo "env_b64=$ENV_B64" >> "$GITHUB_OUTPUT"
-
-          COMPOSE_B64=$(base64 -w0 infra/compose.prod.yaml)
-          echo "compose_b64=$COMPOSE_B64" >> "$GITHUB_OUTPUT"
-
-          CADDY_B64=$(base64 -w0 infra/Caddyfile)
-          echo "caddy_b64=$CADDY_B64" >> "$GITHUB_OUTPUT"
-
-          PROM_B64=$(base64 -w0 infra/prometheus.yml)
-          echo "prom_b64=$PROM_B64" >> "$GITHUB_OUTPUT"
-
-          ALERTS_B64=$(base64 -w0 infra/prometheus/rules/alerts.yml)
-          echo "alerts_b64=$ALERTS_B64" >> "$GITHUB_OUTPUT"
-
-          RECORDING_B64=$(base64 -w0 infra/prometheus/rules/recording.yml)
-          echo "recording_b64=$RECORDING_B64" >> "$GITHUB_OUTPUT"
-
-      - name: Write all files to VPS
-        id: sync
+      - name: Write .env and deploy
         uses: appleboy/ssh-action@v1.2.5
         with:
           host: ${{ secrets.VPS_HOST }}
-          port: 22
+          port: 43210
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
-          command_timeout: 30s
+          command_timeout: 5m
           request_pty: true
           script: |
-            mkdir -p /opt/skatelab/prometheus/rules
-            echo '${{ steps.prepare.outputs.deploy_b64 }}' | base64 -d > /opt/skatelab/deploy.sh
+            cat > /opt/skatelab/.env <<ENVEOF
+            GHCR_OWNER=${{ steps.ghcr.outputs.owner }}
+            GHCR_PAT=${{ secrets.GHCR_PAT }}
+            TAG=${{ github.sha }}
+            POSTGRES_PASSWORD=${{ secrets.SKATELAB_DB_PASSWORD }}
+            R2_ENDPOINT_URL=${{ secrets.CF_R2_ENDPOINT_URL }}
+            R2_ACCESS_KEY_ID=${{ secrets.CF_R2_ACCESS_KEY_ID }}
+            R2_SECRET_ACCESS_KEY=${{ secrets.CF_R2_SECRET_ACCESS_KEY }}
+            R2_BUCKET=${{ secrets.CF_R2_BUCKET }}
+            JWT_SECRET=${{ secrets.JWT_SECRET }}
+            VASTAI_API_KEY=${{ secrets.VASTAI_API_KEY }}
+            RESEND_API_KEY=${{ secrets.RESEND_API_KEY }}
+            ENVEOF
             chmod +x /opt/skatelab/deploy.sh
-            echo '${{ steps.prepare.outputs.env_b64 }}' | base64 -d > /opt/skatelab/.env
-            echo '${{ steps.prepare.outputs.compose_b64 }}' | base64 -d > /opt/skatelab/compose.prod.yaml
-            echo '${{ steps.prepare.outputs.caddy_b64 }}' | base64 -d > /opt/skatelab/Caddyfile
-            echo '${{ steps.prepare.outputs.prom_b64 }}' | base64 -d > /opt/skatelab/prometheus.yml
-            echo '${{ steps.prepare.outputs.alerts_b64 }}' | base64 -d > /opt/skatelab/prometheus/rules/alerts.yml
-            echo '${{ steps.prepare.outputs.recording_b64 }}' | base64 -d > /opt/skatelab/prometheus/rules/recording.yml
-
-      - name: Deploy skatelab stack
-        id: deploy
-        uses: appleboy/ssh-action@v1.2.5
-        with:
-          host: ${{ secrets.VPS_HOST }}
-          port: 22
-          username: ${{ secrets.VPS_USER }}
-          key: ${{ secrets.VPS_SSH_KEY }}
-          command_timeout: 3m
-          request_pty: true
-          script: |
             bash /opt/skatelab/deploy.sh
-
-      - name: Update infra Caddyfile
-        id: caddy
-        uses: appleboy/ssh-action@v1.2.5
-        with:
-          host: ${{ secrets.VPS_HOST }}
-          port: 22
-          username: ${{ secrets.VPS_USER }}
-          key: ${{ secrets.VPS_SSH_KEY }}
-          command_timeout: 30s
-          request_pty: true
-          script: |
-            cp /opt/skatelab/Caddyfile /opt/infra/services/caddy/Caddyfile
-            /usr/bin/docker restart infra-caddy-1
-
-      - name: Run database migrations
-        id: migrate
-        uses: appleboy/ssh-action@v1.2.5
-        with:
-          host: ${{ secrets.VPS_HOST }}
-          port: 22
-          username: ${{ secrets.VPS_USER }}
-          key: ${{ secrets.VPS_SSH_KEY }}
-          command_timeout: 1m
-          request_pty: true
-          script: |
-            sleep 10
-            /usr/bin/docker exec skatelab-backend-1 alembic upgrade head
-
-      - name: Health check
-        id: health
-        uses: appleboy/ssh-action@v1.2.5
-        with:
-          host: ${{ secrets.VPS_HOST }}
-          port: 22
-          username: ${{ secrets.VPS_USER }}
-          key: ${{ secrets.VPS_SSH_KEY }}
-          command_timeout: 3m
-          request_pty: true
-          script: |
-            timeout 120 bash -c 'while true; do /usr/bin/docker exec skatelab-backend-1 python -c "import urllib.request; urllib.request.urlopen(\"http://127.0.0.1:8000/api/v1/health\", timeout=2)" 2>/dev/null && echo "Backend healthy" && exit 0; sleep 10; done'
-
-      - name: Cleanup
-        id: cleanup
-        if: always()
-        uses: appleboy/ssh-action@v1.2.5
-        with:
-          host: ${{ secrets.VPS_HOST }}
-          port: 22
-          username: ${{ secrets.VPS_USER }}
-          key: ${{ secrets.VPS_SSH_KEY }}
-          command_timeout: 1m
-          request_pty: true
-          script: /usr/bin/docker image prune -f --filter "until=24h" || true
 
       - name: Deploy summary
         if: always()
@@ -266,14 +184,8 @@ jobs:
           cat >> "$GITHUB_STEP_SUMMARY" <<EOF
           ## Deploy
 
-          | Step | Status |
-          |------|--------|
-          | Write files to VPS | \`${{ steps.sync.outcome }}\` |
-          | Docker compose up | \`${{ steps.deploy.outcome }}\` |
-          | Caddy route | \`${{ steps.caddy.outcome }}\` |
-          | Migrations | \`${{ steps.migrate.outcome }}\` |
-          | Health check | \`${{ steps.health.outcome }}\` |
-          | Cleanup | \`${{ steps.cleanup.outcome }}\` |
+          **Commit:** \`${{ github.sha }}\`
+          **Triggered by:** @${{ github.actor }}
 
           EOF
 
