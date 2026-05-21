@@ -1,0 +1,78 @@
+package ru.skatelab.capture.ui.tabs
+
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CameraAlt
+import androidx.compose.material.icons.filled.History
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material3.Icon
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.navigation.NavDestination.Companion.hasRoute
+import androidx.navigation.NavGraph.Companion.findStartDestination
+import androidx.navigation.compose.currentBackStackEntryAsState
+import androidx.navigation.compose.rememberNavController
+import ru.skatelab.capture.navigation.CameraRoute
+import ru.skatelab.capture.navigation.MoreRoute
+import ru.skatelab.capture.navigation.ProfileRoute
+import ru.skatelab.capture.navigation.ResultsRoute
+
+private data class TabItem(
+    val label: String,
+    val icon: ImageVector,
+    val route: Any,
+)
+
+private val TABS = listOf(
+    TabItem("Camera", Icons.Default.CameraAlt, CameraRoute),
+    TabItem("Results", Icons.Default.History, ResultsRoute),
+    TabItem("Profile", Icons.Default.Person, ProfileRoute),
+    TabItem("More", Icons.Default.MoreVert, MoreRoute),
+)
+
+@Composable
+fun MainTabsScreen(
+    onNavigateToBleScan: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val tabNavController = rememberNavController()
+    val backStackEntry by tabNavController.currentBackStackEntryAsState()
+    val currentDestination = backStackEntry?.destination
+
+    Scaffold(
+        modifier = modifier,
+        bottomBar = {
+            NavigationBar {
+                TABS.forEach { tab ->
+                    NavigationBarItem(
+                        selected = currentDestination?.hasRoute(tab.route::class) == true,
+                        onClick = {
+                            tabNavController.navigate(tab.route) {
+                                popUpTo(tabNavController.graph.findStartDestination().id) {
+                                    saveState = true
+                                }
+                                launchSingleTop = true
+                                restoreState = true
+                            }
+                        },
+                        icon = { Icon(tab.icon, contentDescription = tab.label) },
+                        label = { Text(tab.label) },
+                    )
+                }
+            }
+        },
+    ) { innerPadding ->
+        MainTabsNavHost(
+            navController = tabNavController,
+            onNavigateToBleScan = onNavigateToBleScan,
+            modifier = Modifier.padding(innerPadding),
+        )
+    }
+}
