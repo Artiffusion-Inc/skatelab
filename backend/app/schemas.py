@@ -431,8 +431,11 @@ class PaginatedResponse(BaseModel):
         return self.page > 1
 
 
-class SessionListResponse(PaginatedResponse):
+class SessionListResponse(BaseModel):
     sessions: list[SessionResponse]
+    total: int
+    next_cursor: str | None = None
+    has_more: bool = False
 
 
 # ---------------------------------------------------------------------------
