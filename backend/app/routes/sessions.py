@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence  # noqa: TC003
+from datetime import datetime
 from typing import TYPE_CHECKING, ClassVar
 
 from litestar import Controller, delete, get, patch, post
@@ -11,6 +12,7 @@ from litestar.params import Parameter
 from litestar.status_codes import (
     HTTP_201_CREATED,
     HTTP_204_NO_CONTENT,
+    HTTP_400_BAD_REQUEST,
     HTTP_403_FORBIDDEN,
     HTTP_404_NOT_FOUND,
 )
@@ -30,6 +32,17 @@ from app.storage import get_object_url_async
 
 if TYPE_CHECKING:
     from app.models.session import Session
+
+
+def _encode_cursor(created_at: datetime, session_id: str) -> str:
+    # Strip tzinfo so the cursor works with both SQLite (naive) and Postgres (tz-aware)
+    dt_naive = created_at.replace(tzinfo=None) if created_at.tzinfo else created_at
+    return f"{dt_naive.isoformat()}|{session_id}"
+
+
+def _decode_cursor(cursor: str) -> tuple[datetime, str]:
+    dt_str, sid = cursor.split("|", 1)
+    return datetime.fromisoformat(dt_str), sid
 
 
 async def _session_to_response(session: Session) -> SessionResponse:
@@ -103,8 +116,7 @@ class SessionsController(Controller):
         user_id: str | None = None,
         element_type: str | None = None,
         limit: int = Parameter(default=20, ge=1, le=100),
-        offset: int = Parameter(default=0, ge=0),
-        sort: str = Parameter(default="created_at", pattern="^(created_at|overall_score)$"),
+        cursor: str | None = Parameter(default=None),
     ) -> SessionListResponse:
         # Coaches can view their students' sessions
         target_user_id = user_id if user_id else user.id
@@ -123,24 +135,39 @@ class SessionsController(Controller):
                 detail="Not a coach for this user",
             )
 
+        parsed_cursor = None
+        if cursor:
+            try:
+                parsed_cursor = _decode_cursor(cursor)
+            except (ValueError, KeyError):
+                raise ClientException(
+                    status_code=HTTP_400_BAD_REQUEST,
+                    detail="Invalid cursor",
+                ) from None
+
         sessions = await list_by_user(
             db,
             user_id=target_user_id,
             element_type=element_type,
             limit=limit,
-            offset=offset,
-            sort=sort,
+            cursor=parsed_cursor,
         )
+
+        has_more = len(sessions) > limit
+        sessions = sessions[:limit]
+
+        next_cursor = None
+        if has_more:
+            last = sessions[-1]
+            next_cursor = _encode_cursor(last.created_at, last.id)
+
         total = await count_by_user(db, user_id=target_user_id, element_type=element_type)
-        page = (offset // limit) + 1 if limit else 1  # type: ignore[operator]
-        pages = (total + limit - 1) // limit if limit else 1  # type: ignore[operator]
 
         return SessionListResponse(
             sessions=[await _session_to_response(s) for s in sessions],
             total=total,
-            page=page,
-            page_size=limit,  # type: ignore[arg-type]
-            pages=pages,
+            next_cursor=next_cursor,
+            has_more=has_more,
         )
 
     @get("/{session_id:str}")
