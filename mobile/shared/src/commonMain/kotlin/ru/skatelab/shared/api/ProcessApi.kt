@@ -2,11 +2,12 @@ package ru.skatelab.shared.api
 
 import io.ktor.client.*
 import io.ktor.client.call.*
-import io.ktor.client.plugins.sse.*
 import io.ktor.client.request.*
+import io.ktor.client.statement.*
 import io.ktor.http.*
+import io.ktor.utils.io.*
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.flow.flow
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
@@ -43,15 +44,24 @@ class ProcessApi(private val client: HttpClient) {
         client.post("/process/$taskId/cancel")
     }
 
-    fun stream(taskId: String): Flow<ProcessEvent> = callbackFlow {
-        client.sse("/process/$taskId/stream") {
-            incoming.collect { event ->
-                val data = event.data ?: return@collect
-                val processEvent = sseJson.decodeFromString<ProcessEvent>(data)
-                trySend(processEvent)
+    fun stream(taskId: String): Flow<ProcessEvent> = flow {
+        val response: HttpResponse = client.get("/process/$taskId/stream")
+        val channel: ByteReadChannel = response.body()
+        val buffer = StringBuilder()
+        while (!channel.isClosedForRead) {
+            val line = channel.readUTF8Line() ?: continue
+            when {
+                line.startsWith("data: ") -> {
+                    val data = line.removePrefix("data: ").trim()
+                    if (data.isNotEmpty()) {
+                        val event = sseJson.decodeFromString<ProcessEvent>(data)
+                        emit(event)
+                    }
+                }
+                line.isEmpty() -> buffer.clear()
+                else -> buffer.appendLine(line)
             }
         }
-        awaitClose()
     }
 }
 

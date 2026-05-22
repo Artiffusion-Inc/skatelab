@@ -1,13 +1,13 @@
 package ru.skatelab.shared.api
 
 import io.ktor.client.*
+import io.ktor.client.call.*
 import io.ktor.client.engine.*
 import io.ktor.client.network.sockets.SocketTimeoutException
 import io.ktor.client.plugins.*
 import io.ktor.client.plugins.auth.*
 import io.ktor.client.plugins.auth.providers.*
 import io.ktor.client.plugins.contentnegotiation.*
-import io.ktor.client.plugins.sse.*
 import io.ktor.client.request.*
 import io.ktor.http.*
 import io.ktor.serialization.kotlinx.json.*
@@ -30,7 +30,6 @@ class SkateLabClient(
 
         install(Auth) {
             bearer {
-                cacheTokens = false
                 loadTokens {
                     val access = tokenStorage.getAccessToken() ?: return@loadTokens null
                     val refresh = tokenStorage.getRefreshToken() ?: return@loadTokens null
@@ -38,17 +37,21 @@ class SkateLabClient(
                 }
                 refreshTokens {
                     val refreshToken = oldTokens?.refreshToken ?: return@refreshTokens null
-                    runCatching {
+                    val result = runCatching {
                         client.post("/auth/refresh") {
                             markAsRefreshTokenRequest()
                             contentType(ContentType.Application.Json)
                             setBody(mapOf("refresh_token" to refreshToken))
                         }.body<TokenResponse>()
-                    }.onSuccess { response ->
+                    }
+                    if (result.isSuccess) {
+                        val response = result.getOrThrow()
                         tokenStorage.saveTokens(response.accessToken, response.refreshToken)
-                    }.onFailure {
+                        BearerTokens(response.accessToken, response.refreshToken)
+                    } else {
                         tokenStorage.clearTokens()
-                    }.getOrNull()?.let { BearerTokens(it.accessToken, it.refreshToken) }
+                        null
+                    }
                 }
             }
         }
@@ -66,7 +69,6 @@ class SkateLabClient(
                 baseDelayMs = 500,
                 maxDelayMs = 8_000,
                 randomizationMs = 500,
-                respectRetryAfter = true,
             )
         }
 
@@ -74,11 +76,6 @@ class SkateLabClient(
             connectTimeoutMillis = 10_000
             requestTimeoutMillis = 30_000
             socketTimeoutMillis = 15_000
-        }
-
-        install(SSE) {
-            reconnectionTime = 5000
-            maxReconnectionAttempts = 3
         }
     }
 

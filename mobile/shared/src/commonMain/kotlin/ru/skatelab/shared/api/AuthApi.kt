@@ -2,7 +2,6 @@ package ru.skatelab.shared.api
 
 import io.ktor.client.*
 import io.ktor.client.call.*
-import io.ktor.client.plugins.auth.providers.*
 import io.ktor.client.request.*
 import io.ktor.http.*
 import kotlinx.serialization.SerialName
@@ -30,13 +29,6 @@ class AuthApi(private val client: HttpClient) {
         client.post("/auth/register") {
             contentType(ContentType.Application.Json)
             setBody(RegisterRequest(email, password, displayName))
-        }.body()
-
-    suspend fun refresh(refreshToken: String): TokenResponse =
-        client.post("/auth/refresh") {
-            markAsRefreshTokenRequest()
-            contentType(ContentType.Application.Json)
-            setBody(mapOf("refresh_token" to refreshToken))
         }.body()
 
     suspend fun logout(refreshToken: String) {
