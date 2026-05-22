@@ -89,19 +89,19 @@ class ImuStreamWriter
             s.flush()
         }
 
-        /** Flush, fsync, and close the stream. Guarantees durability. */
-        @Synchronized
+        /** Flush, fsync, and close the stream. Guarantees durability. Null-first pattern prevents double-close. */
         fun close() {
             val s = stream ?: return
+            val fos = fileOutputStream
+            stream = null
+            fileOutputStream = null
             s.flush()
             // fsync for durability
             try {
-                fileOutputStream?.fd?.sync()
+                fos?.fd?.sync()
             } catch (_: Exception) {
                 // Best-effort fsync; data still flushed to OS buffer
             }
             s.close()
-            stream = null
-            fileOutputStream = null
         }
     }

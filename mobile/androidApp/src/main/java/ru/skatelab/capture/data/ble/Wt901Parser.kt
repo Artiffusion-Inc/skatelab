@@ -216,9 +216,13 @@ class Wt901Parser {
         return samples
     }
 
-    /** Reset parser state. Call when discarding incomplete samples. */
+    /** Reset parser state. Call on disconnect/reconnect to clear all internal state. */
     fun reset() {
         bufferSize = 0
+        droppedByteCount = 0L
+        frameCounts.clear()
+        logSeq = 0
+        droppedPartialCount = 0
         resetCycle()
     }
 

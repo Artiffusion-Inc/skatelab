@@ -31,6 +31,10 @@ android {
         compose = true
     }
 
+    room {
+        schemaDirectory("$projectDir/schemas")
+    }
+
     testOptions {
         unitTests.isReturnDefaultValues = true
     }
