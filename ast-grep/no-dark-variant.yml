@@ -1,0 +1,10 @@
+id: no-dark-variant
+language: tsx
+message: |
+  Dark mode is disabled per DESIGN.md. Prefer light-only styling.
+severity: hint
+rule:
+  kind: string_fragment
+  regex: 'dark:'
+ignores:
+  - "frontend/src/components/ui/**"

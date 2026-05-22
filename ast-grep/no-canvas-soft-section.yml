@@ -1,0 +1,9 @@
+id: no-canvas-soft-section
+language: tsx
+message: |
+  Canvas-soft should not be used as a section-level background (Three-Canvas Rule).
+  Use canvas (white) or surface-teal-deep instead. Canvas-soft is for card bands only.
+severity: hint
+rule:
+  kind: string_fragment
+  regex: 'bg-canvas-soft'

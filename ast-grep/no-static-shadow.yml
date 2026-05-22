@@ -1,0 +1,11 @@
+id: no-static-shadow
+language: tsx
+message: |
+  Shadows on static elements violate the Flat-By-Default Rule.
+  Only floating overlays (dropdowns, modals, popovers) may have shadows.
+severity: warning
+rule:
+  kind: string_fragment
+  regex: 'shadow-(xs|sm|md|lg|xl|2xl|\[)'
+ignores:
+  - "frontend/src/components/ui/**"

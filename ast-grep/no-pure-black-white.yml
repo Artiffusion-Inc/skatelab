@@ -1,0 +1,25 @@
+id: no-pure-black-white
+language: TypeScript
+message: |
+  Avoid pure black (#000000) and pure white (#FFFFFF) — they create harsh contrast.
+  Use design-system ink (#2A2D2E) and canvas (#FFFFFF) tokens instead.
+  Use `var(--ink)`, `var(--canvas)`, or `oklch()` values from DESIGN.md.
+severity: warning
+rule:
+  any:
+    - kind: string
+      regex: "#000000\\b"
+    - kind: string
+      regex: "#FFFFFF\\b"
+    - kind: string
+      regex: "#000\\b"
+    - kind: string
+      regex: "#FFF\\b"
+    - kind: string_fragment
+      regex: "#000000\\b"
+    - kind: string_fragment
+      regex: "#FFFFFF\\b"
+    - kind: string_fragment
+      regex: "#000\\b"
+    - kind: string_fragment
+      regex: "#FFF\\b"

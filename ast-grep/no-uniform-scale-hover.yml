@@ -1,0 +1,11 @@
+id: no-uniform-scale-hover
+language: TypeScript
+message: |
+  Avoid uniform `hover:scale-105` — it's an AI slop tell. Use meaningful scale
+  transforms that reflect interaction intent, or use design-system tokens instead.
+severity: warning
+rule:
+  any:
+    - pattern: hover:scale-105
+    - pattern: hover:scale-110
+    - pattern: hover:scale-95

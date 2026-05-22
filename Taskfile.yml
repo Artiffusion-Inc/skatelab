@@ -165,3 +165,33 @@ tasks:
     vars:
       VIDEO: '{{.VIDEO | default "data/samples/test.mp4"}}'
       ELEMENT: '{{.ELEMENT | default "waltz_jump"}}'
+
+  # Design system tasks (v2 — LLM-based generation)
+  design:build:
+    desc: "Generate design tokens for all platforms from DESIGN.md via LLM"
+    cmd: node scripts/design-build.js
+
+  design:lint:
+    desc: "UI anti-pattern scan (impeccable + ast-grep)"
+    cmds:
+      - npx impeccable detect --fast --json frontend/src/ 2>&1 | node scripts/impeccable-report.js
+      - ast-grep scan
+
+  design:check:
+    desc: "Full design validation (build + WCAG + drift)"
+    cmds:
+      - task: design:build
+      - node scripts/design-wcag.js
+      - node scripts/design-lock.js check
+
+  design:lock:
+    desc: "Update checksum lockfile after reviewing generated changes"
+    cmd: node scripts/design-lock.js update
+
+  design:wcag:
+    desc: "WCAG contrast ratio validation"
+    cmd: node scripts/design-wcag.js
+
+  design:audit:
+    desc: "Deep design quality audit (manual/scheduled only, requires LLM)"
+    cmd: claude -p "hallmark audit frontend/src/ using DESIGN.md as design system" --bare --output-format json --max-turns 5

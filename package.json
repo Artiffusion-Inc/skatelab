@@ -1,0 +1,18 @@
+{
+  "name": "skatelab-design-tokens",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "design:build": "node scripts/design-build.js",
+    "design:build:force": "node scripts/design-build.js --force",
+    "design:lint": "npx impeccable detect --fast --json frontend/src/ 2>&1 | node scripts/impeccable-report.js && ast-grep scan",
+    "design:check": "npm run design:build && node scripts/design-wcag.js && node scripts/design-lock.js check",
+    "design:lock": "node scripts/design-lock.js update",
+    "design:wcag": "node scripts/design-wcag.js",
+    "design:audit": "claude -p \"hallmark audit frontend/src/ using DESIGN.md as design system\" --bare --output-format json --max-turns 5"
+  },
+  "dependencies": {
+    "execa": "^9.6.1",
+    "p-queue": "^9.2.0"
+  }
+}

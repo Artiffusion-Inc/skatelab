@@ -1,0 +1,24 @@
+id: no-banned-font-import
+language: TypeScript
+message: |
+  Avoid importing overused fonts (Roboto, Open Sans, Poppins, Lato).
+  The SkateLab design system uses Inter Variable with sub-default weights (460/540/600).
+severity: warning
+rule:
+  any:
+    - kind: string
+      regex: "Roboto"
+    - kind: string_fragment
+      regex: "Roboto"
+    - kind: string
+      regex: "Open Sans"
+    - kind: string_fragment
+      regex: "Open Sans"
+    - kind: string
+      regex: "Poppins"
+    - kind: string_fragment
+      regex: "Poppins"
+    - kind: string
+      regex: "Lato"
+    - kind: string_fragment
+      regex: "Lato"
