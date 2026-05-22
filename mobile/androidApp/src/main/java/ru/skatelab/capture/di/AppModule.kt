@@ -31,6 +31,7 @@ import ru.skatelab.capture.domain.service.ManifestWriter
 import ru.skatelab.capture.domain.service.SessionExporter
 import ru.skatelab.capture.domain.service.TimeSynchronizer
 import ru.skatelab.shared.api.SkateLabClient
+import ru.skatelab.shared.api.UsersApi
 import ru.skatelab.shared.auth.AuthRepository
 import ru.skatelab.shared.auth.TokenStorage
 
@@ -113,5 +114,16 @@ abstract class AppModule {
                 client.auth,
                 tokenStorage,
             ) { client.httpClient.authProvider<BearerAuthProvider>()?.clearToken() }
+
+        @Provides
+        @Singleton
+        fun provideUsersApi(client: SkateLabClient): UsersApi = UsersApi(client.httpClient)
+
+        @Provides
+        @Singleton
+        fun provideSharedAuthViewModel(
+            authRepo: AuthRepository,
+            usersApi: UsersApi,
+        ): ru.skatelab.shared.state.AuthViewModel = ru.skatelab.shared.state.AuthViewModel(authRepo, usersApi)
     }
 }
