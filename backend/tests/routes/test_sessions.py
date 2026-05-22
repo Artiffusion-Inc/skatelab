@@ -164,6 +164,8 @@ async def test_list_sessions(client, auth_headers, authed_user, db_session: Asyn
     data = response.json()
     assert data["total"] == 2
     assert len(data["sessions"]) == 2
+    assert data["has_more"] is False
+    assert data["next_cursor"] is None
 
 
 @pytest.mark.asyncio
@@ -196,6 +198,7 @@ async def test_list_sessions_filter_element_type(
     data = response.json()
     assert data["total"] == 1
     assert data["sessions"][0]["element_type"] == "waltz_jump"
+    assert data["has_more"] is False
 
 
 @pytest.mark.asyncio
@@ -387,6 +390,7 @@ async def test_list_sessions_coach_allowed(
     data = response.json()
     assert data["total"] == 1
     assert data["sessions"][0]["element_type"] == "waltz_jump"
+    assert data["has_more"] is False
 
 
 @pytest.mark.asyncio
@@ -413,3 +417,73 @@ async def test_get_session_coach_allowed(
     assert response.status_code == 200
     data = response.json()
     assert data["id"] == session.id
+
+
+@pytest.mark.asyncio
+async def test_list_sessions_cursor_pagination(
+    client, auth_headers, authed_user, db_session: AsyncSession
+):
+    """Cursor pagination: limit=2 on 3 sessions returns has_more + next_cursor,
+    and second page returns the remaining session with has_more=False."""
+    from app.crud.session import create as crud_create
+
+    with patch(
+        "app.routes.sessions.get_object_url_async",
+        new_callable=AsyncMock,
+        return_value="https://fake.url",
+    ):
+        await crud_create(db_session, user_id=authed_user.id, element_type="flip")
+        await crud_create(db_session, user_id=authed_user.id, element_type="lutz")
+        await crud_create(db_session, user_id=authed_user.id, element_type="axel")
+
+    # First page: limit=2, expect 2 sessions and has_more=True
+    with patch(
+        "app.routes.sessions.get_object_url_async",
+        new_callable=AsyncMock,
+        return_value="https://fake.url",
+    ):
+        response = await client.get(
+            "/api/v1/sessions",
+            params={"limit": 2},
+            headers=auth_headers,
+        )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data["sessions"]) == 2
+    assert data["has_more"] is True
+    assert data["next_cursor"] is not None
+    assert data["total"] == 3
+
+    # Second page using cursor
+    with patch(
+        "app.routes.sessions.get_object_url_async",
+        new_callable=AsyncMock,
+        return_value="https://fake.url",
+    ):
+        response2 = await client.get(
+            "/api/v1/sessions",
+            params={"limit": 2, "cursor": data["next_cursor"]},
+            headers=auth_headers,
+        )
+
+    assert response2.status_code == 200
+    data2 = response2.json()
+    assert len(data2["sessions"]) == 1
+    assert data2["has_more"] is False
+    assert data2["next_cursor"] is None
+    assert data2["total"] == 3
+
+
+@pytest.mark.asyncio
+async def test_list_sessions_invalid_cursor(
+    client, auth_headers, authed_user, db_session: AsyncSession
+):
+    """Malformed cursor returns 400."""
+    response = await client.get(
+        "/api/v1/sessions",
+        params={"cursor": "not-a-valid-cursor"},
+        headers=auth_headers,
+    )
+
+    assert response.status_code == 400

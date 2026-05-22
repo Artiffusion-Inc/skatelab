@@ -69,12 +69,14 @@ def check_declining_trend(
     metric: str,
     values: list[float],
     metric_label: str,
+    direction: str = "higher",
 ) -> Finding | None:
     """Warning when linear regression shows decline with R² > 0.5."""
     if len(values) < 5:
         return None
     slope, r_squared = linear_regression(values)
-    if slope < 0 and r_squared > 0.5:
+    is_decline = (slope < 0) if direction == "higher" else (slope > 0)
+    if is_decline and r_squared > 0.5:
         return Finding(
             severity="warning",
             element=element,

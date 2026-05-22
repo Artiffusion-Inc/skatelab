@@ -96,34 +96,29 @@ async def test_list_by_user_filter_element_type(db_session):
     assert sessions[0].element_type == "axel"
 
 
-async def test_list_by_user_sort_by_score(db_session):
-    _make_user(db_session)
-    await db_session.flush()
-
-    s1 = await create(db_session, user_id="user-1", element_type="axel", overall_score=7.5)
-    s2 = await create(db_session, user_id="user-1", element_type="axel", overall_score=9.0)
-
-    sessions = await list_by_user(db_session, "user-1", sort="overall_score")
-    assert len(sessions) == 2
-    # Sorted desc by overall_score
-    assert sessions[0].overall_score == 9.0
-    assert sessions[1].overall_score == 7.5
-
-
-async def test_list_by_user_pagination(db_session):
+async def test_list_by_user_cursor_pagination(db_session):
     _make_user(db_session)
     await db_session.flush()
 
     for _ in range(5):
         await create(db_session, user_id="user-1", element_type="axel")
 
-    page1 = await list_by_user(db_session, "user-1", limit=2, offset=0)
-    page2 = await list_by_user(db_session, "user-1", limit=2, offset=2)
-    page3 = await list_by_user(db_session, "user-1", limit=2, offset=4)
+    # list_by_user fetches limit+1 rows; caller trims to limit
+    page1 = await list_by_user(db_session, "user-1", limit=2)
+    assert len(page1) == 3  # limit+1 = has_more signal
 
-    assert len(page1) == 2
-    assert len(page2) == 2
-    assert len(page3) == 1
+    # Caller trims to actual limit=2
+    page1 = page1[:2]
+    last = page1[-1]
+    cursor = (last.created_at, last.id)
+    page2 = await list_by_user(db_session, "user-1", limit=2, cursor=cursor)
+    assert len(page2) == 3  # still has_more
+
+    page2 = page2[:2]
+    last = page2[-1]
+    cursor = (last.created_at, last.id)
+    page3 = await list_by_user(db_session, "user-1", limit=2, cursor=cursor)
+    assert len(page3) == 1  # last page, no extra row
 
 
 async def test_count_by_user(db_session):

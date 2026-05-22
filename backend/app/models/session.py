@@ -74,6 +74,13 @@ class Session(TimestampMixin, Base):
 
     __table_args__ = (
         Index("ix_sessions_user_element_created", "user_id", "element_type", "created_at"),
+        Index(
+            "ix_sessions_user_element_created_id_desc",
+            "user_id",
+            "element_type",
+            "created_at",
+            "id",
+        ),
     )
 
 
