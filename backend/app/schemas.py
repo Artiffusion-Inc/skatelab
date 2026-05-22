@@ -80,6 +80,7 @@ class UserResponse(BaseModel):
     language: str
     timezone: str
     theme: str
+    angular_unit: str = "deg_per_sec"
     onboarding_role: str | None
     is_active: bool
     is_verified: bool
@@ -107,6 +108,7 @@ class UpdateSettingsRequest(BaseModel):
     language: str | None = Field(default=None, max_length=10)
     timezone: str | None = Field(default=None, max_length=50)
     theme: str | None = Field(default=None, pattern=r"^(light|dark|system)$")
+    angular_unit: str | None = Field(default=None, pattern=r"^(deg_per_sec|rpm)$")
 
 
 class UpdateOnboardingRoleRequest(BaseModel):

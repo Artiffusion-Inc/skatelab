@@ -1,0 +1,272 @@
+package ru.skatelab.capture.ui.camera
+
+import androidx.camera.compose.CameraXViewfinder
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Bluetooth
+import androidx.compose.material.icons.filled.Memory
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import ru.skatelab.capture.domain.model.SensorId
+
+@Composable
+fun CameraScreen(
+    viewModel: CameraViewModel,
+    onNavigateToImuCapture: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val context = LocalContext.current
+    val lifecycleOwner = LocalLifecycleOwner.current
+
+    val isRecording by viewModel.isRecording.collectAsState()
+    val isPreviewReady by viewModel.isPreviewReady.collectAsState()
+    val error by viewModel.error.collectAsState()
+    val elapsedMs by viewModel.elapsedMs.collectAsState()
+    val bleConnected by viewModel.bleConnected.collectAsState()
+    val sensorInfo by viewModel.sensorInfo.collectAsState()
+    val reconnectingSensor by viewModel.reconnectingSensor.collectAsState()
+
+    var cameraBound by remember { mutableStateOf(false) }
+
+    LaunchedEffect(Unit) {
+        viewModel.startBatteryPolling()
+        viewModel.startBleMonitoring()
+    }
+
+    Box(modifier = modifier.fillMaxSize()) {
+        // Camera preview
+        CameraPreviewLayer(
+            viewModel = viewModel,
+            isRecording = isRecording,
+            reconnectingSensor = reconnectingSensor,
+            elapsedMs = elapsedMs,
+            sensorInfo = sensorInfo,
+            onCameraReady = {
+                if (!cameraBound) {
+                    cameraBound = true
+                    viewModel.bindCamera(lifecycleOwner)
+                }
+            },
+        )
+
+        // Loading indicator
+        if (!isPreviewReady) {
+            Box(
+                modifier =
+                    Modifier
+                        .fillMaxSize()
+                        .background(Color.Black.copy(alpha = 0.6f)),
+                contentAlignment = Alignment.Center,
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(48.dp),
+                        color = Color.White,
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        "Preparing camera…",
+                        color = Color.White,
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                }
+            }
+        }
+
+        // Top bar: BLE indicator
+        if (bleConnected) {
+            Row(
+                modifier =
+                    Modifier
+                        .align(Alignment.TopStart)
+                        .padding(12.dp)
+                        .background(Color.Black.copy(alpha = 0.6f), MaterialTheme.shapes.small)
+                        .padding(horizontal = 8.dp, vertical = 4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
+                Icon(
+                    Icons.Default.Bluetooth,
+                    contentDescription = "BLE connected",
+                    tint = Color.White,
+                    modifier = Modifier.size(16.dp),
+                )
+                val parts = mutableListOf<String>()
+                sensorInfo[SensorId.LEFT]?.let { parts.add("L:${it.batteryPercent}%") }
+                sensorInfo[SensorId.RIGHT]?.let { parts.add("R:${it.batteryPercent}%") }
+                if (parts.isNotEmpty()) {
+                    Text(
+                        parts.joinToString(" "),
+                        color = Color.White,
+                        style = MaterialTheme.typography.labelSmall,
+                    )
+                }
+            }
+        }
+
+        // IMU capture button (top right)
+        FloatingActionButton(
+            onClick = onNavigateToImuCapture,
+            modifier =
+                Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(12.dp),
+            containerColor = MaterialTheme.colorScheme.secondaryContainer,
+        ) {
+            Icon(Icons.Default.Memory, contentDescription = "IMU capture")
+        }
+
+        // Bottom controls
+        Column(
+            modifier =
+                Modifier
+                    .align(Alignment.BottomCenter)
+                    .fillMaxWidth()
+                    .background(Color.Black.copy(alpha = 0.4f))
+                    .padding(vertical = 24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            // Record button
+            RecordButton(
+                isRecording = isRecording,
+                isPreviewReady = isPreviewReady,
+                onToggle = { viewModel.toggleRecording(context) },
+            )
+
+            // Error message
+            error?.let { message ->
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    message,
+                    color = MaterialTheme.colorScheme.error,
+                    style = MaterialTheme.typography.bodySmall,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun RecordButton(
+    isRecording: Boolean,
+    isPreviewReady: Boolean,
+    onToggle: () -> Unit,
+) {
+    FloatingActionButton(
+        onClick = onToggle,
+        modifier = Modifier.size(72.dp),
+        containerColor =
+            if (isRecording) {
+                MaterialTheme.colorScheme.error
+            } else {
+                Color.White
+            },
+        shape = CircleShape,
+    ) {
+        Box(
+            modifier =
+                Modifier
+                    .size(if (isRecording) 24.dp else 56.dp)
+                    .background(
+                        color =
+                            if (isRecording) {
+                                Color.White
+                            } else if (isPreviewReady) {
+                                Color.Red
+                            } else {
+                                Color.Gray
+                            },
+                        shape = if (isRecording) MaterialTheme.shapes.extraSmall else CircleShape,
+                    ),
+        )
+    }
+}
+
+@Composable
+private fun CameraPreviewLayer(
+    viewModel: CameraViewModel,
+    isRecording: Boolean,
+    reconnectingSensor: SensorId?,
+    elapsedMs: Long,
+    sensorInfo: Map<SensorId, ru.skatelab.capture.domain.model.SensorInfo?>,
+    onCameraReady: () -> Unit,
+) {
+    val surfaceRequest by viewModel.surfaceRequest.collectAsState()
+
+    Box(modifier = Modifier.fillMaxSize()) {
+        surfaceRequest?.let { request ->
+            CameraXViewfinder(
+                surfaceRequest = request,
+                modifier = Modifier.fillMaxSize(),
+            )
+        }
+
+        LaunchedEffect(Unit) { onCameraReady() }
+
+        // REC indicator with timer
+        if (isRecording) {
+            Box(
+                modifier =
+                    Modifier
+                        .align(Alignment.TopCenter)
+                        .padding(12.dp)
+                        .background(Color.Red, MaterialTheme.shapes.small)
+                        .padding(horizontal = 8.dp, vertical = 4.dp),
+            ) {
+                val totalSec = elapsedMs / 1000
+                val min = (totalSec / 60).toInt()
+                val sec = (totalSec % 60).toInt()
+                Text(
+                    "REC %02d:%02d".format(min, sec),
+                    color = Color.White,
+                    style = MaterialTheme.typography.labelLarge,
+                )
+            }
+
+            // Reconnect warning
+            if (reconnectingSensor != null) {
+                Box(
+                    modifier =
+                        Modifier
+                            .align(Alignment.TopStart)
+                            .padding(12.dp)
+                            .background(MaterialTheme.colorScheme.errorContainer, MaterialTheme.shapes.small)
+                            .padding(horizontal = 8.dp, vertical = 4.dp),
+                ) {
+                    Text(
+                        "Reconnecting: ${reconnectingSensor?.name?.lowercase()}",
+                        color = MaterialTheme.colorScheme.onErrorContainer,
+                        style = MaterialTheme.typography.labelMedium,
+                    )
+                }
+            }
+        }
+    }
+}

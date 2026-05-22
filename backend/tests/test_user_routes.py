@@ -1,5 +1,8 @@
 """Tests for user API routes."""
 
+import io
+from unittest.mock import patch
+
 import pytest
 from app.auth.security import hash_password
 from app.models.user import User
@@ -49,3 +52,51 @@ async def test_update_settings(client, auth_headers):
     data = response.json()
     assert data["language"] == "en"
     assert data["theme"] == "dark"
+
+
+async def test_update_angular_unit(client, auth_headers):
+    """Test PATCH /api/users/me/settings updates angular_unit preference."""
+    resp = await client.patch(
+        "/api/v1/users/me/settings",
+        json={"angular_unit": "rpm"},
+        headers=auth_headers,
+    )
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["angular_unit"] == "rpm"
+
+    # Verify persists
+    resp2 = await client.get("/api/v1/users/me", headers=auth_headers)
+    assert resp2.json()["angular_unit"] == "rpm"
+
+
+async def test_upload_avatar(client, auth_headers):
+    """Test POST /me/avatar uploads avatar and updates user."""
+    img = io.BytesIO(b"\x89PNG\r\n\x1a\n" + b"\x00" * 100)
+    with (
+        patch("app.routes.users.upload_bytes", return_value="avatars/test-user-id.png"),
+        patch(
+            "app.routes.users.get_object_url",
+            return_value="https://r2.example.com/avatars/test-user-id.png",
+        ),
+    ):
+        resp = await client.post(
+            "/api/v1/users/me/avatar",
+            files={"file": ("avatar.png", img, "image/png")},
+            headers=auth_headers,
+        )
+    assert resp.status_code == 200
+    data = resp.json()
+    assert "avatar_url" in data
+    assert data["avatar_url"] == "https://r2.example.com/avatars/test-user-id.png"
+
+
+async def test_upload_avatar_rejects_invalid_type(client, auth_headers):
+    """Test POST /me/avatar rejects unsupported content types."""
+    fake_gif = io.BytesIO(b"GIF89a" + b"\x00" * 100)
+    resp = await client.post(
+        "/api/v1/users/me/avatar",
+        files={"file": ("avatar.gif", fake_gif, "image/gif")},
+        headers=auth_headers,
+    )
+    assert resp.status_code == 422

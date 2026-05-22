@@ -14,5 +14,7 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "skatelab-capture"
-include(":app")
+rootProject.name = "skatelab-mobile"
+include(":shared")
+include(":androidApp")
+includeBuild("build-logic")

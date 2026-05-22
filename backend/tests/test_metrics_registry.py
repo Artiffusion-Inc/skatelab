@@ -5,6 +5,7 @@ from app.metrics_registry import (
     ALL_ELEMENTS,
     JUMP_ELEMENTS,
     METRIC_REGISTRY,
+    SPIN_ELEMENTS,
     get_metrics_for_element,
 )
 
@@ -13,8 +14,9 @@ class TestMetricRegistry:
     """Test the metric registry structure and contents."""
 
     def test_registry_has_all_known_metrics(self):
-        """Verify all 12 expected metrics are present."""
+        """Verify all expected metrics are present."""
         expected_metrics = {
+            # Jump metrics
             "airtime",
             "max_height",
             "relative_jump_height",
@@ -23,9 +25,18 @@ class TestMetricRegistry:
             "landing_trunk_recovery",
             "arm_position_score",
             "rotation_speed",
+            "total_rotation_deg",
+            "rotation_count",
+            "under_rotation_deg",
+            "jump_type",
+            # Step metrics
             "knee_angle",
             "trunk_lean",
             "edge_change_smoothness",
+            # Spin metrics
+            "spin_type",
+            "spin_peak_velocity",
+            # Universal metrics
             "symmetry",
         }
         actual_metrics = set(METRIC_REGISTRY.keys())
@@ -84,7 +95,7 @@ class TestMetricRegistry:
             )
 
     def test_symmetry_on_all_elements(self):
-        """Symmetry metric should apply to all 8 element types."""
+        """Symmetry metric should apply to all element types."""
         symmetry_def = METRIC_REGISTRY["symmetry"]
         assert set(symmetry_def.element_types) == set(ALL_ELEMENTS), (
             f"symmetry should apply to all {len(ALL_ELEMENTS)} elements. "
@@ -105,6 +116,10 @@ class TestMetricRegistry:
             "landing_trunk_recovery",
             "arm_position_score",
             "rotation_speed",
+            "total_rotation_deg",
+            "rotation_count",
+            "under_rotation_deg",
+            "jump_type",
             "symmetry",
         }
         assert set(waltz_jump_metrics.keys()) == expected_jump_metrics
@@ -113,6 +128,31 @@ class TestMetricRegistry:
         step_only_metrics = {"knee_angle", "trunk_lean", "edge_change_smoothness"}
         for metric in step_only_metrics:
             assert metric not in waltz_jump_metrics
+
+    def test_get_metrics_for_element_spin(self):
+        """Test get_metrics_for_element for a spin element."""
+        upright_spin_metrics = get_metrics_for_element("upright_spin")
+
+        # Should have spin-specific metrics plus rotation + symmetry
+        expected_spin_metrics = {
+            "spin_type",
+            "spin_peak_velocity",
+            "total_rotation_deg",
+            "rotation_count",
+            "symmetry",
+        }
+        assert set(upright_spin_metrics.keys()) == expected_spin_metrics
+
+        # Verify jump-specific metrics are NOT included
+        jump_only_metrics = {
+            "airtime",
+            "max_height",
+            "landing_knee_angle",
+            "under_rotation_deg",
+            "jump_type",
+        }
+        for metric in jump_only_metrics:
+            assert metric not in upright_spin_metrics
 
     def test_get_metrics_for_element_step(self):
         """Test get_metrics_for_element for a step element."""
@@ -174,9 +214,12 @@ class TestMetricRegistry:
         # JUMP_ELEMENTS should have 7 jump types
         assert len(JUMP_ELEMENTS) == 7, f"Expected 7 jump elements, got {len(JUMP_ELEMENTS)}"
 
-        # ALL_ELEMENTS should be jumps + three_turn
-        assert len(ALL_ELEMENTS) == 8, f"Expected 8 total elements, got {len(ALL_ELEMENTS)}"
-        assert (*JUMP_ELEMENTS, "three_turn") == ALL_ELEMENTS
+        # SPIN_ELEMENTS should have 3 spin types
+        assert len(SPIN_ELEMENTS) == 3, f"Expected 3 spin elements, got {len(SPIN_ELEMENTS)}"
+
+        # ALL_ELEMENTS should be jumps + three_turn + spins
+        assert len(ALL_ELEMENTS) == 11, f"Expected 11 total elements, got {len(ALL_ELEMENTS)}"
+        assert (*JUMP_ELEMENTS, "three_turn", *SPIN_ELEMENTS) == ALL_ELEMENTS
 
         # All element types in registry should be in ALL_ELEMENTS
         for metric_def in METRIC_REGISTRY.values():

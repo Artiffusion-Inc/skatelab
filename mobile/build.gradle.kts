@@ -1,9 +1,13 @@
 plugins {
-    id("com.android.application") version "8.9.1" apply false
-    id("org.jetbrains.kotlin.android") version "2.1.21" apply false
-    id("org.jetbrains.kotlin.plugin.compose") version "2.1.21" apply false
-    id("org.jetbrains.kotlin.kapt") version "2.1.21" apply false
-    id("com.google.dagger.hilt.android") version "2.56.1" apply false
-    id("com.google.protobuf") version "0.9.5" apply false
-    id("org.jlleitschuh.gradle.ktlint") version "12.2.0" apply false
+    alias(libs.plugins.kmp.library) apply false
+    alias(libs.plugins.android.application) apply false
+    alias(libs.plugins.android.library) apply false
+    alias(libs.plugins.serialization) apply false
+    alias(libs.plugins.compose.compiler) apply false
+    alias(libs.plugins.hilt) apply false
+    alias(libs.plugins.ksp) apply false
+    alias(libs.plugins.kover) apply false
+    alias(libs.plugins.ktlint) apply false
+    alias(libs.plugins.mokkery.plugin) apply false
+    alias(libs.plugins.protobuf) apply false
 }

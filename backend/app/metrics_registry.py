@@ -43,7 +43,13 @@ JUMP_ELEMENTS = (
     "axel",
 )
 
-ALL_ELEMENTS = (*JUMP_ELEMENTS, "three_turn")
+SPIN_ELEMENTS = (
+    "upright_spin",
+    "one_foot_spin",
+    "scratch_spin",
+)
+
+ALL_ELEMENTS = (*JUMP_ELEMENTS, "three_turn", *SPIN_ELEMENTS)
 
 
 # Metric registry
@@ -121,6 +127,42 @@ METRIC_REGISTRY: dict[str, MetricDef] = {
         element_types=JUMP_ELEMENTS,
         ideal_range=(300, 550),
     ),
+    "total_rotation_deg": MetricDef(
+        name="total_rotation_deg",
+        label_ru="Полное вращение",
+        unit="deg",
+        format=".0f",
+        direction="higher",
+        element_types=(*JUMP_ELEMENTS, *SPIN_ELEMENTS),
+        ideal_range=(360, 1620),
+    ),
+    "rotation_count": MetricDef(
+        name="rotation_count",
+        label_ru="Количество вращений",
+        unit="score",
+        format=".1f",
+        direction="higher",
+        element_types=(*JUMP_ELEMENTS, *SPIN_ELEMENTS),
+        ideal_range=(1.0, 4.5),
+    ),
+    "under_rotation_deg": MetricDef(
+        name="under_rotation_deg",
+        label_ru="Недокрут",
+        unit="deg",
+        format=".0f",
+        direction="lower",
+        element_types=JUMP_ELEMENTS,
+        ideal_range=(0, 90),
+    ),
+    "jump_type": MetricDef(
+        name="jump_type",
+        label_ru="Тип прыжка",
+        unit="score",
+        format=".2f",
+        direction="higher",
+        element_types=JUMP_ELEMENTS,
+        ideal_range=(0.5, 1.0),
+    ),
     # Step-specific metrics
     "knee_angle": MetricDef(
         name="knee_angle",
@@ -148,6 +190,25 @@ METRIC_REGISTRY: dict[str, MetricDef] = {
         direction="higher",
         element_types=("three_turn",),
         ideal_range=(0.1, 0.5),
+    ),
+    # Spin-specific metrics
+    "spin_type": MetricDef(
+        name="spin_type",
+        label_ru="Тип вращения",
+        unit="score",
+        format=".2f",
+        direction="higher",
+        element_types=SPIN_ELEMENTS,
+        ideal_range=(0.5, 1.0),
+    ),
+    "spin_peak_velocity": MetricDef(
+        name="spin_peak_velocity",
+        label_ru="Пиковая скорость вращения",
+        unit="deg/s",
+        format=".0f",
+        direction="higher",
+        element_types=SPIN_ELEMENTS,
+        ideal_range=(300, 600),
     ),
     # Universal metrics
     "symmetry": MetricDef(

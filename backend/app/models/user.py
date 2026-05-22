@@ -32,6 +32,9 @@ class User(TimestampMixin, Base):
     language: Mapped[str] = mapped_column(String(10), default="ru")
     timezone: Mapped[str] = mapped_column(String(50), default="Europe/Moscow")
     theme: Mapped[str] = mapped_column(String(10), default="system")
+    angular_unit: Mapped[str] = mapped_column(
+        String(20), server_default="deg_per_sec", nullable=False
+    )
 
     # Onboarding
     onboarding_role: Mapped[str | None] = mapped_column(String(20), nullable=True)
