@@ -192,7 +192,7 @@ class PoseTracker:
         """Update tracks with new frame detections.
 
         Args:
-            poses: (N, 33, 2) detected poses in normalized coordinates.
+            poses: (N, num_joints, 2) detected poses in normalized coordinates.
             confidences: (N,) detection confidence values (optional).
 
         Returns:
@@ -309,7 +309,7 @@ class PoseTracker:
         """Associate detections to tracks using IoU + biometrics.
 
         Args:
-            poses: (N, 33, 2) detected poses.
+            poses: (N, num_joints, 2) detected poses.
             detections: (N, 2) mid-hip positions.
             predictions: (M, 2) predicted track positions.
 

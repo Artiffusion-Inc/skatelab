@@ -89,7 +89,7 @@ class ElementSegmenter:
         """Detect element boundaries in video.
 
         Args:
-            poses: NormalizedPose sequence (num_frames, 33, 2).
+            poses: NormalizedPose sequence (num_frames, num_joints, 2).
             video_path: Path to original video file.
             video_meta: Video metadata.
             method: Segmentation strategy. One of:
@@ -228,7 +228,7 @@ class ElementSegmenter:
         """Compute per-frame motion energy from pose differences.
 
         Args:
-            poses: NormalizedPose sequence (num_frames, 33, 2).
+            poses: NormalizedPose sequence (num_frames, num_joints, 2).
 
         Returns:
             Motion energy signal (num_frames,).

@@ -50,6 +50,13 @@ def step_phases():
     )
 
 
+@pytest.fixture
+def sample_poses_17():
+    """Normalized poses in H3.6M format (N, 17, 2)."""
+    rng = np.random.default_rng(42)
+    return rng.random((60, 17, 2)).astype(np.float32)
+
+
 class TestMotionDTWAligner:
     """Test MotionDTWAligner functionality."""
 
@@ -197,3 +204,19 @@ class TestMotionDTWAligner:
         # Should produce aligned output
         assert result.aligned_user.shape[0] == len(ref_poses)
         assert len(result.full_warp_path) > 0
+
+
+class TestMotionDTW17Keypoints:
+    """Test MotionDTWAligner with H3.6M 17-keypoint format (not hardcoded 33)."""
+
+    def test_dtw_works_with_17_keypoints(self, sample_poses_17):
+        """DTW must work with H3.6M 17-keypoint format (not hardcoded 33)."""
+        from src.alignment.motion_dtw import MotionDTWAligner
+
+        # Use window_type=None for random data (Sakoe-Chiba may reject short random sequences)
+        aligner = MotionDTWAligner(window_type=None)
+        user = sample_poses_17
+        ref = sample_poses_17[: len(sample_poses_17) // 2]
+        result = aligner.compute_distance(user, ref)
+        assert isinstance(result, float)
+        assert result >= 0.0
