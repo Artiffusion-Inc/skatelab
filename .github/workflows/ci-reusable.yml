@@ -197,8 +197,8 @@ jobs:
       - name: pytest smoke
         run: uv run pytest ml/tests/smoke/ -v -m smoke --tb=short
 
-  fe-lint:
-    name: Lint (Biome)
+  fe-check:
+    name: Check (Biome + tsc)
     needs: [changes]
     if: inputs.run-all || needs.changes.outputs.frontend == 'true'
     runs-on: blacksmith-2vcpu-ubuntu-2404
@@ -208,22 +208,13 @@ jobs:
       - name: Biome check
         working-directory: frontend
         run: bunx biome check .
-
-  fe-typecheck:
-    name: Type Check (tsc)
-    needs: [changes]
-    if: inputs.run-all || needs.changes.outputs.frontend == 'true'
-    runs-on: blacksmith-2vcpu-ubuntu-2404
-    steps:
-      - uses: actions/checkout@v6
-      - uses: ./.github/actions/setup-frontend
       - name: tsc
         working-directory: frontend
         run: bun run typecheck
 
   fe-build:
     name: Build (Next.js)
-    needs: [changes]
+    needs: [changes, fe-check]
     if: inputs.run-all || needs.changes.outputs.frontend == 'true'
     runs-on: blacksmith-4vcpu-ubuntu-2404
     steps:
@@ -293,7 +284,7 @@ jobs:
 
   docker-frontend:
     name: Docker Build (Frontend)
-    needs: [changes, fe-lint, fe-typecheck, fe-build]
+    needs: [changes, fe-check, fe-build]
     if: ${{ !inputs.skip-docker && (inputs.run-all || needs.changes.outputs.docker == 'true') }}
     runs-on: blacksmith-4vcpu-ubuntu-2404
     steps:
@@ -311,7 +302,7 @@ jobs:
   ci-passed:
     name: CI Summary
     runs-on: blacksmith-2vcpu-ubuntu-2404
-    needs: [changes, lint, typecheck, ast-grep, design-lint, design-check, test, smoke, fe-lint, fe-typecheck, fe-build, fe-test, docker-backend, docker-frontend]
+    needs: [changes, lint, typecheck, ast-grep, design-lint, design-check, test, smoke, fe-check, fe-build, fe-test, docker-backend, docker-frontend]
     if: always()
     outputs:
       result: ${{ steps.check.outputs.result }}
@@ -323,8 +314,7 @@ jobs:
           TYPECHECK: ${{ needs.typecheck.result }}
           TEST: ${{ needs.test.result }}
           SMOKE: ${{ needs.smoke.result }}
-          FE_LINT: ${{ needs.fe-lint.result }}
-          FE_TYPECHECK: ${{ needs.fe-typecheck.result }}
+          FE_CHECK: ${{ needs.fe-check.result }}
           FE_BUILD: ${{ needs.fe-build.result }}
           FE_TEST: ${{ needs.fe-test.result }}
           DOCKER_BACKEND: ${{ needs.docker-backend.result }}
@@ -353,8 +343,7 @@ jobs:
           check_job "Type Check (basedpyright)" "$TYPECHECK"
           check_job "Tests" "$TEST"
           check_job "Smoke Tests" "$SMOKE"
-          check_job "Lint (Biome)" "$FE_LINT"
-          check_job "Type Check (tsc)" "$FE_TYPECHECK"
+          check_job "Check (Biome + tsc)" "$FE_CHECK"
           check_job "Build (Next.js)" "$FE_BUILD"
           check_job "Tests (Vitest)" "$FE_TEST"
           check_job "Docker Build (Backend)" "$DOCKER_BACKEND"
