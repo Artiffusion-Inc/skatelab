@@ -128,6 +128,10 @@ spacing:
   xl: "24px"
   xxl: "32px"
   huge: "64px"
+shadows:
+  ambient-low: "0 1px 3px rgba(0,0,0,0.08)"
+  ambient-medium: "0 4px 12px rgba(0,0,0,0.10)"
+  ambient-high: "0 8px 24px rgba(0,0,0,0.12)"
 components:
   button-primary-dark:
     backgroundColor: "{colors.primary}"
