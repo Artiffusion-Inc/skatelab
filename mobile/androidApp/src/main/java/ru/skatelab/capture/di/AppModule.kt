@@ -114,7 +114,7 @@ abstract class AppModule {
             AuthRepository(
                 client.auth,
                 tokenStorage,
-            ) { client.httpClient.authProvider<BearerAuthProvider>()?.clearToken() }
+            )
 
         @Provides
         @Singleton

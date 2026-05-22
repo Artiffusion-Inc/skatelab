@@ -5,7 +5,6 @@ import ru.skatelab.shared.api.AuthApi
 class AuthRepository(
     private val authApi: AuthApi,
     private val tokenStorage: TokenStorage,
-    private val clearAuthProvider: () -> Unit,
 ) {
     suspend fun getAccessToken(): String? = tokenStorage.getAccessToken()
 
@@ -27,7 +26,6 @@ class AuthRepository(
             runCatching { authApi.logout(refreshToken) }
         }
         tokenStorage.clearTokens()
-        clearAuthProvider()
     }
 
     suspend fun verifyEmail(token: String): Result<Unit> = runCatching { authApi.verifyEmail(token) }

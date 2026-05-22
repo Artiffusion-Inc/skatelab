@@ -27,7 +27,7 @@ class AuthRepositoryTest {
         }
 
     @Test
-    fun logout_sendsRefreshTokenAndClearsProvider() = kotlinx.coroutines.test.runTest {
+    fun logout_sendsRefreshTokenAndClearsTokens() = kotlinx.coroutines.test.runTest {
         var requestUrl: String? = null
         var requestContentType: ContentType? = null
         val client = makeClient { request ->
@@ -43,15 +43,12 @@ class AuthRepositoryTest {
         val tokenStorage = TokenStorage(settings)
         tokenStorage.saveTokens("access123", "refresh456")
 
-        var clearProviderCalled = false
-        val repo = AuthRepository(
-            AuthApi(client, "https://api.test"),
-            tokenStorage,
-        ) { clearProviderCalled = true }
+        val repo = AuthRepository(AuthApi(client, "https://api.test"), tokenStorage)
 
         repo.logout()
 
-        assertTrue(clearProviderCalled, "clearAuthProvider should be called after logout")
+        assertEquals(null, tokenStorage.getAccessToken(), "access token should be cleared after logout")
+        assertEquals(null, tokenStorage.getRefreshToken(), "refresh token should be cleared after logout")
         assertTrue(requestUrl!!.contains("/auth/logout"), "logout should POST to /auth/logout, got $requestUrl")
         assertEquals(ContentType.Application.Json, requestContentType, "request should use JSON content type")
     }
@@ -65,18 +62,12 @@ class AuthRepositoryTest {
         val tokenStorage = TokenStorage(settings)
         tokenStorage.saveTokens("access", "refresh")
 
-        var clearProviderCalled = false
-        val repo = AuthRepository(
-            AuthApi(client, "https://api.test"),
-            tokenStorage,
-        ) { clearProviderCalled = true }
+        val repo = AuthRepository(AuthApi(client, "https://api.test"), tokenStorage)
 
         repo.logout()
 
-        // Tokens should be cleared even though API failed
-        assertEquals(null, tokenStorage.getAccessToken())
-        assertEquals(null, tokenStorage.getRefreshToken())
-        assertTrue(clearProviderCalled, "clearAuthProvider should be called even on API failure")
+        assertEquals(null, tokenStorage.getAccessToken(), "access token should be cleared even on API failure")
+        assertEquals(null, tokenStorage.getRefreshToken(), "refresh token should be cleared even on API failure")
     }
 
     @Test
@@ -86,7 +77,7 @@ class AuthRepositoryTest {
         tokenStorage.saveTokens("access", "refresh")
 
         val client = makeClient { respond("{}") }
-        val repo = AuthRepository(AuthApi(client, "https://api.test"), tokenStorage) {}
+        val repo = AuthRepository(AuthApi(client, "https://api.test"), tokenStorage)
 
         assertTrue(repo.isLoggedIn())
     }
@@ -97,7 +88,7 @@ class AuthRepositoryTest {
         val tokenStorage = TokenStorage(settings)
 
         val client = makeClient { respond("{}") }
-        val repo = AuthRepository(AuthApi(client, "https://api.test"), tokenStorage) {}
+        val repo = AuthRepository(AuthApi(client, "https://api.test"), tokenStorage)
 
         assertFalse(repo.isLoggedIn())
     }
