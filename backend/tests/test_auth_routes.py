@@ -577,3 +577,143 @@ async def test_resend_verification_nonexistent_email(client):
         json={"email": "nobody@example.com"},
     )
     assert resp.status_code == 200
+
+
+# ---------------------------------------------------------------------------
+# CookieToHeaderMiddleware
+# ---------------------------------------------------------------------------
+
+
+async def test_cookie_middleware_injects_header(client, db_session: AsyncSession):
+    """CookieToHeaderMiddleware injects Authorization from access_token cookie."""
+    from app.auth.security import create_access_token
+
+    user = User(
+        id="cookie-test",
+        email="cookie@example.com",
+        hashed_password=hash_password("pass"),
+        is_active=True,
+        is_verified=True,
+    )
+    db_session.add(user)
+    await db_session.flush()
+
+    token = create_access_token(user_id="cookie-test")
+    # Use raw Cookie header because httpx per-request cookies may not
+    # propagate through the ASGI transport correctly.
+    resp = await client.get(
+        "/api/v1/users/me",
+        headers={"Cookie": f"access_token={token}"},
+    )
+    assert resp.status_code == 200
+
+
+async def test_cookie_middleware_does_not_override_header(client, db_session: AsyncSession):
+    """If Authorization header present, cookie is ignored."""
+    from app.auth.security import create_access_token
+
+    user = User(
+        id="header-test",
+        email="header@example.com",
+        hashed_password=hash_password("pass"),
+        is_active=True,
+        is_verified=True,
+    )
+    db_session.add(user)
+    await db_session.flush()
+
+    token = create_access_token(user_id="header-test")
+    resp = await client.get(
+        "/api/v1/users/me",
+        headers={"Authorization": f"Bearer {token}"},
+        cookies={"access_token": "invalid-token-value"},
+    )
+    assert resp.status_code == 200
+
+
+async def test_refresh_with_no_body_uses_cookie(client, db_session):
+    """Refresh with no body reads refresh_token from cookie."""
+    from app.auth.security import hash_password
+    from app.models.user import User
+
+    user = User(
+        email="cookie-refresh@example.com",
+        hashed_password=hash_password("pass"),
+        is_active=True,
+        is_verified=True,
+    )
+    db_session.add(user)
+    await db_session.flush()
+
+    # Login to get cookies
+    login_resp = await client.post(
+        "/api/v1/auth/login",
+        json={"email": "cookie-refresh@example.com", "password": "pass"},
+    )
+    assert login_resp.status_code == 200
+
+    # Refresh using only cookies (no body)
+    resp = await client.post(
+        "/api/v1/auth/refresh",
+        json={},  # empty body — refresh_token from cookie
+    )
+    # Will pass once refresh dual-input is wired (Task 6)
+    assert resp.status_code == 200
+
+
+# ---------------------------------------------------------------------------
+# Audit logging
+# ---------------------------------------------------------------------------
+
+
+async def test_audit_log_records_login(client, db_session):
+    """Successful login creates audit entry."""
+    from app.models.auth_audit_log import AuthAuditLog
+    from sqlalchemy import select
+
+    user = User(
+        email="audit-login@example.com",
+        hashed_password=hash_password("pass"),
+        is_active=True,
+        is_verified=True,
+    )
+    db_session.add(user)
+    await db_session.flush()
+
+    resp = await client.post(
+        "/api/v1/auth/login",
+        json={"email": "audit-login@example.com", "password": "pass"},
+    )
+    assert resp.status_code == 200
+
+    result = await db_session.execute(
+        select(AuthAuditLog).where(AuthAuditLog.event_type == "login")
+    )
+    entry = result.scalar_one_or_none()
+    assert entry is not None
+    assert entry.user_id == user.id
+
+
+# ---------------------------------------------------------------------------
+# Token cleanup
+# ---------------------------------------------------------------------------
+
+
+async def test_cleanup_expired_refresh_tokens(db_session: AsyncSession):
+    """cleanup_expired deletes expired refresh tokens."""
+    from app.crud.refresh_token import cleanup_expired, create
+
+    # Create an already-expired token
+    raw = "a" * 64
+    token_hash_str = hash_token(raw)
+    token = await create(
+        db_session,
+        user_id="test-user-cleanup",
+        token_hash=token_hash_str,
+        family_id="family-cleanup",
+        expires_at=datetime.now(UTC) - timedelta(hours=1),
+    )
+    await db_session.commit()
+
+    deleted = await cleanup_expired(db_session, batch_size=100)
+    assert deleted >= 1
