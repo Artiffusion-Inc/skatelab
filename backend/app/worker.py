@@ -19,7 +19,7 @@ from typing import TYPE_CHECKING, Any, ClassVar
 import httpx
 import numpy as np
 import sentry_sdk
-from arq import Retry
+from arq import Retry, cron
 from arq.connections import RedisSettings
 
 if TYPE_CHECKING:
@@ -808,6 +808,19 @@ async def analyze_music_task(
         raise
 
 
+async def cleanup_expired_tokens(ctx: dict) -> int:
+    """Delete expired refresh tokens and password reset tokens."""
+    from app.crud.password_reset_token import cleanup_expired as cleanup_reset
+    from app.crud.refresh_token import cleanup_expired as cleanup_refresh
+    from app.database import async_session_factory
+
+    async with async_session_factory() as db:
+        n1 = await cleanup_refresh(db, batch_size=500)
+        n2 = await cleanup_reset(db, batch_size=500)
+        await db.commit()
+        return n1 + n2
+
+
 class FastWorkerSettings:
     """arq worker for lightweight detection tasks."""
 
@@ -824,7 +837,9 @@ class FastWorkerSettings:
     on_startup = startup
     on_shutdown = shutdown
     functions: ClassVar[list] = [detect_video_task, analyze_music_task]
-    cron_jobs: ClassVar[list] = []
+    cron_jobs: ClassVar[list] = [
+        cron(cleanup_expired_tokens, hour="*", minute=7),
+    ]
 
     redis_settings = RedisSettings(
         host=_settings.valkey.host,

@@ -1,5 +1,6 @@
 """Tests for auth API routes."""
 
+import secrets
 from datetime import UTC, datetime, timedelta
 
 import pytest
@@ -55,7 +56,9 @@ async def test_register_short_password(client):
 
 async def test_login(client, db_session: AsyncSession):
     """Test successful login."""
-    user = User(email="login@example.com", hashed_password=hash_password("pass123"), is_verified=True)
+    user = User(
+        email="login@example.com", hashed_password=hash_password("pass123"), is_verified=True
+    )
     db_session.add(user)
     await db_session.flush()
 
@@ -71,7 +74,9 @@ async def test_login(client, db_session: AsyncSession):
 
 async def test_login_wrong_password(client, db_session: AsyncSession):
     """Test login with wrong password returns 401."""
-    user = User(email="login@example.com", hashed_password=hash_password("correct"), is_verified=True)
+    user = User(
+        email="login@example.com", hashed_password=hash_password("correct"), is_verified=True
+    )
     db_session.add(user)
     await db_session.flush()
 
@@ -93,7 +98,9 @@ async def test_login_nonexistent_email(client):
 
 async def test_refresh_tokens(client, db_session: AsyncSession):
     """Test refresh token rotation."""
-    user = User(email="refresh@example.com", hashed_password=hash_password("pass"), is_verified=True)
+    user = User(
+        email="refresh@example.com", hashed_password=hash_password("pass"), is_verified=True
+    )
     db_session.add(user)
     await db_session.flush()
     await db_session.refresh(user)
@@ -268,7 +275,9 @@ async def test_register_rate_limit_by_ip(client, mock_valkey):
 
 async def test_login_rate_limit_by_email(client, db_session, mock_valkey):
     """After 5 failed logins for same email, 6th returns 429."""
-    user = User(email="rate@example.com", hashed_password=hash_password("correct"), is_verified=True)
+    user = User(
+        email="rate@example.com", hashed_password=hash_password("correct"), is_verified=True
+    )
     db_session.add(user)
     await db_session.flush()
 
@@ -672,7 +681,12 @@ async def test_login_sets_cookies(client, db_session):
     from app.auth.security import hash_password
     from app.models.user import User
 
-    user = User(email="cookies@example.com", hashed_password=hash_password("pass"), is_active=True, is_verified=True)
+    user = User(
+        email="cookies@example.com",
+        hashed_password=hash_password("pass"),
+        is_active=True,
+        is_verified=True,
+    )
     db_session.add(user)
     await db_session.flush()
 
@@ -705,7 +719,12 @@ async def test_logout_clears_cookies(client, db_session):
     from app.auth.security import hash_password
     from app.models.user import User
 
-    user = User(email="logout-cookies@example.com", hashed_password=hash_password("pass"), is_active=True, is_verified=True)
+    user = User(
+        email="logout-cookies@example.com",
+        hashed_password=hash_password("pass"),
+        is_active=True,
+        is_verified=True,
+    )
     db_session.add(user)
     await db_session.flush()
 
@@ -744,7 +763,12 @@ async def test_login_unverified_email(client, db_session):
     from app.auth.security import hash_password
     from app.models.user import User
 
-    user = User(email="unverified@example.com", hashed_password=hash_password("pass"), is_active=True, is_verified=False)
+    user = User(
+        email="unverified@example.com",
+        hashed_password=hash_password("pass"),
+        is_active=True,
+        is_verified=False,
+    )
     db_session.add(user)
     await db_session.flush()
 
@@ -767,7 +791,12 @@ async def test_ua_mismatch_revokes_family(client, db_session):
     from app.auth.security import hash_password
     from app.models.user import User
 
-    user = User(email="ua-test@example.com", hashed_password=hash_password("pass"), is_active=True, is_verified=True)
+    user = User(
+        email="ua-test@example.com",
+        hashed_password=hash_password("pass"),
+        is_active=True,
+        is_verified=True,
+    )
     db_session.add(user)
     await db_session.flush()
 
@@ -807,7 +836,12 @@ async def test_legacy_token_skips_ua_check(client, db_session):
     from app.models.refresh_token import RefreshToken
     from app.models.user import User
 
-    user = User(email="legacy-ua@example.com", hashed_password=hash_password("pass"), is_active=True, is_verified=True)
+    user = User(
+        email="legacy-ua@example.com",
+        hashed_password=hash_password("pass"),
+        is_active=True,
+        is_verified=True,
+    )
     db_session.add(user)
     await db_session.flush()
 
@@ -892,7 +926,12 @@ async def test_audit_logout(client, db_session):
     from app.models.user import User
     from sqlalchemy import select
 
-    user = User(email="audit-logout@example.com", hashed_password=hash_password("pass"), is_active=True, is_verified=True)
+    user = User(
+        email="audit-logout@example.com",
+        hashed_password=hash_password("pass"),
+        is_active=True,
+        is_verified=True,
+    )
     db_session.add(user)
     await db_session.flush()
 
@@ -928,6 +967,25 @@ async def test_cleanup_expired_refresh_tokens(db_session: AsyncSession):
         user_id="test-user-cleanup",
         token_hash=token_hash_str,
         family_id="family-cleanup",
+        expires_at=datetime.now(UTC) - timedelta(hours=1),
+    )
+    await db_session.commit()
+
+    deleted = await cleanup_expired(db_session, batch_size=100)
+    assert deleted >= 1
+
+
+async def test_cleanup_cron_deletes_expired(db_session: AsyncSession):
+    """cleanup_expired_tokens task deletes expired tokens."""
+    from app.crud.refresh_token import cleanup_expired, create
+
+    # Create expired token
+    raw = secrets.token_urlsafe(32)
+    await create(
+        db_session,
+        user_id="cron-user",
+        token_hash=hash_token(raw),
+        family_id="cron-family",
         expires_at=datetime.now(UTC) - timedelta(hours=1),
     )
     await db_session.commit()
