@@ -192,6 +192,8 @@ jobs:
     runs-on: blacksmith-2vcpu-ubuntu-2404
     steps:
       - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
       - uses: ./.github/actions/setup-frontend
       - name: Biome check
         working-directory: frontend
@@ -199,6 +201,10 @@ jobs:
       - name: tsc
         working-directory: frontend
         run: bun run typecheck
+      - name: React Doctor
+        working-directory: frontend
+        run: npx react-doctor@latest --diff origin/master --offline --verbose
+        continue-on-error: true
 
   fe-build:
     name: Build (Next.js)
