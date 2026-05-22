@@ -108,8 +108,17 @@ Shared module: API client + auth + models — переиспользуется A
 
 Unified with frontend: OKLCH colors, Inter Variable font, same border-radius tokens. Style Dictionary generates CSS/Android/iOS tokens.
 
+## Build Policy
+
+**Remote build only.** Gradle full builds (`assembleDebug`, `assembleRelease`) require 4+ GB RAM — local machines risk OOM. Build only on:
+
+1. **GitHub Actions** — `mobile.yml` workflow: shared tests, Android lint/test, debug APK build. Path-filtered, triggered on PR/push to master.
+2. **Dedic** — no Android build container exists yet. Could add one later if needed.
+
+Locally allowed: `ktlintCheck`, `testDebugUnitTest`, `compileDebugKotlin` (lightweight, no full APK). Do NOT run `assembleDebug`/`assembleRelease` locally.
+
 ## Before Committing
 
 1. **Lint**: `./gradlew ktlintCheck`
 2. **Tests**: `./gradlew testDebugUnitTest`
-3. **Build**: `./gradlew assembleDebug`
+3. **Build verification**: push to PR — GitHub Actions runs full build + APK assembly
