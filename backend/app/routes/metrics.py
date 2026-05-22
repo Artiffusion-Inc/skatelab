@@ -125,9 +125,11 @@ class MetricsController(Controller):
             from app.services.diagnostics import linear_regression
 
             slope, r_sq = linear_regression(values)
-            if slope > 0 and r_sq > 0.3:
+            improving = (slope > 0) if mdef.direction == "higher" else (slope < 0)
+            declining = (slope < 0) if mdef.direction == "higher" else (slope > 0)
+            if improving and r_sq > 0.3:
                 trend = "improving"
-            elif slope < 0 and r_sq > 0.3:
+            elif declining and r_sq > 0.3:
                 trend = "declining"
 
         # Current PR
@@ -271,7 +273,11 @@ class MetricsController(Controller):
                 findings.append(DiagnosticsFinding(**f.__dict__))
 
             f = check_declining_trend(
-                element=element, metric=metric_name, values=values, metric_label=mdef.label_ru
+                element=element,
+                metric=metric_name,
+                values=values,
+                metric_label=mdef.label_ru,
+                direction=mdef.direction,
             )
             if f:
                 findings.append(DiagnosticsFinding(**f.__dict__))

@@ -38,13 +38,41 @@ def test_consistently_below_range_ok():
 
 
 def test_declining_trend():
-    """Warning when slope is negative with good R²."""
+    """Warning when slope is negative with good R² (direction=higher)."""
     values = [0.50, 0.48, 0.45, 0.43, 0.40]
     finding = check_declining_trend(
         element="lutz",
         metric="landing_knee_stability",
         values=values,
         metric_label="Стабильность приземления",
+        direction="higher",
+    )
+    assert finding is not None
+    assert finding.severity == "warning"
+
+
+def test_declining_trend_lower_metric_improving():
+    """Lower-is-better metric improving (decreasing values) → no decline."""
+    values = [45.0, 43.0, 41.0, 39.0, 37.0]  # knee angle decreasing = good
+    finding = check_declining_trend(
+        element="lutz",
+        metric="knee_angle",
+        values=values,
+        metric_label="Угол колена",
+        direction="lower",
+    )
+    assert finding is None
+
+
+def test_declining_trend_lower_metric_declining():
+    """Lower-is-better metric declining (increasing values) → warning."""
+    values = [37.0, 39.0, 41.0, 43.0, 45.0]  # knee angle increasing = bad
+    finding = check_declining_trend(
+        element="lutz",
+        metric="knee_angle",
+        values=values,
+        metric_label="Угол колена",
+        direction="lower",
     )
     assert finding is not None
     assert finding.severity == "warning"
