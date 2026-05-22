@@ -36,6 +36,7 @@ jobs:
       - uses: dorny/paths-filter@v3
         id: filter
         with:
+          token: ${{ secrets.GITHUB_TOKEN }}
           filters: |
             shared:
               - 'mobile/shared/**'
@@ -68,8 +69,8 @@ jobs:
       - uses: actions/checkout@v5
       - uses: ./.github/actions/setup-android
 
-      - name: Run shared module JVM tests
-        run: ./gradlew :shared:jvmTest
+      - name: Run shared module tests
+        run: ./gradlew :shared:testDebugUnitTest
 
       - name: Generate Kover coverage report
         if: success()
