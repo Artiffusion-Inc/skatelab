@@ -234,7 +234,7 @@ class ElementSegmenter:
             Motion energy signal (num_frames,).
         """
         # Frame-to-frame difference
-        diff = np.diff(poses, axis=0)  # (num_frames-1, 33, 2)
+        diff = np.diff(poses, axis=0)  # (num_frames-1, num_joints, 2)
 
         # L2 norm per frame (sum of all joint movements)
         energy = np.linalg.norm(diff, axis=(1, 2))  # (num_frames-1,)
