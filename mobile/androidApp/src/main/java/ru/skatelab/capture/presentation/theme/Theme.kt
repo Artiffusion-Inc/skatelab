@@ -2,113 +2,118 @@
 package ru.skatelab.capture.presentation.theme
 
 import android.app.Activity
+import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.lightColorScheme
 import androidx.compose.material3.Typography
+import androidx.compose.material3.dynamicDarkColorScheme
+import androidx.compose.material3.dynamicLightColorScheme
+import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.toArgb
-import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.sp
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 
-// ── Light-only color scheme ────────────────────────────────────────
+private val LocalSkateLabColors = staticCompositionLocalOf { SkateLabColors }
+private val LocalSkateLabTypography = staticCompositionLocalOf { SkateLabTypographyDefaults }
 
-val SkateLabLightScheme = lightColorScheme(
-    primary = SkateLabColors.primary,
-    onPrimary = SkateLabColors.primaryForeground,
-    primaryContainer = SkateLabColors.primaryDeep,
-    onPrimaryContainer = SkateLabColors.primaryForeground,
-    secondary = SkateLabColors.canvasSoft,
-    onSecondary = SkateLabColors.ink,
-    secondaryContainer = SkateLabColors.canvasSoft,
-    onSecondaryContainer = SkateLabColors.ink,
-    tertiary = SkateLabColors.surfaceIceSoft,
-    background = SkateLabColors.canvas,
-    onBackground = SkateLabColors.ink,
-    surface = SkateLabColors.canvas,
-    onSurface = SkateLabColors.ink,
-    surfaceVariant = SkateLabColors.canvasSoft,
-    onSurfaceVariant = SkateLabColors.inkMute,
-    outline = SkateLabColors.hairline,
-    outlineVariant = SkateLabColors.hairlineDark,
-    error = SkateLabColors.destructive,
-    onError = SkateLabColors.primaryForeground,
-    errorContainer = SkateLabColors.destructive,
-    onErrorContainer = SkateLabColors.primaryForeground,
-)
-
-// ── Theme accessors ───────────────────────────────────────────────
+val SkateLabLightScheme =
+    lightColorScheme(
+        primary = SkateLabColors.primary,
+        onPrimary = SkateLabColors.onPrimary,
+        primaryContainer = SkateLabColors.primaryDeep,
+        onPrimaryContainer = SkateLabColors.primaryForeground,
+        secondary = SkateLabColors.secondary,
+        onSecondary = SkateLabColors.secondaryForeground,
+        tertiary = SkateLabColors.accentGold,
+        onTertiary = SkateLabColors.ink,
+        background = SkateLabColors.background,
+        onBackground = SkateLabColors.foreground,
+        surface = SkateLabColors.card,
+        onSurface = SkateLabColors.cardForeground,
+        surfaceVariant = SkateLabColors.canvasSoft,
+        onSurfaceVariant = SkateLabColors.inkMute,
+        error = SkateLabColors.destructive,
+        onError = SkateLabColors.destructiveForeground,
+        outline = SkateLabColors.border,
+        outlineVariant = SkateLabColors.hairline,
+        scrim = SkateLabColors.ink.copy(alpha = 0.32f),
+        inverseSurface = SkateLabColors.surfaceTealDeep,
+        inverseOnSurface = SkateLabColors.primaryForeground,
+        inversePrimary = SkateLabColors.surfaceIceSoft,
+        surfaceTint = SkateLabColors.primary,
+    )
 
 object SkateLabTheme {
-    val colors: SkateLabColors get() = SkateLabColors
+    val colors: SkateLabColors
+        @Composable
+        @ReadOnlyComposable
+        get() = LocalSkateLabColors.current
+
     val typography: SkateLabTypography
-        @Composable get() = LocalSkateLabTypography.current
+        @Composable
+        @ReadOnlyComposable
+        get() = LocalSkateLabTypography.current
 }
-
-// ── Local composition ─────────────────────────────────────────────
-
-import androidx.compose.runtime.compositionLocalOf
-import androidx.compose.runtime.staticCompositionLocalOf
-
-val LocalSkateLabTypography = staticCompositionLocalOf { SkateLabTypographyDefaults }
-
-// ── App theme composable ──────────────────────────────────────────
 
 @Composable
 fun AppTheme(
+    darkTheme: Boolean = isSystemInDarkTheme(),
+    dynamicColor: Boolean = false,
     content: @Composable () -> Unit,
 ) {
-    // Gentle Sea Breeze is light-only; dark mode disabled until properly implemented
-    val darkTheme = false // isSystemInDarkTheme()
+    val colorScheme =
+        when {
+            dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
+                val context = LocalContext.current
+                if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
+            }
+            darkTheme -> SkateLabLightScheme // Design is light-only; dark mode not yet implemented
+            else -> SkateLabLightScheme
+        }
 
-    val colorScheme = SkateLabLightScheme
-    val typography = SkateLabTypographyDefaults
-
-    // ── Status bar ─────────────────────────────────────────────────
-    val view = (androidx.compose.ui.platform.LocalView.current)
+    val view = LocalView.current
     if (!view.isInEditMode) {
         SideEffect {
             val window = (view.context as Activity).window
-            window.statusBarColor = SkateLabColors.primaryDeep.toArgb()
+            window.statusBarColor = colorScheme.primary.toArgb()
             WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = false
         }
     }
 
-    CompositionLocalProvider(LocalSkateLabTypography provides typography) {
+    CompositionLocalProvider(
+        LocalSkateLabColors provides SkateLabColors,
+        LocalSkateLabTypography provides SkateLabTypographyDefaults,
+    ) {
         MaterialTheme(
             colorScheme = colorScheme,
-            typography = toMaterialTypography(typography),
+            typography = SkateLabTypographyDefaults.toMaterialTypography(),
             content = content,
         )
     }
 }
 
-// ── Material Typography bridge ────────────────────────────────────
-
-/**
- * Maps SkateLabTypography tokens to Material3 Typography so that
- * MaterialTheme.typography.* returns sensible defaults from the design system.
- */
-fun toMaterialTypography(tokens: SkateLabTypography): Typography {
-    val base = weightOrFallback()
+fun SkateLabTypography.toMaterialTypography(): Typography {
     return Typography(
-        displayLarge = tokens.displayXxl,
-        displayMedium = tokens.displayXl,
-        displaySmall = tokens.displayLg,
-        headlineLarge = tokens.displayMd,
-        headlineMedium = tokens.headingLg,
-        headlineSmall = tokens.headingLg.copy(fontSize = 18.sp),
-        titleLarge = tokens.bodyLg,
-        titleMedium = tokens.bodyMd,
-        titleSmall = tokens.caption,
-        bodyLarge = tokens.bodyLg,
-        bodyMedium = tokens.bodyMd,
-        bodySmall = tokens.caption,
-        labelLarge = tokens.buttonMd,
-        labelMedium = tokens.buttonCap,
-        labelSmall = tokens.micro,
+        displayLarge = displayXxl,
+        displayMedium = displayXl,
+        displaySmall = displayLg,
+        headlineLarge = displayMd,
+        headlineMedium = headingLg,
+        headlineSmall = headingLg,
+        titleLarge = bodyStrong,
+        titleMedium = buttonMd,
+        titleSmall = buttonCap,
+        bodyLarge = bodyLg,
+        bodyMedium = bodyMd,
+        bodySmall = caption,
+        labelLarge = buttonMd,
+        labelMedium = buttonCap,
+        labelSmall = micro,
     )
 }

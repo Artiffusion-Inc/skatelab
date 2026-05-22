@@ -1,91 +1,80 @@
 // AUTO-GENERATED — do not edit. Source: DESIGN.md
-
 import SwiftUI
 
 @available(iOS 15, *)
-struct SkateLabColorScheme {
-    // MARK: - Brand & Accent
-    let primary = Color.skatePrimary
-    let primaryDeep = Color.skatePrimaryDeep
-    let primaryForeground = Color.skatePrimaryForeground
+public struct SkateLabColorScheme {
+    public var background:             Color
+    public var foreground:             Color
+    public var card:                   Color
+    public var cardForeground:         Color
+    public var popover:                Color
+    public var popoverForeground:      Color
+    public var primary:                Color
+    public var primaryForeground:      Color
+    public var secondary:              Color
+    public var secondaryForeground:    Color
+    public var muted:                  Color
+    public var mutedForeground:        Color
+    public var accent:                 Color
+    public var accentForeground:       Color
+    public var destructive:            Color
+    public var destructiveForeground:  Color
+    public var border:                 Color
+    public var input:                  Color
+    public var ring:                   Color
 
-    // MARK: - Text
-    let ink = Color.skateInk
-    let inkMute = Color.skateInkMute
-    let inkFaint = Color.skateInkFaint
-
-    // MARK: - Surface
-    let canvas = Color.skateCanvas
-    let canvasSoft = Color.skateCanvasSoft
-    let surfaceIceSoft = Color.skateSurfaceIceSoft
-    let surfaceTealDeep = Color.skateSurfaceTealDeep
-    let surfaceTealMid = Color.skateSurfaceTealMid
-
-    // MARK: - Border
-    let hairline = Color.skateHairline
-    let hairlineDark = Color.skateHairlineDark
-
-    // MARK: - On Dark
-    let onDarkMute = Color.skateOnDarkMute
-    let onDarkDim = Color.skateOnDarkDim
-    let onDarkFaint = Color.skateOnDarkFaint
-
-    // MARK: - Semantic
-    let destructive = Color.skateDestructive
-    let link = Color.skateLink
-    let ring = Color.skateRing
-    let scoreGood = Color.skateScoreGood
-    let scoreMid = Color.skateScoreMid
-    let scoreBad = Color.skateScoreBad
-    let accentGold = Color.skateAccentGold
-
-    // MARK: - Semantic Aliases
-    let onPrimary = Color.skateOnPrimary
-    let background = Color.skateBackground
-    let foreground = Color.skateForeground
-    let card = Color.skateCard
-    let cardForeground = Color.skateCardForeground
-    let popover = Color.skatePopover
-    let popoverForeground = Color.skatePopoverForeground
-    let secondary = Color.skateSecondary
-    let secondaryForeground = Color.skateSecondaryForeground
-    let muted = Color.skateMuted
-    let mutedForeground = Color.skateMutedForeground
-    let accent = Color.skateAccent
-    let accentForeground = Color.skateAccentForeground
-    let destructiveForeground = Color.skateDestructiveForeground
-    let border = Color.skateBorder
-    let input = Color.skateInput
-
-    // MARK: - Chart
-    let chart1 = Color.skateChart1
-    let chart2 = Color.skateChart2
-    let chart3 = Color.skateChart3
-    let chart4 = Color.skateChart4
-    let chart5 = Color.skateChart5
-
-    // MARK: - Sidebar
-    let sidebarBackground = Color.skateSidebarBackground
-    let sidebarForeground = Color.skateSidebarForeground
-    let sidebarPrimary = Color.skateSidebarPrimary
-    let sidebarPrimaryForeground = Color.skateSidebarPrimaryForeground
-    let sidebarAccent = Color.skateSidebarAccent
-    let sidebarAccentForeground = Color.skateSidebarAccentForeground
-    let sidebarBorder = Color.skateSidebarBorder
-    let sidebarRing = Color.skateSidebarRing
+    public init(
+        background:             Color = .skateCanvas,
+        foreground:             Color = .skateInk,
+        card:                   Color = .skateCanvas,
+        cardForeground:         Color = .skateInk,
+        popover:                Color = .skateCanvas,
+        popoverForeground:      Color = .skateInk,
+        primary:                Color = .skatePrimary,
+        primaryForeground:      Color = .skatePrimaryForeground,
+        secondary:              Color = .skateCanvasSoft,
+        secondaryForeground:    Color = .skateInk,
+        muted:                  Color = .skateCanvasSoft,
+        mutedForeground:        Color = .skateInkMute,
+        accent:                 Color = .skateAccentGold,
+        accentForeground:       Color = .skateInk,
+        destructive:            Color = .skateDestructive,
+        destructiveForeground:  Color = .skatePrimaryForeground,
+        border:                 Color = .skateHairline,
+        input:                  Color = .skateHairline,
+        ring:                   Color = .skateRing
+    ) {
+        self.background             = background
+        self.foreground             = foreground
+        self.card                   = card
+        self.cardForeground         = cardForeground
+        self.popover                = popover
+        self.popoverForeground      = popoverForeground
+        self.primary                = primary
+        self.primaryForeground      = primaryForeground
+        self.secondary              = secondary
+        self.secondaryForeground    = secondaryForeground
+        self.muted                  = muted
+        self.mutedForeground        = mutedForeground
+        self.accent                 = accent
+        self.accentForeground       = accentForeground
+        self.destructive            = destructive
+        self.destructiveForeground  = destructiveForeground
+        self.border                 = border
+        self.input                  = input
+        self.ring                   = ring
+    }
 }
 
-// MARK: - Environment
-
 @available(iOS 15, *)
-private struct SkateLabColorSchemeKey: EnvironmentKey {
+private struct SkateLabColorsKey: EnvironmentKey {
     static let defaultValue = SkateLabColorScheme()
 }
 
 @available(iOS 15, *)
-extension EnvironmentValues {
+public extension EnvironmentValues {
     var skateLabColors: SkateLabColorScheme {
-        get { self[SkateLabColorSchemeKey.self] }
-        set { self[SkateLabColorSchemeKey.self] = newValue }
+        get { self[SkateLabColorsKey.self] }
+        set { self[SkateLabColorsKey.self] = newValue }
     }
 }

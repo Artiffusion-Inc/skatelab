@@ -1,50 +1,64 @@
 // AUTO-GENERATED — do not edit. Source: DESIGN.md
 package ru.skatelab.capture.presentation.theme
 
+import android.graphics.BlurMaskFilter
+import android.graphics.Paint
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 
-/**
- * SkateLab shadow vocabulary — Flat-By-Default.
- *
- * Shadows only appear on floating overlays (dropdowns, modals, popovers)
- * in response to interaction. No shadows on static cards, containers, or banners.
- */
+fun Modifier.shadow(
+    offsetX: Dp = 0.dp,
+    offsetY: Dp = 0.dp,
+    blurRadius: Dp = 0.dp,
+    color: Color = Color.Black,
+): Modifier =
+    this.then(
+        Modifier.drawBehind {
+            if (blurRadius == 0.dp) return@drawBehind
+            val paint =
+                Paint().apply {
+                    isAntiAlias = true
+                    this.color = color.toArgb()
+                    maskFilter = BlurMaskFilter(blurRadius.toPx(), BlurMaskFilter.Blur.NORMAL)
+                }
+            drawIntoCanvas { canvas ->
+                canvas.nativeCanvas.save()
+                canvas.nativeCanvas.translate(offsetX.toPx(), offsetY.toPx())
+                canvas.nativeCanvas.drawRect(0f, 0f, size.width, size.height, paint)
+                canvas.nativeCanvas.restore()
+            }
+        },
+    )
+
 object SkateLabShadows {
+    val ambientLow: Modifier
+        get() =
+            Modifier.shadow(
+                offsetX = 0.dp,
+                offsetY = 1.dp,
+                blurRadius = 3.dp,
+                color = Color.Black.copy(alpha = 0.08f),
+            )
 
-    /**
-     * Ambient Low — 0 1px 3px rgba(0,0,0,0.08)
-     * Use: Active tab, selected chip.
-     */
-    val ambientLow: Modifier = Modifier
-        .shadow(
-            elevation = 1.dp,
-            ambientColor = Color(0x14000000),  // rgba(0,0,0,0.08)
-            spotColor = Color(0x14000000),
-        )
+    val ambientMedium: Modifier
+        get() =
+            Modifier.shadow(
+                offsetX = 0.dp,
+                offsetY = 4.dp,
+                blurRadius = 12.dp,
+                color = Color.Black.copy(alpha = 0.10f),
+            )
 
-    /**
-     * Ambient Medium — 0 4px 12px rgba(0,0,0,0.10)
-     * Use: Dropdown menus, popovers.
-     */
-    val ambientMedium: Modifier = Modifier
-        .shadow(
-            elevation = 4.dp,
-            ambientColor = Color(0x1A000000),  // rgba(0,0,0,0.10)
-            spotColor = Color(0x1A000000),
-        )
-
-    /**
-     * Ambient High — 0 8px 24px rgba(0,0,0,0.12)
-     * Use: Modals, floating toolbars.
-     */
-    val ambientHigh: Modifier = Modifier
-        .shadow(
-            elevation = 8.dp,
-            ambientColor = Color(0x1F000000),  // rgba(0,0,0,0.12)
-            spotColor = Color(0x1F000000),
-        )
+    val ambientHigh: Modifier
+        get() =
+            Modifier.shadow(
+                offsetX = 0.dp,
+                offsetY = 8.dp,
+                blurRadius = 24.dp,
+                color = Color.Black.copy(alpha = 0.12f),
+            )
 }
