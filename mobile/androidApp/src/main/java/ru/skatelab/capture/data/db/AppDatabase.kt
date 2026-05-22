@@ -10,5 +10,6 @@ import androidx.room.RoomDatabase
 )
 abstract class AppDatabase : RoomDatabase() {
     abstract fun pendingUploadDao(): PendingUploadDao
+
     abstract fun cachedSessionDao(): CachedSessionDao
 }

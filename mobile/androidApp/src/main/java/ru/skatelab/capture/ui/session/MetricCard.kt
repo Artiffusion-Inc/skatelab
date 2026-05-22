@@ -3,11 +3,8 @@ package ru.skatelab.capture.ui.session
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.EmojiEvents
 import androidx.compose.material3.Card
@@ -23,19 +20,20 @@ import androidx.compose.ui.unit.dp
 import ru.skatelab.shared.models.SessionMetricResponse
 
 /** Human-readable labels and units for known metric names. */
-private val metricMeta: Map<String, Pair<String, String>> = mapOf(
-    "jump_height" to ("Высота прыжка" to "м"),
-    "airtime" to ("Время в воздухе" to "с"),
-    "angular_velocity" to ("Угловая скорость" to "°/с"),
-    "knee_angle_min" to ("Мин. угол колена" to "°"),
-    "landing_quality" to ("Качество приземления" to ""),
-    "rotation_count" to ("Количество вращений" to ""),
-    "torso_lean" to ("Наклон корпуса" to "°"),
-    "approach_arc" to ("Дуга разбега" to ""),
-    "pre_rotation" to ("Предварит. вращение" to "°"),
-    "total_rotation" to ("Общее вращение" to "°"),
-    "speed_at_takeoff" to ("Скорость на отрыве" to "м/с"),
-)
+private val metricMeta: Map<String, Pair<String, String>> =
+    mapOf(
+        "jump_height" to ("Высота прыжка" to "м"),
+        "airtime" to ("Время в воздухе" to "с"),
+        "angular_velocity" to ("Угловая скорость" to "°/с"),
+        "knee_angle_min" to ("Мин. угол колена" to "°"),
+        "landing_quality" to ("Качество приземления" to ""),
+        "rotation_count" to ("Количество вращений" to ""),
+        "torso_lean" to ("Наклон корпуса" to "°"),
+        "approach_arc" to ("Дуга разбега" to ""),
+        "pre_rotation" to ("Предварит. вращение" to "°"),
+        "total_rotation" to ("Общее вращение" to "°"),
+        "speed_at_takeoff" to ("Скорость на отрыве" to "м/с"),
+    )
 
 @Composable
 fun MetricCard(
@@ -48,13 +46,15 @@ fun MetricCard(
 
     Card(
         modifier = modifier.padding(4.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = if (metric.isPr) {
-                MaterialTheme.colorScheme.primaryContainer
-            } else {
-                MaterialTheme.colorScheme.surfaceVariant
-            },
-        ),
+        colors =
+            CardDefaults.cardColors(
+                containerColor =
+                    if (metric.isPr) {
+                        MaterialTheme.colorScheme.primaryContainer
+                    } else {
+                        MaterialTheme.colorScheme.surfaceVariant
+                    },
+            ),
     ) {
         Column(
             modifier = Modifier.padding(12.dp),
@@ -106,11 +106,12 @@ private fun ReferenceRange(metric: SessionMetricResponse) {
     val refValue = metric.referenceValue ?: return
     val inRange = metric.isInRange ?: return
 
-    val rangeColor = if (inRange) {
-        MaterialTheme.colorScheme.primary
-    } else {
-        MaterialTheme.colorScheme.error
-    }
+    val rangeColor =
+        if (inRange) {
+            MaterialTheme.colorScheme.primary
+        } else {
+            MaterialTheme.colorScheme.error
+        }
 
     Row(
         verticalAlignment = Alignment.CenterVertically,

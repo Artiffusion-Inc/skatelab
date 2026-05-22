@@ -20,9 +20,9 @@ import ru.skatelab.capture.data.db.PendingUploadEntity
 import ru.skatelab.capture.domain.model.SensorId
 import ru.skatelab.capture.domain.model.SensorInfo
 import ru.skatelab.capture.domain.repository.BleRepository
+import ru.skatelab.capture.domain.repository.BleRepository.ConnectionState
 import ru.skatelab.capture.domain.repository.CameraRepository
 import ru.skatelab.capture.domain.service.Logger
-import ru.skatelab.capture.domain.repository.BleRepository.ConnectionState
 import ru.skatelab.capture.domain.usecase.ReadSensorInfoUseCase
 import ru.skatelab.capture.domain.usecase.RecordingStartInfo
 import ru.skatelab.capture.domain.usecase.StartRecordingUseCase
@@ -42,7 +42,6 @@ class CameraViewModel
         private val appLogger: Logger,
         @ApplicationContext private val appContext: Context,
     ) : ViewModel() {
-
         companion object {
             private const val TAG = "CameraVM"
         }
@@ -82,10 +81,11 @@ class CameraViewModel
         private var reconnectJob: kotlinx.coroutines.Job? = null
 
         fun bindCamera(lifecycleOwner: LifecycleOwner) {
-            val outputDir = File(
-                appContext.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS),
-                "skatelab_capture_${System.currentTimeMillis()}",
-            ).also { it.mkdirs() }
+            val outputDir =
+                File(
+                    appContext.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS),
+                    "skatelab_capture_${System.currentTimeMillis()}",
+                ).also { it.mkdirs() }
             currentOutputDir = outputDir
 
             cleanupStaleCaptureDirs(outputDir.parentFile, excludeDir = outputDir)
@@ -110,26 +110,31 @@ class CameraViewModel
         }
 
         fun startRecording(context: Context) {
-            val videoFile = preparedVideoFile ?: run {
-                _error.value = "Camera not prepared"
-                return
-            }
-            val framesFile = preparedFramesFile ?: run {
-                _error.value = "Camera not prepared"
-                return
-            }
-            val imuLeftFile = preparedImuLeftFile ?: run {
-                _error.value = "IMU files not prepared"
-                return
-            }
-            val imuRightFile = preparedImuRightFile ?: run {
-                _error.value = "IMU files not prepared"
-                return
-            }
-            val outputDir = currentOutputDir ?: run {
-                _error.value = "No output directory"
-                return
-            }
+            val videoFile =
+                preparedVideoFile ?: run {
+                    _error.value = "Camera not prepared"
+                    return
+                }
+            val framesFile =
+                preparedFramesFile ?: run {
+                    _error.value = "Camera not prepared"
+                    return
+                }
+            val imuLeftFile =
+                preparedImuLeftFile ?: run {
+                    _error.value = "IMU files not prepared"
+                    return
+                }
+            val imuRightFile =
+                preparedImuRightFile ?: run {
+                    _error.value = "IMU files not prepared"
+                    return
+                }
+            val outputDir =
+                currentOutputDir ?: run {
+                    _error.value = "No output directory"
+                    return
+                }
 
             if (!isPreviewReady.value) {
                 _error.value = "Camera not prepared"
@@ -164,24 +169,26 @@ class CameraViewModel
 
                 _isRecording.value = false
 
-                val startInfo = currentStartInfo ?: run {
-                    _error.value = "No recording info"
-                    return@launch
-                }
+                val startInfo =
+                    currentStartInfo ?: run {
+                        _error.value = "No recording info"
+                        return@launch
+                    }
                 val outputDir = currentOutputDir ?: return@launch
 
                 // Create a PendingUpload in Room for later upload
                 val uploadId = UUID.randomUUID().toString()
                 val sessionId = UUID.randomUUID().toString()
-                val pendingUpload = PendingUploadEntity(
-                    id = uploadId,
-                    videoPath = startInfo.videoFile.absolutePath,
-                    imuLeftPath = startInfo.imuLeftFile.absolutePath,
-                    imuRightPath = startInfo.imuRightFile.absolutePath,
-                    manifestPath = File(outputDir, "manifest.json").absolutePath,
-                    status = "READY",
-                    sessionId = sessionId,
-                )
+                val pendingUpload =
+                    PendingUploadEntity(
+                        id = uploadId,
+                        videoPath = startInfo.videoFile.absolutePath,
+                        imuLeftPath = startInfo.imuLeftFile.absolutePath,
+                        imuRightPath = startInfo.imuRightFile.absolutePath,
+                        manifestPath = File(outputDir, "manifest.json").absolutePath,
+                        status = "READY",
+                        sessionId = sessionId,
+                    )
                 pendingUploadDao.insert(pendingUpload)
                 appLogger.i(TAG, "PendingUpload saved: $uploadId")
 
@@ -206,12 +213,13 @@ class CameraViewModel
 
         fun startBatteryPolling() {
             batteryJob?.cancel()
-            batteryJob = viewModelScope.launch {
-                while (true) {
-                    refreshBattery()
-                    kotlinx.coroutines.delay(30_000L)
+            batteryJob =
+                viewModelScope.launch {
+                    while (true) {
+                        refreshBattery()
+                        kotlinx.coroutines.delay(30_000L)
+                    }
                 }
-            }
         }
 
         fun startBleMonitoring() {
@@ -235,14 +243,15 @@ class CameraViewModel
 
         private fun startReconnectWatch() {
             reconnectJob?.cancel()
-            reconnectJob = viewModelScope.launch {
-                bleRepository.reconnectEvents.collect { sensorId ->
-                    _reconnectingSensor.value = sensorId
-                    appLogger.w(TAG, "BLE reconnecting: $sensorId")
-                    kotlinx.coroutines.delay(3_000L)
-                    _reconnectingSensor.value = null
+            reconnectJob =
+                viewModelScope.launch {
+                    bleRepository.reconnectEvents.collect { sensorId ->
+                        _reconnectingSensor.value = sensorId
+                        appLogger.w(TAG, "BLE reconnecting: $sensorId")
+                        kotlinx.coroutines.delay(3_000L)
+                        _reconnectingSensor.value = null
+                    }
                 }
-            }
         }
 
         private fun stopReconnectWatch() {
@@ -254,12 +263,13 @@ class CameraViewModel
         private fun startTimer() {
             recordingStartNanos = System.nanoTime()
             timerJob?.cancel()
-            timerJob = viewModelScope.launch {
-                while (_isRecording.value) {
-                    _elapsedMs.value = (System.nanoTime() - recordingStartNanos) / 1_000_000
-                    kotlinx.coroutines.delay(200L)
+            timerJob =
+                viewModelScope.launch {
+                    while (_isRecording.value) {
+                        _elapsedMs.value = (System.nanoTime() - recordingStartNanos) / 1_000_000
+                        kotlinx.coroutines.delay(200L)
+                    }
                 }
-            }
         }
 
         private fun stopTimer() {
@@ -268,7 +278,10 @@ class CameraViewModel
             _elapsedMs.value = 0L
         }
 
-        private fun cleanupStaleCaptureDirs(parentDir: File?, excludeDir: File) {
+        private fun cleanupStaleCaptureDirs(
+            parentDir: File?,
+            excludeDir: File,
+        ) {
             if (parentDir == null || !parentDir.exists()) return
             parentDir.listFiles()
                 ?.filter { it.isDirectory && it.name.startsWith("skatelab_capture_") && it != excludeDir }

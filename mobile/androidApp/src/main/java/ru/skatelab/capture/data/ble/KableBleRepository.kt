@@ -92,19 +92,22 @@ class KableBleRepository
         override val reconnectEvents: Flow<SensorId> = _reconnectEvents.asSharedFlow()
 
         // Register read responses (for battery, firmware, etc.)
+        @Suppress("ktlint:standard:property-naming")
         private val _registerReadResults = MutableSharedFlow<Pair<String, RegisterReadResult>>(extraBufferCapacity = 8)
 
         private var scanJob: Job? = null
 
         // WT901 characteristics (Kable characteristicOf uses String UUIDs)
-        private val notifyCharacteristic = characteristicOf(
-            service = SERVICE_UUID_STR,
-            characteristic = NOTIFY_UUID_STR,
-        )
-        private val writeCharacteristic = characteristicOf(
-            service = SERVICE_UUID_STR,
-            characteristic = WRITE_UUID_STR,
-        )
+        private val notifyCharacteristic =
+            characteristicOf(
+                service = SERVICE_UUID_STR,
+                characteristic = NOTIFY_UUID_STR,
+            )
+        private val writeCharacteristic =
+            characteristicOf(
+                service = SERVICE_UUID_STR,
+                characteristic = WRITE_UUID_STR,
+            )
 
         private fun logi(msg: String) {
             android.util.Log.i(TAG, msg)
@@ -128,27 +131,29 @@ class KableBleRepository
 
             logi("Starting Kable BLE scan with filter $SERVICE_UUID")
 
-            val scanner = Scanner {
-                filters = listOf(Filter.Service(SERVICE_UUID))
-                logging {
-                    level = Logging.Level.Warnings
+            val scanner =
+                Scanner {
+                    filters = listOf(Filter.Service(SERVICE_UUID))
+                    logging {
+                        level = Logging.Level.Warnings
+                    }
                 }
-            }
 
             val foundDevices = mutableMapOf<String, ScanDevice>()
 
-            scanJob = scope.launch {
-                scanner.advertisements.collect { advertisement ->
-                    val name = advertisement.name ?: "WT901"
-                    val address = advertisement.identifier
-                    val rssi = advertisement.rssi
-                    logi("Scan result: $name @ $address RSSI=$rssi")
-                    // Cache advertisement for later Peripheral creation
-                    cachedAdvertisements[address] = advertisement
-                    foundDevices[address] = ScanDevice(name = name, address = address, rssi = rssi)
-                    _scanResults.value = foundDevices.values.toList()
+            scanJob =
+                scope.launch {
+                    scanner.advertisements.collect { advertisement ->
+                        val name = advertisement.name ?: "WT901"
+                        val address = advertisement.identifier
+                        val rssi = advertisement.rssi
+                        logi("Scan result: $name @ $address RSSI=$rssi")
+                        // Cache advertisement for later Peripheral creation
+                        cachedAdvertisements[address] = advertisement
+                        foundDevices[address] = ScanDevice(name = name, address = address, rssi = rssi)
+                        _scanResults.value = foundDevices.values.toList()
+                    }
                 }
-            }
         }
 
         override fun stopScan() {
@@ -173,56 +178,59 @@ class KableBleRepository
 
                 // Monitor connection state changes
                 stateMonitorJobs[sensorId]?.cancel()
-                stateMonitorJobs[sensorId] = scope.launch {
-                    peripheral.state.collect { state ->
-                        when (state) {
-                            is com.juul.kable.State.Connecting -> {
-                                updateConnectionState(sensorId, BleRepository.ConnectionState.CONNECTING)
-                            }
-                            is com.juul.kable.State.Connected -> {
-                                logi("Sensor $sensorId connected")
-                                updateConnectionState(sensorId, BleRepository.ConnectionState.CONNECTED)
-                            }
-                            is com.juul.kable.State.Disconnecting -> {
-                                // No-op, transient state
-                            }
-                            is com.juul.kable.State.Disconnected -> {
-                                logw("Sensor $sensorId disconnected: ${state.status}")
-                                // Auto-reconnect if peripheral is still tracked
-                                if (peripherals[sensorId] != null) {
-                                    updateConnectionState(sensorId, BleRepository.ConnectionState.RECONNECTING)
-                                    _reconnectEvents.tryEmit(sensorId)
-                                    reconnectJobs[sensorId]?.cancel()
-                                    reconnectJobs[sensorId] = scope.launch {
-                                        kotlinx.coroutines.delay(2000L)
-                                        try {
-                                            peripheral.connect()
-                                            startObservation(sensorId)
-                                            scheduleSetRate(sensorId)
-                                            logi("Reconnected $sensorId")
-                                        } catch (e: Exception) {
-                                            loge("Reconnect failed for $sensorId: ${e.message}")
-                                            updateConnectionState(sensorId, BleRepository.ConnectionState.DISCONNECTED)
-                                        }
+                stateMonitorJobs[sensorId] =
+                    scope.launch {
+                        peripheral.state.collect { state ->
+                            when (state) {
+                                is com.juul.kable.State.Connecting -> {
+                                    updateConnectionState(sensorId, BleRepository.ConnectionState.CONNECTING)
+                                }
+                                is com.juul.kable.State.Connected -> {
+                                    logi("Sensor $sensorId connected")
+                                    updateConnectionState(sensorId, BleRepository.ConnectionState.CONNECTED)
+                                }
+                                is com.juul.kable.State.Disconnecting -> {
+                                    // No-op, transient state
+                                }
+                                is com.juul.kable.State.Disconnected -> {
+                                    logw("Sensor $sensorId disconnected: ${state.status}")
+                                    // Auto-reconnect if peripheral is still tracked
+                                    if (peripherals[sensorId] != null) {
+                                        updateConnectionState(sensorId, BleRepository.ConnectionState.RECONNECTING)
+                                        _reconnectEvents.tryEmit(sensorId)
+                                        reconnectJobs[sensorId]?.cancel()
+                                        reconnectJobs[sensorId] =
+                                            scope.launch {
+                                                kotlinx.coroutines.delay(2000L)
+                                                try {
+                                                    peripheral.connect()
+                                                    startObservation(sensorId)
+                                                    scheduleSetRate(sensorId)
+                                                    logi("Reconnected $sensorId")
+                                                } catch (e: Exception) {
+                                                    loge("Reconnect failed for $sensorId: ${e.message}")
+                                                    updateConnectionState(sensorId, BleRepository.ConnectionState.DISCONNECTED)
+                                                }
+                                            }
+                                    } else {
+                                        updateConnectionState(sensorId, BleRepository.ConnectionState.DISCONNECTED)
                                     }
-                                } else {
-                                    updateConnectionState(sensorId, BleRepository.ConnectionState.DISCONNECTED)
                                 }
                             }
                         }
                     }
-                }
 
                 // Connect with timeout
-                val connected = withTimeoutOrNull(CONNECT_TIMEOUT_MS) {
-                    try {
-                        peripheral.connect()
-                        true
-                    } catch (e: Exception) {
-                        loge("Connect failed for $sensorId: ${e.message}")
-                        false
+                val connected =
+                    withTimeoutOrNull(CONNECT_TIMEOUT_MS) {
+                        try {
+                            peripheral.connect()
+                            true
+                        } catch (e: Exception) {
+                            loge("Connect failed for $sensorId: ${e.message}")
+                            false
+                        }
                     }
-                }
 
                 return if (connected == true) {
                     // Wait until state is CONNECTED
@@ -374,43 +382,46 @@ class KableBleRepository
         private fun startObservation(sensorId: SensorId) {
             observationJobs[sensorId]?.cancel()
             val peripheral = peripherals[sensorId] ?: return
-            val parser = Wt901Parser().also {
-                it.logTag = "KableWt901-${sensorId.name}"
-                it.onRegisterRead = { result ->
-                    val address = addressMap[sensorId]
-                    if (address != null) {
-                        _registerReadResults.tryEmit(address to result)
-                    }
-                }
-            }
-            parsers[sensorId] = parser
-
-            observationJobs[sensorId] = scope.launch {
-                peripheral.observe(notifyCharacteristic)
-                    .catch { e ->
-                        loge("Observation error for $sensorId: ${e.message}")
-                    }
-                    .collect { bytes ->
-                        val arrivalNs = SystemClock.elapsedRealtimeNanos()
-                        val samples = parser.feed(bytes, arrivalNs)
-                        samples.forEach { sample ->
-                            _imuSamples.tryEmit(sensorId to sample)
+            val parser =
+                Wt901Parser().also {
+                    it.logTag = "KableWt901-${sensorId.name}"
+                    it.onRegisterRead = { result ->
+                        val address = addressMap[sensorId]
+                        if (address != null) {
+                            _registerReadResults.tryEmit(address to result)
                         }
                     }
-            }
+                }
+            parsers[sensorId] = parser
+
+            observationJobs[sensorId] =
+                scope.launch {
+                    peripheral.observe(notifyCharacteristic)
+                        .catch { e ->
+                            loge("Observation error for $sensorId: ${e.message}")
+                        }
+                        .collect { bytes ->
+                            val arrivalNs = SystemClock.elapsedRealtimeNanos()
+                            val samples = parser.feed(bytes, arrivalNs)
+                            samples.forEach { sample ->
+                                _imuSamples.tryEmit(sensorId to sample)
+                            }
+                        }
+                }
         }
 
         private fun scheduleSetRate(sensorId: SensorId) {
             setRateJobs[sensorId]?.cancel()
-            setRateJobs[sensorId] = scope.launch {
-                kotlinx.coroutines.delay(SET_RATE_DELAY_MS)
-                try {
-                    writeCommand(sensorId, Wt901Commander.setRate(DEFAULT_RATE))
-                    logi("setRate(0x09) sent to $sensorId")
-                } catch (e: Exception) {
-                    loge("setRate failed for $sensorId: ${e.message}")
+            setRateJobs[sensorId] =
+                scope.launch {
+                    kotlinx.coroutines.delay(SET_RATE_DELAY_MS)
+                    try {
+                        writeCommand(sensorId, Wt901Commander.setRate(DEFAULT_RATE))
+                        logi("setRate(0x09) sent to $sensorId")
+                    } catch (e: Exception) {
+                        loge("setRate failed for $sensorId: ${e.message}")
+                    }
                 }
-            }
         }
 
         private suspend fun writeCommand(
@@ -444,17 +455,22 @@ class KableBleRepository
             writeCommand(sensorId, Wt901Commander.readRegister(register))
 
             return try {
-                val result = withTimeoutOrNull(timeoutMs) {
-                    _registerReadResults.first { (addr, r) ->
-                        addr == address && r.register == register
-                    }.second
-                }
+                val result =
+                    withTimeoutOrNull(timeoutMs) {
+                        _registerReadResults.first { (addr, r) ->
+                            addr == address && r.register == register
+                        }.second
+                    }
                 if (result != null) {
                     logi("readRegisterResponse: reg=0x${register.toString(16)} data=${result.data.toList()}")
                     Result.success(result.data)
                 } else {
                     logw("readRegisterResponse: timeout for reg=0x${register.toString(16)}")
-                    Result.failure(java.util.concurrent.TimeoutException("No 0x71 response for register 0x${register.toString(16)} within ${timeoutMs}ms"))
+                    Result.failure(
+                        java.util.concurrent.TimeoutException(
+                            "No 0x71 response for register 0x${register.toString(16)} within ${timeoutMs}ms",
+                        ),
+                    )
                 }
             } catch (e: CancellationException) {
                 throw e

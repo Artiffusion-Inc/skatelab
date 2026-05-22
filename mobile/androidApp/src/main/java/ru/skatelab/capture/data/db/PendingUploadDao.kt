@@ -17,7 +17,11 @@ interface PendingUploadDao {
     suspend fun insert(entity: PendingUploadEntity)
 
     @Query("UPDATE pending_uploads SET status = :status, sessionId = :sessionId WHERE id = :id")
-    suspend fun updateStatus(id: String, status: String, sessionId: String? = null)
+    suspend fun updateStatus(
+        id: String,
+        status: String,
+        sessionId: String? = null,
+    )
 
     @Query("UPDATE pending_uploads SET retryCount = retryCount + 1 WHERE id = :id")
     suspend fun incrementRetry(id: String)

@@ -40,31 +40,18 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.media3.common.MediaItem
 import androidx.media3.exoplayer.ExoPlayer
-import androidx.compose.ui.graphics.Color
 import ru.skatelab.capture.ui.skeleton.Keypoint
 import ru.skatelab.capture.ui.skeleton.SkeletonOverlay
-import com.patrykandpatrick.vico.compose.cartesian.CartesianChartHost
-import com.patrykandpatrick.vico.compose.cartesian.axis.rememberBottom
-import com.patrykandpatrick.vico.compose.cartesian.axis.rememberStart
-import com.patrykandpatrick.vico.compose.cartesian.layer.rememberLineCartesianLayer
-import com.patrykandpatrick.vico.compose.cartesian.rememberCartesianChart
-import com.patrykandpatrick.vico.compose.cartesian.rememberVicoScrollState
-import com.patrykandpatrick.vico.compose.cartesian.rememberVicoZoomState
-import com.patrykandpatrick.vico.core.cartesian.Zoom
-import com.patrykandpatrick.vico.core.cartesian.axis.HorizontalAxis
-import com.patrykandpatrick.vico.core.cartesian.axis.VerticalAxis
-import com.patrykandpatrick.vico.core.cartesian.data.CartesianChartModelProducer
-import com.patrykandpatrick.vico.core.cartesian.data.lineSeries
 import ru.skatelab.shared.models.SessionMetricResponse
 import ru.skatelab.shared.models.SessionResponse
 import ru.skatelab.shared.state.SessionsUiState
-import kotlin.math.roundToInt
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
@@ -145,9 +132,10 @@ private fun SessionDetailContent(
     var showSkeleton by remember { mutableStateOf(false) }
 
     Column(
-        modifier = modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState()),
+        modifier =
+            modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState()),
     ) {
         // Video player with optional skeleton overlay
         val videoUrl = session.processedVideoUrl ?: session.videoUrl
@@ -159,17 +147,19 @@ private fun SessionDetailContent(
                     // Real pose data will be wired from backend API in a future task.
                     SkeletonOverlay(
                         keypoints = DEMO_SKELETON,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .aspectRatio(16f / 9f),
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .aspectRatio(16f / 9f),
                     )
                 }
                 // Skeleton toggle button
                 IconButton(
                     onClick = { showSkeleton = !showSkeleton },
-                    modifier = Modifier
-                        .align(Alignment.TopEnd)
-                        .padding(8.dp),
+                    modifier =
+                        Modifier
+                            .align(Alignment.TopEnd)
+                            .padding(8.dp),
                 ) {
                     Icon(
                         imageVector = if (showSkeleton) Icons.Filled.VisibilityOff else Icons.Filled.Visibility,
@@ -232,9 +222,10 @@ private fun SessionDetailContent(
             }
 
             // Angular velocity chart (if metric has time-series data)
-            val angularMetrics = session.metrics.filter {
-                it.metricName == "angular_velocity"
-            }
+            val angularMetrics =
+                session.metrics.filter {
+                    it.metricName == "angular_velocity"
+                }
             if (angularMetrics.isNotEmpty()) {
                 AngularVelocityChart(angularMetrics)
                 Spacer(modifier = Modifier.height(16.dp))
@@ -252,9 +243,10 @@ private fun SessionDetailContent(
                 recommendations.forEach { rec ->
                     Card(
                         modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp),
-                        colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.surfaceVariant,
-                        ),
+                        colors =
+                            CardDefaults.cardColors(
+                                containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                            ),
                     ) {
                         Text(
                             text = rec,
@@ -274,13 +266,14 @@ private fun SessionDetailContent(
 @Composable
 private fun VideoPlayer(url: String) {
     val context = LocalContext.current
-    val exoPlayer = remember {
-        ExoPlayer.Builder(context).build().also { player ->
-            player.setMediaItem(MediaItem.fromUri(Uri.parse(url)))
-            player.playWhenReady = true
-            player.prepare()
+    val exoPlayer =
+        remember {
+            ExoPlayer.Builder(context).build().also { player ->
+                player.setMediaItem(MediaItem.fromUri(Uri.parse(url)))
+                player.playWhenReady = true
+                player.prepare()
+            }
         }
-    }
 
     DisposableEffect(Unit) {
         onDispose {
@@ -296,36 +289,43 @@ private fun VideoPlayer(url: String) {
                     (view as? androidx.media3.ui.PlayerView)?.player = exoPlayer
                 }
         },
-        modifier = Modifier
-            .fillMaxWidth()
-            .aspectRatio(16f / 9f),
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .aspectRatio(16f / 9f),
     )
 }
 
 @Composable
-private fun ElementTypeBadge(elementType: String, status: String) {
-    val statusLabel = when (status) {
-        "completed" -> "Готово"
-        "processing" -> "Обработка…"
-        "failed" -> "Ошибка"
-        "queued" -> "В очереди"
-        else -> status
-    }
-    val statusColor = when (status) {
-        "completed" -> MaterialTheme.colorScheme.primary
-        "processing" -> MaterialTheme.colorScheme.tertiary
-        "failed" -> MaterialTheme.colorScheme.error
-        else -> MaterialTheme.colorScheme.onSurfaceVariant
-    }
+private fun ElementTypeBadge(
+    elementType: String,
+    status: String,
+) {
+    val statusLabel =
+        when (status) {
+            "completed" -> "Готово"
+            "processing" -> "Обработка…"
+            "failed" -> "Ошибка"
+            "queued" -> "В очереди"
+            else -> status
+        }
+    val statusColor =
+        when (status) {
+            "completed" -> MaterialTheme.colorScheme.primary
+            "processing" -> MaterialTheme.colorScheme.tertiary
+            "failed" -> MaterialTheme.colorScheme.error
+            else -> MaterialTheme.colorScheme.onSurfaceVariant
+        }
 
     Row(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         Card(
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.primaryContainer,
-            ),
+            colors =
+                CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.primaryContainer,
+                ),
         ) {
             Text(
                 text = formatElementType(elementType),
@@ -354,9 +354,10 @@ private fun AngularVelocityChart(metrics: List<SessionMetricResponse>) {
 
     Card(
         modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant,
-        ),
+        colors =
+            CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surfaceVariant,
+            ),
     ) {
         Column(modifier = Modifier.padding(12.dp)) {
             Text(
@@ -414,22 +415,28 @@ private fun formatElementType(elementType: String): String {
  * 11=l_shoulder, 12=l_elbow, 13=l_wrist,
  * 14=r_shoulder, 15=r_elbow, 16=r_wrist
  */
-private val DEMO_SKELETON: List<Keypoint?> = listOf(
-    Keypoint(0.50f, 0.60f, 0.95f),  // 0: hip_center
-    Keypoint(0.55f, 0.60f, 0.90f),  // 1: r_hip
-    Keypoint(0.55f, 0.73f, 0.88f),  // 2: r_knee
-    Keypoint(0.55f, 0.86f, 0.85f),  // 3: r_foot
-    Keypoint(0.45f, 0.60f, 0.92f),  // 4: l_hip
-    Keypoint(0.45f, 0.73f, 0.89f),  // 5: l_knee
-    Keypoint(0.45f, 0.86f, 0.87f),  // 6: l_foot
-    Keypoint(0.50f, 0.53f, 0.94f),  // 7: spine
-    Keypoint(0.50f, 0.44f, 0.93f),  // 8: thorax
-    Keypoint(0.50f, 0.38f, 0.91f),  // 9: neck
-    Keypoint(0.50f, 0.30f, 0.90f),  // 10: head_top
-    Keypoint(0.40f, 0.40f, 0.88f),  // 11: l_shoulder
-    Keypoint(0.34f, 0.50f, 0.85f),  // 12: l_elbow
-    Keypoint(0.30f, 0.60f, 0.82f),  // 13: l_wrist
-    Keypoint(0.60f, 0.40f, 0.87f),  // 14: r_shoulder
-    Keypoint(0.66f, 0.50f, 0.84f),  // 15: r_elbow
-    Keypoint(0.70f, 0.60f, 0.80f),  // 16: r_wrist
-)
+private val DEMO_SKELETON: List<Keypoint?> =
+    listOf(
+        // 0: hip_center, 1: r_hip, 2: r_knee, 3: r_foot
+        Keypoint(0.50f, 0.60f, 0.95f),
+        Keypoint(0.55f, 0.60f, 0.90f),
+        Keypoint(0.55f, 0.73f, 0.88f),
+        Keypoint(0.55f, 0.86f, 0.85f),
+        // 4: l_hip, 5: l_knee, 6: l_foot
+        Keypoint(0.45f, 0.60f, 0.92f),
+        Keypoint(0.45f, 0.73f, 0.89f),
+        Keypoint(0.45f, 0.86f, 0.87f),
+        // 7: spine, 8: thorax, 9: neck, 10: head_top
+        Keypoint(0.50f, 0.53f, 0.94f),
+        Keypoint(0.50f, 0.44f, 0.93f),
+        Keypoint(0.50f, 0.38f, 0.91f),
+        Keypoint(0.50f, 0.30f, 0.90f),
+        // 11: l_shoulder, 12: l_elbow, 13: l_wrist
+        Keypoint(0.40f, 0.40f, 0.88f),
+        Keypoint(0.34f, 0.50f, 0.85f),
+        Keypoint(0.30f, 0.60f, 0.82f),
+        // 14: r_shoulder, 15: r_elbow, 16: r_wrist
+        Keypoint(0.60f, 0.40f, 0.87f),
+        Keypoint(0.66f, 0.50f, 0.84f),
+        Keypoint(0.70f, 0.60f, 0.80f),
+    )

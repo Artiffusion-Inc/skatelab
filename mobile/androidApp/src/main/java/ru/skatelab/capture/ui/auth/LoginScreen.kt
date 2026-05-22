@@ -58,10 +58,11 @@ fun LoginScreen(
     }
 
     Column(
-        modifier = modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
-            .padding(24.dp),
+        modifier =
+            modifier
+                .fillMaxSize()
+                .background(MaterialTheme.colorScheme.background)
+                .padding(24.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
     ) {
@@ -105,11 +106,12 @@ fun LoginScreen(
 
         if (uiState is AuthUiState.Error) {
             val msg = uiState.message
-            val displayMsg = if (isNetworkError(msg)) {
-                "Нет подключения к интернету. Проверьте сеть и повторите."
-            } else {
-                msg
-            }
+            val displayMsg =
+                if (isNetworkError(msg)) {
+                    "Нет подключения к интернету. Проверьте сеть и повторите."
+                } else {
+                    msg
+                }
             Text(
                 text = displayMsg,
                 color = MaterialTheme.colorScheme.error,

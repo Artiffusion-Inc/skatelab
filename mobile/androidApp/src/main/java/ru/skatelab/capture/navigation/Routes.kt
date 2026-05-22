@@ -4,21 +4,33 @@ import kotlinx.serialization.Serializable
 
 // --- Auth flow ---
 @Serializable object SplashRoute
+
 @Serializable object LoginRoute
+
 @Serializable object RegisterRoute
 
 // --- Main app flow ---
 @Serializable object CameraRoute
+
 @Serializable object ResultsRoute
+
 @Serializable data class ResultDetailRoute(val sessionId: String)
+
 @Serializable data class ProcessingRoute(val videoKey: String, val sessionId: String? = null)
+
 @Serializable object ProfileRoute
+
 @Serializable object MoreRoute
 
 // --- IMU capture flow (existing) ---
 @Serializable object BleScanRoute
+
 @Serializable object CalibrationRoute
+
 @Serializable object RecordingRoute
+
 @Serializable data class ExportRoute(val sessionId: String)
+
 @Serializable object SessionsRoute
+
 @Serializable data class SessionDetailRoute(val sessionId: String)

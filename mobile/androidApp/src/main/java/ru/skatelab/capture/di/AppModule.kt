@@ -8,6 +8,7 @@ import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
+import io.ktor.client.engine.okhttp.*
 import javax.inject.Named
 import javax.inject.Qualifier
 import javax.inject.Singleton
@@ -28,10 +29,9 @@ import ru.skatelab.capture.domain.service.Logger
 import ru.skatelab.capture.domain.service.ManifestWriter
 import ru.skatelab.capture.domain.service.SessionExporter
 import ru.skatelab.capture.domain.service.TimeSynchronizer
-import io.ktor.client.engine.okhttp.*
+import ru.skatelab.shared.api.SkateLabClient
 import ru.skatelab.shared.auth.AuthRepository
 import ru.skatelab.shared.auth.TokenStorage
-import ru.skatelab.shared.api.SkateLabClient
 
 @Qualifier
 @Retention(AnnotationRetention.BINARY)
@@ -97,12 +97,15 @@ abstract class AppModule {
 
         @Provides
         @Singleton
-        fun provideTokenStorage(@ApplicationContext context: Context): TokenStorage =
-            TokenStorage().also { it.init(context) }
+        fun provideTokenStorage(
+            @ApplicationContext context: Context,
+        ): TokenStorage = TokenStorage().also { it.init(context) }
 
         @Provides
         @Singleton
-        fun provideAuthRepository(client: SkateLabClient, tokenStorage: TokenStorage): AuthRepository =
-            AuthRepository(client.auth, tokenStorage)
+        fun provideAuthRepository(
+            client: SkateLabClient,
+            tokenStorage: TokenStorage,
+        ): AuthRepository = AuthRepository(client.auth, tokenStorage)
     }
 }

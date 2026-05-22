@@ -32,8 +32,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import ru.skatelab.capture.domain.model.SensorId
 
 @Composable
@@ -79,9 +79,10 @@ fun CameraScreen(
         // Loading indicator
         if (!isPreviewReady) {
             Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(Color.Black.copy(alpha = 0.6f)),
+                modifier =
+                    Modifier
+                        .fillMaxSize()
+                        .background(Color.Black.copy(alpha = 0.6f)),
                 contentAlignment = Alignment.Center,
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -102,11 +103,12 @@ fun CameraScreen(
         // Top bar: BLE indicator
         if (bleConnected) {
             Row(
-                modifier = Modifier
-                    .align(Alignment.TopStart)
-                    .padding(12.dp)
-                    .background(Color.Black.copy(alpha = 0.6f), MaterialTheme.shapes.small)
-                    .padding(horizontal = 8.dp, vertical = 4.dp),
+                modifier =
+                    Modifier
+                        .align(Alignment.TopStart)
+                        .padding(12.dp)
+                        .background(Color.Black.copy(alpha = 0.6f), MaterialTheme.shapes.small)
+                        .padding(horizontal = 8.dp, vertical = 4.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(4.dp),
             ) {
@@ -132,9 +134,10 @@ fun CameraScreen(
         // IMU capture button (top right)
         FloatingActionButton(
             onClick = onNavigateToImuCapture,
-            modifier = Modifier
-                .align(Alignment.TopEnd)
-                .padding(12.dp),
+            modifier =
+                Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(12.dp),
             containerColor = MaterialTheme.colorScheme.secondaryContainer,
         ) {
             Icon(Icons.Default.Memory, contentDescription = "IMU capture")
@@ -142,11 +145,12 @@ fun CameraScreen(
 
         // Bottom controls
         Column(
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .fillMaxWidth()
-                .background(Color.Black.copy(alpha = 0.4f))
-                .padding(vertical = 24.dp),
+            modifier =
+                Modifier
+                    .align(Alignment.BottomCenter)
+                    .fillMaxWidth()
+                    .background(Color.Black.copy(alpha = 0.4f))
+                    .padding(vertical = 24.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             // Record button
@@ -178,20 +182,29 @@ private fun RecordButton(
     FloatingActionButton(
         onClick = onToggle,
         modifier = Modifier.size(72.dp),
-        containerColor = if (isRecording) {
-            MaterialTheme.colorScheme.error
-        } else {
-            Color.White
-        },
+        containerColor =
+            if (isRecording) {
+                MaterialTheme.colorScheme.error
+            } else {
+                Color.White
+            },
         shape = CircleShape,
     ) {
         Box(
-            modifier = Modifier
-                .size(if (isRecording) 24.dp else 56.dp)
-                .background(
-                    color = if (isRecording) Color.White else if (isPreviewReady) Color.Red else Color.Gray,
-                    shape = if (isRecording) MaterialTheme.shapes.extraSmall else CircleShape,
-                ),
+            modifier =
+                Modifier
+                    .size(if (isRecording) 24.dp else 56.dp)
+                    .background(
+                        color =
+                            if (isRecording) {
+                                Color.White
+                            } else if (isPreviewReady) {
+                                Color.Red
+                            } else {
+                                Color.Gray
+                            },
+                        shape = if (isRecording) MaterialTheme.shapes.extraSmall else CircleShape,
+                    ),
         )
     }
 }
@@ -220,11 +233,12 @@ private fun CameraPreviewLayer(
         // REC indicator with timer
         if (isRecording) {
             Box(
-                modifier = Modifier
-                    .align(Alignment.TopCenter)
-                    .padding(12.dp)
-                    .background(Color.Red, MaterialTheme.shapes.small)
-                    .padding(horizontal = 8.dp, vertical = 4.dp),
+                modifier =
+                    Modifier
+                        .align(Alignment.TopCenter)
+                        .padding(12.dp)
+                        .background(Color.Red, MaterialTheme.shapes.small)
+                        .padding(horizontal = 8.dp, vertical = 4.dp),
             ) {
                 val totalSec = elapsedMs / 1000
                 val min = (totalSec / 60).toInt()
@@ -239,11 +253,12 @@ private fun CameraPreviewLayer(
             // Reconnect warning
             if (reconnectingSensor != null) {
                 Box(
-                    modifier = Modifier
-                        .align(Alignment.TopStart)
-                        .padding(12.dp)
-                        .background(MaterialTheme.colorScheme.errorContainer, MaterialTheme.shapes.small)
-                        .padding(horizontal = 8.dp, vertical = 4.dp),
+                    modifier =
+                        Modifier
+                            .align(Alignment.TopStart)
+                            .padding(12.dp)
+                            .background(MaterialTheme.colorScheme.errorContainer, MaterialTheme.shapes.small)
+                            .padding(horizontal = 8.dp, vertical = 4.dp),
                 ) {
                     Text(
                         "Reconnecting: ${reconnectingSensor?.name?.lowercase()}",

@@ -13,18 +13,22 @@ import java.util.concurrent.TimeUnit
  * Should be called after a PendingUploadEntity is saved to Room.
  */
 object UploadScheduler {
+    fun enqueue(
+        context: Context,
+        uploadId: String,
+    ) {
+        val constraints =
+            Constraints.Builder()
+                .setRequiredNetworkType(NetworkType.CONNECTED)
+                .setRequiresBatteryNotLow(true)
+                .build()
 
-    fun enqueue(context: Context, uploadId: String) {
-        val constraints = Constraints.Builder()
-            .setRequiredNetworkType(NetworkType.CONNECTED)
-            .setRequiresBatteryNotLow(true)
-            .build()
-
-        val workRequest = OneTimeWorkRequestBuilder<UploadWorker>()
-            .setInputData(UploadWorker.inputData(uploadId))
-            .setConstraints(constraints)
-            .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 30, TimeUnit.SECONDS)
-            .build()
+        val workRequest =
+            OneTimeWorkRequestBuilder<UploadWorker>()
+                .setInputData(UploadWorker.inputData(uploadId))
+                .setConstraints(constraints)
+                .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 30, TimeUnit.SECONDS)
+                .build()
 
         WorkManager.getInstance(context).enqueue(workRequest)
     }

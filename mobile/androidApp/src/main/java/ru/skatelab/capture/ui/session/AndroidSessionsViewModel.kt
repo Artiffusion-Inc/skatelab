@@ -4,9 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
-import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import ru.skatelab.shared.api.SkateLabClient
 import ru.skatelab.shared.models.SessionResponse
@@ -24,7 +22,10 @@ class AndroidSessionsViewModel
         val uiState: StateFlow<SessionsUiState> = shared.uiState
         val selectedSession: StateFlow<SessionResponse?> = shared.selectedSession
 
-        fun loadSessions(page: Int = 1, limit: Int = 20) {
+        fun loadSessions(
+            page: Int = 1,
+            limit: Int = 20,
+        ) {
             viewModelScope.launch { shared.loadSessions(page, limit) }
         }
 

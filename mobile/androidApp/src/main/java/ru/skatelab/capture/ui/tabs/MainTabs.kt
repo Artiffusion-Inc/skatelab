@@ -30,12 +30,13 @@ private data class TabItem(
     val route: Any,
 )
 
-private val TABS = listOf(
-    TabItem("Camera", Icons.Default.CameraAlt, CameraRoute),
-    TabItem("Results", Icons.Default.History, ResultsRoute),
-    TabItem("Profile", Icons.Default.Person, ProfileRoute),
-    TabItem("More", Icons.Default.MoreVert, MoreRoute),
-)
+private val TABS =
+    listOf(
+        TabItem("Camera", Icons.Default.CameraAlt, CameraRoute),
+        TabItem("Results", Icons.Default.History, ResultsRoute),
+        TabItem("Profile", Icons.Default.Person, ProfileRoute),
+        TabItem("More", Icons.Default.MoreVert, MoreRoute),
+    )
 
 @Composable
 fun MainTabsScreen(

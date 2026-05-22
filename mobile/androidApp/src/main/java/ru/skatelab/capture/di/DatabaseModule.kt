@@ -16,21 +16,20 @@ import ru.skatelab.capture.upload.ChunkedUploader
 @Module
 @InstallIn(SingletonComponent::class)
 object DatabaseModule {
-
     @Provides
     @Singleton
-    fun provideDatabase(@ApplicationContext context: Context): AppDatabase =
+    fun provideDatabase(
+        @ApplicationContext context: Context,
+    ): AppDatabase =
         Room.databaseBuilder(context, AppDatabase::class.java, "skatelab.db")
             .fallbackToDestructiveMigration(true)
             .build()
 
     @Provides
-    fun providePendingUploadDao(db: AppDatabase): PendingUploadDao =
-        db.pendingUploadDao()
+    fun providePendingUploadDao(db: AppDatabase): PendingUploadDao = db.pendingUploadDao()
 
     @Provides
-    fun provideCachedSessionDao(db: AppDatabase): CachedSessionDao =
-        db.cachedSessionDao()
+    fun provideCachedSessionDao(db: AppDatabase): CachedSessionDao = db.cachedSessionDao()
 
     @Provides
     @Singleton

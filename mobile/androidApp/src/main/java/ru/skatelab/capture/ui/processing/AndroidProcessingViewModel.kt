@@ -13,20 +13,28 @@ import ru.skatelab.shared.state.ProcessingUiState
 import ru.skatelab.shared.state.ProcessingViewModel
 
 @HiltViewModel
-class AndroidProcessingViewModel @Inject constructor(
-    private val client: SkateLabClient,
-) : ViewModel() {
+class AndroidProcessingViewModel
+    @Inject
+    constructor(
+        private val client: SkateLabClient,
+    ) : ViewModel() {
+        private val shared = ProcessingViewModel(client.process)
 
-    private val shared = ProcessingViewModel(client.process)
+        val uiState: StateFlow<ProcessingUiState> =
+            shared.uiState
+                .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), ProcessingUiState.Idle)
 
-    val uiState: StateFlow<ProcessingUiState> = shared.uiState
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), ProcessingUiState.Idle)
+        fun startProcessing(
+            videoKey: String,
+            sessionId: String? = null,
+        ) {
+            viewModelScope.launch { shared.startProcessing(videoKey, sessionId) }
+        }
 
-    fun startProcessing(videoKey: String, sessionId: String? = null) {
-        viewModelScope.launch { shared.startProcessing(videoKey, sessionId) }
+        fun retry(
+            videoKey: String,
+            sessionId: String? = null,
+        ) {
+            viewModelScope.launch { shared.startProcessing(videoKey, sessionId) }
+        }
     }
-
-    fun retry(videoKey: String, sessionId: String? = null) {
-        viewModelScope.launch { shared.startProcessing(videoKey, sessionId) }
-    }
-}

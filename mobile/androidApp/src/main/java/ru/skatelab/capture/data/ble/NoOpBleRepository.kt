@@ -49,20 +49,16 @@ class NoOpBleRepository
 
         override suspend fun stopStreaming(sensorId: SensorId): Result<Unit> = Result.success(Unit)
 
-        override suspend fun readBattery(sensorId: SensorId): Result<Int> =
-            Result.failure(IllegalStateException("BLE not available"))
+        override suspend fun readBattery(sensorId: SensorId): Result<Int> = Result.failure(IllegalStateException("BLE not available"))
 
-        override suspend fun readChipTime(sensorId: SensorId): Result<Long> =
-            Result.failure(IllegalStateException("BLE not available"))
+        override suspend fun readChipTime(sensorId: SensorId): Result<Long> = Result.failure(IllegalStateException("BLE not available"))
 
-        override suspend fun readDeviceId(sensorId: SensorId): Result<String> =
-            Result.failure(IllegalStateException("BLE not available"))
+        override suspend fun readDeviceId(sensorId: SensorId): Result<String> = Result.failure(IllegalStateException("BLE not available"))
 
         override suspend fun readFirmwareVersion(sensorId: SensorId): Result<String> =
             Result.failure(IllegalStateException("BLE not available"))
 
-        override suspend fun readBatteryMv(sensorId: SensorId): Result<Int> =
-            Result.failure(IllegalStateException("BLE not available"))
+        override suspend fun readBatteryMv(sensorId: SensorId): Result<Int> = Result.failure(IllegalStateException("BLE not available"))
 
         override suspend fun configureSensorTime(sensorId: SensorId): Result<Unit> =
             Result.failure(IllegalStateException("BLE not available"))

@@ -30,6 +30,11 @@ pre-commit:
       run: bunx biome check --write {staged_files}
       stage_fixed: true
 
+    ktlint-format:
+      glob: "mobile/**/*.{kt,kts}"
+      run: cd mobile && ./gradlew ktlintFormat 2>&1 | tail -5
+      stage_fixed: true
+
     ast-grep-scan:
       run: |
         if ! command -v sg &> /dev/null; then

@@ -23,53 +23,58 @@ data class Keypoint(
  * H3.6M 17-keypoint skeleton connections (start index, end index).
  * Matches the web skeleton-canvas.tsx definition exactly.
  */
-val H36M_CONNECTIONS = listOf(
-    // Right leg
-    0 to 1,  // hip_center -> r_hip
-    1 to 2,  // r_hip -> r_knee
-    2 to 3,  // r_knee -> r_foot
-    // Left leg
-    0 to 4,  // hip_center -> l_hip
-    4 to 5,  // l_hip -> l_knee
-    5 to 6,  // l_knee -> l_foot
-    // Spine + head
-    0 to 7,  // hip_center -> spine
-    7 to 8,  // spine -> thorax
-    8 to 9,  // thorax -> neck
-    9 to 10, // neck -> head_top
-    // Left arm
-    9 to 11,  // neck -> l_shoulder
-    11 to 12, // l_shoulder -> l_elbow
-    12 to 13, // l_elbow -> l_wrist
-    // Right arm
-    9 to 14,  // neck -> r_shoulder
-    14 to 15, // r_shoulder -> r_elbow
-    15 to 16, // r_elbow -> r_wrist
-)
+val H36M_CONNECTIONS =
+    listOf(
+        // Right leg: hip_center->r_hip->r_knee->r_foot
+        0 to 1,
+        1 to 2,
+        2 to 3,
+        // Left leg: hip_center->l_hip->l_knee->l_foot
+        0 to 4,
+        4 to 5,
+        5 to 6,
+        // Spine + head: hip_center->spine->thorax->neck->head_top
+        0 to 7,
+        7 to 8,
+        8 to 9,
+        9 to 10,
+        // Left arm: neck->l_shoulder->l_elbow->l_wrist
+        9 to 11,
+        11 to 12,
+        12 to 13,
+        // Right arm: neck->r_shoulder->r_elbow->r_wrist
+        9 to 14,
+        14 to 15,
+        15 to 16,
+    )
 
 /**
  * Joint colors matching web skeleton-canvas.tsx JOINT_COLORS.
  * Indexed by H3.6M keypoint index (0..16).
  */
-val H36M_JOINT_COLORS = listOf(
-    Color.Red,                                    // 0: hip_center (red)
-    Color(0f, 1f, 0f),                           // 1: r_hip (green)
-    Color(0f, 1f, 0f),                           // 2: r_knee
-    Color(0f, 1f, 0f),                           // 3: r_foot
-    Color(0f, 0f, 1f),                           // 4: l_hip (blue)
-    Color(0f, 0f, 1f),                           // 5: l_knee
-    Color(0f, 0f, 1f),                           // 6: l_foot
-    Color.Yellow,                                 // 7: spine (yellow)
-    Color.Yellow,                                 // 8: thorax
-    Color.Magenta,                                // 9: neck (magenta)
-    Color.Magenta,                                // 10: head_top
-    Color.Cyan,                                   // 11: l_shoulder (cyan)
-    Color.Cyan,                                   // 12: l_elbow
-    Color.Cyan,                                   // 13: l_wrist
-    Color(red = 1f, green = 0.647f, blue = 0f),  // 14: r_shoulder (orange)
-    Color(red = 1f, green = 0.647f, blue = 0f),  // 15: r_elbow
-    Color(red = 1f, green = 0.647f, blue = 0f),  // 16: r_wrist
-)
+val H36M_JOINT_COLORS =
+    listOf(
+        // 0: hip_center, 1-3: right leg (green), 4-6: left leg (blue)
+        Color.Red,
+        Color(0f, 1f, 0f),
+        Color(0f, 1f, 0f),
+        Color(0f, 1f, 0f),
+        Color(0f, 0f, 1f),
+        Color(0f, 0f, 1f),
+        Color(0f, 0f, 1f),
+        // 7-8: spine/thorax (yellow), 9-10: neck/head (magenta)
+        Color.Yellow,
+        Color.Yellow,
+        Color.Magenta,
+        Color.Magenta,
+        // 11-13: left arm (cyan), 14-16: right arm (orange)
+        Color.Cyan,
+        Color.Cyan,
+        Color.Cyan,
+        Color(red = 1f, green = 0.647f, blue = 0f),
+        Color(red = 1f, green = 0.647f, blue = 0f),
+        Color(red = 1f, green = 0.647f, blue = 0f),
+    )
 
 /** Line color for skeleton bones. */
 private val BONE_COLOR = Color.White.copy(alpha = 0.6f)

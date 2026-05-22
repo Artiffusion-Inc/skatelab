@@ -8,7 +8,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
@@ -134,12 +133,13 @@ fun SessionListScreen(
                         LazyColumn(
                             modifier = Modifier.fillMaxSize(),
                             verticalArrangement = Arrangement.spacedBy(8.dp),
-                            contentPadding = androidx.compose.foundation.layout.PaddingValues(
-                                start = 16.dp,
-                                end = 16.dp,
-                                top = 8.dp,
-                                bottom = 16.dp,
-                            ),
+                            contentPadding =
+                                androidx.compose.foundation.layout.PaddingValues(
+                                    start = 16.dp,
+                                    end = 16.dp,
+                                    top = 8.dp,
+                                    bottom = 16.dp,
+                                ),
                         ) {
                             items(sessions, key = { it.id }) { session ->
                                 SessionCard(
@@ -163,9 +163,10 @@ private fun SessionCard(
     Card(
         onClick = onClick,
         modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant,
-        ),
+        colors =
+            CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surfaceVariant,
+            ),
     ) {
         Row(
             modifier = Modifier.padding(12.dp).fillMaxWidth(),
@@ -191,14 +192,18 @@ private fun SessionCard(
 }
 
 @Composable
-private fun StatusBadge(status: String, score: Float?) {
-    val (label, color) = when (status) {
-        "completed" -> ("Готово" to MaterialTheme.colorScheme.primary)
-        "processing" -> ("Обработка…" to MaterialTheme.colorScheme.tertiary)
-        "failed" -> ("Ошибка" to MaterialTheme.colorScheme.error)
-        "queued" -> ("В очереди" to MaterialTheme.colorScheme.outline)
-        else -> (status to MaterialTheme.colorScheme.onSurfaceVariant)
-    }
+private fun StatusBadge(
+    status: String,
+    score: Float?,
+) {
+    val (label, color) =
+        when (status) {
+            "completed" -> ("Готово" to MaterialTheme.colorScheme.primary)
+            "processing" -> ("Обработка…" to MaterialTheme.colorScheme.tertiary)
+            "failed" -> ("Ошибка" to MaterialTheme.colorScheme.error)
+            "queued" -> ("В очереди" to MaterialTheme.colorScheme.outline)
+            else -> (status to MaterialTheme.colorScheme.onSurfaceVariant)
+        }
 
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         if (score != null && status == "completed") {
@@ -234,9 +239,10 @@ private fun formatElementType(elementType: String): String {
 private fun formatDate(isoDate: String): String {
     return try {
         val instant = java.time.Instant.parse(isoDate)
-        val formatter = java.time.format.DateTimeFormatter
-            .ofPattern("dd.MM.yyyy HH:mm")
-            .withZone(java.time.ZoneId.systemDefault())
+        val formatter =
+            java.time.format.DateTimeFormatter
+                .ofPattern("dd.MM.yyyy HH:mm")
+                .withZone(java.time.ZoneId.systemDefault())
         formatter.format(instant)
     } catch (_: Exception) {
         isoDate

@@ -4,6 +4,9 @@ import io.ktor.client.*
 import io.ktor.client.request.*
 import io.ktor.client.statement.*
 import io.ktor.http.*
+import java.io.File
+import java.io.RandomAccessFile
+import java.util.concurrent.ConcurrentLinkedQueue
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
@@ -13,9 +16,6 @@ import kotlinx.coroutines.withContext
 import ru.skatelab.shared.api.UploadsApi
 import ru.skatelab.shared.models.CompletedPart
 import ru.skatelab.shared.models.UploadInitResponse
-import java.io.File
-import java.io.RandomAccessFile
-import java.util.concurrent.ConcurrentLinkedQueue
 
 /**
  * Chunked multipart uploader ported from web's ChunkedUploader.
@@ -48,48 +48,53 @@ class ChunkedUploader(
         fileName: String = file.name,
         contentType: String = "video/mp4",
         onProgress: ((uploaded: Long, total: Long) -> Unit)? = null,
-    ): String = withContext(Dispatchers.IO) {
-        val totalSize = file.length().toInt()
+    ): String =
+        withContext(Dispatchers.IO) {
+            val totalSize = file.length().toInt()
 
-        // Step 1: init multipart upload
-        val init: UploadInitResponse = uploadsApi.init(fileName, contentType, totalSize)
-        val chunkSize = init.chunkSize
+            // Step 1: init multipart upload
+            val init: UploadInitResponse = uploadsApi.init(fileName, contentType, totalSize)
+            val chunkSize = init.chunkSize
 
-        // Step 2: upload parts with bounded concurrency
-        val semaphore = Semaphore(CONCURRENCY)
-        val results = ConcurrentLinkedQueue<CompletedPart>()
-        var uploaded = 0L
+            // Step 2: upload parts with bounded concurrency
+            val semaphore = Semaphore(CONCURRENCY)
+            val results = ConcurrentLinkedQueue<CompletedPart>()
+            var uploaded = 0L
 
-        coroutineScope {
-            for (part in init.parts) {
-                launch {
-                    semaphore.withPermit {
-                        val start = (part.partNumber - 1) * chunkSize
-                        val end = minOf(start + chunkSize, totalSize)
-                        val chunkBytes = readFileChunk(file, start, end)
+            coroutineScope {
+                for (part in init.parts) {
+                    launch {
+                        semaphore.withPermit {
+                            val start = (part.partNumber - 1) * chunkSize
+                            val end = minOf(start + chunkSize, totalSize)
+                            val chunkBytes = readFileChunk(file, start, end)
 
-                        val etag = uploadPart(part.url, chunkBytes)
-                        results.add(CompletedPart(part.partNumber, etag))
+                            val etag = uploadPart(part.url, chunkBytes)
+                            results.add(CompletedPart(part.partNumber, etag))
 
-                        synchronized(this@withContext) {
-                            uploaded += (end - start)
-                            onProgress?.invoke(uploaded, totalSize.toLong())
+                            synchronized(this@withContext) {
+                                uploaded += (end - start)
+                                onProgress?.invoke(uploaded, totalSize.toLong())
+                            }
                         }
                     }
                 }
             }
+
+            // Sort by part number to ensure correct order for completion
+            val sortedParts = results.sortedBy { it.partNumber }
+
+            // Step 3: complete multipart upload
+            uploadsApi.complete(init.uploadId, init.key, sortedParts)
+
+            init.key
         }
 
-        // Sort by part number to ensure correct order for completion
-        val sortedParts = results.sortedBy { it.partNumber }
-
-        // Step 3: complete multipart upload
-        uploadsApi.complete(init.uploadId, init.key, sortedParts)
-
-        init.key
-    }
-
-    private fun readFileChunk(file: File, start: Int, end: Int): ByteArray {
+    private fun readFileChunk(
+        file: File,
+        start: Int,
+        end: Int,
+    ): ByteArray {
         return RandomAccessFile(file, "r").use { raf ->
             raf.seek(start.toLong())
             val size = end - start
@@ -99,11 +104,15 @@ class ChunkedUploader(
         }
     }
 
-    private suspend fun uploadPart(presignedUrl: String, chunk: ByteArray): String {
-        val response: HttpResponse = httpClient.put(presignedUrl) {
-            contentType(ContentType.Application.OctetStream)
-            setBody(chunk)
-        }
+    private suspend fun uploadPart(
+        presignedUrl: String,
+        chunk: ByteArray,
+    ): String {
+        val response: HttpResponse =
+            httpClient.put(presignedUrl) {
+                contentType(ContentType.Application.OctetStream)
+                setBody(chunk)
+            }
         if (!response.status.isSuccess()) {
             throw UploadException("Part upload failed: ${response.status.value} ${response.status.description}")
         }

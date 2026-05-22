@@ -55,9 +55,10 @@ fun ProcessingScreen(
     }
 
     Column(
-        modifier = modifier
-            .fillMaxSize()
-            .padding(24.dp),
+        modifier =
+            modifier
+                .fillMaxSize()
+                .padding(24.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
     ) {
@@ -94,11 +95,12 @@ fun ProcessingScreen(
             }
 
             is ProcessingUiState.Failed -> {
-                val isNetworkError = state.message.lowercase().let { msg ->
-                    msg.contains("network") || msg.contains("connection") ||
-                        msg.contains("timeout") || msg.contains("socket") ||
-                        msg.contains("unreachable") || msg.contains("resolve")
-                }
+                val isNetworkError =
+                    state.message.lowercase().let { msg ->
+                        msg.contains("network") || msg.contains("connection") ||
+                            msg.contains("timeout") || msg.contains("socket") ||
+                            msg.contains("unreachable") || msg.contains("resolve")
+                    }
                 Icon(
                     imageVector = if (isNetworkError) Icons.Default.CloudOff else Icons.Default.ErrorOutline,
                     contentDescription = null,

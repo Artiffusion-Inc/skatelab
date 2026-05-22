@@ -6,9 +6,9 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.compose.NavHost
-import androidx.navigation.toRoute
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.toRoute
 import dagger.hilt.EntryPoint
 import dagger.hilt.InstallIn
 import dagger.hilt.android.EntryPointAccessors
@@ -23,6 +23,7 @@ import ru.skatelab.capture.navigation.ProcessingRoute
 import ru.skatelab.capture.navigation.RecordingRoute
 import ru.skatelab.capture.navigation.RegisterRoute
 import ru.skatelab.capture.navigation.ResultDetailRoute
+import ru.skatelab.capture.navigation.ResultsRoute
 import ru.skatelab.capture.navigation.SessionDetailRoute
 import ru.skatelab.capture.navigation.SessionsRoute
 import ru.skatelab.capture.navigation.SplashRoute
@@ -39,7 +40,6 @@ import ru.skatelab.capture.presentation.session.SessionListScreen as LocalSessio
 import ru.skatelab.capture.presentation.session.SessionListViewModel
 import ru.skatelab.capture.presentation.sessiondetail.SessionDetailScreen as LocalSessionDetailScreen
 import ru.skatelab.capture.presentation.sessiondetail.SessionDetailViewModel
-import ru.skatelab.capture.navigation.ResultsRoute
 import ru.skatelab.capture.ui.auth.AuthViewModel
 import ru.skatelab.capture.ui.auth.LoginScreen
 import ru.skatelab.capture.ui.auth.RegisterScreen
@@ -48,7 +48,6 @@ import ru.skatelab.capture.ui.processing.ProcessingScreen
 import ru.skatelab.capture.ui.session.AndroidSessionsViewModel
 import ru.skatelab.capture.ui.session.SessionDetailScreen as ResultDetailScreen
 import ru.skatelab.capture.ui.session.SessionListScreen as ResultListScreen
-import ru.skatelab.shared.state.AuthUiState
 
 @InstallIn(SingletonComponent::class)
 @EntryPoint
