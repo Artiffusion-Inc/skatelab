@@ -179,13 +179,13 @@ components:
     padding: "32px"
   card-teal-band:
     backgroundColor: "{colors.surface-teal-deep}"
-    textColor: "{colors.on-primary}"
+    textColor: "{colors.primary-foreground}"
     typography: "{typography.body-lg}"
     rounded: "{rounded.lg}"
     padding: "64px"
   badge-opaque:
-    backgroundColor: "oklch(0.175 0.066 315 / 0.85)"
-    textColor: "{colors.on-primary}"
+    backgroundColor: "oklch(0.301 0.047 225 / 0.85)"
+    textColor: "{colors.primary-foreground}"
     typography: "{typography.micro}"
     rounded: "{rounded.md}"
     padding: "12px 16px"
@@ -197,7 +197,7 @@ components:
     padding: "8px 16px"
   nav-bar-dark:
     backgroundColor: "{colors.primary}"
-    textColor: "{colors.on-primary}"
+    textColor: "{colors.primary-foreground}"
     typography: "{typography.body-md}"
     rounded: "{rounded.xs}"
     padding: "16px 24px"
@@ -350,7 +350,7 @@ The hero's depth is the ice-soft atmospheric backdrop: a soft teal-to-ice radial
 - **Internal Padding:** 32px on pricing/feature cards, 24px on feature rows, 16px standard.
 
 ### Badge (Opaque)
-- **Background:** oklch(0.2 0.04 220 / 0.85), 1px border oklch(0.88 0.04 240 / 0.4).
+- **Background:** oklch(0.301 0.047 225 / 0.85), 1px border oklch(0.906 0.034 220 / 0.4).
 - **Text:** On-Primary for values, On-Dark-Mute for labels. **Never On-Dark-Faint** (fails WCAG AA).
 - **Radius:** 12px (md).
 
