@@ -11,6 +11,7 @@ from litestar.config.compression import CompressionConfig
 from litestar.config.cors import CORSConfig
 from litestar.config.response_cache import ResponseCacheConfig
 from litestar.exceptions import HTTPException
+from litestar.middleware import DefineMiddleware
 from litestar.middleware.rate_limit import RateLimitConfig
 from litestar.security.jwt import JWTAuth
 from sentry_sdk.integrations.litestar import LitestarIntegration
@@ -26,6 +27,7 @@ from app.di import dependencies
 from app.exceptions import http_exception_handler
 from app.lifespan import app_lifespan
 from app.logging_config import configure_logging
+from app.middleware.cookie_auth import CookieToHeaderMiddleware
 from app.models.user import User
 from app.routes import (
     auth,
@@ -70,7 +72,19 @@ def create_app(
     | None = None,
 ) -> Litestar:
     """Build and return the Litestar application."""
+    from os import environ
+
     settings = get_settings()
+
+    if (
+        environ.get("SKIP_JWT_SECRET_CHECK") != "true"
+        and settings.jwt.secret_key.get_secret_value() == "change-me-to-a-random-secret"
+    ):
+        raise RuntimeError(
+            "JWT secret key is using the default value. "
+            "Set JWT_SECRET_KEY environment variable to a secure random string. "
+            "Set SKIP_JWT_SECRET_CHECK=true to bypass (dev only)."
+        )
 
     # Assemble routers under /api/v1
     api_v1 = Router(
@@ -127,7 +141,17 @@ def create_app(
         ],
     )
 
-    init_handlers: list[Callable[[AppConfig], AppConfig]] = [jwt_auth.on_app_init]
+    def _inject_cookie_middleware(app_config: AppConfig) -> AppConfig:
+        """Insert CookieToHeaderMiddleware at position 0 (before JWTAuth) so it runs first on request."""
+        app_config.middleware.insert(0, DefineMiddleware(CookieToHeaderMiddleware))
+        return app_config
+
+    # jwt_auth.on_app_init inserts JWTAuth at position 0.
+    # Our callback must run AFTER so we can insert at position 0 to push ourselves ahead.
+    init_handlers: list[Callable[[AppConfig], AppConfig]] = [
+        jwt_auth.on_app_init,
+        _inject_cookie_middleware,
+    ]
     if on_app_init:
         init_handlers.extend(on_app_init if isinstance(on_app_init, list) else [on_app_init])
 

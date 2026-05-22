@@ -1,9 +1,12 @@
 /**
- * Auth API: schemas, token helpers, and endpoint wrappers.
+ * Auth API: schemas, cookie-based auth, and endpoint wrappers.
+ *
+ * Tokens are now httpOnly cookies set by the backend.
+ * The frontend only manages the `sb_auth` sentinel cookie.
  */
 
 import { z } from "zod"
-import { ApiError, apiFetch, clearTokens, getRefreshToken, setTokens } from "@/lib/api-client"
+import { ApiError, apiFetch, clearTokens } from "@/lib/api-client"
 
 // ---------------------------------------------------------------------------
 // Schemas
@@ -63,8 +66,8 @@ export type UserResponse = z.infer<typeof UserResponseSchema>
 export type UpdateProfileRequest = z.infer<typeof UpdateProfileRequestSchema>
 export type UpdateSettingsRequest = z.infer<typeof UpdateSettingsRequestSchema>
 
-// Re-export token helpers for consumers
-export { clearTokens, getAccessToken, getRefreshToken, setTokens } from "@/lib/api-client"
+// Re-export cookie helpers for consumers
+export { clearTokens } from "@/lib/api-client"
 
 // ---------------------------------------------------------------------------
 // Auth API
@@ -90,24 +93,20 @@ export async function login(data: LoginRequest): Promise<TokenResponse> {
   })
 }
 
-export async function refreshToken(refresh: string): Promise<TokenResponse> {
+export async function refreshToken(): Promise<TokenResponse> {
   return apiFetch("/auth/refresh", TokenResponseSchema, {
     method: "POST",
     auth: false,
     headers: JSON_POST,
-    body: JSON.stringify({ refresh_token: refresh }),
   })
 }
 
 export async function logout(): Promise<void> {
-  const refresh = getRefreshToken()
-  if (refresh) {
-    await fetch("/api/v1/auth/logout", {
-      method: "POST",
-      headers: JSON_POST,
-      body: JSON.stringify({ refresh_token: refresh }),
-    }).catch(() => {})
-  }
+  await fetch("/api/v1/auth/logout", {
+    method: "POST",
+    credentials: "include",
+    headers: JSON_POST,
+  }).catch(() => {})
   clearTokens()
 }
 
@@ -144,6 +143,7 @@ export async function updateOnboardingRole(
 export async function verifyEmail(token: string): Promise<{ message: string }> {
   const res = await fetch("/api/v1/auth/verify-email", {
     method: "POST",
+    credentials: "include",
     headers: JSON_POST,
     body: JSON.stringify({ token }),
   })
@@ -157,6 +157,7 @@ export async function verifyEmail(token: string): Promise<{ message: string }> {
 export async function resendVerification(email: string): Promise<{ message: string }> {
   const res = await fetch("/api/v1/auth/resend-verification", {
     method: "POST",
+    credentials: "include",
     headers: JSON_POST,
     body: JSON.stringify({ email }),
   })

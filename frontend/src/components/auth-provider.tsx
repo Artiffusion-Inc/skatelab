@@ -5,7 +5,7 @@ import { createContext, type ReactNode, useContext, useState } from "react"
 import { devMockAuth, isDevelopment } from "@/lib/env"
 import type { UserResponse } from "@/lib/auth"
 import * as auth from "@/lib/auth"
-import { clearTokens, getAccessToken, getRefreshToken } from "@/lib/api-client"
+import { clearTokens } from "@/lib/api-client"
 import { useMountEffect } from "@/lib/useMountEffect"
 
 interface AuthContextValue {
@@ -46,8 +46,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return
     }
 
-    const hasToken = getAccessToken() || getRefreshToken()
-    if (!hasToken) {
+    const hasSession = typeof document !== "undefined" && document.cookie.includes("sb_auth=1")
+    if (!hasSession) {
       setIsLoading(false)
       return
     }
@@ -63,15 +63,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   })
 
   async function login(email: string, password: string) {
-    const tokens = await auth.login({ email, password })
-    auth.setTokens(tokens.access_token, tokens.refresh_token)
+    await auth.login({ email, password })
+    // Backend sets httpOnly cookies via Set-Cookie headers.
+    // Set sb_auth sentinel for SSR gating.
+    document.cookie = "sb_auth=1; path=/; max-age=31536000; SameSite=Lax"
     const u = await auth.fetchMe()
     setUser(u)
   }
 
   async function register(email: string, password: string, displayName?: string) {
-    const tokens = await auth.register({ email, password, display_name: displayName })
-    auth.setTokens(tokens.access_token, tokens.refresh_token)
+    await auth.register({ email, password, display_name: displayName })
+    // Backend sets httpOnly cookies via Set-Cookie headers.
+    document.cookie = "sb_auth=1; path=/; max-age=31536000; SameSite=Lax"
     const u = await auth.fetchMe()
     setUser(u)
     router.push("/feed")

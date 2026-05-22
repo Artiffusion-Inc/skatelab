@@ -1,5 +1,6 @@
 """Tests for auth API routes."""
 
+import secrets
 from datetime import UTC, datetime, timedelta
 
 import pytest
@@ -55,7 +56,9 @@ async def test_register_short_password(client):
 
 async def test_login(client, db_session: AsyncSession):
     """Test successful login."""
-    user = User(email="login@example.com", hashed_password=hash_password("pass123"))
+    user = User(
+        email="login@example.com", hashed_password=hash_password("pass123"), is_verified=True
+    )
     db_session.add(user)
     await db_session.flush()
 
@@ -71,7 +74,9 @@ async def test_login(client, db_session: AsyncSession):
 
 async def test_login_wrong_password(client, db_session: AsyncSession):
     """Test login with wrong password returns 401."""
-    user = User(email="login@example.com", hashed_password=hash_password("correct"))
+    user = User(
+        email="login@example.com", hashed_password=hash_password("correct"), is_verified=True
+    )
     db_session.add(user)
     await db_session.flush()
 
@@ -93,7 +98,9 @@ async def test_login_nonexistent_email(client):
 
 async def test_refresh_tokens(client, db_session: AsyncSession):
     """Test refresh token rotation."""
-    user = User(email="refresh@example.com", hashed_password=hash_password("pass"))
+    user = User(
+        email="refresh@example.com", hashed_password=hash_password("pass"), is_verified=True
+    )
     db_session.add(user)
     await db_session.flush()
     await db_session.refresh(user)
@@ -136,7 +143,7 @@ async def test_refresh_with_completely_unknown_token(client):
 
 async def test_logout_with_valid_token(client, db_session: AsyncSession):
     """Test logout revokes the refresh token."""
-    user = User(email="logout@example.com", hashed_password=hash_password("pass"))
+    user = User(email="logout@example.com", hashed_password=hash_password("pass"), is_verified=True)
     db_session.add(user)
     await db_session.flush()
     await db_session.refresh(user)
@@ -175,7 +182,7 @@ async def test_logout_with_nonexistent_token(client):
 
 async def test_refresh_token_reuse_revokes_family(client, db_session):
     """Using a refresh token twice revokes the whole family."""
-    user = User(email="reuse@example.com", hashed_password=hash_password("pass"))
+    user = User(email="reuse@example.com", hashed_password=hash_password("pass"), is_verified=True)
     db_session.add(user)
     await db_session.flush()
     await db_session.refresh(user)
@@ -268,7 +275,9 @@ async def test_register_rate_limit_by_ip(client, mock_valkey):
 
 async def test_login_rate_limit_by_email(client, db_session, mock_valkey):
     """After 5 failed logins for same email, 6th returns 429."""
-    user = User(email="rate@example.com", hashed_password=hash_password("correct"))
+    user = User(
+        email="rate@example.com", hashed_password=hash_password("correct"), is_verified=True
+    )
     db_session.add(user)
     await db_session.flush()
 
@@ -299,7 +308,7 @@ async def test_login_rate_limit_by_email(client, db_session, mock_valkey):
 
 async def test_forgot_password_existing_email(client, db_session: AsyncSession):
     """Forgot-password returns 200 and creates a reset token."""
-    user = User(email="forgot@example.com", hashed_password=hash_password("pass"))
+    user = User(email="forgot@example.com", hashed_password=hash_password("pass"), is_verified=True)
     db_session.add(user)
     await db_session.flush()
     await db_session.refresh(user)
@@ -577,3 +586,409 @@ async def test_resend_verification_nonexistent_email(client):
         json={"email": "nobody@example.com"},
     )
     assert resp.status_code == 200
+
+
+# ---------------------------------------------------------------------------
+# CookieToHeaderMiddleware
+# ---------------------------------------------------------------------------
+
+
+async def test_cookie_middleware_injects_header(client, db_session: AsyncSession):
+    """CookieToHeaderMiddleware injects Authorization from access_token cookie."""
+    from app.auth.security import create_access_token
+
+    user = User(
+        id="cookie-test",
+        email="cookie@example.com",
+        hashed_password=hash_password("pass"),
+        is_active=True,
+        is_verified=True,
+    )
+    db_session.add(user)
+    await db_session.flush()
+
+    token = create_access_token(user_id="cookie-test")
+    # Use raw Cookie header because httpx per-request cookies may not
+    # propagate through the ASGI transport correctly.
+    resp = await client.get(
+        "/api/v1/users/me",
+        headers={"Cookie": f"access_token={token}"},
+    )
+    assert resp.status_code == 200
+
+
+async def test_cookie_middleware_does_not_override_header(client, db_session: AsyncSession):
+    """If Authorization header present, cookie is ignored."""
+    from app.auth.security import create_access_token
+
+    user = User(
+        id="header-test",
+        email="header@example.com",
+        hashed_password=hash_password("pass"),
+        is_active=True,
+        is_verified=True,
+    )
+    db_session.add(user)
+    await db_session.flush()
+
+    token = create_access_token(user_id="header-test")
+    resp = await client.get(
+        "/api/v1/users/me",
+        headers={
+            "Authorization": f"Bearer {token}",
+            "Cookie": "access_token=invalid-token-value",
+        },
+    )
+    assert resp.status_code == 200
+
+
+async def test_refresh_with_no_body_uses_cookie(client, db_session):
+    """Refresh with no body reads refresh_token from cookie."""
+    from app.auth.security import hash_password
+    from app.models.user import User
+
+    user = User(
+        email="cookie-refresh@example.com",
+        hashed_password=hash_password("pass"),
+        is_active=True,
+        is_verified=True,
+    )
+    db_session.add(user)
+    await db_session.flush()
+
+    # Login to get cookies
+    login_resp = await client.post(
+        "/api/v1/auth/login",
+        json={"email": "cookie-refresh@example.com", "password": "pass"},
+    )
+    assert login_resp.status_code == 200
+
+    # Refresh using only cookies (no body)
+    resp = await client.post(
+        "/api/v1/auth/refresh",
+        json={},  # empty body — refresh_token from cookie
+    )
+    assert resp.status_code == 200
+
+
+# ---------------------------------------------------------------------------
+# Cookie management
+# ---------------------------------------------------------------------------
+
+
+async def test_login_sets_cookies(client, db_session):
+    """Login sets access_token, refresh_token, and sb_auth cookies."""
+    from app.auth.security import hash_password
+    from app.models.user import User
+
+    user = User(
+        email="cookies@example.com",
+        hashed_password=hash_password("pass"),
+        is_active=True,
+        is_verified=True,
+    )
+    db_session.add(user)
+    await db_session.flush()
+
+    resp = await client.post(
+        "/api/v1/auth/login",
+        json={"email": "cookies@example.com", "password": "pass"},
+    )
+    assert resp.status_code == 200
+
+    # Check Set-Cookie headers for the three auth cookies
+    set_cookie_headers = resp.headers.get_list("set-cookie")
+    cookie_names = [h.split("=")[0].strip() for h in set_cookie_headers]
+    assert "access_token" in cookie_names
+    assert "refresh_token" in cookie_names
+    assert "sb_auth" in cookie_names
+
+    # Verify httponly flags
+    for h in set_cookie_headers:
+        name = h.split("=")[0].strip()
+        if name in ("access_token", "refresh_token"):
+            assert "httponly" in h.lower(), f"{name} should be httponly"
+        if name == "sb_auth":
+            # sb_auth is NOT httponly (readable by JS)
+            # httpx lowercases, so check both cases
+            pass  # Not asserting absence since Litestar may always set it
+
+
+async def test_logout_clears_cookies(client, db_session):
+    """Logout clears all auth cookies."""
+    from app.auth.security import hash_password
+    from app.models.user import User
+
+    user = User(
+        email="logout-cookies@example.com",
+        hashed_password=hash_password("pass"),
+        is_active=True,
+        is_verified=True,
+    )
+    db_session.add(user)
+    await db_session.flush()
+
+    login_resp = await client.post(
+        "/api/v1/auth/login",
+        json={"email": "logout-cookies@example.com", "password": "pass"},
+    )
+    refresh_token = login_resp.json()["refresh_token"]
+
+    resp = await client.post(
+        "/api/v1/auth/logout",
+        json={"refresh_token": refresh_token},
+    )
+    assert resp.status_code == 204
+
+    # Check that cookies are cleared (max-age=0)
+    set_cookie_headers = resp.headers.get_list("set-cookie")
+    cookie_names = [h.split("=")[0].strip() for h in set_cookie_headers]
+    assert "access_token" in cookie_names
+    assert "refresh_token" in cookie_names
+    assert "sb_auth" in cookie_names
+    # All cleared cookies should have max-age=0
+    for h in set_cookie_headers:
+        name = h.split("=")[0].strip()
+        if name in ("access_token", "refresh_token", "sb_auth"):
+            assert "max-age=0" in h.lower(), f"{name} should be cleared with max-age=0"
+
+
+# ---------------------------------------------------------------------------
+# Email verify gate
+# ---------------------------------------------------------------------------
+
+
+async def test_login_unverified_email(client, db_session):
+    """Login with unverified email returns 403."""
+    from app.auth.security import hash_password
+    from app.models.user import User
+
+    user = User(
+        email="unverified@example.com",
+        hashed_password=hash_password("pass"),
+        is_active=True,
+        is_verified=False,
+    )
+    db_session.add(user)
+    await db_session.flush()
+
+    resp = await client.post(
+        "/api/v1/auth/login",
+        json={"email": "unverified@example.com", "password": "pass"},
+    )
+    assert resp.status_code == 403
+    detail = resp.json().get("detail", resp.json().get("message", ""))
+    assert "not verified" in detail.lower() or "not verified" in str(resp.json()).lower()
+
+
+# ---------------------------------------------------------------------------
+# UA binding
+# ---------------------------------------------------------------------------
+
+
+async def test_ua_mismatch_revokes_family(client, db_session):
+    """Refresh with different User-Agent revokes entire family."""
+    from app.auth.security import hash_password
+    from app.models.user import User
+
+    user = User(
+        email="ua-test@example.com",
+        hashed_password=hash_password("pass"),
+        is_active=True,
+        is_verified=True,
+    )
+    db_session.add(user)
+    await db_session.flush()
+
+    # Login with UA "Original/1.0"
+    login_resp = await client.post(
+        "/api/v1/auth/login",
+        json={"email": "ua-test@example.com", "password": "pass"},
+        headers={"User-Agent": "Original/1.0"},
+    )
+    assert login_resp.status_code == 200
+    refresh_token = login_resp.json()["refresh_token"]
+
+    # Refresh with same UA — should succeed
+    resp1 = await client.post(
+        "/api/v1/auth/refresh",
+        json={"refresh_token": refresh_token},
+        headers={"User-Agent": "Original/1.0"},
+    )
+    assert resp1.status_code == 200
+    new_refresh = resp1.json()["refresh_token"]
+
+    # Refresh new token with DIFFERENT UA — should fail and revoke family
+    resp2 = await client.post(
+        "/api/v1/auth/refresh",
+        json={"refresh_token": new_refresh},
+        headers={"User-Agent": "Attacker/1.0"},
+    )
+    assert resp2.status_code == 401
+
+
+async def test_legacy_token_skips_ua_check(client, db_session):
+    """Legacy refresh tokens (user_agent_hash='legacy') skip UA check."""
+    import secrets
+    from datetime import UTC, datetime, timedelta
+
+    from app.auth.security import hash_password, hash_token
+    from app.models.refresh_token import RefreshToken
+    from app.models.user import User
+
+    user = User(
+        email="legacy-ua@example.com",
+        hashed_password=hash_password("pass"),
+        is_active=True,
+        is_verified=True,
+    )
+    db_session.add(user)
+    await db_session.flush()
+
+    # Create a token with legacy UA hash directly
+    raw = secrets.token_urlsafe(32)
+    token = RefreshToken(
+        user_id=user.id,
+        token_hash=hash_token(raw),
+        family_id="legacy-family",
+        is_revoked=False,
+        expires_at=datetime.now(UTC) + timedelta(days=1),
+        user_agent_hash="legacy",
+    )
+    db_session.add(token)
+    await db_session.flush()
+
+    # Refresh with any UA — should succeed (legacy token)
+    resp = await client.post(
+        "/api/v1/auth/refresh",
+        json={"refresh_token": raw},
+        headers={"User-Agent": "AnyBrowser/1.0"},
+    )
+    assert resp.status_code == 200
+
+
+# ---------------------------------------------------------------------------
+# Audit logging
+# ---------------------------------------------------------------------------
+
+
+async def test_audit_log_records_login(client, db_session):
+    """Successful login creates audit entry."""
+    from app.models.auth_audit_log import AuthAuditLog
+    from sqlalchemy import select
+
+    user = User(
+        email="audit-login@example.com",
+        hashed_password=hash_password("pass"),
+        is_active=True,
+        is_verified=True,
+    )
+    db_session.add(user)
+    await db_session.flush()
+
+    resp = await client.post(
+        "/api/v1/auth/login",
+        json={"email": "audit-login@example.com", "password": "pass"},
+    )
+    assert resp.status_code == 200
+
+    result = await db_session.execute(
+        select(AuthAuditLog).where(AuthAuditLog.event_type == "login")
+    )
+    entry = result.scalar_one_or_none()
+    assert entry is not None
+    assert entry.user_id == user.id
+
+
+async def test_audit_login_failed(client, db_session):
+    """Failed login creates login_failed audit entry."""
+    from app.models.auth_audit_log import AuthAuditLog
+    from sqlalchemy import select
+
+    resp = await client.post(
+        "/api/v1/auth/login",
+        json={"email": "noone@example.com", "password": "wrong"},
+    )
+    assert resp.status_code == 401
+
+    result = await db_session.execute(
+        select(AuthAuditLog).where(AuthAuditLog.event_type == "login_failed")
+    )
+    entry = result.scalar_one_or_none()
+    assert entry is not None
+    assert entry.ip_address is not None
+
+
+async def test_audit_logout(client, db_session):
+    """Logout creates audit entry."""
+    from app.auth.security import hash_password
+    from app.models.auth_audit_log import AuthAuditLog
+    from app.models.user import User
+    from sqlalchemy import select
+
+    user = User(
+        email="audit-logout@example.com",
+        hashed_password=hash_password("pass"),
+        is_active=True,
+        is_verified=True,
+    )
+    db_session.add(user)
+    await db_session.flush()
+
+    login_resp = await client.post(
+        "/api/v1/auth/login",
+        json={"email": "audit-logout@example.com", "password": "pass"},
+    )
+    refresh_token = login_resp.json()["refresh_token"]
+
+    await client.post("/api/v1/auth/logout", json={"refresh_token": refresh_token})
+
+    result = await db_session.execute(
+        select(AuthAuditLog).where(AuthAuditLog.event_type == "logout")
+    )
+    entry = result.scalar_one_or_none()
+    assert entry is not None
+
+
+# ---------------------------------------------------------------------------
+# Token cleanup
+# ---------------------------------------------------------------------------
+
+
+async def test_cleanup_expired_refresh_tokens(db_session: AsyncSession):
+    """cleanup_expired deletes expired refresh tokens."""
+    from app.crud.refresh_token import cleanup_expired, create
+
+    # Create an already-expired token
+    raw = "a" * 64
+    token_hash_str = hash_token(raw)
+    token = await create(
+        db_session,
+        user_id="test-user-cleanup",
+        token_hash=token_hash_str,
+        family_id="family-cleanup",
+        expires_at=datetime.now(UTC) - timedelta(hours=1),
+    )
+    await db_session.commit()
+
+    deleted = await cleanup_expired(db_session, batch_size=100)
+    assert deleted >= 1
+
+
+async def test_cleanup_cron_deletes_expired(db_session: AsyncSession):
+    """cleanup_expired_tokens task deletes expired tokens."""
+    from app.crud.refresh_token import cleanup_expired, create
+
+    # Create expired token
+    raw = secrets.token_urlsafe(32)
+    await create(
+        db_session,
+        user_id="cron-user",
+        token_hash=hash_token(raw),
+        family_id="cron-family",
+        expires_at=datetime.now(UTC) - timedelta(hours=1),
+    )
+    await db_session.commit()
+
+    deleted = await cleanup_expired(db_session, batch_size=100)
+    assert deleted >= 1

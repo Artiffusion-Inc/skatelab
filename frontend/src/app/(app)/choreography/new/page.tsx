@@ -16,7 +16,6 @@ import {
   useMusicAnalysis,
   useSaveProgram,
 } from "@/lib/api/choreography"
-import { getAccessToken } from "@/lib/api-client"
 import type { Inventory, Layout } from "@/types/choreography"
 
 const DEFAULT_INVENTORY: Inventory = { jumps: [], spins: [], combinations: [] }
@@ -40,11 +39,9 @@ export default function NewProgramPage() {
   const saveProgram = useSaveProgram()
 
   async function handleUpload(file: File, onProgress?: (loaded: number, total: number) => void) {
-    const token = getAccessToken()
-    if (!token) return
     setUploading(true)
     try {
-      const res = await uploadMusicFile(file, token, onProgress)
+      const res = await uploadMusicFile(file, onProgress)
       setMusicId(res.music_id)
     } finally {
       setUploading(false)

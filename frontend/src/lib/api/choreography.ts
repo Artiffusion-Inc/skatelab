@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { z } from "zod"
-import { API_BASE, apiDelete, apiFetch, apiPatch, apiPost, getAccessToken } from "@/lib/api-client"
+import { API_BASE, apiDelete, apiFetch, apiPatch, apiPost } from "@/lib/api-client"
 
 // ---------------------------------------------------------------------------
 // Zod Schemas
@@ -155,7 +155,6 @@ export function useMusicAnalysis(musicId: string | undefined) {
 
 export function uploadMusicFile(
   file: File,
-  token: string | null,
   onProgress?: (loaded: number, total: number) => void,
 ): Promise<z.infer<typeof UploadMusicResponseSchema>> {
   return new Promise((resolve, reject) => {
@@ -163,8 +162,8 @@ export function uploadMusicFile(
     form.append("file", file)
     const xhr = new XMLHttpRequest()
     // Upload directly to backend to avoid Next.js 10MB body limit on proxy
-    xhr.open("POST", "http://localhost:8000/api/v1/choreography/music/upload")
-    xhr.setRequestHeader("Authorization", `Bearer ${token}`)
+    xhr.open("POST", `${API_BASE}/choreography/music/upload`)
+    xhr.withCredentials = true
     xhr.upload.onprogress = e => {
       if (e.lengthComputable && onProgress) onProgress(e.loaded, e.total)
     }
@@ -194,7 +193,7 @@ export function uploadMusicFile(
 export function useUploadMusic() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (file: File) => uploadMusicFile(file, getAccessToken()),
+    mutationFn: (file: File) => uploadMusicFile(file),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["music-analysis"] }),
   })
 }

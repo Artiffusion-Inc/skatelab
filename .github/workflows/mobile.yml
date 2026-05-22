@@ -88,6 +88,15 @@ jobs:
           path: mobile/shared/build/reports/kover/report.xml
           retention-days: 14
 
+      - name: Upload to Codecov
+        if: success()
+        uses: codecov/codecov-action@v4
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: mobile/shared/build/reports/kover/report.xml
+          flags: shared
+          fail_ci_if_error: false
+
   # ── Android lint ──────────────────────────────────────────────
   android-lint:
     name: Android lint
@@ -134,6 +143,15 @@ jobs:
           name: android-coverage-xml
           path: mobile/androidApp/build/reports/kover/debug/report.xml
           retention-days: 14
+
+      - name: Upload to Codecov
+        if: success()
+        uses: codecov/codecov-action@v4
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: mobile/androidApp/build/reports/kover/debug/report.xml
+          flags: android
+          fail_ci_if_error: false
 
   # ── Debug APK build ───────────────────────────────────────────
   android-build-debug:

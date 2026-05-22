@@ -1,6 +1,9 @@
 /**
- * Shared API infrastructure: base URL, token storage, typed fetch helper,
+ * Shared API infrastructure: base URL, cookie-based auth, typed fetch helper,
  * silent refresh with mutex on 401.
+ *
+ * Auth tokens are now set as httpOnly cookies by the backend.
+ * The frontend only manages the `sb_auth` sentinel cookie for SSR gating.
  */
 
 import { z } from "zod"
@@ -8,33 +11,27 @@ import { z } from "zod"
 export const API_BASE = "/api/v1"
 
 // ---------------------------------------------------------------------------
-// Token storage
+// Token storage (stubs — cookies set by backend, kept for rollback compat)
 // ---------------------------------------------------------------------------
 
-const TOKEN_KEY = "access_token"
-const REFRESH_KEY = "refresh_token"
-
+/** @deprecated Cookies are set by the backend. Returns null. */
 export function getAccessToken(): string | null {
-  if (typeof window === "undefined") return null
-  return localStorage.getItem(TOKEN_KEY)
+  return null
 }
 
+/** @deprecated Cookies are set by the backend. Returns null. */
 export function getRefreshToken(): string | null {
-  if (typeof window === "undefined") return null
-  return localStorage.getItem(REFRESH_KEY)
+  return null
 }
 
-export function setTokens(access: string, refresh: string) {
-  localStorage.setItem(TOKEN_KEY, access)
-  localStorage.setItem(REFRESH_KEY, refresh)
-  // biome-ignore lint: sync auth cookie for SSR gating
+/** @deprecated No-op: tokens are now set via httpOnly cookies by the backend. Stub kept for rollback compat. */
+export function setTokens(_access: string, _refresh: string): void {
+  // No-op: backend sets httpOnly cookies via Set-Cookie headers.
+  // Keep sb_auth sentinel for SSR gating
   document.cookie = "sb_auth=1; path=/; max-age=31536000; SameSite=Lax"
 }
 
-export function clearTokens() {
-  localStorage.removeItem(TOKEN_KEY)
-  localStorage.removeItem(REFRESH_KEY)
-  // biome-ignore lint: clear auth cookie on logout
+export function clearTokens(): void {
   document.cookie = "sb_auth=; path=/; max-age=0"
 }
 
@@ -58,19 +55,17 @@ export class ApiError extends Error {
 let refreshPromise: Promise<boolean> | null = null
 
 async function silentRefresh(): Promise<boolean> {
-  const refresh = getRefreshToken()
-  if (!refresh) return false
-
   try {
     const res = await fetch(`${API_BASE}/auth/refresh`, {
       method: "POST",
+      credentials: "include",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ refresh_token: refresh }),
     })
     if (!res.ok) return false
 
-    const data: { access_token: string; refresh_token: string } = await res.json()
-    setTokens(data.access_token, data.refresh_token)
+    // Backend sets new httpOnly cookies via Set-Cookie headers automatically.
+    // Refresh the sb_auth sentinel so SSR gating stays in sync.
+    document.cookie = "sb_auth=1; path=/; max-age=31536000; SameSite=Lax"
     return true
   } catch {
     return false
@@ -85,11 +80,6 @@ function handleAuthFailure(): never {
 // ---------------------------------------------------------------------------
 // Typed fetch
 // ---------------------------------------------------------------------------
-
-function authHeaders(): Record<string, string> {
-  const token = getAccessToken()
-  return token ? { Authorization: `Bearer ${token}` } : {}
-}
 
 export async function apiFetch<T>(
   path: string,
@@ -106,7 +96,8 @@ export async function apiFetch<T>(
   try {
     res = await fetch(`${API_BASE}${path}`, {
       ...rest,
-      headers: { ...(auth ? authHeaders() : {}), ...headers },
+      credentials: "include",
+      headers,
     })
   } catch (error) {
     throw new ApiError(error instanceof Error ? error.message : "Network error", 0)
@@ -124,7 +115,8 @@ export async function apiFetch<T>(
       try {
         const retryRes = await fetch(`${API_BASE}${path}`, {
           ...rest,
-          headers: { ...authHeaders(), ...headers },
+          credentials: "include",
+          headers,
         })
         if (retryRes.status === 204) return undefined as T
         if (!retryRes.ok) {
@@ -156,7 +148,8 @@ export async function apiFetch<T>(
 export async function authFetch(path: string, init?: RequestInit): Promise<Response> {
   const res = await fetch(`${API_BASE}${path}`, {
     ...init,
-    headers: { ...authHeaders(), ...init?.headers },
+    credentials: "include",
+    headers: init?.headers,
   })
 
   if (res.status === 401) {
@@ -169,7 +162,8 @@ export async function authFetch(path: string, init?: RequestInit): Promise<Respo
     if (refreshed) {
       return fetch(`${API_BASE}${path}`, {
         ...init,
-        headers: { ...authHeaders(), ...init?.headers },
+        credentials: "include",
+        headers: init?.headers,
       })
     }
     handleAuthFailure()

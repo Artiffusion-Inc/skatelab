@@ -5,9 +5,8 @@
 - **Framework**: Next.js 16 + Turbopack. No middleware → server components for auth
 - **Language**: TypeScript, React 19
 - **Styling**: Tailwind CSS v4, shadcn/ui, OKLCH color system
-- **State**: React Query (@tanstack/react-query) + Zod schema validation
+- **State**: React Query (tanstack/react-query) + Zod schema validation
 - **i18n**: next-intl. Messages: `frontend/messages/ru.json`, `en.json`
-- **React Query**: @tanstack/react-query for server state
 - **Icons**: Lucide React
 - **Charts**: Recharts
 - **Runtime**: bun. No npm/npx
@@ -91,28 +90,16 @@ No `useEffect` directly. Use these:
 
 ### Data Fetching
 
-React Query + Zod validation:
-```typescript
-export function useSessions(userId?: string) {
-  return useQuery({
-    queryKey: ["sessions", userId],
-    queryFn: () => apiFetch("/sessions?" + params, SessionListSchema),
-  })
-}
-```
+React Query + Zod validation. Hooks in `lib/api/` use `useQuery` with `queryKey` and `apiFetch` + Zod schema.
 
 ### Component Structure Convention
 
-```typescript
-export function Component({ prop }: Props) {
-  // 1. Hooks first (useQuery, useAuth, useTranslations)
-  // 2. Local state (useState)
-  // 3. Computed values (NOT useEffect + setState)
-  // 4. Event handlers
-  // 5. Early returns (isLoading, !data)
-  // 6. Render
-}
-```
+1. Hooks first (useQuery, useAuth, useTranslations)
+2. Local state (useState)
+3. Computed values (NOT useEffect + setState)
+4. Event handlers
+5. Early returns (isLoading, !data)
+6. Render
 
 ## Auth Architecture
 
@@ -145,11 +132,7 @@ No middleware — Turbopack unreliable.
 
 ## Element Labels
 
-Use i18n. No local constants:
-```typescript
-const te = useTranslations("elements")
-const label = te("waltz_jump") // "Вальсовый" / "Waltz Jump"
-```
+Use i18n via `useTranslations("elements")`. No local constants for element names.
 
 ## Before Committing
 
