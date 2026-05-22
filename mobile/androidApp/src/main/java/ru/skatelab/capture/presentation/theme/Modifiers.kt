@@ -6,124 +6,121 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 
 object SkateLabModifiers {
-    private val roundedXs = RoundedCornerShape(4.dp)
-    private val roundedSm = RoundedCornerShape(6.dp)
-    private val roundedMd = RoundedCornerShape(12.dp)
-    private val roundedLg = RoundedCornerShape(16.dp)
-    private val roundedXl = RoundedCornerShape(20.dp)
-    private val rounded2xl = RoundedCornerShape(30.dp)
-    private val roundedFull = RoundedCornerShape(9999.dp)
+    // Rounded shapes
+    val roundedXs = RoundedCornerShape(4.dp)
+    val roundedSm = RoundedCornerShape(6.dp)
+    val roundedMd = RoundedCornerShape(12.dp)
+    val roundedLg = RoundedCornerShape(16.dp)
+    val roundedXl = RoundedCornerShape(20.dp)
+    val rounded2xl = RoundedCornerShape(30.dp)
+    val roundedFull = RoundedCornerShape(percent = 50)
 
-    // Buttons
-    val buttonPrimaryDark: Modifier
-        get() =
-            Modifier
-                .background(SkateLabColors.primary, roundedMd)
-                .padding(horizontal = 20.dp, vertical = 12.dp)
+    // Spacing scale
+    val spaceXxs = 2.dp
+    val spaceXs = 4.dp
+    val spaceSm = 8.dp
+    val spaceMd = 12.dp
+    val spaceLg = 16.dp
+    val spaceXl = 24.dp
+    val spaceXxl = 32.dp
+    val spaceHuge = 64.dp
 
-    val buttonPrimaryDarkPressed: Modifier
-        get() =
-            Modifier
-                .background(SkateLabColors.primaryDeep, roundedMd)
-                .padding(horizontal = 20.dp, vertical = 12.dp)
+    // Component modifiers (15 component token sets)
+    fun Modifier.cardFeatureLight(): Modifier =
+        this
+            .clip(roundedLg)
+            .background(SkateLabColors.canvas)
+            .padding(32.dp)
 
-    val buttonOnDarkPill: Modifier
-        get() =
-            Modifier
-                .background(SkateLabColors.surfaceIceSoft, roundedFull)
-                .padding(horizontal = 20.dp, vertical = 12.dp)
+    fun Modifier.cardTealBand(): Modifier =
+        this
+            .clip(roundedLg)
+            .background(SkateLabColors.surfaceTealDeep)
+            .padding(64.dp)
 
-    val buttonSecondaryOutline: Modifier
-        get() =
-            Modifier
-                .background(SkateLabColors.canvas, roundedMd)
-                .border(1.dp, SkateLabColors.hairlineDark, roundedMd)
-                .padding(horizontal = 20.dp, vertical = 12.dp)
+    fun Modifier.textInput(): Modifier =
+        this
+            .clip(roundedSm)
+            .background(SkateLabColors.canvas)
+            .border(1.dp, SkateLabColors.hairline, roundedSm)
+            .padding(horizontal = 12.dp, vertical = 10.dp)
 
-    val buttonOnTeal: Modifier
-        get() =
-            Modifier
-                .background(SkateLabColors.canvas, roundedMd)
-                .padding(horizontal = 20.dp, vertical = 12.dp)
+    fun Modifier.badgeOpaque(): Modifier =
+        this
+            .clip(roundedMd)
+            .background(Color(0xD90E3340))
+            .border(1.dp, Color(0x66C8E6F0), roundedMd)
+            .padding(horizontal = 16.dp, vertical = 12.dp)
 
-    val buttonGhost: Modifier
-        get() =
-            Modifier
-                .background(Color.Transparent, roundedMd)
-                .padding(horizontal = 20.dp, vertical = 12.dp)
+    fun Modifier.buttonPrimaryDark(): Modifier =
+        this
+            .clip(roundedMd)
+            .background(SkateLabColors.primary)
+            .padding(horizontal = 20.dp, vertical = 12.dp)
 
-    // Inputs
-    val textInput: Modifier
-        get() =
-            Modifier
-                .background(SkateLabColors.canvas, roundedSm)
-                .border(1.dp, SkateLabColors.hairline, roundedSm)
-                .padding(horizontal = 12.dp, vertical = 10.dp)
+    fun Modifier.buttonPrimaryDarkPressed(): Modifier =
+        this
+            .clip(roundedMd)
+            .background(SkateLabColors.primaryDeep)
+            .padding(horizontal = 20.dp, vertical = 12.dp)
 
-    // Cards
-    val cardFeatureLight: Modifier
-        get() =
-            Modifier
-                .background(SkateLabColors.canvas, roundedLg)
-                .padding(32.dp)
+    fun Modifier.buttonOnDarkPill(): Modifier =
+        this
+            .clip(roundedFull)
+            .background(SkateLabColors.surfaceIceSoft)
+            .padding(horizontal = 20.dp, vertical = 12.dp)
 
-    val cardTealBand: Modifier
-        get() =
-            Modifier
-                .background(SkateLabColors.surfaceTealDeep, roundedLg)
-                .padding(64.dp)
+    fun Modifier.buttonSecondaryOutline(): Modifier =
+        this
+            .clip(roundedMd)
+            .background(SkateLabColors.canvas)
+            .border(1.dp, SkateLabColors.hairlineDark, roundedMd)
+            .padding(horizontal = 20.dp, vertical = 12.dp)
 
-    // Badge
-    val badgeOpaque: Modifier
-        get() =
-            Modifier
-                .background(
-                    color = SkateLabColors.primaryDeep.copy(alpha = 0.85f),
-                    shape = roundedMd,
-                )
-                .border(
-                    width = 1.dp,
-                    color = SkateLabColors.surfaceIceSoft.copy(alpha = 0.4f),
-                    shape = roundedMd,
-                )
-                .padding(horizontal = 16.dp, vertical = 12.dp)
+    fun Modifier.buttonOnTeal(): Modifier =
+        this
+            .clip(roundedMd)
+            .background(SkateLabColors.canvas)
+            .padding(horizontal = 20.dp, vertical = 12.dp)
 
-    // Navigation & Tabs
-    val pillTabLight: Modifier
-        get() =
-            Modifier
-                .background(SkateLabColors.canvas, roundedFull)
-                .padding(horizontal = 16.dp, vertical = 8.dp)
+    fun Modifier.buttonGhost(): Modifier =
+        this
+            .clip(roundedMd)
+            .background(Color.Transparent)
+            .padding(horizontal = 20.dp, vertical = 12.dp)
 
-    val navBarDark: Modifier
-        get() =
-            Modifier
-                .background(SkateLabColors.primary, roundedXs)
-                .padding(horizontal = 24.dp, vertical = 16.dp)
+    fun Modifier.buttonDestructive(): Modifier =
+        this
+            .clip(roundedMd)
+            .background(Color(0x1AC0392B))
+            .padding(horizontal = 20.dp, vertical = 12.dp)
 
-    val navBarLight: Modifier
-        get() =
-            Modifier
-                .background(SkateLabColors.canvas, roundedXs)
-                .padding(horizontal = 24.dp, vertical = 16.dp)
+    fun Modifier.pillTabLight(): Modifier =
+        this
+            .clip(roundedFull)
+            .background(SkateLabColors.canvas)
+            .padding(horizontal = 16.dp, vertical = 8.dp)
 
-    val footerLight: Modifier
-        get() =
-            Modifier
-                .background(SkateLabColors.canvas, roundedXs)
-                .padding(horizontal = 24.dp, vertical = 64.dp)
+    fun Modifier.navBarDark(): Modifier =
+        this
+            .clip(roundedXs)
+            .background(SkateLabColors.primary)
+            .padding(horizontal = 24.dp, vertical = 16.dp)
 
-    // Shadow references
-    val shadowAmbientLow: Modifier
-        get() = SkateLabShadows.ambientLow
+    fun Modifier.navBarLight(): Modifier =
+        this
+            .clip(roundedXs)
+            .background(SkateLabColors.canvas)
+            .padding(horizontal = 24.dp, vertical = 16.dp)
 
-    val shadowAmbientMedium: Modifier
-        get() = SkateLabShadows.ambientMedium
-
-    val shadowAmbientHigh: Modifier
-        get() = SkateLabShadows.ambientHigh
+    fun Modifier.footerLight(): Modifier =
+        this
+            .clip(roundedXs)
+            .background(SkateLabColors.canvas)
+            .padding(horizontal = 24.dp, vertical = 64.dp)
 }

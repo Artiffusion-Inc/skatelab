@@ -3,78 +3,101 @@ import SwiftUI
 
 @available(iOS 15, *)
 public struct SkateLabColorScheme {
-    public var background:             Color
-    public var foreground:             Color
-    public var card:                   Color
-    public var cardForeground:         Color
-    public var popover:                Color
-    public var popoverForeground:      Color
-    public var primary:                Color
-    public var primaryForeground:      Color
-    public var secondary:              Color
-    public var secondaryForeground:    Color
-    public var muted:                  Color
-    public var mutedForeground:        Color
-    public var accent:                 Color
-    public var accentForeground:       Color
-    public var destructive:            Color
-    public var destructiveForeground:  Color
-    public var border:                 Color
-    public var input:                  Color
-    public var ring:                   Color
-
-    public init(
-        background:             Color = .skateCanvas,
-        foreground:             Color = .skateInk,
-        card:                   Color = .skateCanvas,
-        cardForeground:         Color = .skateInk,
-        popover:                Color = .skateCanvas,
-        popoverForeground:      Color = .skateInk,
-        primary:                Color = .skatePrimary,
-        primaryForeground:      Color = .skatePrimaryForeground,
-        secondary:              Color = .skateCanvasSoft,
-        secondaryForeground:    Color = .skateInk,
-        muted:                  Color = .skateCanvasSoft,
-        mutedForeground:        Color = .skateInkMute,
-        accent:                 Color = .skateAccentGold,
-        accentForeground:       Color = .skateInk,
-        destructive:            Color = .skateDestructive,
-        destructiveForeground:  Color = .skatePrimaryForeground,
-        border:                 Color = .skateHairline,
-        input:                  Color = .skateHairline,
-        ring:                   Color = .skateRing
-    ) {
-        self.background             = background
-        self.foreground             = foreground
-        self.card                   = card
-        self.cardForeground         = cardForeground
-        self.popover                = popover
-        self.popoverForeground      = popoverForeground
-        self.primary                = primary
-        self.primaryForeground      = primaryForeground
-        self.secondary              = secondary
-        self.secondaryForeground    = secondaryForeground
-        self.muted                  = muted
-        self.mutedForeground        = mutedForeground
-        self.accent                 = accent
-        self.accentForeground       = accentForeground
-        self.destructive            = destructive
-        self.destructiveForeground  = destructiveForeground
-        self.border                 = border
-        self.input                  = input
-        self.ring                   = ring
-    }
+    public let primary: Color
+    public let primaryDeep: Color
+    public let primaryForeground: Color
+    public let ink: Color
+    public let inkMute: Color
+    public let inkFaint: Color
+    public let canvas: Color
+    public let canvasSoft: Color
+    public let surfaceIceSoft: Color
+    public let surfaceTealDeep: Color
+    public let surfaceTealMid: Color
+    public let hairline: Color
+    public let hairlineDark: Color
+    public let onDarkMute: Color
+    public let onDarkDim: Color
+    public let onDarkFaint: Color
+    public let destructive: Color
+    public let link: Color
+    public let ring: Color
+    public let scoreGood: Color
+    public let scoreMid: Color
+    public let scoreBad: Color
+    public let accentGold: Color
+    public let onPrimary: Color
+    public let background: Color
+    public let foreground: Color
+    public let card: Color
+    public let cardForeground: Color
+    public let popover: Color
+    public let popoverForeground: Color
+    public let secondary: Color
+    public let secondaryForeground: Color
+    public let muted: Color
+    public let mutedForeground: Color
+    public let accent: Color
+    public let accentForeground: Color
+    public let destructiveForeground: Color
+    public let border: Color
+    public let input: Color
 }
 
 @available(iOS 15, *)
-private struct SkateLabColorsKey: EnvironmentKey {
-    static let defaultValue = SkateLabColorScheme()
+private struct SkateLabColorSchemeKey: EnvironmentKey {
+    static let defaultValue: SkateLabColorScheme = .skateLabDefault
 }
 
 @available(iOS 15, *)
 public extension EnvironmentValues {
     var skateLabColors: SkateLabColorScheme {
-        get { self[SkateLabColorsKey.self] }
-        set { self[SkateLabColorsKey.self] = newValue }
+        get { self[SkateLabColorSchemeKey.self] }
+        set { self[SkateLabColorSchemeKey.self] = newValue }
     }
+}
+
+@available(iOS 15, *)
+public extension SkateLabColorScheme {
+    static let skateLabDefault = SkateLabColorScheme(
+        primary: .skatePrimary,
+        primaryDeep: .skatePrimaryDeep,
+        primaryForeground: .skatePrimaryForeground,
+        ink: .skateInk,
+        inkMute: .skateInkMute,
+        inkFaint: .skateInkFaint,
+        canvas: .skateCanvas,
+        canvasSoft: .skateCanvasSoft,
+        surfaceIceSoft: .skateSurfaceIceSoft,
+        surfaceTealDeep: .skateSurfaceTealDeep,
+        surfaceTealMid: .skateSurfaceTealMid,
+        hairline: .skateHairline,
+        hairlineDark: .skateHairlineDark,
+        onDarkMute: .skateOnDarkMute,
+        onDarkDim: .skateOnDarkDim,
+        onDarkFaint: .skateOnDarkFaint,
+        destructive: .skateDestructive,
+        link: .skateLink,
+        ring: .skateRing,
+        scoreGood: .skateScoreGood,
+        scoreMid: .skateScoreMid,
+        scoreBad: .skateScoreBad,
+        accentGold: .skateAccentGold,
+        onPrimary: .skateOnPrimary,
+        background: .skateBackground,
+        foreground: .skateForeground,
+        card: .skateCard,
+        cardForeground: .skateCardForeground,
+        popover: .skatePopover,
+        popoverForeground: .skatePopoverForeground,
+        secondary: .skateSecondary,
+        secondaryForeground: .skateSecondaryForeground,
+        muted: .skateMuted,
+        mutedForeground: .skateMutedForeground,
+        accent: .skateAccent,
+        accentForeground: .skateAccentForeground,
+        destructiveForeground: .skateDestructiveForeground,
+        border: .skateBorder,
+        input: .skateInput
+    )
 }

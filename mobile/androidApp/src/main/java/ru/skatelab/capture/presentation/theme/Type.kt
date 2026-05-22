@@ -5,17 +5,25 @@ import android.os.Build
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontVariation
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import ru.skatelab.capture.R
 
-val InterVariable =
+private val InterVariable =
     FontFamily(
-        Font(R.font.inter_variable, FontWeight.Normal),
+        Font(
+            resId = R.font.inter_variable,
+            variationSettings =
+                FontVariation.Settings(
+                    FontVariation.weight(400),
+                    FontVariation.slant(0f),
+                ),
+        ),
     )
 
-val InterFallback =
+private val InterFallback =
     FontFamily(
         Font(R.font.inter_regular, FontWeight.Normal),
         Font(R.font.inter_medium, FontWeight.Medium),
@@ -23,14 +31,21 @@ val InterFallback =
         Font(R.font.inter_bold, FontWeight.Bold),
     )
 
-fun weightOrFallback(requested: Int): FontWeight {
-    return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-        FontWeight(requested)
+private val SkateLabFontFamily: FontFamily =
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+        InterVariable
     } else {
-        when {
-            requested < 500 -> FontWeight.Normal
-            requested < 600 -> FontWeight.Medium
-            requested < 700 -> FontWeight.SemiBold
+        InterFallback
+    }
+
+fun weightOrFallback(desired: Int): FontWeight {
+    return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+        FontWeight(desired)
+    } else {
+        when (desired) {
+            in 0..450 -> FontWeight.Normal
+            in 451..550 -> FontWeight.Medium
+            in 551..650 -> FontWeight.SemiBold
             else -> FontWeight.Bold
         }
     }
@@ -57,23 +72,23 @@ val SkateLabTypographyDefaults =
     SkateLabTypography(
         displayXxl =
             TextStyle(
-                fontFamily = InterVariable,
-                fontSize = 64.sp,
+                fontFamily = SkateLabFontFamily,
+                fontSize = 36.sp,
                 fontWeight = weightOrFallback(540),
                 lineHeight = 0.96.em,
                 letterSpacing = 0.sp,
             ),
         displayXl =
             TextStyle(
-                fontFamily = InterVariable,
-                fontSize = 48.sp,
+                fontFamily = SkateLabFontFamily,
+                fontSize = 32.sp,
                 fontWeight = weightOrFallback(460),
                 lineHeight = 0.96.em,
                 letterSpacing = (-1.32).sp,
             ),
         displayLg =
             TextStyle(
-                fontFamily = InterVariable,
+                fontFamily = SkateLabFontFamily,
                 fontSize = 28.sp,
                 fontWeight = weightOrFallback(540),
                 lineHeight = 1.14.em,
@@ -81,7 +96,7 @@ val SkateLabTypographyDefaults =
             ),
         displayMd =
             TextStyle(
-                fontFamily = InterVariable,
+                fontFamily = SkateLabFontFamily,
                 fontSize = 22.sp,
                 fontWeight = weightOrFallback(460),
                 lineHeight = 1.1.em,
@@ -89,7 +104,7 @@ val SkateLabTypographyDefaults =
             ),
         headingLg =
             TextStyle(
-                fontFamily = InterVariable,
+                fontFamily = SkateLabFontFamily,
                 fontSize = 20.sp,
                 fontWeight = weightOrFallback(460),
                 lineHeight = 1.2.em,
@@ -97,7 +112,7 @@ val SkateLabTypographyDefaults =
             ),
         bodyLg =
             TextStyle(
-                fontFamily = InterVariable,
+                fontFamily = SkateLabFontFamily,
                 fontSize = 18.sp,
                 fontWeight = weightOrFallback(540),
                 lineHeight = 1.5.em,
@@ -105,7 +120,7 @@ val SkateLabTypographyDefaults =
             ),
         bodyMd =
             TextStyle(
-                fontFamily = InterVariable,
+                fontFamily = SkateLabFontFamily,
                 fontSize = 16.sp,
                 fontWeight = weightOrFallback(460),
                 lineHeight = 1.5.em,
@@ -113,7 +128,7 @@ val SkateLabTypographyDefaults =
             ),
         bodyStrong =
             TextStyle(
-                fontFamily = InterVariable,
+                fontFamily = SkateLabFontFamily,
                 fontSize = 18.72.sp,
                 fontWeight = weightOrFallback(700),
                 lineHeight = 1.5.em,
@@ -121,7 +136,7 @@ val SkateLabTypographyDefaults =
             ),
         buttonMd =
             TextStyle(
-                fontFamily = InterVariable,
+                fontFamily = SkateLabFontFamily,
                 fontSize = 16.sp,
                 fontWeight = weightOrFallback(700),
                 lineHeight = 1.0.em,
@@ -129,7 +144,7 @@ val SkateLabTypographyDefaults =
             ),
         buttonCap =
             TextStyle(
-                fontFamily = InterVariable,
+                fontFamily = SkateLabFontFamily,
                 fontSize = 14.sp,
                 fontWeight = weightOrFallback(600),
                 lineHeight = 1.0.em,
@@ -137,7 +152,7 @@ val SkateLabTypographyDefaults =
             ),
         caption =
             TextStyle(
-                fontFamily = InterVariable,
+                fontFamily = SkateLabFontFamily,
                 fontSize = 14.sp,
                 fontWeight = weightOrFallback(460),
                 lineHeight = 1.4.em,
@@ -145,7 +160,7 @@ val SkateLabTypographyDefaults =
             ),
         micro =
             TextStyle(
-                fontFamily = InterVariable,
+                fontFamily = SkateLabFontFamily,
                 fontSize = 12.sp,
                 fontWeight = weightOrFallback(540),
                 lineHeight = 1.4.em,
@@ -153,7 +168,7 @@ val SkateLabTypographyDefaults =
             ),
         legal =
             TextStyle(
-                fontFamily = InterVariable,
+                fontFamily = SkateLabFontFamily,
                 fontSize = 11.sp,
                 fontWeight = weightOrFallback(460),
                 lineHeight = 1.5.em,
@@ -161,8 +176,8 @@ val SkateLabTypographyDefaults =
             ),
         price =
             TextStyle(
-                fontFamily = InterVariable,
-                fontSize = 48.sp,
+                fontFamily = SkateLabFontFamily,
+                fontSize = 36.sp,
                 fontWeight = weightOrFallback(700),
                 lineHeight = 1.0.em,
                 letterSpacing = (-0.03).em,
