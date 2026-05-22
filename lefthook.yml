@@ -42,6 +42,10 @@ pre-commit:
         fi
         sg scan -c sgconfig.yml backend/ ml/ frontend/ mobile/ || true
 
+    impeccable:
+      glob: "frontend/src/**/*.{tsx,jsx,css}"
+      run: npx impeccable detect --fast {staged_files} --json 2>/dev/null | node scripts/impeccable-report.js
+
 commit-msg:
   commands:
     lint-commit-msg:
