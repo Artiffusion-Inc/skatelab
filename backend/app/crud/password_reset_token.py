@@ -74,7 +74,7 @@ async def cleanup_expired(db: AsyncSession, batch_size: int = 500) -> int:
         )
         result = await db.execute(delete(PasswordResetToken).where(PasswordResetToken.id.in_(sub)))
         await db.flush()
-        count = result.rowcount
+        count = cast("int", getattr(result, "rowcount", 0))
         total_deleted += count
         if count < batch_size:
             break

@@ -71,31 +71,56 @@ class AuthController(Controller):
 
     def _set_auth_cookies(self, response: Response, access: str, refresh: str) -> Response:
         settings = get_settings()
-        response.cookies.append(Cookie(
-            key="access_token", value=access, httponly=True,
-            secure=settings.app.cookie_secure, samesite=settings.app.cookie_samesite,
-            max_age=settings.jwt.access_token_expire_minutes * 60, path="/",
-        ))
-        response.cookies.append(Cookie(
-            key="refresh_token", value=refresh, httponly=True,
-            secure=settings.app.cookie_secure, samesite=settings.app.cookie_samesite,
-            max_age=settings.jwt.refresh_token_expire_days * 86400, path="/api/v1/auth",
-        ))
-        response.cookies.append(Cookie(
-            key="sb_auth", value="1", httponly=False,
-            secure=settings.app.cookie_secure, samesite=settings.app.cookie_samesite,
-            max_age=settings.jwt.refresh_token_expire_days * 86400, path="/",
-        ))
+        response.cookies.append(
+            Cookie(
+                key="access_token",
+                value=access,
+                httponly=True,
+                secure=settings.app.cookie_secure,
+                samesite=settings.app.cookie_samesite,
+                max_age=settings.jwt.access_token_expire_minutes * 60,
+                path="/",
+            )
+        )
+        response.cookies.append(
+            Cookie(
+                key="refresh_token",
+                value=refresh,
+                httponly=True,
+                secure=settings.app.cookie_secure,
+                samesite=settings.app.cookie_samesite,
+                max_age=settings.jwt.refresh_token_expire_days * 86400,
+                path="/api/v1/auth",
+            )
+        )
+        response.cookies.append(
+            Cookie(
+                key="sb_auth",
+                value="1",
+                httponly=False,
+                secure=settings.app.cookie_secure,
+                samesite=settings.app.cookie_samesite,
+                max_age=settings.jwt.refresh_token_expire_days * 86400,
+                path="/",
+            )
+        )
         return response
 
     def _clear_auth_cookies(self, response: Response) -> Response:
         response.cookies.append(Cookie(key="access_token", value="", max_age=0, path="/"))
-        response.cookies.append(Cookie(key="refresh_token", value="", max_age=0, path="/api/v1/auth"))
+        response.cookies.append(
+            Cookie(key="refresh_token", value="", max_age=0, path="/api/v1/auth")
+        )
         response.cookies.append(Cookie(key="sb_auth", value="", max_age=0, path="/"))
         return response
 
     async def _issue_token_pair(
-        self, db: DbDep, user_id: str, family_id: str | None = None, *, request: Request | None = None
+        self,
+        db: DbDep,
+        user_id: str,
+        family_id: str | None = None,
+        *,
+        request: Request | None = None,
     ) -> TokenResponse:
         """Create and persist a new access + refresh token pair."""
         access = create_access_token(user_id=user_id)
@@ -110,9 +135,7 @@ class AuthController(Controller):
         )
         # Store UA hash on the token record
         if request:
-            ua_hash = hashlib.sha256(
-                (request.headers.get("user-agent") or "").encode()
-            ).hexdigest()
+            ua_hash = hashlib.sha256((request.headers.get("user-agent") or "").encode()).hexdigest()
             token_record.user_agent_hash = ua_hash
             db.add(token_record)
             await db.flush()
@@ -120,7 +143,9 @@ class AuthController(Controller):
         return TokenResponse(access_token=access, refresh_token=refresh_str)
 
     @post("/register", status_code=HTTP_201_CREATED)
-    async def register(self, request: Request, db: DbDep, data: RegisterRequest) -> Response[TokenResponse]:
+    async def register(
+        self, request: Request, db: DbDep, data: RegisterRequest
+    ) -> Response[TokenResponse]:
         """Register a new user."""
         ip = request.client.host if request.client else "unknown"
         await check_rate_limit(f"register_ip:{ip}", max_requests=5, window_seconds=60)
@@ -145,7 +170,9 @@ class AuthController(Controller):
         return self._set_auth_cookies(response, tokens.access_token, tokens.refresh_token)
 
     @post("/login", status_code=HTTP_200_OK)
-    async def login(self, request: Request, db: DbDep, data: LoginRequest) -> Response[TokenResponse]:
+    async def login(
+        self, request: Request, db: DbDep, data: LoginRequest
+    ) -> Response[TokenResponse]:
         """Authenticate and return tokens."""
         ip = request.client.host if request.client else "unknown"
         await check_rate_limit(f"login_ip:{ip}", max_requests=10, window_seconds=60)
@@ -153,7 +180,9 @@ class AuthController(Controller):
 
         user = await get_by_email(db, data.email)
         if not user or not verify_password(data.password, user.hashed_password):
-            await log_auth_event(db, "login_failed", user_id=user.id if user else None, request=request)
+            await log_auth_event(
+                db, "login_failed", user_id=user.id if user else None, request=request
+            )
             raise ClientException(
                 status_code=401,
                 detail="Invalid email or password",
@@ -171,7 +200,9 @@ class AuthController(Controller):
         return self._set_auth_cookies(response, tokens.access_token, tokens.refresh_token)
 
     @post("/refresh", status_code=HTTP_200_OK)
-    async def refresh(self, request: Request, db: DbDep, data: RefreshRequest) -> Response[TokenResponse]:
+    async def refresh(
+        self, request: Request, db: DbDep, data: RefreshRequest
+    ) -> Response[TokenResponse]:
         """Rotate refresh token and issue new token pair."""
         ip = request.client.host if request.client else "unknown"
         await check_rate_limit(f"refresh_ip:{ip}", max_requests=20, window_seconds=60)
@@ -193,7 +224,13 @@ class AuthController(Controller):
         # Reuse detection: if already used, assume theft -> revoke entire family
         if existing.last_used_at is not None:
             await revoke_family(db, existing.family_id)
-            await log_auth_event(db, "reuse_detected", user_id=existing.user_id, request=request, family_id=existing.family_id)
+            await log_auth_event(
+                db,
+                "reuse_detected",
+                user_id=existing.user_id,
+                request=request,
+                family_id=existing.family_id,
+            )
             raise ClientException(
                 status_code=401,
                 detail="Token reuse detected. All sessions revoked.",
@@ -203,16 +240,24 @@ class AuthController(Controller):
         current_ua_hash = hashlib.sha256(
             (request.headers.get("user-agent") or "").encode()
         ).hexdigest()
-        if existing.user_agent_hash and existing.user_agent_hash != "legacy" and existing.user_agent_hash != current_ua_hash:
+        if existing.user_agent_hash and existing.user_agent_hash not in {"legacy", current_ua_hash}:
             await revoke_family(db, existing.family_id)
-            await log_auth_event(db, "ua_mismatch", user_id=existing.user_id, request=request, family_id=existing.family_id)
+            await log_auth_event(
+                db,
+                "ua_mismatch",
+                user_id=existing.user_id,
+                request=request,
+                family_id=existing.family_id,
+            )
             raise ClientException(
                 status_code=401,
                 detail="Session terminated. Token used from different device.",
             )
 
         await mark_used(db, existing)
-        tokens = await self._issue_token_pair(db, existing.user_id, family_id=existing.family_id, request=request)
+        tokens = await self._issue_token_pair(
+            db, existing.user_id, family_id=existing.family_id, request=request
+        )
         response = Response(content=tokens.model_dump(), status_code=HTTP_200_OK)
         return self._set_auth_cookies(response, tokens.access_token, tokens.refresh_token)
 

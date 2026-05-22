@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 from sqlalchemy import delete, select
 
@@ -95,7 +95,7 @@ async def cleanup_expired(db: AsyncSession, batch_size: int = 500) -> int:
         sub = select(RefreshToken.id).where(RefreshToken.expires_at < cutoff).limit(batch_size)
         result = await db.execute(delete(RefreshToken).where(RefreshToken.id.in_(sub)))
         await db.flush()
-        count = result.rowcount
+        count = cast("int", getattr(result, "rowcount", 0))
         total_deleted += count
         if count < batch_size:
             break
