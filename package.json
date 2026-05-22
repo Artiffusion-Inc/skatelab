@@ -3,13 +3,15 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "design:build": "node scripts/design-tokens.js DESIGN.md tokens/dtcg.json && npx style-dictionary build --config style-dictionary.config.js",
+    "design:build": "node scripts/design-build.js",
+    "design:build:force": "node scripts/design-build.js --force",
     "design:lint": "npx @google/design.md@0.1.1 lint DESIGN.md || true",
     "design:check": "npm run design:build && git diff --exit-code frontend/src/app/tokens.css mobile/androidApp/src/main/java/ru/skatelab/capture/presentation/theme/ mobile/iosApp/SkateLab/Theme/ || (echo 'Drift detected. Run \"npm run design:build\" and commit.' && exit 1)"
   },
   "dependencies": {
-    "style-dictionary": "5.1.4",
-    "yaml": "^2.7.0",
-    "colorjs.io": "^0.5.2"
+    "colorjs.io": "^0.5.2",
+    "execa": "^9.6.1",
+    "p-queue": "^9.2.0",
+    "yaml": "^2.7.0"
   }
 }
