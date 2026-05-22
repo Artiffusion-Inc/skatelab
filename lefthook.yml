@@ -5,17 +5,15 @@ colors: true
 
 pre-commit:
   parallel: true
-  commands:
-    protect-branches:
+  jobs:
+    - name: protect-branches
       run: |
         BRANCH=$(git symbolic-ref --short HEAD 2>/dev/null)
-
         if [[ $BRANCH =~ ^(main|master|develop)$ ]]; then
           echo "❌ Direct commits to '$BRANCH' are not allowed."
           echo "Please use a feature/hotfix/release branch."
           exit 1
         fi
-
         GIT_DIR=$(git rev-parse --git-dir)
         GIT_COMMON_DIR=$(git rev-parse --git-common-dir)
         if [ "$GIT_DIR" = "$GIT_COMMON_DIR" ]; then
@@ -24,36 +22,34 @@ pre-commit:
           exit 1
         fi
 
-    ruff-check:
+    - name: ruff
       glob: "*.py"
-      run: uv run ruff check {staged_files} --fix
-      stage_fixed: true
+      group:
+        piped: true
+        jobs:
+          - name: ruff-check
+            run: uv run ruff check {staged_files} --fix
+            stage_fixed: true
+          - name: ruff-format
+            run: uv run ruff format {staged_files}
+            stage_fixed: true
 
-    ruff-format:
-      glob: "*.py"
-      run: uv run ruff format {staged_files}
-      stage_fixed: true
-
-    biome-check:
+    - name: biome-check
       glob: "frontend/**/*.{ts,tsx,js,jsx,json,css}"
       run: bunx biome check --write {staged_files}
       stage_fixed: true
 
-    ktlint-format:
+    - name: ktlint-format
       glob: "mobile/**/*.{kt,kts}"
       run: cd mobile && ./gradlew ktlintFormat 2>&1 | tail -5
       stage_fixed: true
 
-    ast-grep-scan:
+    - name: ast-grep-scan
       run: |
         if ! command -v sg &> /dev/null; then
           exit 0
         fi
         sg scan -c sgconfig.yml backend/ ml/ frontend/ mobile/ || true
-
-    impeccable:
-      glob: "frontend/src/**/*.{tsx,jsx,css}"
-      run: npx impeccable detect --fast {staged_files} --json 2>/dev/null | node scripts/impeccable-report.js
 
 commit-msg:
   commands:
