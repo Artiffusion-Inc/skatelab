@@ -382,10 +382,51 @@ jobs:
           push: false
           tags: skatelab-frontend:ci
 
+  lefthook-check:
+    name: Lefthook Checks
+    runs-on: blacksmith-2vcpu-ubuntu-2404
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+      - uses: oven-sh/setup-bun@v2
+      - name: Install lefthook
+        run: uv run lefthook install
+      - name: Run pre-commit hooks
+        run: uv run lefthook run pre-commit
+      - name: Run commit-msg hooks
+        run: uv run lefthook run commit-msg
+
+  danger:
+    name: Danger (PR checks)
+    if: github.event_name == 'pull_request'
+    runs-on: blacksmith-2vcpu-ubuntu-2404
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+      - uses: actions/setup-python@v6
+        with:
+          python-version: ${{ inputs.python-version }}
+      - name: Install danger-python
+        run: |
+          python -m venv /tmp/danger-venv
+          /tmp/danger-venv/bin/pip install danger-python
+      - name: Run Danger
+        run: /tmp/danger-venv/bin/danger ci
+        env:
+          DANGER_GITHUB_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
   ci-passed:
     name: CI Summary
     runs-on: blacksmith-2vcpu-ubuntu-2404
-    needs: [changes, lint, typecheck, alembic, ast-grep, design-lint, design-check, test, smoke, fe-lint, fe-typecheck, fe-build, fe-test, docker-backend, docker-frontend]
+    needs: [changes, lint, typecheck, alembic, ast-grep, design-lint, design-check, test, smoke, fe-lint, fe-typecheck, fe-build, fe-test, docker-backend, docker-frontend, lefthook-check, danger]
     if: always()
     outputs:
       result: ${{ steps.check.outputs.result }}
@@ -407,6 +448,8 @@ jobs:
           AST_GREP: ${{ needs.ast-grep.result }}
           DESIGN_LINT: ${{ needs.design-lint.result }}
           DESIGN_CHECK: ${{ needs.design-check.result }}
+          LEFTHOOK: ${{ needs.lefthook-check.result }}
+          DANGER: ${{ needs.danger.result }}
           CHANGES: ${{ needs.changes.result }}
         run: |
           FAILED=0
@@ -435,6 +478,8 @@ jobs:
           check_job "Tests (Vitest)" "$FE_TEST"
           check_job "Docker Build (Backend)" "$DOCKER_BACKEND"
           check_job "Docker Build (Frontend)" "$DOCKER_FRONTEND"
+          check_job "Lefthook Checks" "$LEFTHOOK"
+          echo "| :information_source: Danger (PR checks) | \`${DANGER}\` (informational) |" >> "$GITHUB_STEP_SUMMARY"
           echo "| :mag: ast-grep | \`${AST_GREP}\` (informational) |" >> "$GITHUB_STEP_SUMMARY"
           check_job "Design Lint (impeccable + ast-grep)" "$DESIGN_LINT"
           check_job "Design Drift Check" "$DESIGN_CHECK"
