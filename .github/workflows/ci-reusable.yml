@@ -68,7 +68,7 @@ jobs:
               - "Taskfile.yml"
 
   lint:
-    name: Lint (ruff)
+    name: Lint (ruff) + Alembic
     needs: [changes]
     if: inputs.run-all || needs.changes.outputs.python == 'true'
     runs-on: blacksmith-2vcpu-ubuntu-2404
@@ -81,6 +81,14 @@ jobs:
         run: uv run ruff format --check backend/ ml/
       - name: Ruff check
         run: uv run ruff check backend/ ml/ --output-format=github
+      - name: Alembic single head
+        run: |
+          HEADS=$(cd backend && uv run alembic heads 2>&1 | grep -c '(head)')
+          if [ "$HEADS" -ne 1 ]; then
+            echo "::error::Alembic has $HEADS heads (expected 1). Run 'alembic merge' or fix revision IDs."
+            cd backend && uv run alembic heads 2>&1
+            exit 1
+          fi
 
   typecheck:
     name: Type Check (basedpyright)
@@ -94,25 +102,6 @@ jobs:
           python-version: ${{ inputs.python-version }}
       - name: basedpyright
         run: uv run basedpyright --level error backend/app
-
-  alembic:
-    name: Alembic Check
-    needs: [changes]
-    if: inputs.run-all || needs.changes.outputs.python == 'true'
-    runs-on: blacksmith-2vcpu-ubuntu-2404
-    steps:
-      - uses: actions/checkout@v6
-      - uses: ./.github/actions/setup-python-venv
-        with:
-          python-version: ${{ inputs.python-version }}
-      - name: Check single head
-        run: |
-          HEADS=$(cd backend && uv run alembic heads 2>&1 | grep -c '(head)')
-          if [ "$HEADS" -ne 1 ]; then
-            echo "::error::Alembic has $HEADS heads (expected 1). Run 'alembic merge' or fix revision IDs."
-            cd backend && uv run alembic heads 2>&1
-            exit 1
-          fi
 
   ast-grep:
     name: Lint (ast-grep)
@@ -322,7 +311,7 @@ jobs:
   ci-passed:
     name: CI Summary
     runs-on: blacksmith-2vcpu-ubuntu-2404
-    needs: [changes, lint, typecheck, alembic, ast-grep, design-lint, design-check, test, smoke, fe-lint, fe-typecheck, fe-build, fe-test, docker-backend, docker-frontend]
+    needs: [changes, lint, typecheck, ast-grep, design-lint, design-check, test, smoke, fe-lint, fe-typecheck, fe-build, fe-test, docker-backend, docker-frontend]
     if: always()
     outputs:
       result: ${{ steps.check.outputs.result }}
@@ -332,7 +321,6 @@ jobs:
         env:
           LINT: ${{ needs.lint.result }}
           TYPECHECK: ${{ needs.typecheck.result }}
-          ALEMBIC: ${{ needs.alembic.result }}
           TEST: ${{ needs.test.result }}
           SMOKE: ${{ needs.smoke.result }}
           FE_LINT: ${{ needs.fe-lint.result }}
@@ -361,9 +349,8 @@ jobs:
             fi
           }
 
-          check_job "Lint (ruff)" "$LINT"
+          check_job "Lint (ruff) + Alembic" "$LINT"
           check_job "Type Check (basedpyright)" "$TYPECHECK"
-          check_job "Alembic Check" "$ALEMBIC"
           check_job "Tests" "$TEST"
           check_job "Smoke Tests" "$SMOKE"
           check_job "Lint (Biome)" "$FE_LINT"
