@@ -3,9 +3,9 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
-from sqlalchemy import select
+from sqlalchemy import delete, select
 
 from app.models.refresh_token import RefreshToken
 
@@ -82,3 +82,21 @@ async def get_active_by_hash(db: AsyncSession, token_hash: str) -> RefreshToken 
         )
     )
     return result.scalar_one_or_none()
+
+
+async def cleanup_expired(db: AsyncSession, batch_size: int = 500) -> int:
+    """Delete expired refresh tokens in batches to avoid long-held locks."""
+    from datetime import UTC, datetime
+
+    total_deleted = 0
+    cutoff = datetime.now(UTC)
+    while True:
+        # Subquery to find IDs of expired tokens, limited per batch
+        sub = select(RefreshToken.id).where(RefreshToken.expires_at < cutoff).limit(batch_size)
+        result = await db.execute(delete(RefreshToken).where(RefreshToken.id.in_(sub)))
+        await db.flush()
+        count = cast("int", getattr(result, "rowcount", 0))
+        total_deleted += count
+        if count < batch_size:
+            break
+    return total_deleted

@@ -72,7 +72,7 @@ Blacksmith (useblacksmith) for CPU-heavy jobs. ubuntu-latest for lightweight (ac
 ## Secrets
 
 | Secret | Used by | Purpose |
-|--------|---------|----------|
+|--------|---------|---------|
 | `VPS_SSH_KEY` | deploy.yml | SSH deploy key |
 | `VPS_HOST` | deploy.yml | Server IP |
 | `VPS_USER` | deploy.yml | SSH user |
