@@ -65,16 +65,12 @@ async def get_current_best_batch(
 
     from app.metrics_registry import METRIC_REGISTRY
 
-    higher_metrics = [
-        n
-        for n in metric_names
-        if METRIC_REGISTRY.get(n, type("", (), {"direction": "higher"})()).direction == "higher"
-    ]
-    lower_metrics = [
-        n
-        for n in metric_names
-        if METRIC_REGISTRY.get(n, type("", (), {"direction": "higher"})()).direction == "lower"
-    ]
+    def _metric_direction(name: str) -> str:
+        mdef = METRIC_REGISTRY.get(name)
+        return mdef.direction if mdef else "higher"
+
+    higher_metrics = [n for n in metric_names if _metric_direction(n) == "higher"]
+    lower_metrics = [n for n in metric_names if _metric_direction(n) == "lower"]
 
     bests: dict[str, float] = {}
 
