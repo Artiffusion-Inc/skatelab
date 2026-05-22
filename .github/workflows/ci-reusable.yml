@@ -139,7 +139,7 @@ jobs:
     name: Tests
     needs: [changes]
     if: inputs.run-all || needs.changes.outputs.python == 'true'
-    runs-on: blacksmith-2vcpu-ubuntu-2404
+    runs-on: blacksmith-4vcpu-ubuntu-2404
     steps:
       - uses: actions/checkout@v6
       - uses: ./.github/actions/setup-python-venv
@@ -157,6 +157,7 @@ jobs:
           ml/tests/utils/test_profiling.py ml/tests/utils/test_smoothing.py
           ml/tests/utils/test_smoothing_numba.py ml/tests/utils/test_video_writer_nvenc.py
           ml/tests/references/ ml/tests/pose_3d/ ml/tests/pose_estimation/ ml/tests/datasets/
+          -n auto --dist worksteal
           -v -m "not slow and not integration"
           --cov=backend/app --cov=ml/src
           --cov-report=xml --junitxml=junit.xml --tb=short
