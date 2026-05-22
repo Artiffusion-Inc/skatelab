@@ -12,12 +12,10 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import ru.skatelab.shared.models.ProcessEvent
-import ru.skatelab.shared.models.ProcessStatus
 
 private val sseJson = Json { ignoreUnknownKeys = true }
 
 class ProcessApi(private val client: HttpClient) {
-    /** Enqueue video processing and return task_id. */
     suspend fun queue(
         videoKey: String,
         sessionId: String? = null,
@@ -39,29 +37,29 @@ class ProcessApi(private val client: HttpClient) {
             })
         }.body()
 
-    /** Poll task status. */
     suspend fun status(taskId: String): TaskStatusResponse =
         client.get("/process/$taskId/status").body()
 
-    /** Cancel a queued or running task. */
     suspend fun cancel(taskId: String) {
         client.post("/process/$taskId/cancel")
     }
 
-    /** SSE stream for real-time task progress. */
     fun stream(taskId: String): Flow<ProcessEvent> = flow {
-        val response = client.get("/process/$taskId/stream")
-        val channel = response.bodyAsChannel()
+        val response: HttpResponse = client.get("/process/$taskId/stream")
+        val channel: ByteReadChannel = response.body()
+        val buffer = StringBuilder()
         while (!channel.isClosedForRead) {
-            val line = channel.readUTF8Line() ?: break
-            if (line.startsWith("data: ")) {
-                val data = line.removePrefix("data: ")
-                val event = sseJson.decodeFromString<ProcessEvent>(data)
-                emit(event)
-                if (event.parsedStatus == ProcessStatus.COMPLETED ||
-                    event.parsedStatus == ProcessStatus.FAILED ||
-                    event.parsedStatus == ProcessStatus.CANCELLED
-                ) break
+            val line = channel.readUTF8Line() ?: continue
+            when {
+                line.startsWith("data: ") -> {
+                    val data = line.removePrefix("data: ").trim()
+                    if (data.isNotEmpty()) {
+                        val event = sseJson.decodeFromString<ProcessEvent>(data)
+                        emit(event)
+                    }
+                }
+                line.isEmpty() -> buffer.clear()
+                else -> buffer.appendLine(line)
             }
         }
     }

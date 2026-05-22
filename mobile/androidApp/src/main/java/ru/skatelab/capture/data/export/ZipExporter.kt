@@ -50,12 +50,18 @@ class ZipExporter
                     session.manifestFile,
                 )
 
-            ZipOutputStream(BufferedOutputStream(zipFile.outputStream(), BUFFER_SIZE)).use { zos ->
+            // Atomic write: write to temp file first, then rename to final destination
+            val tempFile = File(zipFile.path + ".tmp")
+            ZipOutputStream(BufferedOutputStream(tempFile.outputStream(), BUFFER_SIZE)).use { zos ->
                 entries.forEach { file ->
                     if (file.exists()) {
                         addToZip(zos, file)
                     }
                 }
+            }
+            if (!tempFile.renameTo(zipFile)) {
+                tempFile.delete()
+                throw java.io.IOException("Failed to rename temp ZIP to ${zipFile.absolutePath}")
             }
         }
 

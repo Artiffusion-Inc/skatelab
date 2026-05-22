@@ -6,7 +6,7 @@ import androidx.room.RoomDatabase
 @Database(
     entities = [PendingUploadEntity::class, CachedSessionEntity::class],
     version = 1,
-    exportSchema = false,
+    exportSchema = true,
 )
 abstract class AppDatabase : RoomDatabase() {
     abstract fun pendingUploadDao(): PendingUploadDao

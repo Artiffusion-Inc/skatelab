@@ -5,9 +5,6 @@ plugins {
 }
 
 kotlin {
-    compilerOptions {
-        freeCompilerArgs.add("-Xexpect-actual-classes")
-    }
     sourceSets {
         commonMain.dependencies {
             implementation(libs.kotlinx.coroutines.core)
@@ -17,6 +14,7 @@ kotlin {
             implementation(libs.ktor.client.content.negotiation)
             implementation(libs.ktor.serialization.json)
             implementation(libs.ktor.client.auth)
+            implementation(libs.multiplatform.settings)
         }
         androidMain.dependencies {
             implementation(libs.ktor.client.okhttp)
@@ -24,10 +22,13 @@ kotlin {
         }
         iosMain.dependencies {
             implementation("io.ktor:ktor-client-darwin:${libs.versions.ktor.get()}")
+            implementation(libs.multiplatform.settings.keychain)
         }
         commonTest.dependencies {
             implementation(libs.kotlin.test)
             implementation(libs.kotlinx.coroutines.test)
+            implementation(libs.ktor.client.mock)
+            implementation(libs.turbine)
         }
     }
 }

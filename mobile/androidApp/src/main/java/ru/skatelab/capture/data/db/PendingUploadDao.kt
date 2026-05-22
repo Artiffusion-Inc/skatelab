@@ -10,6 +10,9 @@ interface PendingUploadDao {
     @Query("SELECT * FROM pending_uploads WHERE status != 'COMPLETED' ORDER BY createdAt ASC")
     suspend fun getPending(): List<PendingUploadEntity>
 
+    @Query("UPDATE pending_uploads SET status = 'UPLOADING' WHERE id = :id AND status = 'READY'")
+    suspend fun tryLockForUpload(id: String): Int
+
     @Query("SELECT * FROM pending_uploads WHERE id = :id")
     suspend fun getById(id: String): PendingUploadEntity?
 
