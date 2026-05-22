@@ -92,7 +92,7 @@ if (!VALID_TRIGGERS.includes(trigger)) {
 // ─── Hash Utilities ─────────────────────────────────────────────────────────
 
 function sha256(content) {
-  return createHash("sha256").update(content).digest("hex");
+  return "sha256:" + createHash("sha256").update(content).digest("hex");
 }
 
 function sectionHash(designContent, sectionName) {
@@ -707,7 +707,7 @@ function validateResponse(response, platform, architectVocab) {
 // ─── Claude CLI Runner ──────────────────────────────────────────────────────
 
 const MAX_RETRIES = 3;
-const API_TIMEOUT_MS = 180_000; // 3 minutes
+const API_TIMEOUT_MS = 600_000; // 10 minutes (large outputs via proxy can be slow)
 
 async function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -737,7 +737,7 @@ async function runClaude(prompt, schema, label, retryErrors = []) {
     }
 
     try {
-      const result = await execa("claude", ["-p", augmentedPrompt, "--bare", "--output-format", "json", "--json-schema", JSON.stringify(schema), "--model", DESIGN_MODEL, "--max-turns", "1"], {
+      const result = await execa("claude", ["-p", augmentedPrompt, "--bare", "--output-format", "json", "--json-schema", JSON.stringify(schema), "--model", DESIGN_MODEL, "--tools", ""], {
         timeout: API_TIMEOUT_MS,
         reject: false,
         input: "",
@@ -764,17 +764,41 @@ async function runClaude(prompt, schema, label, retryErrors = []) {
         throw new Error(`Claude CLI error (exit ${exitCode}): ${result.stderr || result.stdout}`);
       }
 
-      // Parse JSON response
+      // Parse JSON response — claude -p --output-format json wraps output in an envelope:
+      // { "result": "<text>", "structured_output": {<json-schema output>}, "session_id": "..." }
+      // With --json-schema, the actual data is in structured_output.
       let parsed;
+      let envelope;
       try {
-        parsed = JSON.parse(result.stdout);
+        envelope = JSON.parse(result.stdout);
+        // Extract structured_output if present (from --json-schema), otherwise use result
+        if (envelope.structured_output && typeof envelope.structured_output === "object") {
+          parsed = envelope.structured_output;
+        } else if (envelope.result && typeof envelope.result === "string") {
+          // Try to extract JSON from result (may be wrapped in ```json...```)
+          let resultText = envelope.result;
+          const jsonMatch = resultText.match(/```json\s*([\s\S]*?)```/);
+          if (jsonMatch) resultText = jsonMatch[1].trim();
+          try {
+            parsed = JSON.parse(resultText);
+          } catch {
+            parsed = envelope;
+          }
+        } else {
+          parsed = envelope;
+        }
+        if (process.env.DEBUG_DESIGN_BUILD) {
+          console.log(`  [DEBUG] ${label} envelope keys: ${Object.keys(envelope).join(", ")}`);
+          console.log(`  [DEBUG] ${label} structured_output: ${JSON.stringify(envelope.structured_output)?.substring(0, 200)}`);
+          console.log(`  [DEBUG] ${label} parsed keys: ${Object.keys(parsed).join(", ")}`);
+        }
       } catch (parseErr) {
         lastError = new Error(`JSON parse error: ${parseErr.message}. Output: ${result.stdout.substring(0, 500)}`);
         continue;
       }
 
-      // Check for truncation
-      if (parsed.stop_reason === 'length' || parsed.finish_reason === 'length') {
+      // Check for truncation in envelope
+      if (envelope.stop_reason === 'length' || envelope.finish_reason === 'length') {
         throw new Error('LLM response was truncated (stop_reason=length). Consider simplifying the prompt or increasing max output length.');
       }
 
@@ -895,7 +919,9 @@ function updateLock(designContent, platformResults) {
   const files = {};
   for (const [platform, result] of Object.entries(platformResults)) {
     if (result.files) {
-      files[platform] = Object.keys(result.files);
+      for (const [relPath, content] of Object.entries(result.files)) {
+        files[relPath] = sha256(content);
+      }
     }
   }
 

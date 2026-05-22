@@ -105,8 +105,10 @@ function main() {
   let hasUnknownViolation = false;
 
   for (const pair of PAIRS) {
-    const fg = tokens[pair.fg];
-    const bg = tokens[pair.bg];
+    // Look up with fallback: --ink → --color-ink if --ink not found
+    const lookup = (name) => tokens[name] || tokens[`--color-${name.replace(/^--/, "")}`];
+    const fg = lookup(pair.fg);
+    const bg = lookup(pair.bg);
 
     if (!fg) {
       console.error(`FAIL: ${pair.label} — token ${pair.fg} not found`);

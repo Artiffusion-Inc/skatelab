@@ -108,125 +108,564 @@ body {
 }
 
 @layer base {
+
+  /* ── Global resets ────────────────────────────────────────── */
   * {
-    @apply border-border outline-ring/50;
+    border-color: var(--border);
+    outline-color: var(--ring);
   }
-  body {
-    @apply bg-background text-foreground;
-  }
+
   html {
-    @apply font-sans;
+    font-family: var(--font-family);
+    scroll-behavior: smooth;
   }
+
+  body {
+    background: var(--background);
+    color: var(--foreground);
+  }
+
+  section {
+    scroll-margin-top: 80px;
+  }
+
+  [data-sonner-toaster] {
+    bottom: 80px !important;
+  }
+
+  /* ── Typography utility classes ───────────────────────────── */
+
+  .sh-display-xxl {
+    font-family: var(--font-family);
+    font-size: clamp(2.25rem, 5.5vw, 4rem);
+    font-weight: 540;
+    line-height: 0.96;
+    letter-spacing: 0;
+  }
+
+  .sh-display-xl {
+    font-family: var(--font-family);
+    font-size: clamp(2rem, 4vw, 3rem);
+    font-weight: 460;
+    line-height: 0.96;
+    letter-spacing: -1.32px;
+  }
+
+  .sh-display-lg {
+    font-family: var(--font-family);
+    font-size: 28px;
+    font-weight: 540;
+    line-height: 1.14;
+    letter-spacing: -0.63px;
+  }
+
+  .sh-display-md {
+    font-family: var(--font-family);
+    font-size: 22px;
+    font-weight: 460;
+    line-height: 1.1;
+    letter-spacing: -0.315px;
+  }
+
+  .sh-heading-lg {
+    font-family: var(--font-family);
+    font-size: 20px;
+    font-weight: 460;
+    line-height: 1.2;
+    letter-spacing: -0.4px;
+  }
+
+  .sh-body-lg {
+    font-family: var(--font-family);
+    font-size: 18px;
+    font-weight: 540;
+    line-height: 1.5;
+    letter-spacing: -0.135px;
+  }
+
+  .sh-body-md {
+    font-family: var(--font-family);
+    font-size: 16px;
+    font-weight: 460;
+    line-height: 1.5;
+    letter-spacing: 0;
+  }
+
+  .sh-body-strong {
+    font-family: var(--font-family);
+    font-size: 18.72px;
+    font-weight: 700;
+    line-height: 1.5;
+    letter-spacing: 0;
+  }
+
+  .sh-button-md {
+    font-family: var(--font-family);
+    font-size: 16px;
+    font-weight: 700;
+    line-height: 1;
+    letter-spacing: 0;
+  }
+
+  .sh-button-cap {
+    font-family: var(--font-family);
+    font-size: 14px;
+    font-weight: 600;
+    line-height: 1;
+    letter-spacing: 0;
+  }
+
+  .sh-caption {
+    font-family: var(--font-family);
+    font-size: 14px;
+    font-weight: 460;
+    line-height: 1.4;
+    letter-spacing: 0;
+  }
+
+  .sh-micro {
+    font-family: var(--font-family);
+    font-size: 12px;
+    font-weight: 540;
+    line-height: 1.4;
+    letter-spacing: 0;
+  }
+
+  .sh-legal {
+    font-family: var(--font-family);
+    font-size: 11px;
+    font-weight: 460;
+    line-height: 1.5;
+    letter-spacing: 0;
+  }
+
   .sh-price {
+    font-family: var(--font-family);
     font-size: clamp(2.25rem, 4vw, 3rem);
     font-weight: 700;
-    font-variation-settings: "wght" 700;
     line-height: 1;
     letter-spacing: -0.03em;
     font-variant-numeric: tabular-nums;
   }
-  .sh-heading-md {
-    font-size: 1.125rem;
-    font-weight: 600;
-    font-variation-settings: "wght" 600;
-    line-height: 1.2;
-    letter-spacing: -0.01em;
-  }
-  .sh-display-xxl {
-    font-size: clamp(2.25rem, 5.5vw, 4rem);
-    font-weight: 540;
-    font-variation-settings: "wght" 540;
-    line-height: 0.96;
-    letter-spacing: 0;
-  }
-  .sh-display-xl {
-    font-size: clamp(2rem, 4vw, 3rem);
-    font-weight: 460;
-    font-variation-settings: "wght" 460;
-    line-height: 0.96;
-    letter-spacing: -0.03em;
-  }
-  .sh-display-lg {
-    font-size: 1.75rem;
-    font-weight: 540;
-    font-variation-settings: "wght" 540;
-    line-height: 1.14;
-    letter-spacing: -0.02em;
-  }
-  .sh-display-md {
-    font-size: 1.375rem;
-    font-weight: 460;
-    font-variation-settings: "wght" 460;
-    line-height: 1.1;
-    letter-spacing: -0.01em;
-  }
-  .sh-heading-lg {
-    font-size: 1.25rem;
-    font-weight: 460;
-    font-variation-settings: "wght" 460;
-    line-height: 1.2;
-    letter-spacing: -0.01em;
-  }
-  .sh-body-lg {
-    font-size: 1.125rem;
-    font-weight: 540;
-    font-variation-settings: "wght" 540;
-    line-height: 1.5;
-    letter-spacing: -0.008em;
-  }
-  .sh-body-md {
-    font-size: 1rem;
-    font-weight: 460;
-    font-variation-settings: "wght" 460;
-    line-height: 1.5;
-  }
-  .sh-caption {
-    font-size: 0.875rem;
-    font-weight: 460;
-    font-variation-settings: "wght" 460;
-    line-height: 1.4;
-  }
-  .sh-micro {
-    font-size: 0.75rem;
-    font-weight: 540;
-    font-variation-settings: "wght" 540;
-    line-height: 1.4;
-  }
-  .sh-button-cap {
-    font-size: 0.875rem;
-    font-weight: 600;
-    font-variation-settings: "wght" 600;
+
+  /* ── Component classes ───────────────────────────────────── */
+
+  .sh-button-primary-dark {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background-color: var(--color-primary);
+    color: var(--color-primary-foreground);
+    font-family: var(--font-family);
+    font-size: 16px;
+    font-weight: 700;
     line-height: 1;
+    letter-spacing: 0;
+    border-radius: var(--radius-md);
+    padding: 12px 20px;
+    border: none;
+    cursor: pointer;
+    transition: transform 150ms ease, box-shadow 150ms ease, background-color 150ms ease;
   }
+  .sh-button-primary-dark:hover {
+    transform: translateY(-1px);
+  }
+  .sh-button-primary-dark:active {
+    transform: scale(0.98);
+  }
+  .sh-button-primary-dark:focus-visible {
+    outline: 2px solid var(--color-ring);
+    outline-offset: 2px;
+  }
+
+  .sh-button-primary-dark-pressed {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background-color: var(--color-primary-deep);
+    color: var(--color-primary-foreground);
+    font-family: var(--font-family);
+    font-size: 16px;
+    font-weight: 700;
+    line-height: 1;
+    letter-spacing: 0;
+    border-radius: var(--radius-md);
+    padding: 12px 20px;
+    border: none;
+    cursor: pointer;
+    transform: scale(0.98);
+  }
+  .sh-button-primary-dark-pressed:focus-visible {
+    outline: 2px solid var(--color-ring);
+    outline-offset: 2px;
+  }
+
+  .sh-button-on-dark-pill {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background-color: var(--color-surface-ice-soft);
+    color: var(--color-primary);
+    font-family: var(--font-family);
+    font-size: 16px;
+    font-weight: 700;
+    line-height: 1;
+    letter-spacing: 0;
+    border-radius: var(--radius-full);
+    padding: 12px 20px;
+    border: none;
+    cursor: pointer;
+    transition: transform 150ms ease, box-shadow 150ms ease;
+  }
+  .sh-button-on-dark-pill:hover {
+    transform: translateY(-1px);
+  }
+  .sh-button-on-dark-pill:active {
+    transform: scale(0.98);
+  }
+  .sh-button-on-dark-pill:focus-visible {
+    outline: 2px solid var(--color-ring);
+    outline-offset: 2px;
+  }
+
+  .sh-button-secondary-outline {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background-color: var(--color-canvas);
+    color: var(--color-ink);
+    font-family: var(--font-family);
+    font-size: 16px;
+    font-weight: 700;
+    line-height: 1;
+    letter-spacing: 0;
+    border-radius: var(--radius-md);
+    padding: 12px 20px;
+    border: 1px solid var(--color-hairline-dark);
+    cursor: pointer;
+    transition: background-color 150ms ease, transform 150ms ease;
+  }
+  .sh-button-secondary-outline:hover {
+    background-color: var(--color-canvas-soft);
+  }
+  .sh-button-secondary-outline:active {
+    transform: scale(0.98);
+  }
+  .sh-button-secondary-outline:focus-visible {
+    outline: 2px solid var(--color-ring);
+    outline-offset: 2px;
+  }
+
+  .sh-button-on-teal {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background-color: var(--color-canvas);
+    color: var(--color-surface-teal-deep);
+    font-family: var(--font-family);
+    font-size: 16px;
+    font-weight: 700;
+    line-height: 1;
+    letter-spacing: 0;
+    border-radius: var(--radius-md);
+    padding: 12px 20px;
+    border: none;
+    cursor: pointer;
+    transition: transform 150ms ease, box-shadow 150ms ease;
+  }
+  .sh-button-on-teal:hover {
+    transform: translateY(-1px);
+  }
+  .sh-button-on-teal:active {
+    transform: scale(0.98);
+  }
+  .sh-button-on-teal:focus-visible {
+    outline: 2px solid var(--color-ring);
+    outline-offset: 2px;
+  }
+
+  .sh-button-ghost {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background-color: transparent;
+    color: var(--color-ink-mute);
+    font-family: var(--font-family);
+    font-size: 16px;
+    font-weight: 460;
+    line-height: 1.5;
+    letter-spacing: 0;
+    border-radius: var(--radius-md);
+    padding: 12px 20px;
+    border: none;
+    cursor: pointer;
+    transition: background-color 150ms ease, color 150ms ease;
+  }
+  .sh-button-ghost:hover {
+    background-color: var(--color-canvas-soft);
+    color: var(--color-ink);
+  }
+  .sh-button-ghost:active {
+    transform: scale(0.98);
+  }
+  .sh-button-ghost:focus-visible {
+    outline: 2px solid var(--color-ring);
+    outline-offset: 2px;
+  }
+
+  .sh-button-destructive {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background-color: oklch(0.543 0.174 30 / 0.10);
+    color: var(--color-destructive);
+    font-family: var(--font-family);
+    font-size: 16px;
+    font-weight: 700;
+    line-height: 1;
+    letter-spacing: 0;
+    border-radius: var(--radius-md);
+    padding: 12px 20px;
+    border: none;
+    cursor: pointer;
+    transition: background-color 150ms ease, transform 150ms ease;
+  }
+  .sh-button-destructive:hover {
+    background-color: oklch(0.543 0.174 30 / 0.20);
+  }
+  .sh-button-destructive:active {
+    transform: scale(0.98);
+  }
+  .sh-button-destructive:focus-visible {
+    outline: 2px solid var(--color-ring);
+    outline-offset: 2px;
+  }
+
+  .sh-text-input {
+    background-color: var(--color-canvas);
+    color: var(--color-ink);
+    font-family: var(--font-family);
+    font-size: 16px;
+    font-weight: 460;
+    line-height: 1.5;
+    letter-spacing: 0;
+    border-radius: var(--radius-sm);
+    padding: 10px 12px;
+    border: 1px solid var(--color-hairline);
+    transition: border-color 150ms ease, box-shadow 150ms ease;
+  }
+  .sh-text-input:focus {
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 2px oklch(0.452 0.075 221 / 0.20);
+    outline: none;
+  }
+  .sh-text-input:invalid,
+  .sh-text-input[aria-invalid="true"] {
+    border-color: var(--color-destructive);
+    color: var(--color-destructive);
+  }
+
+  .sh-card-feature-light {
+    background-color: var(--color-canvas);
+    color: var(--color-ink);
+    font-family: var(--font-family);
+    font-size: 16px;
+    font-weight: 460;
+    line-height: 1.5;
+    letter-spacing: 0;
+    border-radius: var(--radius-lg);
+    padding: 32px;
+    border: 1px solid var(--color-hairline);
+  }
+
+  .sh-card-teal-band {
+    background-color: var(--color-surface-teal-deep);
+    color: var(--color-primary-foreground);
+    font-family: var(--font-family);
+    font-size: 18px;
+    font-weight: 540;
+    line-height: 1.5;
+    letter-spacing: -0.135px;
+    border-radius: var(--radius-lg);
+    padding: 64px;
+  }
+
+  .sh-metric-card {
+    background-color: var(--color-canvas);
+    color: var(--color-ink);
+    border-radius: var(--radius-md);
+    border: 1px solid var(--color-hairline);
+    padding: var(--spacing-lg);
+  }
+  .sh-metric-card-label {
+    font-family: var(--font-family);
+    font-size: 14px;
+    font-weight: 460;
+    line-height: 1.4;
+    color: var(--color-ink-mute);
+  }
+  .sh-metric-card-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background-color: var(--color-score-good);
+    color: var(--color-primary-foreground);
+    font-family: var(--font-family);
+    font-size: 12px;
+    font-weight: 540;
+    line-height: 1;
+    border-radius: var(--radius-full);
+    padding: 2px 8px;
+  }
+
   .sh-badge-opaque {
-    background: oklch(0.301 0.047 225 / 0.85);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background-color: oklch(0.301 0.047 225 / 0.85);
+    color: var(--color-primary-foreground);
+    font-family: var(--font-family);
+    font-size: 12px;
+    font-weight: 540;
+    line-height: 1.4;
+    border-radius: var(--radius-md);
+    padding: 12px 16px;
     border: 1px solid oklch(0.906 0.034 220 / 0.4);
   }
+  .sh-badge-opaque-label {
+    color: var(--color-on-dark-mute);
+  }
+
   .sh-badge-flat {
-    background: oklch(0.301 0.047 225 / 0.85);
-    border: 1px solid oklch(0.906 0.034 220 / 0.3);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background-color: var(--color-canvas-soft);
+    color: var(--color-ink-mute);
+    font-family: var(--font-family);
+    font-size: 12px;
+    font-weight: 540;
+    line-height: 1.4;
+    border-radius: var(--radius-md);
+    padding: 12px 16px;
+    border: 1px solid var(--color-hairline);
   }
+
+  .sh-pill-tab-light {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background-color: var(--color-canvas);
+    color: var(--color-ink);
+    font-family: var(--font-family);
+    font-size: 14px;
+    font-weight: 600;
+    line-height: 1;
+    letter-spacing: 0;
+    border-radius: var(--radius-full);
+    padding: 8px 16px;
+    border: 1px solid var(--color-hairline);
+    cursor: pointer;
+    transition: background-color 150ms ease, box-shadow 150ms ease;
+  }
+  .sh-pill-tab-light:hover {
+    background-color: var(--color-canvas-soft);
+  }
+  .sh-pill-tab-light[aria-selected="true"],
+  .sh-pill-tab-light.active {
+    box-shadow: var(--shadow-ambient-low);
+  }
+  .sh-pill-tab-light:focus-visible {
+    outline: 2px solid var(--color-ring);
+    outline-offset: 2px;
+  }
+
+  .sh-nav-bar-dark {
+    background-color: var(--color-primary);
+    color: var(--color-primary-foreground);
+    font-family: var(--font-family);
+    font-size: 16px;
+    font-weight: 460;
+    line-height: 1.5;
+    letter-spacing: 0;
+    border-radius: var(--radius-xs);
+    padding: 16px 24px;
+  }
+
+  .sh-nav-bar-light {
+    background-color: var(--color-canvas);
+    color: var(--color-ink);
+    font-family: var(--font-family);
+    font-size: 16px;
+    font-weight: 460;
+    line-height: 1.5;
+    letter-spacing: 0;
+    border-radius: var(--radius-xs);
+    padding: 16px 24px;
+  }
+
+  .sh-footer-light {
+    background-color: var(--color-canvas);
+    color: var(--color-ink-mute);
+    font-family: var(--font-family);
+    font-size: 14px;
+    font-weight: 460;
+    line-height: 1.4;
+    letter-spacing: 0;
+    border-radius: var(--radius-xs);
+    padding: 64px 24px;
+  }
+
   .sh-teal-band {
-    background: var(--color-surface-teal-deep);
-    color: oklch(1 0 0);
+    background-color: var(--color-surface-teal-deep);
+    color: var(--color-primary-foreground);
+    padding: var(--spacing-huge) var(--spacing-xl);
   }
+
   .sh-ice-backdrop {
-    background:
-      radial-gradient(ellipse 80% 60% at 70% 40%, oklch(0.906 0.034 220 / 0.35) 0%, transparent 60%),
-      linear-gradient(to bottom, oklch(0.975 0.003 229), oklch(0.975 0.003 229));
+    position: relative;
+    overflow: hidden;
   }
-  @keyframes metricPulse {
-    0%,
-    100% {
+  .sh-ice-backdrop::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(
+      ellipse at 50% 0%,
+      oklch(0.906 0.034 220 / 0.35) 0%,
+      oklch(0.452 0.075 221) 70%
+    );
+    pointer-events: none;
+    z-index: 0;
+  }
+  .sh-ice-backdrop > * {
+    position: relative;
+    z-index: 1;
+  }
+
+  /* ── Metric pulse animation ──────────────────────────────── */
+
+  @keyframes sh-metric-pulse-keyframes {
+    0% {
+      transform: scale(1);
       opacity: 1;
     }
     50% {
+      transform: scale(1.04);
       opacity: 0.85;
     }
+    100% {
+      transform: scale(1);
+      opacity: 1;
+    }
   }
+
   .sh-metric-pulse {
-    animation: 3s ease-in-out infinite metricPulse;
+    animation: sh-metric-pulse-keyframes 2s ease-in-out infinite;
   }
+
+  /* ── Utility classes ─────────────────────────────────────── */
+
   .scrollbar-hide {
     -ms-overflow-style: none;
     scrollbar-width: none;
@@ -234,49 +673,42 @@ body {
   .scrollbar-hide::-webkit-scrollbar {
     display: none;
   }
-  /* Sonner toast: lift above bottom dock (64px + safe area) */
-  [data-sonner-toaster] {
-    bottom: calc(env(safe-area-inset-bottom, 0px) + 72px) !important;
-  }
+
+  /* ── Print ───────────────────────────────────────────────── */
 
   @media print {
-    .app-nav,
-    .bottom-dock,
-    button,
-    [role="slider"],
-    .print-hidden {
-      display: none !important;
+    * {
+      box-shadow: none !important;
     }
 
     body {
-      background: white !important;
-      color: black !important;
+      background: white;
+      color: black;
     }
 
-    .rounded-2xl,
-    .rounded-xl {
-      break-inside: avoid;
+    .sh-teal-band,
+    .sh-card-teal-band,
+    .sh-nav-bar-dark {
+      background: white;
+      color: black;
     }
 
-    video {
-      max-height: 50vh;
+    .sh-ice-backdrop::before {
+      display: none;
     }
   }
+
+  /* ── Reduced motion ──────────────────────────────────────── */
 
   @media (prefers-reduced-motion: reduce) {
     *,
     *::before,
     *::after {
       animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
       transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
     }
   }
 
-  html {
-    scroll-behavior: smooth;
-  }
-
-  section[id] {
-    scroll-margin-top: 5rem;
-  }
 }
