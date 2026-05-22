@@ -10,6 +10,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.sample
+import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.launch
 import ru.skatelab.capture.domain.model.CalibrationData
 import ru.skatelab.capture.domain.model.ImuSample
@@ -27,6 +28,7 @@ data class QuaternionPreview(
     val z: Float = 0f,
 )
 
+@OptIn(FlowPreview::class)
 @HiltViewModel
 class CalibrationViewModel
     @Inject
