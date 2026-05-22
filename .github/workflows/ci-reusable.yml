@@ -247,6 +247,11 @@ jobs:
     steps:
       - uses: actions/checkout@v6
       - uses: oven-sh/setup-bun@v2
+      - uses: actions/cache@v4
+        with:
+          path: frontend/node_modules
+          key: bun-${{ runner.os }}-${{ hashFiles('frontend/bun.lockb') }}
+          restore-keys: bun-${{ runner.os }}-
       - name: Install deps
         working-directory: frontend
         run: bun install --frozen-lockfile
@@ -262,6 +267,11 @@ jobs:
     steps:
       - uses: actions/checkout@v6
       - uses: oven-sh/setup-bun@v2
+      - uses: actions/cache@v4
+        with:
+          path: frontend/node_modules
+          key: bun-${{ runner.os }}-${{ hashFiles('frontend/bun.lockb') }}
+          restore-keys: bun-${{ runner.os }}-
       - name: Install deps
         working-directory: frontend
         run: bun install --frozen-lockfile
@@ -277,6 +287,11 @@ jobs:
     steps:
       - uses: actions/checkout@v6
       - uses: oven-sh/setup-bun@v2
+      - uses: actions/cache@v4
+        with:
+          path: frontend/node_modules
+          key: bun-${{ runner.os }}-${{ hashFiles('frontend/bun.lockb') }}
+          restore-keys: bun-${{ runner.os }}-
       - name: Install deps
         working-directory: frontend
         run: bun install --frozen-lockfile
@@ -307,6 +322,11 @@ jobs:
     steps:
       - uses: actions/checkout@v6
       - uses: oven-sh/setup-bun@v2
+      - uses: actions/cache@v4
+        with:
+          path: frontend/node_modules
+          key: bun-${{ runner.os }}-${{ hashFiles('frontend/bun.lockb') }}
+          restore-keys: bun-${{ runner.os }}-
       - name: Install deps
         working-directory: frontend
         run: bun install --frozen-lockfile
