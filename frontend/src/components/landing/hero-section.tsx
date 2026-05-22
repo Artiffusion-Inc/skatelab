@@ -18,7 +18,7 @@ export function HeroSection() {
 
       <div className="absolute inset-0 z-0 hidden lg:block" aria-hidden="true">
         <Image
-          src="/images/hero-skater.webp"
+          src="/images/moodboard/hero-desktop.webp"
           alt=""
           fill
           className="object-cover object-center opacity-[0.08]"

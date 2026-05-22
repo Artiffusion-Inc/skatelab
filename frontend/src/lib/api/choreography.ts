@@ -162,8 +162,8 @@ export function uploadMusicFile(
     const form = new FormData()
     form.append("file", file)
     const xhr = new XMLHttpRequest()
-    // Upload directly to backend to avoid Next.js 10MB body limit on proxy
-    xhr.open("POST", "http://localhost:8000/api/v1/choreography/music/upload")
+    // Upload via Caddy reverse proxy
+    xhr.open("POST", "/api/v1/choreography/music/upload")
     xhr.setRequestHeader("Authorization", `Bearer ${token}`)
     xhr.upload.onprogress = e => {
       if (e.lengthComputable && onProgress) onProgress(e.loaded, e.total)

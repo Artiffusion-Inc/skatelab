@@ -45,7 +45,7 @@ export default function SessionDetailPage() {
 
   const [visitCount] = useState(() => {
     if (typeof window === "undefined") return 0
-    const count = parseInt(localStorage.getItem("session_detail_visits") ?? "0") + 1
+    const count = parseInt(localStorage.getItem("session_detail_visits") ?? "0", 10) + 1
     localStorage.setItem("session_detail_visits", String(count))
     return count
   })

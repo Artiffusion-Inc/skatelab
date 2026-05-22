@@ -6,6 +6,7 @@ import createNextIntlPlugin from "next-intl/plugin"
 
 const nextConfig: NextConfig = {
   output: "standalone",
+  images: { unoptimized: true },
   turbopack: { root: path.resolve(__dirname) },
   async rewrites() {
     return [{ source: "/api/:path*", destination: "http://localhost:8000/api/:path*" }]

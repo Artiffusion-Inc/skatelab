@@ -17,7 +17,7 @@ export async function generateMetadata(): Promise<Metadata> {
       type: "website",
       images: [
         {
-          url: "/images/og-image.png",
+          url: "/images/moodboard/hero-desktop.webp",
           width: 1200,
           height: 630,
           alt: "SkateLab — AI анализ фигурного катания",
