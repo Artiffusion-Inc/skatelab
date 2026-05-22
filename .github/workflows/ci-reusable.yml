@@ -330,7 +330,7 @@ jobs:
 
   docker-backend:
     name: Docker Build (Backend)
-    needs: [changes, lint, typecheck, test]
+    needs: [changes, test]
     if: ${{ !inputs.skip-docker && (inputs.run-all || needs.changes.outputs.docker == 'true') }}
     runs-on: blacksmith-4vcpu-ubuntu-2404
     steps:
