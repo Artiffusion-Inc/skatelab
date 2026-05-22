@@ -11,11 +11,7 @@ function buildCsp(nonce: string, isDev: boolean): string {
         "https://cdn.jsdelivr.net",
         "http://localhost:8400",
       ]
-    : [
-        `'nonce-${nonce}'`,
-        "'strict-dynamic'",
-        "'unsafe-eval'",
-      ]
+    : [`'nonce-${nonce}'`, "'strict-dynamic'", "'unsafe-eval'"]
 
   const connectSrc = isDev
     ? [
