@@ -41,7 +41,6 @@ class AuthApi(private val client: HttpClient, private val baseUrl: String) {
 
     suspend fun logout(refreshToken: String) {
         client.post("$baseUrl/auth/logout") {
-            markAsRefreshTokenRequest()
             contentType(ContentType.Application.Json)
             setBody(mapOf("refresh_token" to refreshToken))
         }
@@ -49,7 +48,6 @@ class AuthApi(private val client: HttpClient, private val baseUrl: String) {
 
     suspend fun verifyEmail(token: String) {
         client.post("$baseUrl/auth/verify-email") {
-            markAsRefreshTokenRequest()
             contentType(ContentType.Application.Json)
             setBody(mapOf("token" to token))
         }
@@ -57,7 +55,6 @@ class AuthApi(private val client: HttpClient, private val baseUrl: String) {
 
     suspend fun resendVerification(email: String) {
         client.post("$baseUrl/auth/resend-verification") {
-            markAsRefreshTokenRequest()
             contentType(ContentType.Application.Json)
             setBody(mapOf("email" to email))
         }
