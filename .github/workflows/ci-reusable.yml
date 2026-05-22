@@ -56,16 +56,12 @@ jobs:
               - "infra/**"
             design:
               - "DESIGN.md"
-              - "scripts/design-build.js"
-              - "scripts/design-lock.js"
-              - "scripts/design-wcag.js"
+              - "scripts/design-*.js"
               - "tokens/lock.json"
               - "frontend/src/app/tokens.css"
               - "frontend/src/app/globals.css"
               - "mobile/androidApp/**/theme/**"
               - "mobile/iosApp/**/Theme/**"
-              - "ast-grep/*.yml"
-              - "Taskfile.yml"
 
   lint:
     name: Lint (ruff) + Alembic
