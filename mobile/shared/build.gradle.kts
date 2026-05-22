@@ -18,6 +18,7 @@ kotlin {
             implementation(libs.ktor.serialization.json)
             implementation(libs.ktor.client.auth)
             implementation(libs.ktor.client.sse)
+            implementation(libs.multiplatform.settings)
         }
         androidMain.dependencies {
             implementation(libs.ktor.client.okhttp)
@@ -25,6 +26,7 @@ kotlin {
         }
         iosMain.dependencies {
             implementation("io.ktor:ktor-client-darwin:${libs.versions.ktor.get()}")
+            implementation(libs.multiplatform.settings.keychain)
         }
         commonTest.dependencies {
             implementation(libs.kotlin.test)
