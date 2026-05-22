@@ -29,6 +29,7 @@ jobs:
       ml: ${{ steps.filter.outputs.ml }}
       frontend: ${{ steps.filter.outputs.frontend }}
       docker: ${{ steps.filter.outputs.docker }}
+      design: ${{ steps.filter.outputs.design }}
     steps:
       - uses: actions/checkout@v6
       - uses: dorny/paths-filter@v3
@@ -53,6 +54,17 @@ jobs:
               - "frontend/Containerfile"
               - ".containerignore"
               - "infra/**"
+            design:
+              - "DESIGN.md"
+              - "scripts/design-tokens.js"
+              - "style-dictionary.config.js"
+              - "tokens/**"
+              - "frontend/src/app/tokens.css"
+              - "mobile/androidApp/**/theme/**"
+              - "mobile/iosApp/**/Theme/**"
+              - "sgconfig.yml"
+              - "ast-grep/*.yml"
+              - "Taskfile.yml"
 
   lint:
     name: Lint (ruff)
@@ -103,6 +115,51 @@ jobs:
         with:
           config: sgconfig.yml
           paths: "backend/ ml/ frontend/"
+
+  design-lint:
+    name: Design Lint
+    needs: [changes]
+    if: inputs.run-all || needs.changes.outputs.design == 'true'
+    runs-on: blacksmith-2vcpu-ubuntu-2404
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - uses: actions/cache@v4
+        with:
+          path: ~/.npm/_npx
+          key: design-md-${{ runner.os }}-0.1.1
+      - name: Lint DESIGN.md
+        run: npx @google/design.md@0.1.1 lint DESIGN.md || true
+
+  design-drift:
+    name: Design Drift Check
+    needs: [changes]
+    if: inputs.run-all || needs.changes.outputs.design == 'true'
+    runs-on: blacksmith-2vcpu-ubuntu-2404
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - uses: actions/cache@v4
+        with:
+          path: ~/.npm/_npx
+          key: design-md-${{ runner.os }}-0.1.1
+      - name: Install deps
+        run: npm ci
+      - name: Generate tokens
+        run: node scripts/design-tokens.js DESIGN.md tokens/dtcg.json && npx style-dictionary build --config style-dictionary.config.js
+      - name: Check for drift
+        run: |
+          git diff --exit-code \
+            frontend/src/app/tokens.css \
+            mobile/androidApp/src/main/java/ru/skatelab/capture/presentation/theme/ \
+            mobile/iosApp/SkateLab/Theme/ \
+            || (echo "Design tokens drifted. Run 'task design:build' and commit." && exit 1)
 
   test:
     name: Tests
@@ -293,7 +350,7 @@ jobs:
   ci-passed:
     name: CI Summary
     runs-on: blacksmith-2vcpu-ubuntu-2404
-    needs: [changes, lint, typecheck, ast-grep, test, smoke, fe-lint, fe-typecheck, fe-build, fe-test, docker-backend, docker-frontend]
+    needs: [changes, lint, typecheck, ast-grep, design-lint, design-drift, test, smoke, fe-lint, fe-typecheck, fe-build, fe-test, docker-backend, docker-frontend]
     if: always()
     outputs:
       result: ${{ steps.check.outputs.result }}
@@ -312,6 +369,8 @@ jobs:
           DOCKER_BACKEND: ${{ needs.docker-backend.result }}
           DOCKER_FRONTEND: ${{ needs.docker-frontend.result }}
           AST_GREP: ${{ needs.ast-grep.result }}
+          DESIGN_LINT: ${{ needs.design-lint.result }}
+          DESIGN_DRIFT: ${{ needs.design-drift.result }}
           CHANGES: ${{ needs.changes.result }}
         run: |
           FAILED=0
@@ -340,6 +399,8 @@ jobs:
           check_job "Docker Build (Backend)" "$DOCKER_BACKEND"
           check_job "Docker Build (Frontend)" "$DOCKER_FRONTEND"
           echo "| :mag: ast-grep | \`${AST_GREP}\` (informational) |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| :mag: design-lint | \`${DESIGN_LINT}\` (informational) |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| :mag: design-drift | \`${DESIGN_DRIFT}\` (informational) |" >> "$GITHUB_STEP_SUMMARY"
 
           if [[ "$CHANGES" != "success" ]]; then
             echo "::error::changes detection failed"
