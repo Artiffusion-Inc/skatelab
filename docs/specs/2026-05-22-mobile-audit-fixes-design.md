@@ -8,124 +8,93 @@ Scope: P0-P3 bug fixes + missing backend integrations
 
 Comprehensive fix plan for the KMP mobile app based on code audit. 5 critical, 8 high, 12 medium bugs, plus 4 groups of missing backend integrations.
 
+Research agent findings incorporated: Ktor Auth plugin (C1), Ktor SSE plugin (C5), multiplatform-settings KeychainSettings (C3), HttpRequestRetry API corrections (H7), retry-before-timeout ordering (H7→H8), auto-reconnect preservation (H2), PendingUploadDao status values (M9), ImuStreamWriter fsync (M4).
+
 ## 1. Auth Fixes (P0)
 
-### C1 — AuthInterceptor Race Condition
+### C1 — Replace AuthInterceptor with Ktor Auth Plugin
 
-**Problem:** Multiple concurrent 401 responses trigger parallel `refreshIfNeeded()` calls. Tokens overwrite each other, user loses auth.
+**Problem:** Custom `AuthInterceptor` has race condition on concurrent 401s. Mutex-based fix adds complexity and still requires manual retry logic.
 
-**Current code** (`shared/src/commonMain/kotlin/ru/skatelab/shared/auth/AuthInterceptor.kt`):
-```kotlin
-onResponse { response ->
-    if (response.status == HttpStatusCode.Unauthorized) {
-        repo.refreshIfNeeded()  // No lock — concurrent calls corrupt tokens
-    }
-}
-```
-
-**Fix:** Add `Mutex`-based refresh lock in `AuthRepository`. First 401 acquires lock and refreshes. Subsequent 401s wait for the same refresh result.
+**Fix:** Use Ktor Auth plugin with `BearerAuthProvider` — built-in concurrent 401 deduplication and automatic retry.
 
 ```kotlin
-class AuthRepository(private val authApi: AuthApi, private val tokenStorage: TokenStorage) {
-    private val refreshMutex = Mutex()
-    private var lastRefreshResult: Result<String?>? = null
-
-    suspend fun refreshIfNeeded(): String? = refreshMutex.withLock {
-        // Check if tokens were already refreshed by another coroutine
-        val currentToken = tokenStorage.getAccessToken()
-        if (currentToken != null && !isTokenExpired(currentToken)) {
-            return currentToken
+// SkateLabClient.kt — replace AuthInterceptor with Auth plugin
+install(Auth) {
+    bearer {
+        loadTokens {
+            val access = tokenStorage.getAccessToken() ?: return@loadTokens null
+            val refresh = tokenStorage.getRefreshToken() ?: return@loadTokens null
+            BearerTokens(access, refresh)
         }
-        val refresh = tokenStorage.getRefreshToken() ?: return null
-        runCatching { authApi.refresh(refresh) }
-            .onSuccess { tokenStorage.saveTokens(it.accessToken, it.refreshToken) }
-            .onFailure {
+        refreshTokens {
+            val refreshToken = tokenStorage.getRefreshToken() ?: return@refreshTokens null
+            runCatching {
+                authApi.refresh(refreshToken)
+            }.onSuccess { response ->
+                tokenStorage.saveTokens(response.accessToken, response.refreshToken)
+            }.onFailure {
                 tokenStorage.clearTokens()  // C2 fix: clear on failure
+            }.getOrNull()?.let {
+                BearerTokens(it.accessToken, it.refreshToken)
             }
-            .getOrNull()
-            ?.accessToken
-    }
-}
-```
-
-**Interceptor update:**
-```kotlin
-onResponse { response ->
-    if (response.status == HttpStatusCode.Unauthorized) {
-        val newToken = repo.refreshIfNeeded()
-        if (newToken != null) {
-            // Retry original request with new token
-            return@onResponse response.request.newBuilder()
-                .header("Authorization", "Bearer $newToken")
-                .build()
         }
     }
 }
 ```
 
-**Test:** `AuthRepositoryTest` — concurrent 401s, single refresh call, token corruption prevention.
+**Delete** `AuthInterceptor.kt` entirely — Ktor Auth plugin handles everything (token injection, 401 detection, refresh, retry).
+
+**Test:** `AuthRepositoryTest` — concurrent 401s → single refresh, token corruption prevention. `SkateLabClientTest` — 401 → auto-refresh → retry.
 
 ### C2 — Clear Tokens on Refresh Failure
 
 **Problem:** `refreshIfNeeded()` returns null on failure but doesn't clear stale tokens. User stays "logged in" with invalid tokens → infinite 401 loop.
 
-**Fix:** Clear both tokens on refresh failure (shown in C1 code above — `onFailure { tokenStorage.clearTokens() }`).
+**Fix:** Clear both tokens on refresh failure (shown in C1 code above — `onFailure { tokenStorage.clearTokens() }` in `refreshTokens` block).
 
 **Test:** `AuthRepositoryTest` — refresh failure clears tokens, UI shows login screen.
 
-### C3 — iOS TokenStorage Encryption
+### C3 — iOS TokenStorage via multiplatform-settings KeychainSettings
 
 **Problem:** `IosTokenStorage` stores JWT in `NSUserDefaults` (plaintext). When iOS launches, tokens are exposed.
 
-**Current code** (`shared/src/iosMain/kotlin/ru/skatelab/shared/auth/IosTokenStorage.kt`):
+**Fix:** Use `multiplatform-settings` with `KeychainSettings` — cross-platform API, iOS uses Keychain automatically.
+
+Add dependency in `shared/build.gradle.kts`:
 ```kotlin
-actual class TokenStorage {
-    private val defaults = NSUserDefaults.standardUserDefaults
-    // Tokens stored as plaintext strings
+commonMain {
+    implementation("com.russhwolf:multiplatform-settings:1.3.0")
+}
+iosMain {
+    implementation("com.russhwolf:multiplatform-settings-keychain:1.3.0")
 }
 ```
 
-**Fix:** Use iOS Keychain via platform-specific implementation.
-
 ```kotlin
-actual class TokenStorage {
-    private val keychain = Keychain()
+// shared/src/commonMain — expect declaration
+expect val settings: Settings
 
-    actual suspend fun saveAccessToken(token: String) {
-        keychain.set(token, Key.ACCESS_TOKEN)
-    }
+// shared/src/iosMain
+actual val settings: Settings by lazy { KeychainSettings(service = "ru.skatelab.auth") }
 
-    actual suspend fun getAccessToken(): String? {
-        return keychain.get(Key.ACCESS_TOKEN)
-    }
-
-    actual suspend fun clearTokens() {
-        keychain.delete(Key.ACCESS_TOKEN)
-        keychain.delete(Key.REFRESH_TOKEN)
-    }
-
-    private object Key {
-        const val ACCESS_TOKEN = "ru.skatelab.auth.access_token"
-        const val REFRESH_TOKEN = "ru.skatelab.auth.refresh_token"
-    }
+// TokenStorage — now platform-agnostic
+class TokenStorage(private val settings: Settings) {
+    suspend fun saveAccessToken(token: String) { settings.putString("access_token", token) }
+    suspend fun getAccessToken(): String? = settings.getStringOrNull("access_token")
+    suspend fun saveRefreshToken(token: String) { settings.putString("refresh_token", token) }
+    suspend fun getRefreshToken(): String? = settings.getStringOrNull("refresh_token")
+    suspend fun clearTokens() { settings.remove("access_token"); settings.remove("refresh_token") }
 }
 ```
 
-Implementation uses `Security` framework (`SecItemAdd`/`SecItemCopyMatching`/`SecItemDelete`) via `kotlinx.cinterop`. Add `iosSecurity` framework dependency in `shared/build.gradle.kts`.
+**Delete** manual cinterop code in `IosTokenStorage.kt`. Remove `iosSecurity` framework dependency — `KeychainSettings` handles it internally.
 
-**Test:** `IosTokenStorageTest` (iosTest) — save, get, clear roundtrip.
+**Test:** `IosTokenStorageTest` (iosTest) — save, get, clear roundtrip. Verify Keychain usage via device console.
 
 ### C4 — Call `/auth/logout` on Sign-Out
 
 **Problem:** Mobile only clears local storage on logout. Backend refresh token stays valid → token reuse vulnerability.
-
-**Current code** (`shared/src/commonMain/kotlin/ru/skatelab/shared/auth/AuthRepository.kt`):
-```kotlin
-suspend fun logout() {
-    tokenStorage.clearTokens()
-    // No API call to revoke token on server
-}
-```
 
 **Fix:**
 ```kotlin
@@ -152,7 +121,7 @@ suspend fun logout() {
 
 **Problem:** Ktor client has no retry. Transient network failures (mobile, elevator, tunnel) cause immediate failure.
 
-**Fix:** Add `HttpRequestRetry` plugin to `SkateLabClient`.
+**Fix:** Add `HttpRequestRetry` plugin to `SkateLabClient`. Use KMP-compatible exception types (not JVM-specific).
 
 ```kotlin
 install(HttpRequestRetry) {
@@ -161,27 +130,31 @@ install(HttpRequestRetry) {
         response.status.value.let { it >= 500 || it == 429 }
     }
     retryOnExceptionIf { request, cause ->
-        cause is java.net.SocketTimeoutException ||
-        cause is java.net.UnknownHostException ||
-        cause is java.io.IOException
+        cause is io.ktor.client.network.sockets.SocketTimeoutException ||
+        cause is io.ktor.client.plugins.HttpRequestTimeoutException ||
+        cause is io.ktor.utils.io.errors.IOException
     }
     exponentialDelay(
-        base = 1.0,
-        maxDelay = 8.0,
+        base = 2.0,           // 2^n: 500ms, 1s, 2s, 4s, 8s
+        baseDelayMs = 500,
+        maxDelayMs = 8_000,
         respectRetryAfter = true  // Honor Retry-After header for 429
     )
 }
 ```
 
-**Not retried:** 401 (handled by AuthInterceptor), 4xx client errors.
+**Not retried:** 401 (handled by Ktor Auth plugin), 4xx client errors.
+
+**CRITICAL: Install order matters** — `HttpRequestRetry` MUST be installed BEFORE `HttpTimeout` so retries execute before timing out.
 
 ### H8 — Timeout Configuration
 
 **Problem:** Default Ktor timeouts are too long for mobile (60s+). User sees frozen UI on bad connections.
 
-**Fix:** Configure `HttpTimeout` plugin.
+**Fix:** Configure `HttpTimeout` plugin. Install AFTER `HttpRequestRetry`.
 
 ```kotlin
+// Install AFTER HttpRequestRetry — ordering matters
 install(HttpTimeout) {
     connectTimeoutMillis = 10_000   // 10s to establish connection
     requestTimeoutMillis = 30_000    // 30s for full request
@@ -204,15 +177,6 @@ client.put(url) {
 ### H5 — Propagate Errors in SessionsViewModel
 
 **Problem:** `loadSession(id)` catches and swallows all exceptions.
-
-**Current code** (`shared/src/commonMain/kotlin/ru/skatelab/shared/state/SessionsViewModel.kt`):
-```kotlin
-suspend fun loadSession(id: String) {
-    try {
-        _selectedSession.value = sessionsApi.get(id)
-    } catch (_: Exception) { }  // Empty catch
-}
-```
 
 **Fix:**
 ```kotlin
@@ -248,24 +212,41 @@ suspend fun login(email: String, password: String) {
 
 Add `UsersApi` dependency to `AuthViewModel`.
 
-### C5 — SSE Stream Parsing
+### C5 — Replace Manual SSE Parser with Ktor SSE Plugin
 
-**Problem:** `ProcessApi.stream()` doesn't handle SSE comment lines (`:`) or empty lines.
+**Problem:** `ProcessApi.stream()` uses manual line-by-line parsing. Doesn't handle comment lines (`:`), empty lines, multi-line data, or reconnection. Current `callbackFlow` reads one line and exits — doesn't loop.
 
-**Fix:** Filter lines before parsing:
+**Fix:** Use Ktor SSE plugin — built-in comment/empty line handling, auto-reconnect, proper event parsing.
+
+Add dependency in `shared/build.gradle.kts`:
 ```kotlin
-suspend fun stream(taskId: String): Flow<ProcessEvent> = callbackFlow {
-    client.get("$baseUrl/process/$taskId/stream") {
-        accept(ContentType.Text.EventStream)
-    }.bodyAsChannel().readUTF8Line()?.let { line ->
-        if (line.startsWith(":") || line.isBlank()) return@let  // Skip comments & empty
-        if (line.startsWith("data:")) {
-            val data = line.removePrefix("data:").trim()
-            Json.decodeFromString<ProcessEvent>(data)
-        }
-    }
+commonMain {
+    implementation("io.ktor:ktor-client-sse:3.1.3")
 }
 ```
+
+```kotlin
+// SkateLabClient.kt
+install(SSE) {
+    reconnectionTime = 5000  // Auto-reconnect on disconnect
+}
+
+// ProcessApi.kt
+suspend fun stream(taskId: String): Flow<ProcessEvent> = callbackFlow {
+    client.sse("$baseUrl/process/$taskId/stream") {
+        events.collect { event ->
+            val data = event.data ?: return@collect
+            val processEvent = Json.decodeFromString<ProcessEvent>(data)
+            trySend(processEvent)
+        }
+    }
+    awaitClose()
+}
+```
+
+**Delete** manual line-by-line parsing code. Ktor SSE handles: comment lines, empty lines, multi-line `data:` fields, `event:`/`id:` fields, auto-reconnect.
+
+**Test:** `ProcessApiTest` — comment lines, empty lines, multi-line data, reconnection.
 
 ### H4 — UploadWorker Race Condition
 
@@ -319,19 +300,21 @@ Also fix `addressToSensorId` access — make it `ConcurrentHashMap` and use `get
 val sensorId = addressToSensorId[address] ?: return@onCharacteristicChanged
 ```
 
-### H2 — KableBleRepository Job Accumulation
+### H2 — KableBleRepository Job Accumulation (Corrected)
 
 **Problem:** `stateMonitorJob` not cancelled on successful connect.
 
-**Fix:**
+**Fix:** ONLY cancel `reconnectJobs`. Do NOT cancel `stateMonitorJobs` — they detect disconnections and trigger auto-reconnect. Cancelling them breaks the auto-reconnect mechanism.
+
 ```kotlin
 suspend fun connect(sensorId: String, address: String): Result<Unit> {
     // ... existing connection logic
-    stateMonitorJobs[sensorId]?.cancel()  // Cancel monitor after successful connect
-    reconnectJobs[sensorId]?.cancel()
-    // ...
+    reconnectJobs[sensorId]?.cancel()  // Cancel reconnect attempts (connection succeeded)
+    // stateMonitorJobs[sensorId] stays running — monitors for future disconnections
 }
 ```
+
+**Future:** Consider migrating to Kable 0.35+ which provides connection-scoped coroutines via `peripheral.connect()` returning `CoroutineScope`. This would eliminate manual job management entirely.
 
 ### H3 — CameraXRecorder Resource Leak
 
@@ -385,16 +368,21 @@ catch (e: Exception) {
 }
 ```
 
-### M4 — ImuStreamWriter Flush/Close
+### M4 — ImuStreamWriter Flush/Close (Corrected)
 
-Use try-finally:
+**Current code** already has `fsync` via `fd.sync()`. Fix: ensure `close()` always runs even if `flush()` throws, and null refs first to prevent double-close.
+
 ```kotlin
 fun close() {
+    val fos = fileOutputStream
+    fileOutputStream = null  // Null first — prevents double-close
+    val fd = fileDescriptor
+    fileDescriptor = null
     try {
-        flush()
+        fos?.flush()
+        fd?.sync()            // fsync to disk
     } finally {
-        fileOutputStream?.close()
-        fileOutputStream = null
+        fos?.close()
     }
 }
 ```
@@ -455,12 +443,13 @@ ksp {
 }
 ```
 
-### M9 — PendingUploadDao Race
+### M9 — PendingUploadDao Race (Corrected)
 
-Add `@Transaction` + atomic status update to prevent concurrent processing:
+Add `@Transaction` + conditional UPDATE for optimistic locking. Use `status = 'READY'` (actual enum value in `PendingUploadEntity`), not `'PENDING'`.
+
 ```kotlin
 @Transaction
-@Query("UPDATE pending_uploads SET status = 'UPLOADING' WHERE id = :id AND status = 'PENDING'")
+@Query("UPDATE pending_uploads SET status = 'UPLOADING' WHERE id = :id AND status = 'READY'")
 suspend fun tryLockForUpload(id: String): Int  // Returns rows affected (1 = locked, 0 = already taken)
 
 @Query("SELECT * FROM pending_uploads WHERE id = :id LIMIT 1")
@@ -623,18 +612,49 @@ suspend fun cancel(taskId: String): Result<Unit>
 
 ---
 
-## 6. Test Plan
+## 6. Parallelization Strategy
+
+### Thread Assignment
+
+Up to 5 concurrent threads across 3 phases:
+
+| Thread | Area | Phase 1 (Auth) | Phase 2 (Network) | Phase 3 (Data+Features) |
+|--------|------|----------------|--------------------|------------------------|
+| T1 | Auth | C1 (Ktor Auth), C2, C4 | — | 5.1 Email verify, 5.2 Password reset |
+| T2 | Network | — | H7 (Retry), H8 (Timeout), H7→H8 ordering | C5 (SSE), 5.5 Cancel processing |
+| T3 | UI/VM | — | H5, H6 | H4 (UploadWorker), M11 |
+| T4 | BLE/Camera | — | H1, H2, H3 | M1-M8, M9-M12 |
+| T5 | iOS + New APIs | C3 (Keychain) | — | 5.3 Session CRUD, 5.4 Metrics API |
+
+### Dependencies
+
+- C1 (Ktor Auth) blocks T1 Phase 2+ work (Auth must be stable first)
+- H7→H8 ordering: Retry installed before Timeout (same `SkateLabClient.kt` file → single thread T2)
+- C5 (SSE) depends on H7 (retry) — same thread T2
+- M9 depends on H4 (UploadWorker uses DAO lock) — T3 then T4
+- iOS C3 independent — T5 can start immediately
+
+### Critical Ordering
+
+1. **C1 → everything**: Ktor Auth plugin replaces AuthInterceptor — all API calls depend on this
+2. **H7 before H8**: `install(HttpRequestRetry)` before `install(HttpTimeout)` — file ordering
+3. **C5 after H7**: SSE plugin needs retry for reconnection resilience
+
+---
+
+## 7. Test Plan
 
 ### Unit Tests to Add
 
 | Area | Test | Priority |
 |------|------|----------|
-| Auth | `AuthInterceptor concurrent 401s` — verify single refresh | P0 |
+| Auth | `Ktor Auth plugin concurrent 401s` — verify single refresh | P0 |
 | Auth | `AuthRepository refresh failure clears tokens` | P0 |
 | Auth | `AuthRepository logout calls API then clears` | P0 |
 | Auth | `AuthApi.logout()` — request serialization | P0 |
-| SSE | `ProcessApi stream parsing` — comments, empty lines, data | P1 |
+| SSE | `ProcessApi stream via SSE plugin` — comments, empty lines, multi-line data | P1 |
 | Upload | `UploadWorker unique work` — no duplicate processing | P1 |
+| Upload | `PendingUploadDao.tryLockForUpload` — WHERE status='READY' | P1 |
 | API | `SkateLabClient retry on 5xx` — 3 retries then fail | P1 |
 | API | `SkateLabClient timeout` — connect, request, socket | P1 |
 | Models | `SessionUpdateRequest serialization` | P2 |
@@ -647,11 +667,11 @@ suspend fun cancel(taskId: String): Result<Unit>
 
 | Flow | What to verify |
 |------|---------------|
-| Login → 401 → refresh → retry | Full auth recovery |
-| Login → refresh fails → logout | Token clearing |
+| Login → 401 → Ktor Auth refresh → retry | Full auth recovery (plugin-managed) |
+| Login → refresh fails → tokens cleared → logout | Token clearing |
 | Upload → 429 → backoff → success | Rate limit recovery |
 | SSE stream → completed → navigate | Full processing flow |
-| BLE connect → disconnect → reconnect | Sensor lifecycle |
+| BLE connect → disconnect → auto-reconnect | Sensor lifecycle (stateMonitorJob preserved) |
 
 ### Instrumented Tests
 
@@ -663,32 +683,32 @@ suspend fun cancel(taskId: String): Result<Unit>
 
 ---
 
-## 7. Implementation Order
+## 8. Implementation Order
 
 Phase 1 — Auth (blocks everything else):
-1. C1: AuthInterceptor Mutex
-2. C2: Clear tokens on refresh failure
+1. C1: Ktor Auth plugin (replace AuthInterceptor)
+2. C2: Clear tokens on refresh failure (in Ktor Auth refreshTokens block)
 3. C4: Call `/auth/logout`
-4. H8: Timeout configuration
 
 Phase 2 — Network resilience:
-5. H7: Retry with exponential backoff
-6. C5: SSE stream parsing fix
+4. H7: HttpRequestRetry with exponential backoff (install BEFORE H8)
+5. H8: HttpTimeout configuration (install AFTER H7)
+6. C5: Ktor SSE plugin (replace manual parser)
 
 Phase 3 — UI error handling:
 7. H5: SessionsViewModel error propagation
 8. H6: Load profile after login
-9. H4: UploadWorker race fix
+9. H4: UploadWorker race fix (enqueueUniqueWork + tryLockForUpload)
 10. M11: ProcessingViewModel sessionId
 
 Phase 4 — Data stability:
 11. H1: BleManager thread safety
-12. H2: KableBleRepository job cleanup
+12. H2: KableBleRepository — cancel reconnectJobs only, preserve stateMonitorJobs
 13. H3: CameraXRecorder try-finally
 14. M1-M12: All medium fixes
 
 Phase 5 — iOS:
-15. C3: Keychain TokenStorage
+15. C3: multiplatform-settings KeychainSettings
 
 Phase 6 — New features:
 16. Email verification
@@ -699,13 +719,16 @@ Phase 6 — New features:
 
 ---
 
-## 8. Risk Assessment
+## 9. Risk Assessment
 
 | Risk | Likelihood | Impact | Mitigation |
 |------|-----------|--------|------------|
-| Auth refactor breaks existing login flow | Medium | High | Comprehensive auth tests before merge |
-| SSE parsing change breaks processing | Low | High | Test with real SSE stream |
+| Ktor Auth plugin migration breaks existing login flow | Medium | High | Comprehensive auth tests before merge; delete AuthInterceptor only after tests pass |
+| SSE plugin API mismatch with backend SSE format | Low | High | Test with real SSE stream; verify backend sends standard SSE format |
 | BLE thread safety fix introduces new race | Low | Medium | BLE unit tests with concurrent access |
-| Keychain API availability on older iOS | Low | Low | Min iOS 15+, Keychain available since iOS 2 |
+| KeychainSettings availability on older iOS | Low | Low | Min iOS 15+, Keychain available since iOS 2 |
 | Retry backoff causes UI sluggishness | Low | Medium | Cancel retry on ViewModel clear |
+| HttpRequestRetry before HttpTimeout ordering | Medium | High | Add code comment + build-time check if possible |
 | New API endpoints don't match backend yet | Medium | Medium | Verify against backend schemas.py before implementing |
+| Cancelling stateMonitorJob breaks auto-reconnect | High | High | Only cancel reconnectJobs; stateMonitorJob stays running |
+| PendingUploadDao status mismatch | Medium | Medium | Use 'READY' not 'PENDING' per actual entity enum |
