@@ -178,7 +178,7 @@ jobs:
 
   test:
     name: Tests
-    needs: [changes, lint]
+    needs: [changes]
     if: inputs.run-all || needs.changes.outputs.python == 'true'
     runs-on: blacksmith-2vcpu-ubuntu-2404
     steps:
