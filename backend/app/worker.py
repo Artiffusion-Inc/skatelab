@@ -2,8 +2,8 @@
 
 Run with: uv run python -m app.worker
 
-When VASTAI_API_KEY is set, dispatches to Vast.ai Serverless GPU.
-Otherwise runs locally on GPU (requires CUDA).
+Dispatches to Vast.ai Serverless GPU.
+Requires VASTAI_API_KEY environment variable.
 """
 
 from __future__ import annotations
@@ -202,6 +202,14 @@ def _compute_frame_metrics(poses: np.ndarray) -> dict:
 async def startup(ctx: dict[str, Any]) -> None:
     """Initialize shared pools. Retry on Valkey failure."""
     import asyncio as _asyncio
+
+    settings = get_settings()
+    if not settings.vastai.api_key.get_secret_value():
+        raise RuntimeError(
+            "VASTAI_API_KEY is required. "
+            "Local GPU processing has been removed. "
+            "Set VASTAI_API_KEY in .env or environment."
+        )
 
     for attempt in range(5):
         try:
@@ -448,10 +456,9 @@ async def detect_video_task(
 ) -> dict[str, Any]:
     """arq task: detect persons in uploaded video.
 
-    Dispatches to Vast.ai Serverless GPU when VASTAI_API_KEY is set,
-    otherwise runs locally on GPU.
+    Dispatches to Vast.ai Serverless GPU.
+    Requires VASTAI_API_KEY environment variable.
     """
-    settings = get_settings()
     valkey = get_valkey()
 
     try:
@@ -466,188 +473,46 @@ async def detect_video_task(
             {"status": "running", "progress": 0.0, "message": "Starting detection..."},
         )
 
-        # --- Remote path (Vast.ai Serverless) ---
-        if settings.vastai.api_key.get_secret_value():
-            from app.vastai.client import detect_video_remote_async
+        from app.vastai.client import detect_video_remote_async
 
-            logger.info(
-                "Dispatching detection task %s to Vast.ai (video_key=%s)", task_id, video_key
-            )
-            await update_progress(task_id, 0.1, "Dispatching to GPU...")
-            await publish_task_event(
-                task_id,
-                {"status": "running", "progress": 0.1, "message": "Dispatching to GPU..."},
-            )
-
-            if await is_cancelled(task_id):
-                await mark_cancelled(task_id)
-                return {"status": "cancelled"}
-
-            async with _VASTAI_SEMAPHORE:
-                detect_result = await detect_video_remote_async(
-                    video_key=video_key,
-                    tracking=tracking,
-                )
-
-            result_data = {
-                "persons": [
-                    {
-                        "track_id": p["track_id"],
-                        "hits": p["hits"],
-                        "bbox": p["bbox"],
-                        "mid_hip": p["mid_hip"],
-                    }
-                    for p in detect_result.persons
-                ],
-                "preview_image": detect_result.preview_image,
-                "video_key": detect_result.video_key,
-                "auto_click": detect_result.auto_click,
-                "status": detect_result.status,
-            }
-            await store_result(task_id, result_data)
-            await update_progress(task_id, 1.0, "Done")
-            await publish_task_event(
-                task_id, {"status": "completed", "progress": 1.0, "message": "Done"}
-            )
-            return result_data
-
-        # --- Local path (GPU on this machine) ---
-        import tempfile
-        from pathlib import Path
-
-        import cv2  # pyright: ignore[reportMissingImports]
-
-        from src.device import DeviceConfig  # pyright: ignore[reportMissingImports]
-        from src.pose_estimation.pose_extractor import (  # pyright: ignore[reportMissingImports]
-            PoseExtractor,
-        )
-        from src.utils.video import get_video_meta  # pyright: ignore[reportMissingImports]
-
-        def render_person_preview(frame: Any, persons: Any, selected_idx: Any = None) -> Any:
-            annotated = frame.copy()
-            h, w = frame.shape[:2]
-            colors = [(255, 165, 0), (0, 200, 200), (200, 100, 0), (200, 0, 200), (0, 180, 255)]
-            for i, p in enumerate(persons):
-                x1, y1, x2, y2 = p["bbox"]
-                px1, py1 = int(x1 * w), int(y1 * h)
-                px2, py2 = int(x2 * w), int(y2 * h)
-                if selected_idx is not None and i == selected_idx:
-                    color = (0, 255, 0)
-                    thickness = 3
-                else:
-                    color = colors[i % len(colors)]
-                    thickness = 2
-                cv2.rectangle(annotated, (px1, py1), (px2, py2), color, thickness)
-                label = f"#{i + 1} (hits: {p['hits']})"
-                cv2.rectangle(
-                    annotated, (px1, py1 - 28), (px1 + len(label) * 10 + 10, py1), color, -1
-                )
-                cv2.putText(
-                    annotated,
-                    label,
-                    (px1 + 5, py1 - 8),
-                    cv2.FONT_HERSHEY_SIMPLEX,
-                    0.6,
-                    (255, 255, 255),
-                    1,
-                    cv2.LINE_AA,
-                )
-            return annotated
-
-        await update_progress(task_id, 0.1, "Downloading video...")
+        logger.info("Dispatching detection task %s to Vast.ai (video_key=%s)", task_id, video_key)
+        await update_progress(task_id, 0.1, "Dispatching to GPU...")
         await publish_task_event(
             task_id,
-            {"status": "running", "progress": 0.1, "message": "Downloading video..."},
+            {"status": "running", "progress": 0.1, "message": "Dispatching to GPU..."},
         )
 
-        with tempfile.TemporaryDirectory() as tmpdir:
-            video_path = Path(tmpdir) / "input.mp4"
-            await asyncio.to_thread(download_file, video_key, str(video_path))
+        if await is_cancelled(task_id):
+            await mark_cancelled(task_id)
+            return {"status": "cancelled"}
 
-            cfg = DeviceConfig.default()
-            extractor = PoseExtractor(
-                model_path="data/models/moganet/moganet_b_ap2d_384x288.onnx",
-                tracking_backend="custom",
-                tracking_mode=tracking,
-                conf_threshold=0.3,
-                output_format="normalized",
-                device=cfg.device,
-            )
-            persons, _ = await asyncio.to_thread(
-                extractor.preview_persons, video_path, num_frames=30
-            )
-            await update_progress(task_id, 0.8, "Extracting poses...")
-            await publish_task_event(
-                task_id,
-                {"status": "running", "progress": 0.8, "message": "Extracting poses..."},
+        async with _VASTAI_SEMAPHORE:
+            detect_result = await detect_video_remote_async(
+                video_key=video_key,
+                tracking=tracking,
             )
 
-            if not persons:
-                result_data = {
-                    "persons": [],
-                    "preview_image": "",
-                    "video_key": video_key,
-                    "auto_click": None,
-                    "status": "Люди не найдены. Попробуйте другое видео.",
-                }
-                await store_result(task_id, result_data)
-                return result_data
-
-            cap = await asyncio.to_thread(cv2.VideoCapture, str(video_path))
-            ret, frame = await asyncio.to_thread(cap.read)
-            await asyncio.to_thread(cap.release)
-
-            if not ret:
-                raise RuntimeError("Failed to read video frame")
-
-            meta = await asyncio.to_thread(get_video_meta, video_path)
-            w, h = meta.width, meta.height
-
-            annotated = await asyncio.to_thread(
-                render_person_preview,
-                frame,  # type: ignore[arg-type]
-                persons,  # type: ignore[arg-type]
-                selected_idx=None,
-            )
-            success, buf = await asyncio.to_thread(cv2.imencode, ".png", annotated)
-            if not success:
-                raise RuntimeError("Failed to encode preview image")
-            import base64
-
-            preview_b64 = base64.b64encode(buf).decode("ascii")  # type: ignore[arg-type]
-
-            auto_click = None
-            status_msg: str
-            if len(persons) == 1:
-                mid_hip = persons[0]["mid_hip"]
-                auto_click = {"x": int(mid_hip[0] * w), "y": int(mid_hip[1] * h)}
-                status_msg = "Обнаружен 1 человек — выбран автоматически"
-            else:
-                status_msg = f"Обнаружено {len(persons)} человек. Выберите на превью или из списка."
-
-            persons_out = [
+        result_data = {
+            "persons": [
                 {
                     "track_id": p["track_id"],
                     "hits": p["hits"],
                     "bbox": p["bbox"],
                     "mid_hip": p["mid_hip"],
                 }
-                for p in persons
-            ]
-
-            result_data = {
-                "persons": persons_out,
-                "preview_image": preview_b64,
-                "video_key": video_key,
-                "auto_click": auto_click,
-                "status": status_msg,
-            }
-            await store_result(task_id, result_data)
-            await update_progress(task_id, 1.0, "Done")
-            await publish_task_event(
-                task_id, {"status": "completed", "progress": 1.0, "message": "Done"}
-            )
-            return result_data
+                for p in detect_result.persons
+            ],
+            "preview_image": detect_result.preview_image,
+            "video_key": detect_result.video_key,
+            "auto_click": detect_result.auto_click,
+            "status": detect_result.status,
+        }
+        await store_result(task_id, result_data)
+        await update_progress(task_id, 1.0, "Done")
+        await publish_task_event(
+            task_id, {"status": "completed", "progress": 1.0, "message": "Done"}
+        )
+        return result_data
 
     except (httpx.TimeoutException, httpx.ConnectError, ConnectionError, TimeoutError) as e:
         logger.warning("Vast.ai connection error for detect task %s: %s", task_id, e)
@@ -812,11 +677,7 @@ class FastWorkerSettings:
     """arq worker for lightweight detection tasks."""
 
     queue_name: str = "skatelab:queue:fast"
-    max_jobs: int = (
-        _settings.app.worker_max_jobs_remote
-        if _settings.vastai.api_key.get_secret_value()
-        else _settings.app.worker_max_jobs
-    )
+    max_jobs: int = _settings.app.worker_max_jobs_remote
     retry_jobs: bool = True
     retry_delays: ClassVar[list[int]] = _settings.app.worker_retry_delays
     job_completion_wait: int = 120
