@@ -13,11 +13,8 @@ function buildCsp(nonce: string, isDev: boolean): string {
       ]
     : [
         `'nonce-${nonce}'`,
-        "'self'",
         "'strict-dynamic'",
-        "'unsafe-inline'",
         "'unsafe-eval'",
-        "https://cdn.jsdelivr.net",
       ]
 
   const connectSrc = isDev
@@ -29,7 +26,7 @@ function buildCsp(nonce: string, isDev: boolean): string {
         "ws://localhost:*",
         "http://localhost:8400",
       ]
-    : ["'self'", "blob:", "https://*.r2.cloudflarestorage.com", "http://localhost:8000"]
+    : ["'self'", "blob:", "https://*.r2.cloudflarestorage.com"]
 
   const directives: Record<string, string[]> = {
     "default-src": ["'self'"],
