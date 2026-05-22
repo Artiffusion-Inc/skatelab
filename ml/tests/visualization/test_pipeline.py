@@ -654,7 +654,7 @@ class TestResolveModel3d:
 
     def test_none_returns_default_candidate_if_exists(self, tmp_path, monkeypatch):
         """When path=None, returns first existing default candidate."""
-        from src.visualization import pipeline as pipe_mod
+        from src import pose_preparation as pipe_mod
 
         fake_path = tmp_path / "motionagformer-s-ap3d.onnx"
         fake_path.touch()
@@ -664,7 +664,7 @@ class TestResolveModel3d:
 
     def test_none_returns_none_when_no_candidates_exist(self, tmp_path, monkeypatch):
         """When path=None and no candidates exist, returns None."""
-        from src.visualization import pipeline as pipe_mod
+        from src import pose_preparation as pipe_mod
 
         monkeypatch.setattr(
             pipe_mod,
@@ -685,12 +685,12 @@ class TestPreparePoses:
         """Return a dict of standard mock patches for prepare_poses dependencies."""
         return {
             "get_video_meta": mock.patch(
-                "src.visualization.pipeline.get_video_meta", return_value=_make_meta()
+                "src.pose_preparation.get_video_meta", return_value=_make_meta()
             ),
-            "PoseExtractor": mock.patch("src.visualization.pipeline.PoseExtractor"),
-            "ONNXPoseExtractor": mock.patch("src.visualization.pipeline.ONNXPoseExtractor"),
+            "PoseExtractor": mock.patch("src.pose_preparation.PoseExtractor"),
+            "ONNXPoseExtractor": mock.patch("src.pose_preparation.ONNXPoseExtractor"),
             "resolve_model_3d": mock.patch(
-                "src.visualization.pipeline._resolve_model_3d",
+                "src.pose_preparation._resolve_model_3d",
                 return_value=Path("model.onnx"),
             ),
             "DeviceConfig": mock.patch("src.device.DeviceConfig"),
@@ -699,11 +699,11 @@ class TestPreparePoses:
     def test_returns_prepared_poses(self):
         """prepare_poses returns PreparedPoses with correct shapes."""
         with (
-            mock.patch("src.visualization.pipeline.get_video_meta", return_value=_make_meta()),
-            mock.patch("src.visualization.pipeline.PoseExtractor") as MockExt,
-            mock.patch("src.visualization.pipeline.ONNXPoseExtractor") as MockOnnx,
+            mock.patch("src.pose_preparation.get_video_meta", return_value=_make_meta()),
+            mock.patch("src.pose_preparation.PoseExtractor") as MockExt,
+            mock.patch("src.pose_preparation.ONNXPoseExtractor") as MockOnnx,
             mock.patch(
-                "src.visualization.pipeline._resolve_model_3d", return_value=Path("model.onnx")
+                "src.pose_preparation._resolve_model_3d", return_value=Path("model.onnx")
             ),
             mock.patch("src.device.DeviceConfig") as MockDevCfg,
         ):
@@ -726,9 +726,9 @@ class TestPreparePoses:
     def test_no_3d_when_model_missing(self):
         """When 3D model not found, poses_3d is None."""
         with (
-            mock.patch("src.visualization.pipeline.get_video_meta", return_value=_make_meta()),
-            mock.patch("src.visualization.pipeline.PoseExtractor") as MockExt,
-            mock.patch("src.visualization.pipeline._resolve_model_3d", return_value=None),
+            mock.patch("src.pose_preparation.get_video_meta", return_value=_make_meta()),
+            mock.patch("src.pose_preparation.PoseExtractor") as MockExt,
+            mock.patch("src.pose_preparation._resolve_model_3d", return_value=None),
             mock.patch("src.device.DeviceConfig") as MockDevCfg,
         ):
             MockDevCfg.return_value.device = "cuda"
@@ -749,12 +749,12 @@ class TestPreparePoses:
 
         with (
             mock.patch(
-                "src.visualization.pipeline.get_video_meta", return_value=_make_meta(num_frames=20)
+                "src.pose_preparation.get_video_meta", return_value=_make_meta(num_frames=20)
             ),
-            mock.patch("src.visualization.pipeline.PoseExtractor") as MockExt,
-            mock.patch("src.visualization.pipeline.ONNXPoseExtractor") as MockOnnx,
+            mock.patch("src.pose_preparation.PoseExtractor") as MockExt,
+            mock.patch("src.pose_preparation.ONNXPoseExtractor") as MockOnnx,
             mock.patch(
-                "src.visualization.pipeline._resolve_model_3d", return_value=Path("model.onnx")
+                "src.pose_preparation._resolve_model_3d", return_value=Path("model.onnx")
             ),
             mock.patch("src.device.DeviceConfig") as MockDevCfg,
         ):
@@ -775,10 +775,10 @@ class TestPreparePoses:
 
         with (
             mock.patch(
-                "src.visualization.pipeline.get_video_meta", return_value=_make_meta(num_frames=5)
+                "src.pose_preparation.get_video_meta", return_value=_make_meta(num_frames=5)
             ),
-            mock.patch("src.visualization.pipeline.PoseExtractor") as MockExt,
-            mock.patch("src.visualization.pipeline._resolve_model_3d", return_value=None),
+            mock.patch("src.pose_preparation.PoseExtractor") as MockExt,
+            mock.patch("src.pose_preparation._resolve_model_3d", return_value=None),
             mock.patch("src.device.DeviceConfig") as MockDevCfg,
         ):
             MockDevCfg.return_value.device = "cuda"
@@ -797,11 +797,11 @@ class TestPreparePoses:
             progress_calls.append((progress, msg))
 
         with (
-            mock.patch("src.visualization.pipeline.get_video_meta", return_value=_make_meta()),
-            mock.patch("src.visualization.pipeline.PoseExtractor") as MockExt,
-            mock.patch("src.visualization.pipeline.ONNXPoseExtractor") as MockOnnx,
+            mock.patch("src.pose_preparation.get_video_meta", return_value=_make_meta()),
+            mock.patch("src.pose_preparation.PoseExtractor") as MockExt,
+            mock.patch("src.pose_preparation.ONNXPoseExtractor") as MockOnnx,
             mock.patch(
-                "src.visualization.pipeline._resolve_model_3d", return_value=Path("model.onnx")
+                "src.pose_preparation._resolve_model_3d", return_value=Path("model.onnx")
             ),
             mock.patch("src.device.DeviceConfig") as MockDevCfg,
         ):
@@ -828,9 +828,9 @@ class TestPreparePoses:
             progress_calls.append((progress, msg))
 
         with (
-            mock.patch("src.visualization.pipeline.get_video_meta", return_value=_make_meta()),
-            mock.patch("src.visualization.pipeline.PoseExtractor") as MockExt,
-            mock.patch("src.visualization.pipeline._resolve_model_3d", return_value=None),
+            mock.patch("src.pose_preparation.get_video_meta", return_value=_make_meta()),
+            mock.patch("src.pose_preparation.PoseExtractor") as MockExt,
+            mock.patch("src.pose_preparation._resolve_model_3d", return_value=None),
             mock.patch("src.device.DeviceConfig") as MockDevCfg,
         ):
             MockDevCfg.return_value.device = "cuda"
@@ -847,9 +847,9 @@ class TestPreparePoses:
         extraction = _fake_extraction(5)
 
         with (
-            mock.patch("src.visualization.pipeline.get_video_meta", return_value=_make_meta()),
-            mock.patch("src.visualization.pipeline.PoseExtractor") as MockExt,
-            mock.patch("src.visualization.pipeline._resolve_model_3d", return_value=None),
+            mock.patch("src.pose_preparation.get_video_meta", return_value=_make_meta()),
+            mock.patch("src.pose_preparation.PoseExtractor") as MockExt,
+            mock.patch("src.pose_preparation._resolve_model_3d", return_value=None),
             mock.patch("src.device.DeviceConfig") as MockDevCfg,
         ):
             MockDevCfg.return_value.device = "cuda"
@@ -877,9 +877,9 @@ class TestPreparePoses:
         click = PersonClick(x=100, y=200)
 
         with (
-            mock.patch("src.visualization.pipeline.get_video_meta", return_value=_make_meta()),
-            mock.patch("src.visualization.pipeline.PoseExtractor") as MockExt,
-            mock.patch("src.visualization.pipeline._resolve_model_3d", return_value=None),
+            mock.patch("src.pose_preparation.get_video_meta", return_value=_make_meta()),
+            mock.patch("src.pose_preparation.PoseExtractor") as MockExt,
+            mock.patch("src.pose_preparation._resolve_model_3d", return_value=None),
             mock.patch("src.device.DeviceConfig") as MockDevCfg,
         ):
             MockDevCfg.return_value.device = "cuda"
@@ -900,10 +900,10 @@ class TestPreparePoses:
 
         with (
             mock.patch(
-                "src.visualization.pipeline.get_video_meta", return_value=_make_meta()
+                "src.pose_preparation.get_video_meta", return_value=_make_meta()
             ) as mock_meta,
-            mock.patch("src.visualization.pipeline.PoseExtractor") as MockExt,
-            mock.patch("src.visualization.pipeline._resolve_model_3d", return_value=None),
+            mock.patch("src.pose_preparation.PoseExtractor") as MockExt,
+            mock.patch("src.pose_preparation._resolve_model_3d", return_value=None),
             mock.patch("src.device.DeviceConfig") as MockDevCfg,
         ):
             MockDevCfg.return_value.device = "cuda"
@@ -920,9 +920,9 @@ class TestPreparePoses:
         extraction = _fake_extraction(5)
 
         with (
-            mock.patch("src.visualization.pipeline.get_video_meta", return_value=_make_meta()),
-            mock.patch("src.visualization.pipeline.PoseExtractor") as MockExt,
-            mock.patch("src.visualization.pipeline._resolve_model_3d", return_value=None),
+            mock.patch("src.pose_preparation.get_video_meta", return_value=_make_meta()),
+            mock.patch("src.pose_preparation.PoseExtractor") as MockExt,
+            mock.patch("src.pose_preparation._resolve_model_3d", return_value=None),
             mock.patch("src.device.DeviceConfig") as MockDevCfg,
         ):
             MockDevCfg.return_value.device = "cuda"
@@ -950,9 +950,9 @@ class TestPreparePoses:
         extraction.poses = raw
 
         with (
-            mock.patch("src.visualization.pipeline.get_video_meta", return_value=_make_meta()),
-            mock.patch("src.visualization.pipeline.PoseExtractor") as MockExt,
-            mock.patch("src.visualization.pipeline._resolve_model_3d", return_value=None),
+            mock.patch("src.pose_preparation.get_video_meta", return_value=_make_meta()),
+            mock.patch("src.pose_preparation.PoseExtractor") as MockExt,
+            mock.patch("src.pose_preparation._resolve_model_3d", return_value=None),
             mock.patch("src.device.DeviceConfig") as MockDevCfg,
         ):
             MockDevCfg.return_value.device = "cuda"
