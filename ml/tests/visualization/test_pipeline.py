@@ -702,9 +702,7 @@ class TestPreparePoses:
             mock.patch("src.pose_preparation.get_video_meta", return_value=_make_meta()),
             mock.patch("src.pose_preparation.PoseExtractor") as MockExt,
             mock.patch("src.pose_preparation.ONNXPoseExtractor") as MockOnnx,
-            mock.patch(
-                "src.pose_preparation._resolve_model_3d", return_value=Path("model.onnx")
-            ),
+            mock.patch("src.pose_preparation._resolve_model_3d", return_value=Path("model.onnx")),
             mock.patch("src.device.DeviceConfig") as MockDevCfg,
         ):
             MockDevCfg.return_value.device = "cuda"
@@ -753,9 +751,7 @@ class TestPreparePoses:
             ),
             mock.patch("src.pose_preparation.PoseExtractor") as MockExt,
             mock.patch("src.pose_preparation.ONNXPoseExtractor") as MockOnnx,
-            mock.patch(
-                "src.pose_preparation._resolve_model_3d", return_value=Path("model.onnx")
-            ),
+            mock.patch("src.pose_preparation._resolve_model_3d", return_value=Path("model.onnx")),
             mock.patch("src.device.DeviceConfig") as MockDevCfg,
         ):
             MockDevCfg.return_value.device = "cuda"
@@ -800,9 +796,7 @@ class TestPreparePoses:
             mock.patch("src.pose_preparation.get_video_meta", return_value=_make_meta()),
             mock.patch("src.pose_preparation.PoseExtractor") as MockExt,
             mock.patch("src.pose_preparation.ONNXPoseExtractor") as MockOnnx,
-            mock.patch(
-                "src.pose_preparation._resolve_model_3d", return_value=Path("model.onnx")
-            ),
+            mock.patch("src.pose_preparation._resolve_model_3d", return_value=Path("model.onnx")),
             mock.patch("src.device.DeviceConfig") as MockDevCfg,
         ):
             MockDevCfg.return_value.device = "cuda"
