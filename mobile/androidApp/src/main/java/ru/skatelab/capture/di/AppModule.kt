@@ -34,6 +34,7 @@ import ru.skatelab.shared.api.SkateLabClient
 import ru.skatelab.shared.api.UsersApi
 import ru.skatelab.shared.auth.AuthRepository
 import ru.skatelab.shared.auth.TokenStorage
+import ru.skatelab.shared.auth.createAndroidSettings
 
 @Qualifier
 @Retention(AnnotationRetention.BINARY)
@@ -102,7 +103,7 @@ abstract class AppModule {
         @Singleton
         fun provideTokenStorage(
             @ApplicationContext context: Context,
-        ): TokenStorage = TokenStorage().also { it.init(context) }
+        ): TokenStorage = TokenStorage(createAndroidSettings(context))
 
         @Provides
         @Singleton
