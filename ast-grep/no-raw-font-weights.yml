@@ -1,0 +1,12 @@
+id: no-raw-font-weights
+language: tsx
+message: |
+  Use design-system typography tokens (.sh-display-xl, .sh-body-md, etc.)
+  instead of raw Tailwind font-weight utilities.
+  The Sub-Default Rule requires weights 460/540/600 instead of 400/500/700.
+severity: warning
+rule:
+  kind: string_fragment
+  regex: '(font-thin|font-extralight|font-light|font-normal|font-medium|font-semibold|font-bold|font-extrabold|font-black)'
+ignores:
+  - "frontend/src/components/ui/**"
