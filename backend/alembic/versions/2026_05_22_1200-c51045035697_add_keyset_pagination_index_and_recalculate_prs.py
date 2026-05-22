@@ -11,7 +11,11 @@ from collections.abc import Sequence
 from alembic import op
 
 # revision identifiers, used by Alembic.
+<<<<<<<< HEAD:backend/alembic/versions/2026_05_22_1200-c51045035697_add_keyset_pagination_index_and_recalculate_prs.py
 revision: str = "c51045035697"
+========
+revision: str = "f1a2b3c4d5e7"
+>>>>>>>> 20c826cd (feat(auth): make RefreshRequest.refresh_token optional + backfill email verified):backend/alembic/versions/2026_05_22_1200-f1a2b3c4d5e7_add_keyset_pagination_index_and_recalculate_prs.py
 down_revision: str | None = "f1a2b3c4d5e6"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
