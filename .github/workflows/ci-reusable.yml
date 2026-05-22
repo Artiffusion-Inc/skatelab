@@ -203,7 +203,7 @@ jobs:
           ml/tests/utils/test_profiling.py ml/tests/utils/test_smoothing.py
           ml/tests/utils/test_smoothing_numba.py ml/tests/utils/test_video_writer_nvenc.py
           ml/tests/references/ ml/tests/pose_3d/ ml/tests/pose_estimation/ ml/tests/datasets/
-          -v -m "not slow and not integration"
+          -v -n logical -m "not slow and not integration"
           --cov=backend/app --cov=ml/src
           --cov-report=xml --junitxml=junit.xml --tb=short
       - name: Upload coverage (backend)
