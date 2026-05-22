@@ -20,11 +20,11 @@
  *   and requires manual review (clear tokens/build.log to reset).
  */
 
-import { readFileSync, writeFileSync, existsSync, mkdirSync } from "node:fs";
+import { readFileSync, writeFileSync, existsSync, mkdirSync, appendFileSync } from "node:fs";
 import { createHash } from "node:crypto";
-import { dirname, resolve } from "node:path";
+import { dirname, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
-import { execa } from "execa";
+import { execa, execaSync } from "execa";
 import PQueue from "p-queue";
 
 // ─── Paths ────────────────────────────────────────────────────────────────
@@ -36,23 +36,34 @@ const BUILD_LOG = resolve(ROOT, "tokens", "build.log");
 const GLOBALS_CSS = resolve(ROOT, "frontend", "src", "app", "globals.css");
 
 const PLATFORM_FILES = {
-  css: "frontend/src/app/tokens.css",
-  kotlin: {
-    colors:
-      "mobile/androidApp/src/main/java/ru/skatelab/capture/presentation/theme/Colors.kt",
-    type:
-      "mobile/androidApp/src/main/java/ru/skatelab/capture/presentation/theme/Type.kt",
-    theme:
-      "mobile/androidApp/src/main/java/ru/skatelab/capture/presentation/theme/Theme.kt",
-  },
-  swift: {
-    colors: "mobile/iosApp/SkateLab/Theme/SkateLabColors.swift",
-    typography: "mobile/iosApp/SkateLab/Theme/SkateLabTypography.swift",
-    theme: "mobile/iosApp/SkateLab/Theme/SkateLabTheme.swift",
-  },
+  css: ["frontend/src/app/tokens.css"],
+  kotlin: [
+    "mobile/androidApp/src/main/java/ru/skatelab/capture/presentation/theme/Colors.kt",
+    "mobile/androidApp/src/main/java/ru/skatelab/capture/presentation/theme/Type.kt",
+    "mobile/androidApp/src/main/java/ru/skatelab/capture/presentation/theme/Theme.kt",
+    "mobile/androidApp/src/main/java/ru/skatelab/capture/presentation/theme/Shadows.kt",
+    "mobile/androidApp/src/main/java/ru/skatelab/capture/presentation/theme/Modifiers.kt",
+  ],
+  swift: [
+    "mobile/iosApp/SkateLab/Theme/SkateLabColors.swift",
+    "mobile/iosApp/SkateLab/Theme/SkateLabTypography.swift",
+    "mobile/iosApp/SkateLab/Theme/SkateLabTheme.swift",
+    "mobile/iosApp/SkateLab/Theme/SkateLabShadows.swift",
+    "mobile/iosApp/SkateLab/Theme/SkateLabModifiers.swift",
+  ],
 };
 
 // ─── Arg Parsing ───────────────────────────────────────────────────────────
+
+if (process.argv.includes('--help') || process.argv.includes('-h')) {
+  console.log(`Usage: design-build.js [options]
+
+Options:
+  --trigger <all|tokens|components|shadows>  Sections to regenerate (default: all)
+  --force                                    Force regeneration even if DESIGN.md unchanged
+  --help                                     Show this help`);
+  process.exit(0);
+}
 
 const args = process.argv.slice(2);
 let trigger = "all";
@@ -162,8 +173,7 @@ function appendBuildLog(entry) {
   const dir = dirname(BUILD_LOG);
   if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
   const line = JSON.stringify({ ...entry, timestamp: new Date().toISOString() }) + "\n";
-  const existing = existsSync(BUILD_LOG) ? readFileSync(BUILD_LOG, "utf8") : "";
-  writeFileSync(BUILD_LOG, existing + line);
+  appendFileSync(BUILD_LOG, line);
 }
 
 function checkCircuitBreaker() {
@@ -172,6 +182,7 @@ function checkCircuitBreaker() {
     console.error(
       `Circuit breaker: ${failures} consecutive failures. Skipping generation. Clear ${BUILD_LOG} to reset.`
     );
+    fallbackRestore(allPlatformFilePaths());
     process.exit(1);
   }
 }
@@ -200,6 +211,9 @@ function getTriggerSections(trigger) {
 }
 
 // ─── Comment Trigger Extraction ──────────────────────────────────────────────
+// Reserved for future use: extracting <!-- generate:tokens|components|shadows|all -->
+// HTML comments from DESIGN.md to selectively regenerate only triggered sections.
+// Currently unused — all generation uses --trigger flag or defaults to "all".
 
 function extractCommentTriggers(content) {
   const triggers = [];
@@ -326,11 +340,19 @@ const KOTLIN_PLATFORM_SCHEMA = {
         "mobile/androidApp/src/main/java/ru/skatelab/capture/presentation/theme/Theme.kt": {
           type: "string",
         },
+        "mobile/androidApp/src/main/java/ru/skatelab/capture/presentation/theme/Shadows.kt": {
+          type: "string",
+        },
+        "mobile/androidApp/src/main/java/ru/skatelab/capture/presentation/theme/Modifiers.kt": {
+          type: "string",
+        },
       },
       required: [
         "mobile/androidApp/src/main/java/ru/skatelab/capture/presentation/theme/Colors.kt",
         "mobile/androidApp/src/main/java/ru/skatelab/capture/presentation/theme/Type.kt",
         "mobile/androidApp/src/main/java/ru/skatelab/capture/presentation/theme/Theme.kt",
+        "mobile/androidApp/src/main/java/ru/skatelab/capture/presentation/theme/Shadows.kt",
+        "mobile/androidApp/src/main/java/ru/skatelab/capture/presentation/theme/Modifiers.kt",
       ],
     },
     validation: {
@@ -358,11 +380,15 @@ const SWIFT_PLATFORM_SCHEMA = {
           type: "string",
         },
         "mobile/iosApp/SkateLab/Theme/SkateLabTheme.swift": { type: "string" },
+        "mobile/iosApp/SkateLab/Theme/SkateLabShadows.swift": { type: "string" },
+        "mobile/iosApp/SkateLab/Theme/SkateLabModifiers.swift": { type: "string" },
       },
       required: [
         "mobile/iosApp/SkateLab/Theme/SkateLabColors.swift",
         "mobile/iosApp/SkateLab/Theme/SkateLabTypography.swift",
         "mobile/iosApp/SkateLab/Theme/SkateLabTheme.swift",
+        "mobile/iosApp/SkateLab/Theme/SkateLabShadows.swift",
+        "mobile/iosApp/SkateLab/Theme/SkateLabModifiers.swift",
       ],
     },
     validation: {
@@ -465,6 +491,8 @@ Generate a JSON object with:
    - "mobile/androidApp/src/main/java/ru/skatelab/capture/presentation/theme/Colors.kt": Colors.kt content
    - "mobile/androidApp/src/main/java/ru/skatelab/capture/presentation/theme/Type.kt": Type.kt content
    - "mobile/androidApp/src/main/java/ru/skatelab/capture/presentation/theme/Theme.kt": Theme.kt content
+   - "mobile/androidApp/src/main/java/ru/skatelab/capture/presentation/theme/Shadows.kt": Shadows.kt content
+   - "mobile/androidApp/src/main/java/ru/skatelab/capture/presentation/theme/Modifiers.kt": Modifiers.kt content
 
 Colors.kt requirements:
    - Must start with comment: "AUTO-GENERATED — do not edit. Source: DESIGN.md"
@@ -491,6 +519,20 @@ Theme.kt requirements:
    - AppTheme composable with status bar color setup
    - toMaterialTypography() mapping function
 
+Shadows.kt requirements:
+   - Must start with comment: "AUTO-GENERATED — do not edit. Source: DESIGN.md"
+   - Package: ru.skatelab.capture.presentation.theme
+   - Object SkateLabShadows with Modifier vals for each shadow token (ambient-low, ambient-medium, ambient-high)
+   - Use Modifier.shadow() with appropriate offsetX, offsetY, blur, color values
+   - Map shadow names from vocabulary exactly
+
+Modifiers.kt requirements:
+   - Must start with comment: "AUTO-GENERATED — do not edit. Source: DESIGN.md"
+   - Package: ru.skatelab.capture.presentation.theme
+   - Object SkateLabModifiers with common Modifier combinations used in components
+   - Include convenience modifiers for card backgrounds, badge styles, input styles, etc.
+   - Reference SkateLabColors and SkateLabShadows
+
 2. "validation": { colorCount, typographyCount, shadowsCount, componentsCount }
    - colorCount: number of Color vals in SkateLabColors (must be >= 23)
    - typographyCount: number of TextStyle vals in SkateLabTypography (must be >= 14)
@@ -514,6 +556,8 @@ Generate a JSON object with:
    - "mobile/iosApp/SkateLab/Theme/SkateLabColors.swift": Color extensions
    - "mobile/iosApp/SkateLab/Theme/SkateLabTypography.swift": Font extensions
    - "mobile/iosApp/SkateLab/Theme/SkateLabTheme.swift": ColorScheme + environment
+   - "mobile/iosApp/SkateLab/Theme/SkateLabShadows.swift": Shadow extensions
+   - "mobile/iosApp/SkateLab/Theme/SkateLabModifiers.swift": ViewModifier extensions
 
 SkateLabColors.swift requirements:
    - Must start with comment: "AUTO-GENERATED — do not edit. Source: DESIGN.md"
@@ -539,6 +583,21 @@ SkateLabTheme.swift requirements:
    - @available(iOS 15, *)
    - SkateLabColorScheme struct with ALL color properties referencing Color.skate* extensions
    - EnvironmentValues extension for skateLabColors
+
+SkateLabShadows.swift requirements:
+   - Must start with comment: "AUTO-GENERATED — do not edit. Source: DESIGN.md"
+   - Import SwiftUI
+   - @available(iOS 15, *)
+   - Extension View with shadow modifier methods for each shadow token (ambient-low, ambient-medium, ambient-high)
+   - Use .shadow() with appropriate radius, x, y, and color values
+   - Map shadow names from vocabulary exactly
+
+SkateLabModifiers.swift requirements:
+   - Must start with comment: "AUTO-GENERATED — do not edit. Source: DESIGN.md"
+   - Import SwiftUI
+   - @available(iOS 15, *)
+   - SkateLabCardModifier, SkateLabBadgeModifier, and other common ViewModifiers
+   - Convenience View extensions referencing SkateLabColors and SkateLabShadows
 
 2. "validation": { colorCount, typographyCount, shadowsCount, componentsCount }
    - colorCount: number of Color static lets (must be >= 23)
@@ -570,22 +629,10 @@ function validateResponse(response, platform, architectVocab) {
     return errors;
   }
 
-  // Required file keys per platform
-  const requiredFiles = {
-    css: ["frontend/src/app/tokens.css"],
-    kotlin: [
-      "mobile/androidApp/src/main/java/ru/skatelab/capture/presentation/theme/Colors.kt",
-      "mobile/androidApp/src/main/java/ru/skatelab/capture/presentation/theme/Type.kt",
-      "mobile/androidApp/src/main/java/ru/skatelab/capture/presentation/theme/Theme.kt",
-    ],
-    swift: [
-      "mobile/iosApp/SkateLab/Theme/SkateLabColors.swift",
-      "mobile/iosApp/SkateLab/Theme/SkateLabTypography.swift",
-      "mobile/iosApp/SkateLab/Theme/SkateLabTheme.swift",
-    ],
-  };
+  // Required file keys per platform (from PLATFORM_FILES single source of truth)
+  const requiredFiles = PLATFORM_FILES[platform];
 
-  for (const key of requiredFiles[platform]) {
+  for (const key of requiredFiles) {
     if (!response.files[key] || typeof response.files[key] !== "string") {
       errors.push(`Missing file key: ${key}`);
     }
@@ -722,6 +769,11 @@ async function runClaude(prompt, schema, label, retryErrors = []) {
         continue;
       }
 
+      // Check for truncation
+      if (parsed.stop_reason === 'length' || parsed.finish_reason === 'length') {
+        throw new Error('LLM response was truncated (stop_reason=length). Consider simplifying the prompt or increasing max output length.');
+      }
+
       return parsed;
     } catch (err) {
       if (err.message?.includes("Timed out")) {
@@ -741,11 +793,38 @@ async function runClaude(prompt, schema, label, retryErrors = []) {
 function writePlatformFiles(files) {
   for (const [relPath, content] of Object.entries(files)) {
     const absPath = resolve(ROOT, relPath);
+    if (!absPath.startsWith(ROOT + sep)) {
+      throw new Error(`Refusing to write outside project root: ${relPath}`);
+    }
     const dir = dirname(absPath);
     if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
     writeFileSync(absPath, content, "utf8");
     console.log(`  Written: ${relPath}`);
   }
+}
+
+// ─── Git Fallback Restore ──────────────────────────────────────────────────────
+
+function fallbackRestore(files) {
+  const existingFiles = files.filter(f => existsSync(resolve(ROOT, f)));
+  if (existingFiles.length === 0) return;
+  try {
+    execaSync("git", ["checkout", "HEAD", "--", ...existingFiles], { cwd: ROOT });
+    console.log("Restored last committed versions of generated files");
+  } catch {
+    console.error("Failed to restore files via git checkout");
+  }
+}
+
+/** Collect all generated file paths from PLATFORM_FILES for fallback restore */
+function allPlatformFilePaths() {
+  const paths = [];
+  for (const files of Object.values(PLATFORM_FILES)) {
+    if (Array.isArray(files)) {
+      paths.push(...files);
+    }
+  }
+  return paths;
 }
 
 // ─── globals.css Patching ────────────────────────────────────────────────────
@@ -914,6 +993,7 @@ async function main() {
       if (attempt === MAX_RETRIES) {
         console.error(`  Architect failed after ${MAX_RETRIES} retries: ${err.message}`);
         appendBuildLog({ phase: "architect", status: "failure", error: err.message });
+        fallbackRestore(allPlatformFilePaths());
         process.exit(1);
       }
       console.log(`  Architect attempt ${attempt + 1} failed: ${err.message}`);
@@ -952,6 +1032,7 @@ async function main() {
 
   if (hasFailure) {
     console.error("\nSome platform generations failed. See errors above.");
+    fallbackRestore(allPlatformFilePaths());
     process.exit(1);
   }
 
@@ -1035,5 +1116,6 @@ async function runPlatformGeneration(platform, designContent, architectVocab) {
 main().catch((err) => {
   console.error(`Fatal error: ${err.message}`);
   appendBuildLog({ phase: "main", status: "failure", error: err.message });
+  fallbackRestore(allPlatformFilePaths());
   process.exit(1);
 });
