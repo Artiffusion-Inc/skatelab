@@ -1,0 +1,13 @@
+id: no-banned-easing
+language: TypeScript
+message: |
+  Avoid bounce/elastic easing curves (cubic-bezier with values > 1.0 or < 0).
+  These create cartoonish animations that violate the design system's restraint principle.
+  Use `cubic-bezier(0.4, 0, 0.2, 1)` (ease-out) or `cubic-bezier(0, 0, 0.2, 1)` (ease-in-out).
+severity: warning
+rule:
+  any:
+    - kind: string_fragment
+      regex: "cubic-bezier\\([^)]*[12]\\d*\\.\\d+[^)]*\\)"
+    - kind: string
+      regex: "cubic-bezier\\([^)]*[12]\\d*\\.\\d+[^)]*\\)"

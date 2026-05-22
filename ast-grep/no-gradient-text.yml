@@ -1,0 +1,14 @@
+id: no-gradient-text
+language: TypeScript
+message: |
+  Avoid gradient text (`bg-gradient-to-r` + `bg-clip-text` + `text-transparent`).
+  It's an AI slop tell. Use solid color text with design-system tokens.
+severity: warning
+rule:
+  any:
+    - pattern: |
+        {
+          backgroundImage: $GRAD,
+          WebkitBackgroundClip: "text",
+          WebkitTextFillColor: "transparent"
+        }

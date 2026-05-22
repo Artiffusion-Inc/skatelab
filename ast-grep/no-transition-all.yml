@@ -1,0 +1,15 @@
+id: no-transition-all
+language: TypeScript
+message: |
+  Avoid `transition-all` — it transitions every property including layout properties,
+  causing performance issues and unintended animations. Use `transition-colors`,
+  `transition-opacity`, or `transition-transform` instead.
+severity: warning
+rule:
+  any:
+    - pattern: transition-all
+    - pattern: '"transition-all"'
+    - pattern: |
+        {
+          transition: "all"
+        }
