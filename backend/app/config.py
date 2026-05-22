@@ -156,6 +156,8 @@ class AppConfig(BaseSettings):
     omp_num_threads: int = 2
     task_ttl_seconds: int = 86400
     skip_auth: bool = False
+    cookie_secure: bool = False
+    cookie_samesite: str = "lax"
 
     class Config:
         env_prefix = "APP_"

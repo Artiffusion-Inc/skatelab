@@ -625,8 +625,10 @@ async def test_cookie_middleware_does_not_override_header(client, db_session: As
     token = create_access_token(user_id="header-test")
     resp = await client.get(
         "/api/v1/users/me",
-        headers={"Authorization": f"Bearer {token}"},
-        cookies={"access_token": "invalid-token-value"},
+        headers={
+            "Authorization": f"Bearer {token}",
+            "Cookie": "access_token=invalid-token-value",
+        },
     )
     assert resp.status_code == 200
 
