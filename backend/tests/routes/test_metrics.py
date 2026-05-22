@@ -342,6 +342,64 @@ async def test_trend_declining_with_3_points(
     assert data["trend"] == "declining"
 
 
+@pytest.mark.asyncio
+async def test_trend_lower_metric_improving(
+    client, auth_headers_a, user_a, db_session: AsyncSession
+):
+    """GET /metrics/trend: decreasing knee_angle (direction=lower) → trend='improving'."""
+    now = datetime.now(UTC)
+    values = [150.0, 130.0, 110.0]  # decreasing = improving for lower-is-better
+    for i, val in enumerate(values):
+        session = Session(
+            id=f"s-lower-improve-{i}",
+            user_id=user_a.id,
+            element_type="three_turn",
+            status="done",
+            created_at=now - timedelta(days=10 - i * 3),
+        )
+        db_session.add(session)
+        await db_session.flush()
+        await _insert_metric(db_session, session.id, "knee_angle", val)
+
+    response = await client.get(
+        "/api/v1/metrics/trend",
+        params={"element_type": "three_turn", "metric_name": "knee_angle"},
+        headers=auth_headers_a,
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["trend"] == "improving"
+
+
+@pytest.mark.asyncio
+async def test_trend_lower_metric_declining(
+    client, auth_headers_a, user_a, db_session: AsyncSession
+):
+    """GET /metrics/trend: increasing knee_angle (direction=lower) → trend='declining'."""
+    now = datetime.now(UTC)
+    values = [110.0, 130.0, 150.0]  # increasing = declining for lower-is-better
+    for i, val in enumerate(values):
+        session = Session(
+            id=f"s-lower-decline-{i}",
+            user_id=user_a.id,
+            element_type="three_turn",
+            status="done",
+            created_at=now - timedelta(days=10 - i * 3),
+        )
+        db_session.add(session)
+        await db_session.flush()
+        await _insert_metric(db_session, session.id, "knee_angle", val)
+
+    response = await client.get(
+        "/api/v1/metrics/trend",
+        params={"element_type": "three_turn", "metric_name": "knee_angle"},
+        headers=auth_headers_a,
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["trend"] == "declining"
+
+
 # ---------------------------------------------------------------------------
 # GET /metrics/prs
 # ---------------------------------------------------------------------------
