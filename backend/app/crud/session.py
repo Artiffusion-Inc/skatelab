@@ -5,12 +5,14 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 import sqlalchemy as sa
-from sqlalchemy import desc, func, select
+from sqlalchemy import func, select
 from sqlalchemy.orm import selectinload
 
 from app.models.session import Session, SessionElement
 
 if TYPE_CHECKING:
+    from datetime import datetime
+
     from sqlalchemy.ext.asyncio import AsyncSession
 
 
@@ -37,17 +39,18 @@ async def list_by_user(
     *,
     element_type: str | None = None,
     limit: int = 20,
-    offset: int = 0,
-    sort: str = "created_at",
+    cursor: tuple[datetime, str] | None = None,
 ) -> list[Session]:
     query = select(Session).options(selectinload(Session.metrics)).where(Session.user_id == user_id)
     if element_type:
         query = query.where(Session.element_type == element_type)
-    if sort == "overall_score":
-        query = query.order_by(desc(Session.overall_score))
-    else:
-        query = query.order_by(desc(Session.created_at))
-    query = query.offset(offset).limit(limit)
+    if cursor is not None:
+        cursor_dt, cursor_id = cursor
+        query = query.where(
+            (Session.created_at < cursor_dt)
+            | ((Session.created_at == cursor_dt) & (Session.id < cursor_id))
+        )
+    query = query.order_by(Session.created_at.desc(), Session.id.desc()).limit(limit + 1)
     result = await db.execute(query)
     return list(result.scalars().all())
 
