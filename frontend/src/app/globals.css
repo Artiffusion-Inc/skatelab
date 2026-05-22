@@ -107,20 +107,19 @@ body {
 }
 
 @layer base {
-  /* ── Global resets ────────────────────────────────────────── */
-  * {
-    border-color: var(--border);
-    outline-color: var(--ring);
-  }
-
   html {
-    font-family: var(--font-family);
+    font-family: "Inter Variable", "Inter", "Helvetica Neue", Helvetica, Arial, sans-serif;
     scroll-behavior: smooth;
   }
 
   body {
-    background: var(--background);
+    background-color: var(--background);
     color: var(--foreground);
+  }
+
+  * {
+    border-color: var(--color-hairline);
+    outline-color: var(--color-ring);
   }
 
   section {
@@ -128,13 +127,12 @@ body {
   }
 
   [data-sonner-toaster] {
-    bottom: 80px !important;
+    bottom: 16px !important;
   }
 
-  /* ── Typography utility classes ───────────────────────────── */
-
+  /* Typography utilities */
   .sh-display-xxl {
-    font-family: var(--font-family);
+    font-family: "Inter Variable", "Inter", "Helvetica Neue", Helvetica, Arial, sans-serif;
     font-size: clamp(2.25rem, 5.5vw, 4rem);
     font-weight: 540;
     line-height: 0.96;
@@ -142,7 +140,7 @@ body {
   }
 
   .sh-display-xl {
-    font-family: var(--font-family);
+    font-family: "Inter Variable", "Inter", "Helvetica Neue", Helvetica, Arial, sans-serif;
     font-size: clamp(2rem, 4vw, 3rem);
     font-weight: 460;
     line-height: 0.96;
@@ -150,7 +148,7 @@ body {
   }
 
   .sh-display-lg {
-    font-family: var(--font-family);
+    font-family: "Inter Variable", "Inter", "Helvetica Neue", Helvetica, Arial, sans-serif;
     font-size: 28px;
     font-weight: 540;
     line-height: 1.14;
@@ -158,7 +156,7 @@ body {
   }
 
   .sh-display-md {
-    font-family: var(--font-family);
+    font-family: "Inter Variable", "Inter", "Helvetica Neue", Helvetica, Arial, sans-serif;
     font-size: 22px;
     font-weight: 460;
     line-height: 1.1;
@@ -166,7 +164,7 @@ body {
   }
 
   .sh-heading-lg {
-    font-family: var(--font-family);
+    font-family: "Inter Variable", "Inter", "Helvetica Neue", Helvetica, Arial, sans-serif;
     font-size: 20px;
     font-weight: 460;
     line-height: 1.2;
@@ -174,7 +172,7 @@ body {
   }
 
   .sh-body-lg {
-    font-family: var(--font-family);
+    font-family: "Inter Variable", "Inter", "Helvetica Neue", Helvetica, Arial, sans-serif;
     font-size: 18px;
     font-weight: 540;
     line-height: 1.5;
@@ -182,7 +180,7 @@ body {
   }
 
   .sh-body-md {
-    font-family: var(--font-family);
+    font-family: "Inter Variable", "Inter", "Helvetica Neue", Helvetica, Arial, sans-serif;
     font-size: 16px;
     font-weight: 460;
     line-height: 1.5;
@@ -190,7 +188,7 @@ body {
   }
 
   .sh-body-strong {
-    font-family: var(--font-family);
+    font-family: "Inter Variable", "Inter", "Helvetica Neue", Helvetica, Arial, sans-serif;
     font-size: 18.72px;
     font-weight: 700;
     line-height: 1.5;
@@ -198,7 +196,7 @@ body {
   }
 
   .sh-button-md {
-    font-family: var(--font-family);
+    font-family: "Inter Variable", "Inter", "Helvetica Neue", Helvetica, Arial, sans-serif;
     font-size: 16px;
     font-weight: 700;
     line-height: 1;
@@ -206,7 +204,7 @@ body {
   }
 
   .sh-button-cap {
-    font-family: var(--font-family);
+    font-family: "Inter Variable", "Inter", "Helvetica Neue", Helvetica, Arial, sans-serif;
     font-size: 14px;
     font-weight: 600;
     line-height: 1;
@@ -214,7 +212,7 @@ body {
   }
 
   .sh-caption {
-    font-family: var(--font-family);
+    font-family: "Inter Variable", "Inter", "Helvetica Neue", Helvetica, Arial, sans-serif;
     font-size: 14px;
     font-weight: 460;
     line-height: 1.4;
@@ -222,7 +220,7 @@ body {
   }
 
   .sh-micro {
-    font-family: var(--font-family);
+    font-family: "Inter Variable", "Inter", "Helvetica Neue", Helvetica, Arial, sans-serif;
     font-size: 12px;
     font-weight: 540;
     line-height: 1.4;
@@ -230,7 +228,7 @@ body {
   }
 
   .sh-legal {
-    font-family: var(--font-family);
+    font-family: "Inter Variable", "Inter", "Helvetica Neue", Helvetica, Arial, sans-serif;
     font-size: 11px;
     font-weight: 460;
     line-height: 1.5;
@@ -238,7 +236,7 @@ body {
   }
 
   .sh-price {
-    font-family: var(--font-family);
+    font-family: "Inter Variable", "Inter", "Helvetica Neue", Helvetica, Arial, sans-serif;
     font-size: clamp(2.25rem, 4vw, 3rem);
     font-weight: 700;
     line-height: 1;
@@ -246,387 +244,187 @@ body {
     font-variant-numeric: tabular-nums;
   }
 
-  /* ── Component classes ───────────────────────────────────── */
-
+  /* Component classes */
   .sh-button-primary-dark {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    background-color: var(--color-primary);
-    color: var(--color-primary-foreground);
-    font-family: var(--font-family);
+    font-family: "Inter Variable", "Inter", "Helvetica Neue", Helvetica, Arial, sans-serif;
     font-size: 16px;
     font-weight: 700;
     line-height: 1;
     letter-spacing: 0;
+    background-color: var(--color-primary);
+    color: var(--color-primary-foreground);
     border-radius: var(--radius-md);
     padding: 12px 20px;
-    border: none;
-    cursor: pointer;
-    transition:
-      transform 150ms ease,
-      box-shadow 150ms ease,
-      background-color 150ms ease;
-  }
-  .sh-button-primary-dark:hover {
-    transform: translateY(-1px);
-  }
-  .sh-button-primary-dark:active {
-    transform: scale(0.98);
-  }
-  .sh-button-primary-dark:focus-visible {
-    outline: 2px solid var(--color-ring);
-    outline-offset: 2px;
   }
 
   .sh-button-primary-dark-pressed {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    background-color: var(--color-primary-deep);
-    color: var(--color-primary-foreground);
-    font-family: var(--font-family);
+    font-family: "Inter Variable", "Inter", "Helvetica Neue", Helvetica, Arial, sans-serif;
     font-size: 16px;
     font-weight: 700;
     line-height: 1;
     letter-spacing: 0;
+    background-color: var(--color-primary-deep);
+    color: var(--color-primary-foreground);
     border-radius: var(--radius-md);
     padding: 12px 20px;
-    border: none;
-    cursor: pointer;
-    transform: scale(0.98);
-  }
-  .sh-button-primary-dark-pressed:focus-visible {
-    outline: 2px solid var(--color-ring);
-    outline-offset: 2px;
   }
 
   .sh-button-on-dark-pill {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    background-color: var(--color-surface-ice-soft);
-    color: var(--color-primary);
-    font-family: var(--font-family);
+    font-family: "Inter Variable", "Inter", "Helvetica Neue", Helvetica, Arial, sans-serif;
     font-size: 16px;
     font-weight: 700;
     line-height: 1;
     letter-spacing: 0;
+    background-color: var(--color-surface-ice-soft);
+    color: var(--color-primary);
     border-radius: var(--radius-full);
     padding: 12px 20px;
-    border: none;
-    cursor: pointer;
-    transition:
-      transform 150ms ease,
-      box-shadow 150ms ease;
-  }
-  .sh-button-on-dark-pill:hover {
-    transform: translateY(-1px);
-  }
-  .sh-button-on-dark-pill:active {
-    transform: scale(0.98);
-  }
-  .sh-button-on-dark-pill:focus-visible {
-    outline: 2px solid var(--color-ring);
-    outline-offset: 2px;
   }
 
   .sh-button-secondary-outline {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    background-color: var(--color-canvas);
-    color: var(--color-ink);
-    font-family: var(--font-family);
+    font-family: "Inter Variable", "Inter", "Helvetica Neue", Helvetica, Arial, sans-serif;
     font-size: 16px;
     font-weight: 700;
     line-height: 1;
     letter-spacing: 0;
+    background-color: var(--color-canvas);
+    color: var(--color-ink);
+    border: 1px solid var(--color-hairline-dark);
     border-radius: var(--radius-md);
     padding: 12px 20px;
-    border: 1px solid var(--color-hairline-dark);
-    cursor: pointer;
-    transition:
-      background-color 150ms ease,
-      transform 150ms ease;
-  }
-  .sh-button-secondary-outline:hover {
-    background-color: var(--color-canvas-soft);
-  }
-  .sh-button-secondary-outline:active {
-    transform: scale(0.98);
-  }
-  .sh-button-secondary-outline:focus-visible {
-    outline: 2px solid var(--color-ring);
-    outline-offset: 2px;
   }
 
   .sh-button-on-teal {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    background-color: var(--color-canvas);
-    color: var(--color-surface-teal-deep);
-    font-family: var(--font-family);
+    font-family: "Inter Variable", "Inter", "Helvetica Neue", Helvetica, Arial, sans-serif;
     font-size: 16px;
     font-weight: 700;
     line-height: 1;
     letter-spacing: 0;
+    background-color: var(--color-canvas);
+    color: var(--color-surface-teal-deep);
     border-radius: var(--radius-md);
     padding: 12px 20px;
-    border: none;
-    cursor: pointer;
-    transition:
-      transform 150ms ease,
-      box-shadow 150ms ease;
-  }
-  .sh-button-on-teal:hover {
-    transform: translateY(-1px);
-  }
-  .sh-button-on-teal:active {
-    transform: scale(0.98);
-  }
-  .sh-button-on-teal:focus-visible {
-    outline: 2px solid var(--color-ring);
-    outline-offset: 2px;
   }
 
   .sh-button-ghost {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    background-color: transparent;
-    color: var(--color-ink-mute);
-    font-family: var(--font-family);
+    font-family: "Inter Variable", "Inter", "Helvetica Neue", Helvetica, Arial, sans-serif;
     font-size: 16px;
     font-weight: 460;
     line-height: 1.5;
     letter-spacing: 0;
+    background-color: transparent;
+    color: var(--color-ink-mute);
     border-radius: var(--radius-md);
     padding: 12px 20px;
-    border: none;
-    cursor: pointer;
-    transition:
-      background-color 150ms ease,
-      color 150ms ease;
-  }
-  .sh-button-ghost:hover {
-    background-color: var(--color-canvas-soft);
-    color: var(--color-ink);
-  }
-  .sh-button-ghost:active {
-    transform: scale(0.98);
-  }
-  .sh-button-ghost:focus-visible {
-    outline: 2px solid var(--color-ring);
-    outline-offset: 2px;
-  }
-
-  .sh-button-destructive {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    background-color: oklch(0.543 0.174 30 / 0.1);
-    color: var(--color-destructive);
-    font-family: var(--font-family);
-    font-size: 16px;
-    font-weight: 700;
-    line-height: 1;
-    letter-spacing: 0;
-    border-radius: var(--radius-md);
-    padding: 12px 20px;
-    border: none;
-    cursor: pointer;
-    transition:
-      background-color 150ms ease,
-      transform 150ms ease;
-  }
-  .sh-button-destructive:hover {
-    background-color: oklch(0.543 0.174 30 / 0.2);
-  }
-  .sh-button-destructive:active {
-    transform: scale(0.98);
-  }
-  .sh-button-destructive:focus-visible {
-    outline: 2px solid var(--color-ring);
-    outline-offset: 2px;
   }
 
   .sh-text-input {
-    background-color: var(--color-canvas);
-    color: var(--color-ink);
-    font-family: var(--font-family);
+    font-family: "Inter Variable", "Inter", "Helvetica Neue", Helvetica, Arial, sans-serif;
     font-size: 16px;
     font-weight: 460;
     line-height: 1.5;
     letter-spacing: 0;
+    background-color: var(--color-canvas);
+    color: var(--color-ink);
+    border: 1px solid var(--color-hairline);
     border-radius: var(--radius-sm);
     padding: 10px 12px;
-    border: 1px solid var(--color-hairline);
-    transition:
-      border-color 150ms ease,
-      box-shadow 150ms ease;
-  }
-  .sh-text-input:focus {
-    border-color: var(--color-primary);
-    box-shadow: 0 0 0 2px oklch(0.452 0.075 221 / 0.2);
-    outline: none;
-  }
-  .sh-text-input:invalid,
-  .sh-text-input[aria-invalid="true"] {
-    border-color: var(--color-destructive);
-    color: var(--color-destructive);
   }
 
   .sh-card-feature-light {
-    background-color: var(--color-canvas);
-    color: var(--color-ink);
-    font-family: var(--font-family);
+    font-family: "Inter Variable", "Inter", "Helvetica Neue", Helvetica, Arial, sans-serif;
     font-size: 16px;
     font-weight: 460;
     line-height: 1.5;
     letter-spacing: 0;
+    background-color: var(--color-canvas);
+    color: var(--color-ink);
+    border: 1px solid var(--color-hairline);
     border-radius: var(--radius-lg);
     padding: 32px;
-    border: 1px solid var(--color-hairline);
   }
 
   .sh-card-teal-band {
-    background-color: var(--color-surface-teal-deep);
-    color: var(--color-primary-foreground);
-    font-family: var(--font-family);
+    font-family: "Inter Variable", "Inter", "Helvetica Neue", Helvetica, Arial, sans-serif;
     font-size: 18px;
     font-weight: 540;
     line-height: 1.5;
     letter-spacing: -0.135px;
+    background-color: var(--color-surface-teal-deep);
+    color: var(--color-primary-foreground);
     border-radius: var(--radius-lg);
     padding: 64px;
   }
 
-  .sh-metric-card {
-    background-color: var(--color-canvas);
-    color: var(--color-ink);
-    border-radius: var(--radius-md);
-    border: 1px solid var(--color-hairline);
-    padding: var(--spacing-lg);
-  }
-  .sh-metric-card-label {
-    font-family: var(--font-family);
-    font-size: 14px;
-    font-weight: 460;
-    line-height: 1.4;
-    color: var(--color-ink-mute);
-  }
-  .sh-metric-card-badge {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    background-color: var(--color-score-good);
-    color: var(--color-primary-foreground);
-    font-family: var(--font-family);
+  .sh-badge-opaque {
+    font-family: "Inter Variable", "Inter", "Helvetica Neue", Helvetica, Arial, sans-serif;
     font-size: 12px;
     font-weight: 540;
-    line-height: 1;
-    border-radius: var(--radius-full);
-    padding: 2px 8px;
-  }
-
-  .sh-badge-opaque {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
+    line-height: 1.4;
+    letter-spacing: 0;
     background-color: oklch(0.301 0.047 225 / 0.85);
     color: var(--color-primary-foreground);
-    font-family: var(--font-family);
-    font-size: 12px;
-    font-weight: 540;
-    line-height: 1.4;
+    border: 1px solid oklch(0.906 0.034 220 / 0.4);
     border-radius: var(--radius-md);
     padding: 12px 16px;
-    border: 1px solid oklch(0.906 0.034 220 / 0.4);
-  }
-  .sh-badge-opaque-label {
-    color: var(--color-on-dark-mute);
   }
 
   .sh-badge-flat {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    background-color: var(--color-canvas-soft);
-    color: var(--color-ink-mute);
-    font-family: var(--font-family);
+    font-family: "Inter Variable", "Inter", "Helvetica Neue", Helvetica, Arial, sans-serif;
     font-size: 12px;
     font-weight: 540;
     line-height: 1.4;
+    letter-spacing: 0;
+    background-color: var(--color-canvas-soft);
+    color: var(--color-ink);
     border-radius: var(--radius-md);
     padding: 12px 16px;
-    border: 1px solid var(--color-hairline);
   }
 
   .sh-pill-tab-light {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    background-color: var(--color-canvas);
-    color: var(--color-ink);
-    font-family: var(--font-family);
+    font-family: "Inter Variable", "Inter", "Helvetica Neue", Helvetica, Arial, sans-serif;
     font-size: 14px;
     font-weight: 600;
     line-height: 1;
     letter-spacing: 0;
+    background-color: var(--color-canvas);
+    color: var(--color-ink);
     border-radius: var(--radius-full);
     padding: 8px 16px;
-    border: 1px solid var(--color-hairline);
-    cursor: pointer;
-    transition:
-      background-color 150ms ease,
-      box-shadow 150ms ease;
-  }
-  .sh-pill-tab-light:hover {
-    background-color: var(--color-canvas-soft);
-  }
-  .sh-pill-tab-light[aria-selected="true"],
-  .sh-pill-tab-light.active {
-    box-shadow: var(--shadow-ambient-low);
-  }
-  .sh-pill-tab-light:focus-visible {
-    outline: 2px solid var(--color-ring);
-    outline-offset: 2px;
   }
 
   .sh-nav-bar-dark {
-    background-color: var(--color-primary);
-    color: var(--color-primary-foreground);
-    font-family: var(--font-family);
+    font-family: "Inter Variable", "Inter", "Helvetica Neue", Helvetica, Arial, sans-serif;
     font-size: 16px;
     font-weight: 460;
     line-height: 1.5;
     letter-spacing: 0;
+    background-color: var(--color-primary);
+    color: var(--color-primary-foreground);
     border-radius: var(--radius-xs);
     padding: 16px 24px;
   }
 
   .sh-nav-bar-light {
-    background-color: var(--color-canvas);
-    color: var(--color-ink);
-    font-family: var(--font-family);
+    font-family: "Inter Variable", "Inter", "Helvetica Neue", Helvetica, Arial, sans-serif;
     font-size: 16px;
     font-weight: 460;
     line-height: 1.5;
     letter-spacing: 0;
+    background-color: var(--color-canvas);
+    color: var(--color-ink);
     border-radius: var(--radius-xs);
     padding: 16px 24px;
   }
 
   .sh-footer-light {
-    background-color: var(--color-canvas);
-    color: var(--color-ink-mute);
-    font-family: var(--font-family);
+    font-family: "Inter Variable", "Inter", "Helvetica Neue", Helvetica, Arial, sans-serif;
     font-size: 14px;
     font-weight: 460;
     line-height: 1.4;
     letter-spacing: 0;
+    background-color: var(--color-canvas);
+    color: var(--color-ink-mute);
     border-radius: var(--radius-xs);
     padding: 64px 24px;
   }
@@ -634,87 +432,43 @@ body {
   .sh-teal-band {
     background-color: var(--color-surface-teal-deep);
     color: var(--color-primary-foreground);
-    padding: var(--spacing-huge) var(--spacing-xl);
+    border-radius: var(--radius-lg);
   }
 
   .sh-ice-backdrop {
-    position: relative;
-    overflow: hidden;
-  }
-  .sh-ice-backdrop::before {
-    content: "";
-    position: absolute;
-    inset: 0;
     background: radial-gradient(
-      ellipse at 50% 0%,
-      oklch(0.906 0.034 220 / 0.35) 0%,
-      oklch(0.452 0.075 221) 70%
+      ellipse at center,
+      var(--color-surface-ice-soft) 0%,
+      var(--color-primary) 70%
     );
-    pointer-events: none;
-    z-index: 0;
-  }
-  .sh-ice-backdrop > * {
-    position: relative;
-    z-index: 1;
   }
 
-  /* ── Metric pulse animation ──────────────────────────────── */
-
-  @keyframes sh-metric-pulse-keyframes {
-    0% {
-      transform: scale(1);
+  /* Animation */
+  @keyframes metric-pulse {
+    0%,
+    100% {
       opacity: 1;
     }
     50% {
-      transform: scale(1.04);
-      opacity: 0.85;
-    }
-    100% {
-      transform: scale(1);
-      opacity: 1;
+      opacity: 0.7;
     }
   }
 
   .sh-metric-pulse {
-    animation: sh-metric-pulse-keyframes 2s ease-in-out infinite;
+    animation: metric-pulse 2s ease-in-out infinite;
   }
 
-  /* ── Utility classes ─────────────────────────────────────── */
-
+  /* Utilities */
   .scrollbar-hide {
     -ms-overflow-style: none;
     scrollbar-width: none;
   }
+
   .scrollbar-hide::-webkit-scrollbar {
     display: none;
   }
 
-  /* ── Print ───────────────────────────────────────────────── */
-
-  @media print {
-    * {
-      box-shadow: none !important;
-    }
-
-    body {
-      background: white;
-      color: black;
-    }
-
-    .sh-teal-band,
-    .sh-card-teal-band,
-    .sh-nav-bar-dark {
-      background: white;
-      color: black;
-    }
-
-    .sh-ice-backdrop::before {
-      display: none;
-    }
-  }
-
-  /* ── Reduced motion ──────────────────────────────────────── */
-
+  /* Accessibility */
   @media (prefers-reduced-motion: reduce) {
     *,
     *::before,
@@ -722,7 +476,14 @@ body {
       animation-duration: 0.01ms !important;
       animation-iteration-count: 1 !important;
       transition-duration: 0.01ms !important;
-      scroll-behavior: auto !important;
+    }
+  }
+
+  /* Print */
+  @media print {
+    .no-print,
+    .no-print * {
+      display: none !important;
     }
   }
 }
