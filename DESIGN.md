@@ -114,9 +114,9 @@ typography:
 rounded:
   xs: "4px"
   sm: "6px"
-  md: "8px"
-  lg: "12px"
-  xl: "16px"
+  md: "12px"
+  lg: "16px"
+  xl: "20px"
   full: "9999px"
   2xl: "30px"
 spacing:
@@ -228,7 +228,7 @@ The platform (dashboards, analytics, session reviews) dominates the register. Th
 **Key Characteristics:**
 - Three-canvas system: deep teal hero, white body, teal closing
 - Sub-default font weights (460, 540, 600) for typographic warmth signature
-- Rounded-rectangle buttons (8px radius) everywhere except hero (pill-shaped)
+- Rounded-rectangle buttons (12px radius) everywhere except hero (pill-shaped)
 - Warm ink on white canvas
 - Hairline borders (1px, slightly cool grey) for separation
 - Flat-By-Default elevation; shadows only on floating overlays
@@ -240,42 +240,42 @@ The platform (dashboards, analytics, session reviews) dominates the register. Th
 Built on a Gentle Sea Breeze polarity with figure skating's cold precision. All colors defined in OKLCH; hex values provided as sRGB approximations.
 
 ### Brand and Accent
-- **Primary Teal** (#155f73 / oklch(0.52 0.08 205)): The brand's primary surface and CTA color. Hero canvas, filled buttons, featured pricing tier, auth header.
-- **Teal Deep** (#0e3340 / oklch(0.2 0.04 220)): Pressed-state lift, deeper teal for hero gradient stops.
-- **Surface Ice Soft** (#c8e6f0 / oklch(0.88 0.04 240)): Atmospheric backdrop accent. Pale ice-blue for hero atmospheric washes.
-- **Surface Teal Deep** (#0e3340 / oklch(0.284 0.042 201)): The signature closing-CTA band color. Rich deep teal, almost black. Used only for the teal closing section.
-- **Surface Teal Mid** (#155f73 / oklch(0.41 0.068 201)): Slightly lifted teal for nested chrome inside the teal band.
+- **Primary Teal** (#155f73 / oklch(0.452 0.075 221)): The brand's primary surface and CTA color. Hero canvas, filled buttons, featured pricing tier, auth header.
+- **Teal Deep** (#0e3340 / oklch(0.301 0.047 225)): Pressed-state lift, deeper teal for hero gradient stops.
+- **Surface Ice Soft** (#c8e6f0 / oklch(0.906 0.034 220)): Atmospheric backdrop accent. Pale ice-blue for hero atmospheric washes.
+- **Surface Teal Deep** (#0e3340 / oklch(0.301 0.047 225)): The signature closing-CTA band color. Rich deep teal, almost black. Used only for the teal closing section.
+- **Surface Teal Mid** (#155f73 / oklch(0.452 0.075 221)): Slightly lifted teal for nested chrome inside the teal band.
 
 ### Surface
 - **Canvas** (#ffffff / oklch(1 0 0)): Default body background. The white canvas between hero and teal closing.
-- **Canvas Soft** (#f5f7f8 / oklch(0.985 0.005 133)): Barely-cool off-white. Used for internal card bands only, never as a section background (violates Three-Canvas Rule).
-- **Hairline** (#d5dde0 / oklch(0.92 0.018 240)): 1px borders, slightly cool grey.
-- **Hairline Dark** (#2a4a52 / oklch(0.364 0.084 240)): 1px borders on dark surfaces and outline buttons.
+- **Canvas Soft** (#f5f7f8 / oklch(0.975 0.003 229)): Barely-cool off-white. Used for internal card bands only, never as a section background (violates Three-Canvas Rule).
+- **Hairline** (#d5dde0 / oklch(0.892 0.010 222)): 1px borders, slightly cool grey.
+- **Hairline Dark** (#2a4a52 / oklch(0.388 0.040 216)): 1px borders on dark surfaces and outline buttons.
 
 ### Text
-- **Ink** (#2a2d2e / oklch(0.278 0.003 220)): Default body text. Warm dark grey with cool undertone, never pure black.
-- **Ink Mute** (#6b7275 / oklch(0.547 0.009 220)): Secondary text, captions, metadata.
-- **Ink Faint** (#9ba0a3 / oklch(0.678 0.008 220)): Tertiary, disabled, placeholder text. Also used for decorative watermarks at low opacity.
+- **Ink** (#2a2d2e / oklch(0.295 0.005 220)): Default body text. Warm dark grey with cool undertone, never pure black.
+- **Ink Mute** (#6b7275 / oklch(0.547 0.010 225)): Secondary text, captions, metadata.
+- **Ink Faint** (#9ba0a3 / oklch(0.703 0.007 234)): Tertiary, disabled, placeholder text. Also used for decorative watermarks at low opacity.
 - **On Primary** (#ffffff / oklch(1 0 0)): Text on dark teal / teal surfaces.
-- **On Dark Mute** (#c5d5db / oklch(0.795 0.042 220)): Secondary text on dark surfaces. Badge labels, supporting copy.
-- **On Dark Dim** (#8aabb8 / oklch(0.63 0.04 220)): Intermediate dark-surface text. Used where On-Dark-Faint fails WCAG AA contrast on dark backgrounds (minimum 4.5:1 required).
-- **On Dark Faint** (#5a7a85 / oklch(0.47 0.087 220)): Tertiary text on dark. **WCAG WARNING:** Fails 4.5:1 contrast on badge-opaque backgrounds. Use On-Dark-Mute or On-Dark-Dim for any text below 18px / 14px bold.
+- **On Dark Mute** (#c5d5db / oklch(0.863 0.019 222)): Secondary text on dark surfaces. Badge labels, supporting copy.
+- **On Dark Dim** (#8aabb8 / oklch(0.721 0.041 224)): Intermediate dark-surface text. Used where On-Dark-Faint fails WCAG AA contrast on dark backgrounds (minimum 4.5:1 required).
+- **On Dark Faint** (#5a7a85 / oklch(0.559 0.040 221)): Tertiary text on dark. **WCAG WARNING:** Fails 4.5:1 contrast on badge-opaque backgrounds. Use On-Dark-Mute or On-Dark-Dim for any text below 18px / 14px bold.
 
 ### Semantic
-- **Score Good** (#27ae60 / oklch(0.723 0.219 149)): Positive metric indicators. Always paired with checkmark or label.
-- **Score Mid** (#f39c12 / oklch(0.795 0.184 86)): Warning metric range.
-- **Score Bad** (#e74c3c / oklch(0.577 0.245 27)): Critical metric indicators. Always paired with icon or label.
-- **Destructive** (#c0392b / oklch(0.541 0.22 25)): Errors, destructive actions.
-- **Link** (#155f73 / oklch(0.541 0.23 220)): Inline text links.
-- **Ring** (#155f73 / oklch(0.48 0.19 220)): Focus ring color.
-- **Accent Gold** (#f39c12 / oklch(0.795 0.184 86)): Special highlights, PR indicators.
+- **Score Good** (#27ae60 / oklch(0.663 0.160 152)): Positive metric indicators. Always paired with checkmark or label.
+- **Score Mid** (#f39c12 / oklch(0.763 0.163 69)): Warning metric range.
+- **Score Bad** (#e74c3c / oklch(0.631 0.194 29)): Critical metric indicators. Always paired with icon or label.
+- **Destructive** (#c0392b / oklch(0.543 0.174 30)): Errors, destructive actions.
+- **Link** (#155f73 / oklch(0.452 0.075 221)): Inline text links.
+- **Ring** (#155f73 / oklch(0.452 0.075 221)): Focus ring color.
+- **Accent Gold** (#f39c12 / oklch(0.763 0.163 69)): Special highlights, PR indicators.
 
 ### Named Rules
 **The Three-Canvas Rule.** Landing pages follow teal-deep hero, white body, teal closing. The teal band is non-negotiable on every marketing page. Adding a fourth canvas color (including canvas-soft as a section background) breaks the system. Canvas-soft is for internal card bands only.
 
 **The No-Winter-Cliche Rule.** No snowflake icons, no frosted decorative borders, no frozen glass effects, no backdrop-filter blur on product screens. The cold identity is expressed through teal hue and editorial precision, not literal winter imagery.
 
-**The WCAG-Floor Rule.** On-Dark-Faint (oklch(0.47)) fails 4.5:1 contrast on dark surfaces. Any text below 18px / 14px bold on badge-opaque or primary backgrounds must use On-Dark-Mute or On-Dark-Dim instead. No exceptions.
+**The WCAG-Floor Rule.** On-Dark-Faint (oklch(0.559)) fails 4.5:1 contrast on dark surfaces. Any text below 18px / 14px bold on badge-opaque or primary backgrounds must use On-Dark-Mute or On-Dark-Dim instead. No exceptions.
 
 ## 3. Typography
 
@@ -330,7 +330,7 @@ The hero's depth is the ice-soft atmospheric backdrop: a soft teal-to-ice radial
 ## 5. Components
 
 ### Buttons
-- **Shape:** Rounded-rectangle (8px radius) everywhere except hero. The pill shape (9999px) only appears on the hero CTA.
+- **Shape:** Rounded-rectangle (12px radius) everywhere except hero. The pill shape (9999px) only appears on the hero CTA.
 - **Primary Dark:** Background Primary (#155f73), text On-Primary (white), padding 12px 20px. Weight 700.
 - **Primary Dark Pressed:** Background shifts to Primary-Deep (#0e3340). Active: scale(0.98).
 - **On-Dark Pill:** Background Ice-Soft (#c8e6f0), text Primary. Pill shape. Hero only.
@@ -343,7 +343,7 @@ The hero's depth is the ice-soft atmospheric backdrop: a soft teal-to-ice radial
 - **Focus:** Border shifts to Ring, 2px ring in Ring/20. Transition 150ms.
 
 ### Cards / Containers
-- **Corner Style:** 12px (lg) for feature and pricing cards. 8px (md) for inline containers, buttons, badges.
+- **Corner Style:** 16px (lg) for feature and pricing cards. 12px (md) for inline containers, buttons, badges.
 - **Background:** Canvas (white) or Canvas-Soft for alternating rows.
 - **Shadow Strategy:** None at rest. Flat-By-Default.
 - **Border:** 1px solid Hairline. Cool grey, not decorative.
@@ -352,7 +352,7 @@ The hero's depth is the ice-soft atmospheric backdrop: a soft teal-to-ice radial
 ### Badge (Opaque)
 - **Background:** oklch(0.2 0.04 220 / 0.85), 1px border oklch(0.88 0.04 240 / 0.4).
 - **Text:** On-Primary for values, On-Dark-Mute for labels. **Never On-Dark-Faint** (fails WCAG AA).
-- **Radius:** 6px (md).
+- **Radius:** 12px (md).
 
 ### Inputs / Fields
 - **Style:** Background Canvas, 1px Hairline border, 6px (sm) radius. Padding 10px 12px.
@@ -382,7 +382,7 @@ Hero section uses `sh-ice-backdrop` (CSS radial gradient) over `bg-primary`. Sin
 ### Do:
 - Pair every hero with the ice-soft atmospheric backdrop.
 - Render display tiers at sub-default weights (460/540). The warmth is the typographic signature.
-- Use rounded-rectangle CTAs at 8px radius everywhere except hero (pill).
+- Use rounded-rectangle CTAs at 12px radius everywhere except hero (pill).
 - Close every marketing page with a deep-teal CTA band.
 - Use warm ink for body text. Never pure black.
 - Apply tight 0.96 line-height on display sizes.
