@@ -6,23 +6,33 @@
 backend/
 ├── app/                              # Python package (backend.app.*)
 │   ├── routes/                       # Litestar Controllers
-│   │   ├── auth.py                  # POST register/login/refresh
+│   │   ├── auth.py                  # POST register/login/refresh/verify-email
 │   │   ├── users.py                 # GET/PATCH /users/me
 │   │   ├── sessions.py              # CRUD /sessions
-│   │   ├── metrics.py               # GET /metrics/trend, /prs, /diagnostics, /registry
+│   │   ├── metrics.py               # GET /metrics/trend, /prs, /diagnostics, /registry, /summary
 │   │   ├── uploads.py               # POST init/chunk/complete
 │   │   ├── detect.py                # POST/GET /detect (async queue)
 │   │   ├── process.py               # POST /process (async queue)
-│   │   ├── relationships.py         # GET/POST/PATCH /relationships
+│   │   ├── choreography.py         # Choreography planner routes
+│   │   ├── connections.py          # Coach-Skater connections
+│   │   ├── workspaces.py           # Workspace management
+│   │   ├── models.py               # Model management routes
 │   │   └── misc.py                  # Health check, etc.
 │   ├── models/                       # SQLAlchemy ORM models
 │   │   ├── base.py                  # Base, TimestampMixin
 │   │   ├── user.py                  # User
 │   │   ├── session.py               # Session, SessionMetric
-│   │   └── relationship.py          # Coach-Skater relationship
+│   │   ├── connection.py            # Coach-Skater connection (flexible connection_type)
+│   │   ├── workspace.py             # Workspace
+│   │   ├── choreography_program.py # ChoreographyProgram
+│   │   ├── auth_audit_log.py       # Auth audit logging
+│   │   ├── refresh_token.py        # Refresh token storage
+│   │   ├── password_reset_token.py # Password reset tokens
+│   │   └── verification_token.py   # Email verification tokens
+│   ├── middleware/                   # Rate limiting, cookie auth (CookieToHeaderMiddleware)
 │   ├── schemas.py                    # Pydantic request/response schemas (all in one file)
 │   ├── crud/                         # Database CRUD operations
-│   ├── services/                     # Business logic (diagnostics rules, etc.)
+│   ├── services/                     # Business logic (diagnostics, choreography solver, email, audit, pr_tracker)
 │   ├── config.py                     # Settings (Pydantic BaseSettings)
 │   ├── storage.py                    # R2/S3 client
 │   ├── task_manager.py               # Valkey task queue helpers
@@ -31,10 +41,9 @@ backend/
 │   ├── metrics_registry.py           # MetricDef definitions (12+ metrics, Russian labels, ideal ranges)
 │   ├── auth/                         # JWT auth (deps.py — CurrentUser, DbDep)
 │   ├── di.py                         # DI container (DbSessionProxy)
+│   ├── exceptions.py                 # Custom exception classes
 │   ├── lifespan.py                   # App lifespan (Valkey, arq pool)
 │   └── main.py                       # Litestar app factory
-│
-│   **Models:** user, session, connection (flexible user-to-user with connection_type)
 ├── alembic/                          # Database migrations
 ├── tests/                            # Backend tests
 └── pyproject.toml                    # Backend-only dependencies
@@ -89,7 +98,7 @@ backend/
 
 ## Auth Architecture
 
-- **JWT**: access token (15min) + refresh token (7d), stored in localStorage
+- **JWT**: access token (15min) + refresh token (7d), stored in httpOnly cookies
 - **Cookie sync**: `sb_auth=1` cookie set by frontend for server-side gating
 - **CurrentUser**: `Annotated[User, Dependency()]` injected via `backend.app.auth.deps`
 - **Token**: Litestar `Token` object (`.sub` attribute), not dict
@@ -99,54 +108,19 @@ backend/
 
 ### Controllers
 
-```python
-from litestar import Controller, get, post
-
-class SessionsController(Controller):
-    path = ""
-    tags: ClassVar[list[str]] = ["sessions"]
-
-    @post("", status_code=HTTP_201_CREATED)
-    async def create_session(self, ...) -> SessionResponse:
-        ...
-```
+Controllers extend `Controller`, set `path` and `tags: ClassVar[list[str]]`. Route methods decorated with `get`, `post`, etc.
 
 ### Dependency Injection
 
-```python
-from litestar.di import Provide
-from typing import Annotated
-
-CurrentUser = Annotated[User, Dependency()]
-DbDep = Annotated[AsyncSession, Dependency()]
-```
+`Provide` + `Annotated[User, Dependency()]` pattern. `CurrentUser` and `DbDep` are the main dependency aliases.
 
 ### Exception Handling
 
-Litestar `ClientException` returns `{"message": "..."}` (flat dict, no `"detail"` wrapper):
-
-```python
-from litestar.exceptions import ClientException
-
-raise ClientException(status_code=404, detail="Not found")
-# Response: {"message": "Not found"}
-```
+Litestar `ClientException` returns flat dict `{"message": "..."}` (no `"detail"` wrapper). Raise with `status_code` and `detail` params.
 
 ### Testing
 
-Use `AsyncTestClient` and mock lifespan dependencies in conftest:
-
-```python
-from litestar.testing import AsyncTestClient
-
-@pytest.fixture
-def app():
-    with patch("app.lifespan.create_pool", new_callable=AsyncMock):
-        from app.main import create_app
-        app = create_app()
-        app.state.arq_pool = AsyncMock()
-        yield app
-```
+`AsyncTestClient` with mocked lifespan dependencies in conftest. Patch `create_pool` with `AsyncMock`, set `app.state.arq_pool`.
 
 ## Metrics System
 
