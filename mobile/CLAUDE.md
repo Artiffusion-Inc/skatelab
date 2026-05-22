@@ -43,7 +43,7 @@ mobile/
 │       ├── commonMain/             # API client, auth, models (shared Android+iOS)
 │       │   └── ru/skatelab/shared/
 │       │       ├── api/            # SkateLabClient, AuthApi, SessionsApi, UploadsApi, UsersApi, ProcessApi
-│       │       ├── auth/          # AuthInterceptor, AuthRepository, TokenStorage
+│       │       ├── auth/          # AuthRepository, TokenStorage (multiplatform-settings)
 │       │       ├── models/        # TokenResponse, SessionResponse, UserResponse, etc.
 │       │       └── state/         # AuthViewModel, SessionsViewModel, ProcessingViewModel
 │       ├── commonTest/            # Shared tests (AuthApi, AuthRepository, Serialization)
