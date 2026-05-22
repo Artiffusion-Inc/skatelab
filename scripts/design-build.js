@@ -53,6 +53,10 @@ const PLATFORM_FILES = {
   ],
 };
 
+// ─── Model Selection ─────────────────────────────────────────────────────────
+
+const DESIGN_MODEL = process.env.DESIGN_MODEL || process.env.ANTHROPIC_DEFAULT_SONNET_MODEL || "sonnet";
+
 // ─── Arg Parsing ───────────────────────────────────────────────────────────
 
 if (process.argv.includes('--help') || process.argv.includes('-h')) {
@@ -733,7 +737,7 @@ async function runClaude(prompt, schema, label, retryErrors = []) {
     }
 
     try {
-      const result = await execa("claude", ["-p", augmentedPrompt, "--bare", "--output-format", "json", "--json-schema", JSON.stringify(schema), "--max-turns", "1"], {
+      const result = await execa("claude", ["-p", augmentedPrompt, "--bare", "--output-format", "json", "--json-schema", JSON.stringify(schema), "--model", DESIGN_MODEL, "--max-turns", "1"], {
         timeout: API_TIMEOUT_MS,
         reject: false,
         input: "",
