@@ -6,22 +6,22 @@
   --color-primary-deep: oklch(0.301 0.047 225); /* #0e3340 */
   --color-primary-foreground: oklch(1 0 0); /* #ffffff */
   --color-ink: oklch(0.295 0.005 220); /* #2a2d2e */
-  --color-ink-mute: oklch(0.547 0.010 225); /* #6b7275 */
+  --color-ink-mute: oklch(0.547 0.01 225); /* #6b7275 */
   --color-ink-faint: oklch(0.703 0.007 234); /* #9ba0a3 */
   --color-canvas: oklch(1 0 0); /* #ffffff */
   --color-canvas-soft: oklch(0.975 0.003 229); /* #f5f7f8 */
   --color-surface-ice-soft: oklch(0.906 0.034 220); /* #c8e6f0 */
   --color-surface-teal-deep: oklch(0.301 0.047 225); /* #0e3340 */
   --color-surface-teal-mid: oklch(0.452 0.075 221); /* #155f73 */
-  --color-hairline: oklch(0.892 0.010 222); /* #d5dde0 */
-  --color-hairline-dark: oklch(0.388 0.040 216); /* #2a4a52 */
+  --color-hairline: oklch(0.892 0.01 222); /* #d5dde0 */
+  --color-hairline-dark: oklch(0.388 0.04 216); /* #2a4a52 */
   --color-on-dark-mute: oklch(0.863 0.019 222); /* #c5d5db */
   --color-on-dark-dim: oklch(0.721 0.041 224); /* #8aabb8 */
-  --color-on-dark-faint: oklch(0.559 0.040 221); /* #5a7a85 */
+  --color-on-dark-faint: oklch(0.559 0.04 221); /* #5a7a85 */
   --color-destructive: oklch(0.543 0.174 30); /* #c0392b */
   --color-link: oklch(0.452 0.075 221); /* #155f73 */
   --color-ring: oklch(0.452 0.075 221); /* #155f73 */
-  --color-score-good: oklch(0.663 0.160 152); /* #27ae60 */
+  --color-score-good: oklch(0.663 0.16 152); /* #27ae60 */
   --color-score-mid: oklch(0.763 0.163 69); /* #f39c12 */
   --color-score-bad: oklch(0.631 0.194 29); /* #e74c3c */
   --color-accent-gold: oklch(0.763 0.163 69); /* #f39c12 */
@@ -47,11 +47,11 @@
 
   /* ── Shadows ─────────────────────────────────────────────── */
   --shadow-ambient-low: 0 1px 3px rgba(0, 0, 0, 0.08);
-  --shadow-ambient-medium: 0 4px 12px rgba(0, 0, 0, 0.10);
+  --shadow-ambient-medium: 0 4px 12px rgba(0, 0, 0, 0.1);
   --shadow-ambient-high: 0 8px 24px rgba(0, 0, 0, 0.12);
 
   /* ── Font family ─────────────────────────────────────────── */
-  --font-family: 'Inter Variable', 'Inter', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  --font-family: "Inter Variable", "Inter", "Helvetica Neue", Helvetica, Arial, sans-serif;
 
   /* ── Semantic aliases (shadcn/ui) ─────────────────────────── */
   --background: var(--color-canvas);

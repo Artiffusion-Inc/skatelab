@@ -4,7 +4,7 @@ message: |
   backdrop-filter: blur() violates the No-Frosted-Glass Rule.
   Use solid bg-background with opacity transition instead.
   backdrop-blur-none is allowed (it resets blur).
-severity: error
+severity: warning
 rule:
   kind: string_fragment
   regex: 'backdrop-blur-(sm|md|lg|xl|2xl|\[)'

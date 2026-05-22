@@ -12,8 +12,8 @@
   --color-background: oklch(1 0 0);
   --color-foreground: oklch(0.295 0.005 220);
   --color-muted: oklch(0.975 0.003 229);
-  --color-muted-foreground: oklch(0.547 0.010 225);
-  --color-border: oklch(0.892 0.010 222);
+  --color-muted-foreground: oklch(0.547 0.01 225);
+  --color-border: oklch(0.892 0.01 222);
   --color-primary: oklch(0.452 0.075 221);
   --color-primary-foreground: oklch(1 0 0);
   --color-primary-deep: oklch(0.301 0.047 225);
@@ -24,7 +24,7 @@
   --color-accent: oklch(0.975 0.003 229);
   --color-link: oklch(0.452 0.075 221);
   --color-ink: oklch(0.295 0.005 220);
-  --color-ink-mute: oklch(0.547 0.010 225);
+  --color-ink-mute: oklch(0.547 0.01 225);
   --color-ink-faint: oklch(0.703 0.007 234);
   --color-canvas-soft: oklch(0.975 0.003 229);
   --color-surface-ice-soft: oklch(0.906 0.034 220);
@@ -32,9 +32,9 @@
   --color-surface-teal-mid: oklch(0.452 0.075 221);
   --color-on-dark-mute: oklch(0.863 0.019 222);
   --color-on-dark-dim: oklch(0.721 0.041 224);
-  --color-on-dark-faint: oklch(0.559 0.040 221);
-  --color-hairline: oklch(0.892 0.010 222);
-  --color-hairline-dark: oklch(0.388 0.040 216);
+  --color-on-dark-faint: oklch(0.559 0.04 221);
+  --color-hairline: oklch(0.892 0.01 222);
+  --color-hairline-dark: oklch(0.388 0.04 216);
   --color-on-primary: oklch(1 0 0);
 }
 
@@ -90,7 +90,6 @@ body {
   --radius-4xl: calc(var(--radius) * 2.6);
 }
 
-
 .step-watermark {
   font-size: 1rem;
   font-weight: 600;
@@ -98,7 +97,7 @@ body {
   font-variant-numeric: tabular-nums;
   line-height: 1;
   letter-spacing: 0.06em;
-  color: oklch(0.547 0.010 225 / 0.55);
+  color: oklch(0.547 0.01 225 / 0.55);
   position: absolute;
   top: 1.25rem;
   right: 1.25rem;
@@ -108,7 +107,6 @@ body {
 }
 
 @layer base {
-
   /* ── Global resets ────────────────────────────────────────── */
   * {
     border-color: var(--border);
@@ -265,7 +263,10 @@ body {
     padding: 12px 20px;
     border: none;
     cursor: pointer;
-    transition: transform 150ms ease, box-shadow 150ms ease, background-color 150ms ease;
+    transition:
+      transform 150ms ease,
+      box-shadow 150ms ease,
+      background-color 150ms ease;
   }
   .sh-button-primary-dark:hover {
     transform: translateY(-1px);
@@ -315,7 +316,9 @@ body {
     padding: 12px 20px;
     border: none;
     cursor: pointer;
-    transition: transform 150ms ease, box-shadow 150ms ease;
+    transition:
+      transform 150ms ease,
+      box-shadow 150ms ease;
   }
   .sh-button-on-dark-pill:hover {
     transform: translateY(-1px);
@@ -343,7 +346,9 @@ body {
     padding: 12px 20px;
     border: 1px solid var(--color-hairline-dark);
     cursor: pointer;
-    transition: background-color 150ms ease, transform 150ms ease;
+    transition:
+      background-color 150ms ease,
+      transform 150ms ease;
   }
   .sh-button-secondary-outline:hover {
     background-color: var(--color-canvas-soft);
@@ -371,7 +376,9 @@ body {
     padding: 12px 20px;
     border: none;
     cursor: pointer;
-    transition: transform 150ms ease, box-shadow 150ms ease;
+    transition:
+      transform 150ms ease,
+      box-shadow 150ms ease;
   }
   .sh-button-on-teal:hover {
     transform: translateY(-1px);
@@ -399,7 +406,9 @@ body {
     padding: 12px 20px;
     border: none;
     cursor: pointer;
-    transition: background-color 150ms ease, color 150ms ease;
+    transition:
+      background-color 150ms ease,
+      color 150ms ease;
   }
   .sh-button-ghost:hover {
     background-color: var(--color-canvas-soft);
@@ -417,7 +426,7 @@ body {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    background-color: oklch(0.543 0.174 30 / 0.10);
+    background-color: oklch(0.543 0.174 30 / 0.1);
     color: var(--color-destructive);
     font-family: var(--font-family);
     font-size: 16px;
@@ -428,10 +437,12 @@ body {
     padding: 12px 20px;
     border: none;
     cursor: pointer;
-    transition: background-color 150ms ease, transform 150ms ease;
+    transition:
+      background-color 150ms ease,
+      transform 150ms ease;
   }
   .sh-button-destructive:hover {
-    background-color: oklch(0.543 0.174 30 / 0.20);
+    background-color: oklch(0.543 0.174 30 / 0.2);
   }
   .sh-button-destructive:active {
     transform: scale(0.98);
@@ -452,11 +463,13 @@ body {
     border-radius: var(--radius-sm);
     padding: 10px 12px;
     border: 1px solid var(--color-hairline);
-    transition: border-color 150ms ease, box-shadow 150ms ease;
+    transition:
+      border-color 150ms ease,
+      box-shadow 150ms ease;
   }
   .sh-text-input:focus {
     border-color: var(--color-primary);
-    box-shadow: 0 0 0 2px oklch(0.452 0.075 221 / 0.20);
+    box-shadow: 0 0 0 2px oklch(0.452 0.075 221 / 0.2);
     outline: none;
   }
   .sh-text-input:invalid,
@@ -566,7 +579,9 @@ body {
     padding: 8px 16px;
     border: 1px solid var(--color-hairline);
     cursor: pointer;
-    transition: background-color 150ms ease, box-shadow 150ms ease;
+    transition:
+      background-color 150ms ease,
+      box-shadow 150ms ease;
   }
   .sh-pill-tab-light:hover {
     background-color: var(--color-canvas-soft);
@@ -627,7 +642,7 @@ body {
     overflow: hidden;
   }
   .sh-ice-backdrop::before {
-    content: '';
+    content: "";
     position: absolute;
     inset: 0;
     background: radial-gradient(
@@ -710,5 +725,4 @@ body {
       scroll-behavior: auto !important;
     }
   }
-
 }
