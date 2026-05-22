@@ -166,19 +166,32 @@ tasks:
       VIDEO: '{{.VIDEO | default "data/samples/test.mp4"}}'
       ELEMENT: '{{.ELEMENT | default "waltz_jump"}}'
 
-  # Design system tasks
+  # Design system tasks (v2 — LLM-based generation)
   design:build:
-    desc: "Generate design tokens for all platforms from DESIGN.md"
-    cmds:
-      - node scripts/design-tokens.js DESIGN.md tokens/dtcg.json
-      - npx style-dictionary build --config style-dictionary.config.js
+    desc: "Generate design tokens for all platforms from DESIGN.md via LLM"
+    cmd: node scripts/design-build.js
 
   design:lint:
-    desc: "Lint DESIGN.md with Google Stitch CLI"
-    cmd: npx @google/design.md@0.1.1 lint DESIGN.md || true
+    desc: "UI anti-pattern scan (impeccable + ast-grep)"
+    cmds:
+      - npx impeccable detect --fast --json frontend/src/ 2>&1 | node scripts/impeccable-report.js
+      - ast-grep scan
 
   design:check:
-    desc: "Check for drift between DESIGN.md and generated files"
+    desc: "Full design validation (build + WCAG + drift)"
     cmds:
       - task: design:build
-      - git diff --exit-code frontend/src/app/tokens.css mobile/androidApp/src/main/java/ru/skatelab/capture/presentation/theme/ mobile/iosApp/SkateLab/Theme/ || (echo "Drift detected. Run 'task design:build' and commit." && exit 1)
+      - node scripts/design-wcag.js
+      - node scripts/design-lock.js check
+
+  design:lock:
+    desc: "Update checksum lockfile after reviewing generated changes"
+    cmd: node scripts/design-lock.js update
+
+  design:wcag:
+    desc: "WCAG contrast ratio validation"
+    cmd: node scripts/design-wcag.js
+
+  design:audit:
+    desc: "Deep design quality audit (manual/scheduled only, requires LLM)"
+    cmd: claude -p "hallmark audit frontend/src/ using DESIGN.md as design system" --bare --output-format json --max-turns 5

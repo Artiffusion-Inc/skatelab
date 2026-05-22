@@ -5,13 +5,14 @@
   "scripts": {
     "design:build": "node scripts/design-build.js",
     "design:build:force": "node scripts/design-build.js --force",
-    "design:lint": "npx @google/design.md@0.1.1 lint DESIGN.md || true",
-    "design:check": "npm run design:build && git diff --exit-code frontend/src/app/tokens.css mobile/androidApp/src/main/java/ru/skatelab/capture/presentation/theme/ mobile/iosApp/SkateLab/Theme/ || (echo 'Drift detected. Run \"npm run design:build\" and commit.' && exit 1)"
+    "design:lint": "npx impeccable detect --fast --json frontend/src/ 2>&1 | node scripts/impeccable-report.js && ast-grep scan",
+    "design:check": "npm run design:build && node scripts/design-wcag.js && node scripts/design-lock.js check",
+    "design:lock": "node scripts/design-lock.js update",
+    "design:wcag": "node scripts/design-wcag.js",
+    "design:audit": "claude -p \"hallmark audit frontend/src/ using DESIGN.md as design system\" --bare --output-format json --max-turns 5"
   },
   "dependencies": {
-    "colorjs.io": "^0.5.2",
     "execa": "^9.6.1",
-    "p-queue": "^9.2.0",
-    "yaml": "^2.7.0"
+    "p-queue": "^9.2.0"
   }
 }
