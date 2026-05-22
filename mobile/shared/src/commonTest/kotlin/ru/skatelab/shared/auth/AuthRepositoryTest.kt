@@ -24,6 +24,7 @@ class AuthRepositoryTest {
     private fun makeClient(handler: MockRequestHandler): HttpClient =
         HttpClient(MockEngine(handler)) {
             install(ContentNegotiation) { json(json) }
+            defaultRequest { url("https://api.test/api/v1") }
         }
 
     @Test
@@ -43,7 +44,7 @@ class AuthRepositoryTest {
         val tokenStorage = TokenStorage(settings)
         tokenStorage.saveTokens("access123", "refresh456")
 
-        val repo = AuthRepository(AuthApi(client, "https://api.test"), tokenStorage)
+        val repo = AuthRepository(AuthApi(client), tokenStorage)
 
         repo.logout()
 
@@ -62,7 +63,7 @@ class AuthRepositoryTest {
         val tokenStorage = TokenStorage(settings)
         tokenStorage.saveTokens("access", "refresh")
 
-        val repo = AuthRepository(AuthApi(client, "https://api.test"), tokenStorage)
+        val repo = AuthRepository(AuthApi(client), tokenStorage)
 
         repo.logout()
 
@@ -77,7 +78,7 @@ class AuthRepositoryTest {
         tokenStorage.saveTokens("access", "refresh")
 
         val client = makeClient { respond("{}") }
-        val repo = AuthRepository(AuthApi(client, "https://api.test"), tokenStorage)
+        val repo = AuthRepository(AuthApi(client), tokenStorage)
 
         assertTrue(repo.isLoggedIn())
     }
@@ -88,7 +89,7 @@ class AuthRepositoryTest {
         val tokenStorage = TokenStorage(settings)
 
         val client = makeClient { respond("{}") }
-        val repo = AuthRepository(AuthApi(client, "https://api.test"), tokenStorage)
+        val repo = AuthRepository(AuthApi(client), tokenStorage)
 
         assertFalse(repo.isLoggedIn())
     }

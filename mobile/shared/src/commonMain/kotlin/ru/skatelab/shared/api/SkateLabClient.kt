@@ -39,7 +39,7 @@ class SkateLabClient(
                 refreshTokens {
                     val refreshToken = oldTokens?.refreshToken ?: return@refreshTokens null
                     runCatching {
-                        client.post("$baseUrl/auth/refresh") {
+                        client.post("/auth/refresh") {
                             markAsRefreshTokenRequest()
                             contentType(ContentType.Application.Json)
                             setBody(mapOf("refresh_token" to refreshToken))
@@ -82,7 +82,7 @@ class SkateLabClient(
         }
     }
 
-    val auth = AuthApi(httpClient, baseUrl)
+    val auth = AuthApi(httpClient)
     val sessions = SessionsApi(httpClient)
     val users = UsersApi(httpClient)
     val uploads = UploadsApi(httpClient)
