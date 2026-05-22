@@ -301,7 +301,7 @@ jobs:
 
   fe-test:
     name: Tests (Vitest)
-    needs: [changes, fe-lint]
+    needs: [changes]
     if: inputs.run-all || needs.changes.outputs.frontend == 'true'
     runs-on: blacksmith-2vcpu-ubuntu-2404
     steps:
