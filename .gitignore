@@ -142,3 +142,7 @@ row
 runs/
 .worktrees/
 .playwright-cli/
+
+# Design token pipeline
+node_modules/
+tokens/dtcg.json
