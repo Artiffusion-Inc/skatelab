@@ -9,33 +9,33 @@
   --radius-sm: 0.5rem;
   --radius-md: 1.25rem;
   --radius-lg: 1.875rem;
-  --color-background: oklch(0.99 0.005 250);
-  --color-foreground: oklch(0.2 0.01 60);
-  --color-muted: oklch(0.967 0 0);
-  --color-muted-foreground: oklch(0.52 0 0);
-  --color-border: oklch(0.815 0 0);
-  --color-primary: oklch(0.826 0.084 194);
-  --color-primary-foreground: oklch(0.2 0.01 60);
-  --color-primary-deep: oklch(0.55 0.09 194);
-  --color-destructive: oklch(0.541 0.22 25);
-  --color-destructive-foreground: oklch(0.98 0 0);
+  --color-background: oklch(1 0 0);
+  --color-foreground: oklch(0.295 0.005 220);
+  --color-muted: oklch(0.975 0.003 229);
+  --color-muted-foreground: oklch(0.547 0.010 225);
+  --color-border: oklch(0.892 0.010 222);
+  --color-primary: oklch(0.452 0.075 221);
+  --color-primary-foreground: oklch(1 0 0);
+  --color-primary-deep: oklch(0.301 0.047 225);
+  --color-destructive: oklch(0.543 0.174 30);
+  --color-destructive-foreground: oklch(1 0 0);
   --color-card: oklch(1 0 0);
-  --color-card-foreground: oklch(0.145 0 0);
-  --color-accent: oklch(0.905 0 0);
-  --color-link: oklch(0.826 0.084 194);
-  --color-ink: oklch(0.278 0.003 194);
-  --color-ink-mute: oklch(0.52 0.009 194);
-  --color-ink-faint: oklch(0.659 0.008 194);
-  --color-canvas-soft: oklch(0.93 0.01 194);
-  --color-surface-ice-soft: oklch(0.88 0.04 194);
-  --color-surface-teal-deep: oklch(0.2 0.04 194);
-  --color-surface-teal-mid: oklch(0.55 0.09 194);
-  --color-on-dark-mute: oklch(0.82 0.02 194);
-  --color-on-dark-dim: oklch(0.65 0.02 194);
-  --color-on-dark-faint: oklch(0.5 0.02 194);
-  --color-hairline: oklch(0.9 0.01 194);
-  --color-hairline-dark: oklch(0.35 0.04 194);
-  --color-on-primary: oklch(0.2 0.01 60);
+  --color-card-foreground: oklch(0.295 0.005 220);
+  --color-accent: oklch(0.975 0.003 229);
+  --color-link: oklch(0.452 0.075 221);
+  --color-ink: oklch(0.295 0.005 220);
+  --color-ink-mute: oklch(0.547 0.010 225);
+  --color-ink-faint: oklch(0.703 0.007 234);
+  --color-canvas-soft: oklch(0.975 0.003 229);
+  --color-surface-ice-soft: oklch(0.906 0.034 220);
+  --color-surface-teal-deep: oklch(0.301 0.047 225);
+  --color-surface-teal-mid: oklch(0.452 0.075 221);
+  --color-on-dark-mute: oklch(0.863 0.019 222);
+  --color-on-dark-dim: oklch(0.721 0.041 224);
+  --color-on-dark-faint: oklch(0.559 0.040 221);
+  --color-hairline: oklch(0.892 0.010 222);
+  --color-hairline-dark: oklch(0.388 0.040 216);
+  --color-on-primary: oklch(1 0 0);
 }
 
 body {
@@ -98,7 +98,7 @@ body {
   font-variant-numeric: tabular-nums;
   line-height: 1;
   letter-spacing: 0.06em;
-  color: oklch(0.52 0.009 194 / 0.55);
+  color: oklch(0.547 0.010 225 / 0.55);
   position: absolute;
   top: 1.25rem;
   right: 1.25rem;
@@ -199,12 +199,12 @@ body {
     line-height: 1;
   }
   .sh-badge-opaque {
-    background: oklch(0.2 0.04 194 / 0.85);
-    border: 1px solid oklch(0.88 0.04 194 / 0.4);
+    background: oklch(0.301 0.047 225 / 0.85);
+    border: 1px solid oklch(0.906 0.034 220 / 0.4);
   }
   .sh-badge-flat {
-    background: oklch(0.2 0.04 194 / 0.85);
-    border: 1px solid oklch(0.88 0.04 194 / 0.3);
+    background: oklch(0.301 0.047 225 / 0.85);
+    border: 1px solid oklch(0.906 0.034 220 / 0.3);
   }
   .sh-teal-band {
     background: var(--color-surface-teal-deep);
@@ -212,8 +212,8 @@ body {
   }
   .sh-ice-backdrop {
     background:
-      radial-gradient(ellipse 80% 60% at 70% 40%, oklch(0.88 0.03 194 / 0.35) 0%, transparent 60%),
-      linear-gradient(to bottom, oklch(0.93 0.01 194), oklch(0.97 0.005 194));
+      radial-gradient(ellipse 80% 60% at 70% 40%, oklch(0.906 0.034 220 / 0.35) 0%, transparent 60%),
+      linear-gradient(to bottom, oklch(0.975 0.003 229), oklch(0.975 0.003 229));
   }
   @keyframes metricPulse {
     0%,
