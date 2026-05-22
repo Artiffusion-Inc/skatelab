@@ -9,6 +9,7 @@ import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import io.ktor.client.engine.okhttp.*
+import io.ktor.client.plugins.auth.providers.BearerAuthProvider
 import javax.inject.Named
 import javax.inject.Qualifier
 import javax.inject.Singleton
@@ -107,6 +108,10 @@ abstract class AppModule {
         fun provideAuthRepository(
             client: SkateLabClient,
             tokenStorage: TokenStorage,
-        ): AuthRepository = AuthRepository(client.auth, tokenStorage)
+        ): AuthRepository =
+            AuthRepository(
+                client.auth,
+                tokenStorage,
+            ) { client.httpClient.authProvider<BearerAuthProvider>()?.clearToken() }
     }
 }

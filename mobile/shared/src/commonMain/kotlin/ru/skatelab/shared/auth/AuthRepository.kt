@@ -1,11 +1,11 @@
 package ru.skatelab.shared.auth
 
 import ru.skatelab.shared.api.AuthApi
-import ru.skatelab.shared.models.TokenResponse
 
 class AuthRepository(
     private val authApi: AuthApi,
     private val tokenStorage: TokenStorage,
+    private val clearAuthProvider: () -> Unit,
 ) {
     suspend fun getAccessToken(): String? = tokenStorage.getAccessToken()
 
@@ -22,14 +22,11 @@ class AuthRepository(
     suspend fun isLoggedIn(): Boolean = tokenStorage.getAccessToken() != null
 
     suspend fun logout() {
+        val refreshToken = tokenStorage.getRefreshToken()
+        if (refreshToken != null) {
+            runCatching { authApi.logout(refreshToken) }
+        }
         tokenStorage.clearTokens()
-    }
-
-    suspend fun refreshIfNeeded(): String? {
-        val refresh = tokenStorage.getRefreshToken() ?: return null
-        return runCatching { authApi.refresh(refresh) }
-            .getOrNull()
-            ?.also { tokenStorage.saveTokens(it.accessToken, it.refreshToken) }
-            ?.accessToken
+        clearAuthProvider()
     }
 }
