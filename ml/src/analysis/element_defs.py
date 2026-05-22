@@ -16,7 +16,7 @@ class ElementDef:
     Attributes:
         name: Element identifier (e.g., 'three_turn', 'waltz_jump').
         name_ru: Russian name for display.
-        rotations: Number of rotations (0 for steps, 1+ for jumps).
+        rotations: Number of rotations (0.0 for steps, 1.0+ for jumps, 1.5 for axel).
         has_toe_pick: True if takeoff uses toe pick (toe loop, flip, lutz).
         key_joints: List of H36Key indices relevant for analysis.
         ideal_metrics: Dict of metric_name -> (min_good, max_good) ranges.
@@ -24,7 +24,7 @@ class ElementDef:
 
     name: str
     name_ru: str
-    rotations: int
+    rotations: float
     has_toe_pick: bool
     key_joints: list[int]
     ideal_metrics: dict[str, tuple[float, float]]
@@ -258,7 +258,7 @@ ELEMENT_DEFS: dict[str, ElementDef] = {
     "axel": ElementDef(
         name="axel",
         name_ru="аксель",
-        rotations=int(1.5),
+        rotations=1.5,
         has_toe_pick=False,
         key_joints=[
             H36Key.LHIP,
