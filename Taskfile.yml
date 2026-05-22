@@ -165,3 +165,20 @@ tasks:
     vars:
       VIDEO: '{{.VIDEO | default "data/samples/test.mp4"}}'
       ELEMENT: '{{.ELEMENT | default "waltz_jump"}}'
+
+  # Design system tasks
+  design:build:
+    desc: "Generate design tokens for all platforms from DESIGN.md"
+    cmds:
+      - node scripts/design-tokens.js DESIGN.md tokens/dtcg.json
+      - npx style-dictionary build --config style-dictionary.config.js
+
+  design:lint:
+    desc: "Lint DESIGN.md with Google Stitch CLI"
+    cmd: npx @google/design.md@0.1.1 lint DESIGN.md || true
+
+  design:check:
+    desc: "Check for drift between DESIGN.md and generated files"
+    cmds:
+      - task: design:build
+      - git diff --exit-code frontend/src/app/tokens.css mobile/androidApp/src/main/java/ru/skatelab/capture/presentation/theme/ mobile/iosApp/SkateLab/Theme/ || (echo "Drift detected. Run 'task design:build' and commit." && exit 1)
