@@ -56,13 +56,14 @@ jobs:
               - "infra/**"
             design:
               - "DESIGN.md"
-              - "scripts/design-tokens.js"
-              - "style-dictionary.config.js"
-              - "tokens/**"
+              - "scripts/design-build.js"
+              - "scripts/design-lock.js"
+              - "scripts/design-wcag.js"
+              - "tokens/lock.json"
               - "frontend/src/app/tokens.css"
+              - "frontend/src/app/globals.css"
               - "mobile/androidApp/**/theme/**"
               - "mobile/iosApp/**/Theme/**"
-              - "sgconfig.yml"
               - "ast-grep/*.yml"
               - "Taskfile.yml"
 
@@ -121,45 +122,35 @@ jobs:
     needs: [changes]
     if: inputs.run-all || needs.changes.outputs.design == 'true'
     runs-on: blacksmith-2vcpu-ubuntu-2404
-    continue-on-error: true
     steps:
       - uses: actions/checkout@v6
-      - uses: actions/setup-node@v4
+      - uses: oven-sh/setup-bun@v2
+      - name: Install deps
+        working-directory: frontend
+        run: bun install --frozen-lockfile
+      - name: Install impeccable
+        run: npm install -g impeccable
+      - name: Impeccable detect
+        run: impeccable detect --json frontend/src/ 2>&1 | node scripts/impeccable-report.js
+      - name: Ast-grep scan
+        uses: ast-grep/action@v1.5.0
         with:
-          node-version: "22"
-      - uses: actions/cache@v4
-        with:
-          path: ~/.npm/_npx
-          key: design-md-${{ runner.os }}-0.1.1
-      - name: Lint DESIGN.md
-        run: npx @google/design.md@0.1.1 lint DESIGN.md || true
+          config: sgconfig.yml
+          paths: "frontend/"
 
-  design-drift:
+  design-check:
     name: Design Drift Check
     needs: [changes]
     if: inputs.run-all || needs.changes.outputs.design == 'true'
     runs-on: blacksmith-2vcpu-ubuntu-2404
-    continue-on-error: true
     steps:
       - uses: actions/checkout@v6
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "22"
-      - uses: actions/cache@v4
-        with:
-          path: ~/.npm/_npx
-          key: design-md-${{ runner.os }}-0.1.1
+      - uses: oven-sh/setup-bun@v2
       - name: Install deps
-        run: npm ci
-      - name: Generate tokens
-        run: node scripts/design-tokens.js DESIGN.md tokens/dtcg.json && npx style-dictionary build --config style-dictionary.config.js
+        working-directory: frontend
+        run: bun install --frozen-lockfile
       - name: Check for drift
-        run: |
-          git diff --exit-code \
-            frontend/src/app/tokens.css \
-            mobile/androidApp/src/main/java/ru/skatelab/capture/presentation/theme/ \
-            mobile/iosApp/SkateLab/Theme/ \
-            || (echo "Design tokens drifted. Run 'task design:build' and commit." && exit 1)
+        run: node scripts/design-lock.js check
 
   test:
     name: Tests
@@ -350,7 +341,7 @@ jobs:
   ci-passed:
     name: CI Summary
     runs-on: blacksmith-2vcpu-ubuntu-2404
-    needs: [changes, lint, typecheck, ast-grep, design-lint, design-drift, test, smoke, fe-lint, fe-typecheck, fe-build, fe-test, docker-backend, docker-frontend]
+    needs: [changes, lint, typecheck, ast-grep, design-lint, design-check, test, smoke, fe-lint, fe-typecheck, fe-build, fe-test, docker-backend, docker-frontend]
     if: always()
     outputs:
       result: ${{ steps.check.outputs.result }}
@@ -370,7 +361,7 @@ jobs:
           DOCKER_FRONTEND: ${{ needs.docker-frontend.result }}
           AST_GREP: ${{ needs.ast-grep.result }}
           DESIGN_LINT: ${{ needs.design-lint.result }}
-          DESIGN_DRIFT: ${{ needs.design-drift.result }}
+          DESIGN_CHECK: ${{ needs.design-check.result }}
           CHANGES: ${{ needs.changes.result }}
         run: |
           FAILED=0
@@ -399,8 +390,8 @@ jobs:
           check_job "Docker Build (Backend)" "$DOCKER_BACKEND"
           check_job "Docker Build (Frontend)" "$DOCKER_FRONTEND"
           echo "| :mag: ast-grep | \`${AST_GREP}\` (informational) |" >> "$GITHUB_STEP_SUMMARY"
-          echo "| :mag: design-lint | \`${DESIGN_LINT}\` (informational) |" >> "$GITHUB_STEP_SUMMARY"
-          echo "| :mag: design-drift | \`${DESIGN_DRIFT}\` (informational) |" >> "$GITHUB_STEP_SUMMARY"
+          check_job "Design Lint (impeccable + ast-grep)" "$DESIGN_LINT"
+          check_job "Design Drift Check" "$DESIGN_CHECK"
 
           if [[ "$CHANGES" != "success" ]]; then
             echo "::error::changes detection failed"
