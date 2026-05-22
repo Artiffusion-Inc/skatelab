@@ -838,7 +838,7 @@ class FastWorkerSettings:
     on_shutdown = shutdown
     functions: ClassVar[list] = [detect_video_task, analyze_music_task]
     cron_jobs: ClassVar[list] = [
-        cron(cleanup_expired_tokens, hour="*", minute=7),
+        cron(cleanup_expired_tokens, minute=7),
     ]
 
     redis_settings = RedisSettings(

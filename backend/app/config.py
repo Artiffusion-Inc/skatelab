@@ -17,6 +17,7 @@ Env Prefixes:
 
 from functools import lru_cache
 from pathlib import Path
+from typing import Literal
 
 from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings as _BaseSettings
@@ -157,7 +158,7 @@ class AppConfig(BaseSettings):
     task_ttl_seconds: int = 86400
     skip_auth: bool = False
     cookie_secure: bool = False
-    cookie_samesite: str = "lax"
+    cookie_samesite: Literal["lax", "strict", "none"] = "lax"
 
     class Config:
         env_prefix = "APP_"
