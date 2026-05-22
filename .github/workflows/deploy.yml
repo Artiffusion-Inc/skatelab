@@ -60,6 +60,8 @@ jobs:
           tags: |
             ghcr.io/${{ steps.ghcr.outputs.owner }}/skatelab-frontend:latest
             ghcr.io/${{ steps.ghcr.outputs.owner }}/skatelab-frontend:${{ github.sha }}
+          cache-from: type=registry,ref=ghcr.io/${{ steps.ghcr.outputs.owner }}/skatelab-frontend:latest
+          cache-to: type=inline
 
       - name: Frontend build summary
         if: always()
@@ -105,6 +107,8 @@ jobs:
           tags: |
             ghcr.io/${{ steps.ghcr.outputs.owner }}/skatelab-backend:latest
             ghcr.io/${{ steps.ghcr.outputs.owner }}/skatelab-backend:${{ github.sha }}
+          cache-from: type=registry,ref=ghcr.io/${{ steps.ghcr.outputs.owner }}/skatelab-backend:latest
+          cache-to: type=inline
 
       - name: Backend build summary
         if: always()
