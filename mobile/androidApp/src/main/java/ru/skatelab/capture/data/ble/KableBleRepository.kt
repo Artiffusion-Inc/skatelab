@@ -237,6 +237,9 @@ class KableBleRepository
                     withTimeoutOrNull(5000L) {
                         _connectionState.first { it[sensorId] == BleRepository.ConnectionState.CONNECTED }
                     }
+                    // Cancel pending reconnect job — connection is successful
+                    reconnectJobs[sensorId]?.cancel()
+                    reconnectJobs.remove(sensorId)
                     // Start observing IMU data (Kable observe automatically handles CCCD)
                     startObservation(sensorId)
                     // Send setRate after a delay (matches BleManager behavior)

@@ -399,7 +399,7 @@ class BleManager(
                 // Parse on work thread (arrivalNs captured on Binder thread)
                 workHandler.post {
                     val parser =
-                        parsers.getOrPut(address) {
+                        parsers.computeIfAbsent(address) {
                             Wt901Parser().also {
                                 it.logTag = "Wt901Parse-${address.takeLast(5)}"
                                 it.onRegisterRead = { result ->
