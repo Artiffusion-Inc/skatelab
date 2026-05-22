@@ -9,6 +9,7 @@ services:
     restart: unless-stopped
     ports:
       - "127.0.0.1:5555:5555"
+      - "127.0.0.1:5037:5037"
     devices:
       - /dev/kvm:/dev/kvm
     group_add:
