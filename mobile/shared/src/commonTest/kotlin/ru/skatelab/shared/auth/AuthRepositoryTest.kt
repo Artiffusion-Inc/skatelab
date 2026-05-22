@@ -21,7 +21,7 @@ import kotlin.test.assertTrue
 class AuthRepositoryTest {
     private val json = Json { ignoreUnknownKeys = true }
 
-    private fun makeClient(handler: MockRequestHandler): HttpClient =
+    private fun makeClient(handler: suspend io.ktor.client.engine.mock.MockRequestHandleScope.(io.ktor.client.request.HttpClientRequest) -> io.ktor.client.engine.mock.HttpResponseData): HttpClient =
         HttpClient(MockEngine(handler)) {
             install(ContentNegotiation) { json(json) }
             defaultRequest { url("https://api.test/api/v1") }

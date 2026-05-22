@@ -18,7 +18,7 @@ import kotlin.test.assertEquals
 class ProcessApiTest {
     private val json = Json { ignoreUnknownKeys = true }
 
-    private fun makeClient(handler: MockRequestHandler): HttpClient =
+    private fun makeClient(handler: suspend io.ktor.client.engine.mock.MockRequestHandleScope.(io.ktor.client.request.HttpClientRequest) -> io.ktor.client.engine.mock.HttpResponseData): HttpClient =
         HttpClient(MockEngine(handler)) {
             install(ContentNegotiation) { json(json) }
         }
@@ -29,6 +29,7 @@ class ProcessApiTest {
             when (request.url.encodedPath) {
                 "/process/queue" -> respond(
                     """{"task_id": "task-123", "status": "pending"}""",
+                    status = HttpStatusCode.OK,
                     headers = headersOf(HttpHeaders.ContentType, ContentType.Application.Json.toString()),
                 )
                 else -> respondError(HttpStatusCode.NotFound)
@@ -46,6 +47,7 @@ class ProcessApiTest {
             when (request.url.encodedPath) {
                 "/process/task-123/status" -> respond(
                     """{"task_id": "task-123", "status": "running", "progress": 0.5, "message": "Processing"}""",
+                    status = HttpStatusCode.OK,
                     headers = headersOf(HttpHeaders.ContentType, ContentType.Application.Json.toString()),
                 )
                 else -> respondError(HttpStatusCode.NotFound)
