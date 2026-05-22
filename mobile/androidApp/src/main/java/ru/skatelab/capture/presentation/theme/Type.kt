@@ -5,6 +5,7 @@ package ru.skatelab.capture.presentation.theme
 
 import android.os.Build
 import androidx.annotation.RequiresApi
+import androidx.compose.ui.text.ExperimentalTextApi
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
@@ -32,6 +33,7 @@ val InterFallback =
 
 val AppFontFamily = if (Build.VERSION.SDK_INT >= 28) InterVariable else InterFallback
 
+@OptIn(ExperimentalTextApi::class)
 data class SkateLabTypography(
     val displayXxl: TextStyle =
         TextStyle(

@@ -101,6 +101,40 @@ StyleDictionary.registerFormat({
       }
     }
 
+    // shadcn semantic aliases — map SkateLab tokens to shadcn component names
+    const shadcnAliases = [
+      ['background', 'var(--canvas)'],
+      ['foreground', 'var(--ink)'],
+      ['card', 'var(--canvas)'],
+      ['card-foreground', 'var(--ink)'],
+      ['popover', 'var(--canvas)'],
+      ['popover-foreground', 'var(--ink)'],
+      ['secondary', 'var(--canvas-soft)'],
+      ['secondary-foreground', 'var(--ink)'],
+      ['muted', 'var(--canvas-soft)'],
+      ['muted-foreground', 'var(--ink-mute)'],
+      ['accent', 'var(--canvas-soft)'],
+      ['accent-foreground', 'var(--ink)'],
+      ['input', 'var(--hairline)'],
+      ['border', 'var(--hairline)'],
+      ['on-primary', 'var(--primary-foreground)'],
+      ['sidebar', 'var(--canvas-soft)'],
+      ['sidebar-foreground', 'var(--ink)'],
+      ['sidebar-primary', 'var(--primary)'],
+      ['sidebar-primary-foreground', 'var(--primary-foreground)'],
+      ['sidebar-accent', 'var(--canvas-soft)'],
+      ['sidebar-accent-foreground', 'var(--ink)'],
+      ['sidebar-border', 'var(--hairline)'],
+      ['sidebar-ring', 'var(--ring)'],
+      ['chart-1', 'var(--primary)'],
+      ['chart-2', 'var(--accent-gold)'],
+      ['chart-3', 'var(--score-good)'],
+      ['chart-4', 'var(--ink-mute)'],
+      ['chart-5', 'var(--on-dark-dim)'],
+    ];
+
+    const aliasLines = shadcnAliases.map(([name, value]) => `  --${name}: ${value};`);
+
     return [
       header,
       ':root {',
@@ -109,6 +143,9 @@ StyleDictionary.registerFormat({
       ...spacingLines,
       '',
       ...radiusLines,
+      '',
+      '  /* shadcn semantic aliases — not in DESIGN.md */',
+      ...aliasLines,
       '}',
     ].join('\n') + '\n';
   },
@@ -132,6 +169,20 @@ StyleDictionary.registerFormat({
         return `    val ${name} = Color(${argb})`;
       });
 
+    // Semantic aliases for Material 3 bridge
+    const aliases = [
+      '    // Semantic aliases for Material 3 bridge',
+      '    val onPrimary = primaryForeground',
+      '    val background = canvas',
+      '    val foreground = ink',
+      '    val card = canvas',
+      '    val cardForeground = ink',
+      '    val muted = canvasSoft',
+      '    val mutedForeground = inkMute',
+      '    val border = hairline',
+      '    val input = hairline',
+    ];
+
     return [
       header,
       `package ${pkg}`,
@@ -140,6 +191,7 @@ StyleDictionary.registerFormat({
       '',
       'object SkateLabColors {',
       ...colors,
+      ...aliases,
       '}',
     ].join('\n') + '\n';
   },
@@ -171,6 +223,9 @@ StyleDictionary.registerFormat({
         return `    static let ${name} = Color(red: ${r.toFixed(3)}, green: ${g.toFixed(3)}, blue: ${b.toFixed(3)})`;
       });
 
+    // Semantic alias not in DESIGN.md
+    const onPrimary = '    static let skateOnPrimary = Color(red: 1, green: 1, blue: 1)';
+
     return [
       header,
       'import SwiftUI',
@@ -178,6 +233,7 @@ StyleDictionary.registerFormat({
       '@available(iOS 15, *)',
       'extension Color {',
       ...colors,
+      onPrimary,
       '}',
     ].join('\n') + '\n';
   },

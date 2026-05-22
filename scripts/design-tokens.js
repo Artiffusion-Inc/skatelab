@@ -19,7 +19,7 @@ function hexToOklch(hex) {
   const oklch = c.to('oklch');
   const L = oklch.coords[0].toFixed(3);
   const C = oklch.coords[1].toFixed(3);
-  const H = Math.round(oklch.coords[2]);
+  const H = isNaN(oklch.coords[2]) ? 0 : Math.round(oklch.coords[2]);
   return `oklch(${L} ${C} ${H})`;
 }
 

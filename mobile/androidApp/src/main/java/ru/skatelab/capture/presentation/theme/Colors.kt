@@ -28,4 +28,15 @@ object SkateLabColors {
     val scoreMid = Color(0xFFF39C12)
     val scoreBad = Color(0xFFE74C3C)
     val accentGold = Color(0xFFF39C12)
+
+    // Semantic aliases for Material 3 bridge
+    val onPrimary = primaryForeground
+    val background = canvas
+    val foreground = ink
+    val card = canvas
+    val cardForeground = ink
+    val muted = canvasSoft
+    val mutedForeground = inkMute
+    val border = hairline
+    val input = hairline
 }

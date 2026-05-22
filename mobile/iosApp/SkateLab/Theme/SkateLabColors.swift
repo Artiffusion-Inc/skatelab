@@ -27,4 +27,5 @@ extension Color {
     static let skateScoreMid = Color(red: 0.953, green: 0.612, blue: 0.071)
     static let skateScoreBad = Color(red: 0.906, green: 0.298, blue: 0.235)
     static let skateAccentGold = Color(red: 0.953, green: 0.612, blue: 0.071)
+    static let skateOnPrimary = Color(red: 1, green: 1, blue: 1)
 }

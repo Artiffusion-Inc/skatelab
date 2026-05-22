@@ -43,4 +43,34 @@
   --radius-xl: 20px;
   --radius-full: 9999px;
   --radius-2xl: 30px;
+
+  /* shadcn semantic aliases — not in DESIGN.md */
+  --background: var(--canvas);
+  --foreground: var(--ink);
+  --card: var(--canvas);
+  --card-foreground: var(--ink);
+  --popover: var(--canvas);
+  --popover-foreground: var(--ink);
+  --secondary: var(--canvas-soft);
+  --secondary-foreground: var(--ink);
+  --muted: var(--canvas-soft);
+  --muted-foreground: var(--ink-mute);
+  --accent: var(--canvas-soft);
+  --accent-foreground: var(--ink);
+  --input: var(--hairline);
+  --border: var(--hairline);
+  --on-primary: var(--primary-foreground);
+  --sidebar: var(--canvas-soft);
+  --sidebar-foreground: var(--ink);
+  --sidebar-primary: var(--primary);
+  --sidebar-primary-foreground: var(--primary-foreground);
+  --sidebar-accent: var(--canvas-soft);
+  --sidebar-accent-foreground: var(--ink);
+  --sidebar-border: var(--hairline);
+  --sidebar-ring: var(--ring);
+  --chart-1: var(--primary);
+  --chart-2: var(--accent-gold);
+  --chart-3: var(--score-good);
+  --chart-4: var(--ink-mute);
+  --chart-5: var(--on-dark-dim);
 }
