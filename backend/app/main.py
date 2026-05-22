@@ -70,7 +70,19 @@ def create_app(
     | None = None,
 ) -> Litestar:
     """Build and return the Litestar application."""
+    from os import environ
+
     settings = get_settings()
+
+    if (
+        environ.get("SKIP_JWT_SECRET_CHECK") != "true"
+        and settings.jwt.secret_key.get_secret_value() == "change-me-to-a-random-secret"
+    ):
+        raise RuntimeError(
+            "JWT secret key is using the default value. "
+            "Set JWT_SECRET_KEY environment variable to a secure random string. "
+            "Set SKIP_JWT_SECRET_CHECK=true to bypass (dev only)."
+        )
 
     # Assemble routers under /api/v1
     api_v1 = Router(

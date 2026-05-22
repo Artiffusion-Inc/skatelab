@@ -60,3 +60,38 @@ async def test_lifespan_initializes_arq_pool(client):
     # A simple successful request proves the app is up.
     response = await client.get("/api/v1/health")
     assert response.status_code == 200
+
+
+def test_default_jwt_secret_rejected():
+    """App fails to start with default JWT secret unless SKIP_JWT_SECRET_CHECK=true."""
+    from app.main import create_app
+
+    mock_settings = MagicMock()
+    mock_settings.jwt.secret_key.get_secret_value.return_value = "change-me-to-a-random-secret"
+    mock_settings.app.log_level = "INFO"
+
+    with patch("app.main.get_settings", return_value=mock_settings):
+        with pytest.raises(RuntimeError, match="default value"):
+            create_app()
+
+
+def test_skip_jwt_secret_check_allows_default():
+    """SKIP_JWT_SECRET_CHECK=true bypasses the secret check."""
+    import os
+
+    from app.main import create_app
+
+    mock_settings = MagicMock()
+    mock_settings.jwt.secret_key.get_secret_value.return_value = "change-me-to-a-random-secret"
+    mock_settings.cors.origins = []
+    mock_settings.app.log_level = "INFO"
+    mock_settings.app.skip_auth = False
+
+    with patch("app.main.get_settings", return_value=mock_settings):
+        with patch.dict(os.environ, {"SKIP_JWT_SECRET_CHECK": "true"}):
+            with patch("app.main.configure_logging"):
+                with patch("app.lifespan.init_valkey_pool", new_callable=AsyncMock):
+                    with patch("app.lifespan.close_valkey_pool", new_callable=AsyncMock):
+                        with patch("app.lifespan.create_pool", new_callable=AsyncMock):
+                            app = create_app()
+                            assert app is not None
