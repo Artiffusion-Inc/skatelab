@@ -279,9 +279,23 @@ class AnalysisPipeline:
                     )
             self._profiler.record("dtw_alignment", time.perf_counter() - t0)
 
-            # Stage 6.5: Physics calculations (3D pose + biomechanics)
+            # Stage 6.5: Physics calculations
             t0 = time.perf_counter()
-            physics_dict: dict = {}
+            try:
+                from .analysis.physics_engine import PhysicsEngine
+
+                engine = PhysicsEngine(body_mass=70.0)
+                # Use takeoff/landing only if they are non-zero (0 = unknown for steps/turns)
+                _t_off = phases.takeoff if phases.takeoff > 0 else None
+                _l_off = phases.landing if phases.landing > 0 else None
+                physics_dict = engine.analyze_2d(
+                    smoothed,
+                    takeoff_idx=_t_off,
+                    landing_idx=_l_off,
+                    fps=meta.fps,
+                )
+            except Exception:
+                physics_dict = {}
             self._profiler.record("physics", time.perf_counter() - t0)
 
             # Stage 7: Generate recommendations
@@ -641,6 +655,22 @@ class AnalysisPipeline:
             recommender = self._get_recommender()
             recommendations = recommender.recommend(metrics, element_type)
             overall_score = self._compute_overall_score(metrics)
+
+            # Physics calculations (2D fallback)
+            try:
+                from .analysis.physics_engine import PhysicsEngine
+
+                engine = PhysicsEngine(body_mass=70.0)
+                _t_off = phases.takeoff if phases.takeoff > 0 else None
+                _l_off = phases.landing if phases.landing > 0 else None
+                physics_dict = engine.analyze_2d(
+                    smoothed,
+                    takeoff_idx=_t_off,
+                    landing_idx=_l_off,
+                    fps=meta.fps,
+                )
+            except Exception:
+                physics_dict = {}
         else:
             # No element type specified
             metrics = []
