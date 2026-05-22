@@ -18,22 +18,6 @@ Object.defineProperty(globalThis.window.location, "href", {
   configurable: true,
 })
 
-// Mock localStorage
-const localStorageStore: Record<string, string> = {}
-const mockLocalStorage = {
-  getItem: vi.fn((key: string) => localStorageStore[key] ?? null),
-  setItem: vi.fn((key: string, value: string) => {
-    localStorageStore[key] = value
-  }),
-  removeItem: vi.fn((key: string) => {
-    delete localStorageStore[key]
-  }),
-  clear: vi.fn(() => {
-    for (const key of Object.keys(localStorageStore)) delete localStorageStore[key]
-  }),
-}
-Object.defineProperty(globalThis, "localStorage", { value: mockLocalStorage })
-
 // Mock document.cookie
 let cookieJar = ""
 Object.defineProperty(globalThis.document, "cookie", {
@@ -60,7 +44,6 @@ import {
   apiPatch,
   apiDelete,
   authFetch,
-  setTokens,
   clearTokens,
   getAccessToken,
   getRefreshToken,
@@ -85,7 +68,6 @@ describe(apiFetch, () => {
     mockFetch.mockReset()
     mockRedirect.mockReset()
     cookieJar = ""
-    mockLocalStorage.clear()
   })
 
   it("throws ApiError when offline", () => {
@@ -101,27 +83,14 @@ describe(apiFetch, () => {
     }
   })
 
-  it("makes authenticated request with Bearer token", async () => {
-    setTokens("test-access", "test-refresh")
+  it("sends request with credentials: include (cookie auth)", async () => {
     mockFetch.mockResolvedValueOnce(
       mockResponse({ json: () => Promise.resolve({ id: "1", name: "test" }) }),
     )
 
     const result = await apiFetch("/users/me", TestSchema)
     expect(result).toEqual({ id: "1", name: "test" })
-    assert(mockFetch.mock.calls[0][1]?.headers)
-    const headers = mockFetch.mock.calls[0][1]?.headers as Record<string, string>
-    expect(headers.Authorization).toBe("Bearer test-access")
-  })
-
-  it("skips auth header when auth=false", async () => {
-    mockFetch.mockResolvedValueOnce(
-      mockResponse({ json: () => Promise.resolve({ id: "1", name: "test" }) }),
-    )
-
-    await apiFetch("/public", TestSchema, { auth: false })
-    const headers = mockFetch.mock.calls[0][1]?.headers as Record<string, string>
-    expect(headers.Authorization).toBeUndefined()
+    expect(mockFetch.mock.calls[0][1]?.credentials).toBe("include")
   })
 
   it("returns undefined for 204 No Content", async () => {
@@ -181,12 +150,9 @@ describe("silent refresh on 401", () => {
     mockFetch.mockReset()
     mockRedirect.mockReset()
     cookieJar = ""
-    mockLocalStorage.clear()
   })
 
-  it("refreshes token on 401 and retries request", async () => {
-    setTokens("old-access", "valid-refresh")
-
+  it("refreshes on 401 and retries request", async () => {
     // First call: 401
     mockFetch.mockResolvedValueOnce(
       mockResponse({
@@ -195,7 +161,7 @@ describe("silent refresh on 401", () => {
         json: () => Promise.resolve({ detail: "Unauthorized" }),
       }),
     )
-    // Refresh call: success
+    // Refresh call: success (backend sets new cookies)
     mockFetch.mockResolvedValueOnce(
       mockResponse({
         json: () => Promise.resolve({ access_token: "new-access", refresh_token: "new-refresh" }),
@@ -209,11 +175,11 @@ describe("silent refresh on 401", () => {
     const result = await apiFetch("/protected", TestSchema)
     expect(result).toEqual({ id: "1", name: "refreshed" })
     expect(mockFetch).toHaveBeenCalledTimes(3)
+    // Verify refresh call uses credentials: include
+    expect(mockFetch.mock.calls[1][1]?.credentials).toBe("include")
   })
 
   it("throws ApiError(401) when refresh fails", async () => {
-    setTokens("old-access", "invalid-refresh")
-
     // First call: 401
     mockFetch.mockResolvedValueOnce(
       mockResponse({
@@ -230,33 +196,13 @@ describe("silent refresh on 401", () => {
       expect(err.status).toBe(401)
       return true
     })
-    expect(getAccessToken()).toBeNull()
-  })
-
-  it("throws ApiError(401) when no refresh token available", async () => {
-    mockLocalStorage.setItem("access_token", "old-access")
-
-    mockFetch.mockResolvedValueOnce(
-      mockResponse({
-        ok: false,
-        status: 401,
-        json: () => Promise.resolve({ detail: "Unauthorized" }),
-      }),
-    )
-
-    await expect(apiFetch("/protected", TestSchema)).rejects.toSatisfy(err => {
-      assert(err instanceof ApiError)
-      expect(err.status).toBe(401)
-      return true
-    })
-    expect(getAccessToken()).toBeNull()
   })
 })
 
 describe(apiPost, () => {
   beforeEach(() => {
     mockFetch.mockReset()
-    mockLocalStorage.clear()
+    cookieJar = ""
   })
 
   it("sends POST request with JSON body", async () => {
@@ -274,7 +220,7 @@ describe(apiPost, () => {
 describe(apiPatch, () => {
   beforeEach(() => {
     mockFetch.mockReset()
-    mockLocalStorage.clear()
+    cookieJar = ""
   })
 
   it("sends PATCH request with JSON body", async () => {
@@ -291,7 +237,7 @@ describe(apiPatch, () => {
 describe(apiDelete, () => {
   beforeEach(() => {
     mockFetch.mockReset()
-    mockLocalStorage.clear()
+    cookieJar = ""
   })
 
   it("sends DELETE request and returns void on 204", async () => {
@@ -309,21 +255,18 @@ describe(authFetch, () => {
     mockFetch.mockReset()
     mockRedirect.mockReset()
     cookieJar = ""
-    mockLocalStorage.clear()
   })
 
-  it("returns response on success", async () => {
-    setTokens("access", "refresh")
+  it("returns response on success with credentials: include", async () => {
     const mockRes = mockResponse({ status: 200 })
     mockFetch.mockResolvedValueOnce(mockRes)
 
     const result = await authFetch("/data")
     expect(result).toBe(mockRes)
+    expect(mockFetch.mock.calls[0][1]?.credentials).toBe("include")
   })
 
   it("refreshes on 401 and retries", async () => {
-    setTokens("old-access", "valid-refresh")
-
     // First call: 401
     mockFetch.mockResolvedValueOnce(mockResponse({ ok: false, status: 401 }))
     // Refresh
@@ -340,22 +283,24 @@ describe(authFetch, () => {
   })
 })
 
-describe("token storage", () => {
+describe("cookie-based auth", () => {
   beforeEach(() => {
-    mockLocalStorage.clear()
     cookieJar = ""
   })
 
-  it("setTokens stores access and refresh tokens", () => {
-    setTokens("my-access", "my-refresh")
-    expect(getAccessToken()).toBe("my-access")
-    expect(getRefreshToken()).toBe("my-refresh")
+  it("getAccessToken returns null (deprecated stub)", () => {
+    expect(getAccessToken()).toBeNull()
   })
 
-  it("clearTokens removes tokens and clears cookie", () => {
-    setTokens("access", "refresh")
-    clearTokens()
-    expect(getAccessToken()).toBeNull()
+  it("getRefreshToken returns null (deprecated stub)", () => {
     expect(getRefreshToken()).toBeNull()
+  })
+
+  it("clearTokens removes sb_auth cookie", () => {
+    cookieJar = "sb_auth=1"
+    clearTokens()
+    // clearTokens sets document.cookie to delete sb_auth
+    expect(cookieJar).toContain("sb_auth=")
+    expect(cookieJar).toContain("max-age=0")
   })
 })
