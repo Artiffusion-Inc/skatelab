@@ -60,3 +60,22 @@ async def delete_expired(db: AsyncSession) -> int:
     )
     rowcount = cast("int", getattr(result, "rowcount", 0))
     return rowcount
+
+
+async def cleanup_expired(db: AsyncSession, batch_size: int = 500) -> int:
+    """Delete expired password reset tokens in batches to avoid long-held locks."""
+    total_deleted = 0
+    cutoff = datetime.now(UTC)
+    while True:
+        sub = (
+            select(PasswordResetToken.id)
+            .where(PasswordResetToken.expires_at < cutoff)
+            .limit(batch_size)
+        )
+        result = await db.execute(delete(PasswordResetToken).where(PasswordResetToken.id.in_(sub)))
+        await db.flush()
+        count = result.rowcount
+        total_deleted += count
+        if count < batch_size:
+            break
+    return total_deleted
