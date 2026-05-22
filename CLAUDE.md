@@ -18,6 +18,8 @@ ML AI coach for figure skating. Analyze video, compare to pro refs, biomech feed
 - **Minimum code** — no speculative features, abstractions, "flexibility" unrequested. 200 lines → 50? Rewrite.
 - **Surgical changes** — each line trace to request. No refactor working code. Match style.
 - **Verifiable goals** — tasks → testable outcomes. "Fix bug" → failing test first, then fix. Verify step per plan step.
+- **YAGNI + MVP-first** — apply `/coding-standards` skill for tradeoff decisions. When choosing between "proper" architecture vs faster-to-ship: prefer MVP path. Add complexity only when real use case demands it.
+- **DRY within reason** — three similar lines > premature abstraction. Extract when pattern repeats with variation, not just repetition.
 
 ## Directory Structure
 
@@ -116,6 +118,29 @@ Choreography Planner:
 | **Testing**         | pytest (backend), tsc + next lint + vitest (frontend) |
 | **Task Runner**     | go-task (Taskfile.yaml)                                                    |
 | **Package Manager** | uv (Python), bun (JS)                                                      |
+
+## Worktree Mandate
+
+All development MUST happen in isolated git worktrees via `EnterWorktree`. Never commit on `master` or create branches from the main working tree. Parallel work by 5+ contributors requires isolation — commits on shared branches risk lost work from resets, dropped stashes, or merge chaos.
+
+Use `EnterWorktree` tool → creates `.claude/worktrees/<name>` on a new branch → `ExitWorktree` when done.
+
+Enforced by lefthook pre-commit hook: commits outside a worktree are blocked.
+
+### Recovery: commited on shared branch by mistake
+
+You ended up on a shared branch (not worktree) and your commits are there mixed with others' work. Goal: extract only your commits into a clean worktree PR, zero data loss for anyone.
+
+**No `reset --hard`, no `checkout -f`, no `drop stash`, no `push --force`.**
+
+1. **Identify your commits** — `git log --oneline --author="You" <shared-branch>`. Note the commit SHAs.
+2. **Create worktree + branch** — `EnterWorktree` with descriptive name. This gives isolated workspace.
+3. **Cherry-pick your commits** — `git cherry-pick <sha1> <sha2> ...` onto the new worktree branch. Resolves conflicts file-by-file — only your changes, no collateral damage.
+4. **Verify** — `git log --oneline` shows only your commits. `git diff HEAD~N` confirms your changes intact.
+5. **Push + PR** — `git push -u origin <branch>`, create PR from new branch.
+6. **Revert original branch** — `git revert <sha1> <sha2>` on the shared branch (no-ff, preserves others' work). Or ask branch owner to reset if your commits are tip-only.
+
+Alternative if commits are tip-only (yours are last): `git cherry-pick` into worktree, then on shared branch `git reset --soft HEAD~N` (soft = keeps changes staged, no data loss), re-commit others' staged files. But cherry-pick + revert is safer.
 
 ## Git & GitHub Workflow
 
