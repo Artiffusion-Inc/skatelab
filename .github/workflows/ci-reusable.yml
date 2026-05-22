@@ -115,8 +115,8 @@ jobs:
           config: sgconfig.yml
           paths: "backend/ ml/ frontend/"
 
-  design-lint:
-    name: Design Lint
+  design-ci:
+    name: Design Lint + Drift
     needs: [changes]
     if: inputs.run-all || needs.changes.outputs.design == 'true'
     runs-on: blacksmith-2vcpu-ubuntu-2404
@@ -132,15 +132,6 @@ jobs:
         with:
           config: sgconfig.yml
           paths: "frontend/"
-
-  design-check:
-    name: Design Drift Check
-    needs: [changes]
-    if: inputs.run-all || needs.changes.outputs.design == 'true'
-    runs-on: blacksmith-2vcpu-ubuntu-2404
-    steps:
-      - uses: actions/checkout@v6
-      - uses: ./.github/actions/setup-frontend
       - name: Check for drift
         run: node scripts/design-lock.js check
 
@@ -302,7 +293,7 @@ jobs:
   ci-passed:
     name: CI Summary
     runs-on: blacksmith-2vcpu-ubuntu-2404
-    needs: [changes, lint, typecheck, ast-grep, design-lint, design-check, test, smoke, fe-check, fe-build, fe-test, docker-backend, docker-frontend]
+    needs: [changes, lint, typecheck, ast-grep, design-ci, test, smoke, fe-check, fe-build, fe-test, docker-backend, docker-frontend]
     if: always()
     outputs:
       result: ${{ steps.check.outputs.result }}
@@ -320,8 +311,7 @@ jobs:
           DOCKER_BACKEND: ${{ needs.docker-backend.result }}
           DOCKER_FRONTEND: ${{ needs.docker-frontend.result }}
           AST_GREP: ${{ needs.ast-grep.result }}
-          DESIGN_LINT: ${{ needs.design-lint.result }}
-          DESIGN_CHECK: ${{ needs.design-check.result }}
+          DESIGN_CI: ${{ needs.design-ci.result }}
           CHANGES: ${{ needs.changes.result }}
         run: |
           FAILED=0
@@ -349,8 +339,7 @@ jobs:
           check_job "Docker Build (Backend)" "$DOCKER_BACKEND"
           check_job "Docker Build (Frontend)" "$DOCKER_FRONTEND"
           echo "| :mag: ast-grep | \`${AST_GREP}\` (informational) |" >> "$GITHUB_STEP_SUMMARY"
-          check_job "Design Lint (impeccable + ast-grep)" "$DESIGN_LINT"
-          check_job "Design Drift Check" "$DESIGN_CHECK"
+          check_job "Design Lint + Drift" "$DESIGN_CI"
 
           if [[ "$CHANGES" != "success" ]]; then
             echo "::error::changes detection failed"
