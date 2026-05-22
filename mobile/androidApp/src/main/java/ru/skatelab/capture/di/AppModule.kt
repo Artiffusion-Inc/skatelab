@@ -89,10 +89,11 @@ abstract class AppModule {
 
         @Provides
         @Singleton
-        fun provideSkateLabClient(): SkateLabClient =
+        fun provideSkateLabClient(tokenStorage: TokenStorage): SkateLabClient =
             SkateLabClient(
                 baseUrl = "https://api.skatelab.ru/api/v1",
                 engine = OkHttp.create(),
+                tokenStorage = tokenStorage,
             )
 
         @Provides
