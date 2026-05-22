@@ -1,46 +1,49 @@
 /**
- * AUTO-GENERATED — do not edit. Source: DESIGN.md
+ * AUTO-GENERATED — do not edit. Source: DESIGN.md + shadcn bridge
  * Regenerate: task design:build
+ *
+ * Phase 2a: extracted from globals.css :root { } block verbatim.
+ * Phase 2b will align pipeline-generated OKLCH with these hand-tuned values.
  */
+
 :root {
-  --primary: oklch(0.452 0.075 221);  /* #155f73 */
-  --primary-deep: oklch(0.301 0.047 225);  /* #0e3340 */
-  --primary-foreground: oklch(1.000 0.000 0);  /* #ffffff */
-  --ink: oklch(0.295 0.005 220);  /* #2a2d2e */
-  --ink-mute: oklch(0.547 0.010 225);  /* #6b7275 */
-  --ink-faint: oklch(0.703 0.007 234);  /* #9ba0a3 */
-  --canvas: oklch(1.000 0.000 0);  /* #ffffff */
-  --canvas-soft: oklch(0.975 0.003 229);  /* #f5f7f8 */
-  --surface-ice-soft: oklch(0.906 0.034 220);  /* #c8e6f0 */
-  --surface-teal-deep: oklch(0.301 0.047 225);  /* #0e3340 */
-  --surface-teal-mid: oklch(0.452 0.075 221);  /* #155f73 */
-  --hairline: oklch(0.892 0.010 222);  /* #d5dde0 */
-  --hairline-dark: oklch(0.388 0.040 216);  /* #2a4a52 */
-  --on-dark-mute: oklch(0.863 0.019 222);  /* #c5d5db */
-  --on-dark-dim: oklch(0.721 0.041 224);  /* #8aabb8 */
-  --on-dark-faint: oklch(0.559 0.040 221);  /* #5a7a85 */
-  --destructive: oklch(0.543 0.174 30);  /* #c0392b */
-  --link: oklch(0.452 0.075 221);  /* #155f73 */
-  --ring: oklch(0.452 0.075 221);  /* #155f73 */
-  --score-good: oklch(0.663 0.160 152);  /* #27ae60 */
-  --score-mid: oklch(0.763 0.163 69);  /* #f39c12 */
-  --score-bad: oklch(0.631 0.194 29);  /* #e74c3c */
-  --accent-gold: oklch(0.763 0.163 69);  /* #f39c12 */
+  --background: oklch(0.99 0.005 250);
+  --foreground: oklch(0.2 0.01 60);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.2 0.01 60);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.2 0.01 60);
+  --primary: oklch(0.826 0.084 194);
+  --primary-foreground: oklch(0.2 0.01 60);
+  --secondary: oklch(0.967 0 0);
+  --secondary-foreground: oklch(0.2 0.01 60);
+  --muted: oklch(0.98 0 0);
+  --muted-foreground: oklch(0.52 0 0);
+  --accent: oklch(0.905 0 0);
+  --accent-foreground: oklch(0.2 0.01 60);
+  --destructive: oklch(0.541 0.22 25);
+  --border: oklch(0.9 0.01 194);
+  --input: oklch(0.9 0.01 194);
+  --ring: oklch(0.826 0.084 194);
+  --link: oklch(0.826 0.084 194);
+  --chart-1: oklch(0.967 0 0);
+  --chart-2: oklch(0.55 0 0);
+  --chart-3: oklch(0.225 0 0);
+  --chart-4: oklch(0.185 0 0);
+  --chart-5: oklch(0.145 0 0);
+  --score-good: oklch(0.723 0.219 149);
+  --score-mid: oklch(0.795 0.184 86);
+  --score-bad: oklch(0.577 0.245 27);
+  --accent-gold: oklch(0.795 0.184 86);
+  --radius: 1.25rem;
 
-  --spacing-xxs: 2px;
-  --spacing-xs: 4px;
-  --spacing-sm: 8px;
-  --spacing-md: 12px;
-  --spacing-lg: 16px;
-  --spacing-xl: 24px;
-  --spacing-xxl: 32px;
-  --spacing-huge: 64px;
-
-  --radius-xs: 4px;
-  --radius-sm: 6px;
-  --radius-md: 8px;
-  --radius-lg: 12px;
-  --radius-xl: 16px;
-  --radius-full: 9999px;
-  --radius-2xl: 30px;
+  /* shadcn-only — not in DESIGN.md */
+  --sidebar: oklch(1 0 0);
+  --sidebar-foreground: oklch(0.145 0 0);
+  --sidebar-primary: oklch(0.826 0.084 194);
+  --sidebar-primary-foreground: oklch(0.2 0.01 60);
+  --sidebar-accent: oklch(0.967 0 0);
+  --sidebar-accent-foreground: oklch(0.145 0 0);
+  --sidebar-border: oklch(0.9 0.01 194);
+  --sidebar-ring: oklch(0.826 0.084 194);
 }
