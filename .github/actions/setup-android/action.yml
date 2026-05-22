@@ -1,0 +1,19 @@
+name: Setup Android SDK
+description: Checkout, JDK 17, Gradle cache
+runs:
+  using: composite
+  steps:
+    - uses: actions/checkout@v5
+
+    - uses: actions/setup-java@v5
+      with:
+        distribution: temurin
+        java-version: 17
+
+    - uses: actions/cache@v4
+      with:
+        path: |
+          ~/.gradle/caches
+          ~/.gradle/wrapper
+        key: gradle-${{ runner.os }}-${{ hashFiles('mobile/**/*.gradle.kts', 'mobile/gradle/wrapper/gradle-wrapper.properties') }}
+        restore-keys: gradle-${{ runner.os }}-

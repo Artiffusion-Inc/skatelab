@@ -60,9 +60,9 @@ jobs:
               - 'mobile/gradle.properties'
               - 'mobile/proto/**'
 
-  # ── Shared module JVM tests ───────────────────────────────────
+  # ── Shared module tests ────────────────────────────────────────
   shared-test:
-    name: Shared module JVM tests
+    name: Shared module tests
     needs: changes
     if: needs.changes.outputs.shared == 'true'
     runs-on: ubuntu-latest
@@ -70,7 +70,6 @@ jobs:
       run:
         working-directory: mobile
     steps:
-      - uses: actions/checkout@v5
       - uses: ./.github/actions/setup-android
 
       - name: Run shared module tests
@@ -88,7 +87,7 @@ jobs:
           path: mobile/shared/build/reports/kover/report.xml
           retention-days: 14
 
-  # ── Android lint + build check ────────────────────────────────
+  # ── Android lint ──────────────────────────────────────────────
   android-lint:
     name: Android lint
     needs: changes
@@ -98,13 +97,12 @@ jobs:
       run:
         working-directory: mobile
     steps:
-      - uses: actions/checkout@v5
       - uses: ./.github/actions/setup-android
 
       - name: Run ktlint
         run: ./gradlew ktlintCheck
 
-  # ── Android build + unit tests ────────────────────────────────
+  # ── Android unit tests ────────────────────────────────────────
   android-test:
     name: Android unit tests
     needs: changes
@@ -114,7 +112,6 @@ jobs:
       run:
         working-directory: mobile
     steps:
-      - uses: actions/checkout@v5
       - uses: ./.github/actions/setup-android
 
       - name: Compile debug Kotlin
@@ -135,7 +132,7 @@ jobs:
           path: mobile/androidApp/build/reports/kover/debug/report.xml
           retention-days: 14
 
-  # ── Debug APK build ──────────────────────────────────────────
+  # ── Debug APK build ───────────────────────────────────────────
   android-build-debug:
     name: Build debug APK
     needs: [android-lint, android-test]
@@ -145,7 +142,6 @@ jobs:
       run:
         working-directory: mobile
     steps:
-      - uses: actions/checkout@v5
       - uses: ./.github/actions/setup-android
 
       - name: Build debug APK
