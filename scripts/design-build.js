@@ -55,7 +55,7 @@ const PLATFORM_FILES = {
 
 // ─── Model Selection ─────────────────────────────────────────────────────────
 
-const DESIGN_MODEL = process.env.DESIGN_MODEL || process.env.ANTHROPIC_DEFAULT_SONNET_MODEL || "sonnet";
+const DESIGN_MODEL = process.env.DESIGN_MODEL || process.env.ANTHROPIC_DEFAULT_OPUS_MODEL || "opus";
 
 // ─── Arg Parsing ───────────────────────────────────────────────────────────
 
