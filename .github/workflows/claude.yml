@@ -1,4 +1,4 @@
-name: Claude Code (9n Router)
+name: Claude Code
 
 on:
   issue_comment:
@@ -27,8 +27,8 @@ jobs:
     runs-on: ubuntu-latest
     env:
       ANTHROPIC_BASE_URL: https://9r.hypcat.net/v1
-      ANTHROPIC_API_KEY: ${{ secrets.HYPCAT_API_KEY }}
-      ANTHROPIC_AUTH_TOKEN: ${{ secrets.HYPCAT_API_KEY }}
+      ANTHROPIC_API_KEY: ${{ secrets.NINEROUTER_API_KEY }}
+      ANTHROPIC_AUTH_TOKEN: ${{ secrets.NINEROUTER_API_KEY }}
       ANTHROPIC_DEFAULT_HAIKU_MODEL: qwen3-coder-next
       ANTHROPIC_DEFAULT_SONNET_MODEL: glm-5.1
       ANTHROPIC_DEFAULT_OPUS_MODEL: kimi-k2.6
@@ -39,4 +39,4 @@ jobs:
 
       - uses: anthropics/claude-code-action@v1
         with:
-          anthropic_api_key: ${{ secrets.HYPCAT_API_KEY }}
+          anthropic_api_key: ${{ secrets.NINEROUTER_API_KEY }}
