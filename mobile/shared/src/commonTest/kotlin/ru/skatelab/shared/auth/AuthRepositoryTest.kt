@@ -77,7 +77,7 @@ class AuthRepositoryTest {
         val tokenStorage = TokenStorage(settings)
         tokenStorage.saveTokens("access", "refresh")
 
-        val client = makeClient { respond("{}") }
+        val client = makeClient { respond("{}", status = HttpStatusCode.OK) }
         val repo = AuthRepository(AuthApi(client), tokenStorage)
 
         assertTrue(repo.isLoggedIn())
@@ -88,7 +88,7 @@ class AuthRepositoryTest {
         val settings = com.russhwolf.settings.Settings()
         val tokenStorage = TokenStorage(settings)
 
-        val client = makeClient { respond("{}") }
+        val client = makeClient { respond("{}", status = HttpStatusCode.OK) }
         val repo = AuthRepository(AuthApi(client), tokenStorage)
 
         assertFalse(repo.isLoggedIn())
