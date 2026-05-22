@@ -34,9 +34,13 @@ cp /opt/skatelab/Caddyfile /opt/infra/services/caddy/Caddyfile
 /usr/bin/docker exec infra-caddy-1 caddy reload --config /etc/caddy/Caddyfile 2>/dev/null \
   || /usr/bin/docker restart infra-caddy-1
 
-# Database migrations
+# Database migrations (run after rollout — new container has latest code)
 BACKEND=$(/usr/bin/docker ps --filter "label=com.docker.compose.service=backend" --format "{{.Names}}" | head -1)
-/usr/bin/docker exec "$BACKEND" alembic upgrade head
+if ! /usr/bin/docker exec "$BACKEND" alembic upgrade head; then
+  echo "::error::Alembic migration failed — rolling back backend"
+  /usr/bin/docker rollout --timeout 60 --rollback backend
+  exit 1
+fi
 
 # Health check (2min timeout)
 timeout 120 bash -c "while true; do /usr/bin/docker exec $BACKEND python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/v1/health', timeout=2)\" 2>/dev/null && echo 'Backend healthy' && exit 0; sleep 10; done"
