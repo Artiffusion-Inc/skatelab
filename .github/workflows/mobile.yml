@@ -36,7 +36,6 @@ jobs:
       shared: ${{ steps.filter.outputs.shared }}
       android: ${{ steps.filter.outputs.android }}
     steps:
-      - uses: actions/checkout@v5
       - uses: dorny/paths-filter@v3
         id: filter
         with:
@@ -156,7 +155,7 @@ jobs:
   # ── Debug APK build ───────────────────────────────────────────
   android-build-debug:
     name: Build debug APK
-    needs: [android-lint, android-test]
+    needs: [android-test]
     if: needs.changes.outputs.android == 'true'
     runs-on: ubuntu-latest
     defaults:

@@ -31,10 +31,10 @@ jobs:
       docker: ${{ steps.filter.outputs.docker }}
       design: ${{ steps.filter.outputs.design }}
     steps:
-      - uses: actions/checkout@v6
       - uses: dorny/paths-filter@v3
         id: filter
         with:
+          token: ${{ secrets.GITHUB_TOKEN }}
           filters: |
             python:
               - "backend/**"
