@@ -191,6 +191,7 @@ StyleDictionary.registerFormat({
       '',
       'object SkateLabColors {',
       ...colors,
+      '',
       ...aliases,
       '}',
     ].join('\n') + '\n';
