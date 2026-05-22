@@ -52,11 +52,9 @@ def _make_process_result(**overrides):
 
 
 def _make_async_client(route_resp, process_resp):
-    """Create a mock AsyncClient with context manager support."""
+    """Create a mock AsyncClient with post returning route then process."""
     mock_client = AsyncMock()
     mock_client.post.side_effect = [route_resp, process_resp]
-    mock_client.__aenter__ = AsyncMock(return_value=mock_client)
-    mock_client.__aexit__ = AsyncMock(return_value=False)
     return mock_client
 
 
@@ -81,10 +79,8 @@ async def test_async_route_request_success():
 
     mock_client = AsyncMock()
     mock_client.post.return_value = mock_resp
-    mock_client.__aenter__ = AsyncMock(return_value=mock_client)
-    mock_client.__aexit__ = AsyncMock(return_value=False)
 
-    with patch("app.vastai.client.httpx.AsyncClient", return_value=mock_client):
+    with patch("app.vastai.client.get_async_client", return_value=mock_client):
         route = await _async_route_request("skatelab-workers", "test-key")
 
     assert route["url"] == "https://async-worker.vast.ai:5000"
@@ -101,11 +97,9 @@ async def test_async_route_request_raises_on_http_error():
 
     mock_client = AsyncMock()
     mock_client.post.return_value = mock_resp
-    mock_client.__aenter__ = AsyncMock(return_value=mock_client)
-    mock_client.__aexit__ = AsyncMock(return_value=False)
 
     with (
-        patch("app.vastai.client.httpx.AsyncClient", return_value=mock_client),
+        patch("app.vastai.client.get_async_client", return_value=mock_client),
         pytest.raises(Exception, match="Unauthorized"),
     ):
         await _async_route_request("ep", "bad-key")
@@ -128,7 +122,7 @@ async def test_process_video_remote_async_happy_path():
     mock_client = _make_async_client(route_resp, process_resp)
 
     with (
-        patch("app.vastai.client.httpx.AsyncClient", return_value=mock_client),
+        patch("app.vastai.client.get_async_client", return_value=mock_client),
         patch("app.vastai.client.get_settings", return_value=_make_settings()),
     ):
         result = await process_video_remote_async(
@@ -183,7 +177,7 @@ async def test_process_video_remote_async_defaults():
     mock_client = _make_async_client(route_resp, process_resp)
 
     with (
-        patch("app.vastai.client.httpx.AsyncClient", return_value=mock_client),
+        patch("app.vastai.client.get_async_client", return_value=mock_client),
         patch("app.vastai.client.get_settings", return_value=_make_settings()),
     ):
         result = await process_video_remote_async(video_key="input/test.mp4")
@@ -213,11 +207,9 @@ async def test_process_video_remote_async_route_failure():
 
     mock_client = AsyncMock()
     mock_client.post.return_value = mock_resp
-    mock_client.__aenter__ = AsyncMock(return_value=mock_client)
-    mock_client.__aexit__ = AsyncMock(return_value=False)
 
     with (
-        patch("app.vastai.client.httpx.AsyncClient", return_value=mock_client),
+        patch("app.vastai.client.get_async_client", return_value=mock_client),
         patch("app.vastai.client.get_settings", return_value=_make_settings()),
         pytest.raises(Exception, match="Not Found"),
     ):
@@ -235,7 +227,7 @@ async def test_process_video_remote_async_process_failure():
     mock_client = _make_async_client(route_resp, process_resp)
 
     with (
-        patch("app.vastai.client.httpx.AsyncClient", return_value=mock_client),
+        patch("app.vastai.client.get_async_client", return_value=mock_client),
         patch("app.vastai.client.get_settings", return_value=_make_settings()),
         pytest.raises(Exception, match="Worker Error"),
     ):

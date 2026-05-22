@@ -279,9 +279,23 @@ class AnalysisPipeline:
                     )
             self._profiler.record("dtw_alignment", time.perf_counter() - t0)
 
-            # Stage 6.5: Physics calculations (3D pose + biomechanics)
+            # Stage 6.5: Physics calculations
             t0 = time.perf_counter()
-            physics_dict: dict = {}
+            try:
+                from .analysis.physics_engine import PhysicsEngine
+
+                engine = PhysicsEngine(body_mass=70.0)
+                # Use takeoff/landing only if they are non-zero (0 = unknown for steps/turns)
+                _t_off = phases.takeoff if phases.takeoff > 0 else None
+                _l_off = phases.landing if phases.landing > 0 else None
+                physics_dict = engine.analyze_2d(
+                    smoothed,
+                    takeoff_idx=_t_off,
+                    landing_idx=_l_off,
+                    fps=meta.fps,
+                )
+            except Exception:
+                physics_dict = {}
             self._profiler.record("physics", time.perf_counter() - t0)
 
             # Stage 7: Generate recommendations
@@ -530,8 +544,9 @@ class AnalysisPipeline:
         """Async version of analyze with parallel stage execution.
 
         Parallelizes independent operations:
-        - 3D lifting and blade detection run in parallel with phase detection
-        - Metrics computation runs in parallel with reference loading
+        - Wave 1: Phase detection + reference loading (parallel)
+        - Wave 2: Metrics + DTW alignment + physics 2D (parallel)
+        NumPy/Numba release GIL so ThreadPoolExecutor achieves real parallelism.
 
         Args:
             video_path: Path to user's video file.
@@ -610,9 +625,12 @@ class AnalysisPipeline:
             phases = wave1_results[0]
             reference = wave1_results[1] if len(wave1_results) > 1 else None
 
-            # === Wave 2: metrics ===
+            # === Wave 2: metrics + DTW + physics in parallel ===
+            # All three depend only on Wave 1 outputs (phases, reference, smoothed/normalized).
+            # None depends on another's result, so they can run concurrently.
             wave2_tasks: list[asyncio.Task] = []
 
+            # Task 2a: Biomechanics metrics
             wave2_tasks.append(
                 asyncio.create_task(
                     self._compute_metrics_async(
@@ -625,18 +643,23 @@ class AnalysisPipeline:
                 )
             )
 
+            # Task 2b: DTW alignment (needs normalized poses + phases + reference)
+            if reference is not None:
+                wave2_tasks.append(
+                    asyncio.create_task(self._compute_dtw_async(normalized, phases, reference))
+                )
+
+            # Task 2c: Physics 2D (needs smoothed poses + phases)
+            wave2_tasks.append(
+                asyncio.create_task(self._compute_physics_2d_async(smoothed, phases, meta.fps))
+            )
+
             wave2_results = await asyncio.gather(*wave2_tasks)
 
+            # Unpack wave 2 results — order matches append order above
             metrics = wave2_results[0]
-
-            # DTW alignment (needs phases + reference)
-            dtw_distance = None
-            if reference is not None:
-                aligner = self._get_aligner()
-                dtw_distance = aligner.compute_distance(
-                    normalized[phases.start : phases.end],
-                    reference.poses[reference.phases.start : reference.phases.end],
-                )
+            dtw_distance = wave2_results[1] if reference is not None else None
+            physics_dict = wave2_results[2] if reference is not None else wave2_results[1]
 
             recommender = self._get_recommender()
             recommendations = recommender.recommend(metrics, element_type)
@@ -732,3 +755,63 @@ class AnalysisPipeline:
             None, self._reference_store.get_best_match, element_type
         )
         return reference
+
+    async def _compute_dtw_async(
+        self,
+        normalized: np.ndarray,
+        phases: ElementPhase,
+        reference,
+    ) -> float:
+        """Async DTW alignment against reference.
+
+        Uses normalized poses (not smoothed) for DTW to preserve
+        original signal characteristics.
+
+        Args:
+            normalized: (N, 17, 2) normalized poses.
+            phases: Element phases for slicing.
+            reference: ReferenceData with .poses and .phases.
+
+        Returns:
+            DTW distance (float).
+        """
+        loop = asyncio.get_event_loop()
+        aligner = self._get_aligner()
+        return await loop.run_in_executor(
+            None,
+            aligner.compute_distance,
+            normalized[phases.start : phases.end],
+            reference.poses[reference.phases.start : reference.phases.end],
+        )
+
+    async def _compute_physics_2d_async(
+        self,
+        smoothed: np.ndarray,
+        phases: ElementPhase,
+        fps: float,
+    ) -> dict:
+        """Compute 2D physics in thread pool (GIL released by NumPy).
+
+        Args:
+            smoothed: (N, 17, 2) smoothed normalized poses.
+            phases: Element phases.
+            fps: Video frame rate.
+
+        Returns:
+            Physics result dict (empty on error).
+        """
+        loop = asyncio.get_event_loop()
+        from .analysis.physics_engine import PhysicsEngine
+
+        engine = PhysicsEngine(body_mass=70.0)
+        _t_off = phases.takeoff if phases.takeoff > 0 else None
+        _l_off = phases.landing if phases.landing > 0 else None
+        try:
+            return await loop.run_in_executor(
+                None,
+                lambda: engine.analyze_2d(
+                    smoothed, takeoff_idx=_t_off, landing_idx=_l_off, fps=fps
+                ),
+            )
+        except Exception:
+            return {}

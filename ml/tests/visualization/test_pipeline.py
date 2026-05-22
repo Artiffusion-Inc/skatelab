@@ -9,7 +9,7 @@ import numpy as np
 import pytest
 
 from src.pose_preparation import PreparedPoses, _resolve_model_3d, prepare_poses
-from src.visualization.pipeline import VizPipeline
+from src.visualization.pipeline import LAYER_REGISTRY, LEVEL_PRESETS, VizPipeline
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -57,6 +57,35 @@ def _fake_extraction(n: int = 10):
     extraction.frame_indices = np.arange(n)
     extraction.valid_mask.return_value = np.ones(n, dtype=bool)
     return extraction
+
+
+# ---------------------------------------------------------------------------
+# Level-specific fixtures
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture
+def viz_pipeline_level_0(meta, poses_norm):
+    """VizPipeline at layer level 0 (skeleton only, no overlays)."""
+    return VizPipeline(meta=meta, poses_norm=poses_norm, layer=0)
+
+
+@pytest.fixture
+def viz_pipeline_level_1(meta, poses_norm):
+    """VizPipeline at layer level 1 (skeleton + trail + velocity)."""
+    return VizPipeline(meta=meta, poses_norm=poses_norm, layer=1)
+
+
+@pytest.fixture
+def viz_pipeline_level_2(meta, poses_norm):
+    """VizPipeline at layer level 2 (skeleton + trail + velocity + joint_angle + vertical_axis)."""
+    return VizPipeline(meta=meta, poses_norm=poses_norm, layer=2)
+
+
+@pytest.fixture
+def viz_pipeline_level_3(meta, poses_norm):
+    """VizPipeline at layer level 3 (full HUD + blade indicator)."""
+    return VizPipeline(meta=meta, poses_norm=poses_norm, layer=3)
 
 
 # ===========================================================================
@@ -120,25 +149,40 @@ class TestVizPipelineInit:
 
 
 class TestVizPipelineBuildLayers:
-    def test_layer_0_no_layers(self, meta, poses_norm):
-        pipe = VizPipeline(meta=meta, poses_norm=poses_norm, layer=0)
-        assert len(pipe.layers) == 0
+    def test_layer_0_no_layers(self, viz_pipeline_level_0):
+        """Level 0: no overlay layers (skeleton drawn directly)."""
+        assert len(viz_pipeline_level_0.layers) == 0
 
-    def test_layer_1_no_layers(self, meta, poses_norm):
-        pipe = VizPipeline(meta=meta, poses_norm=poses_norm, layer=1)
-        assert len(pipe.layers) == 0
+    def test_layer_1_has_trail_velocity(self, viz_pipeline_level_1):
+        """Level 1: skeleton + trail + velocity."""
+        layer_names = [type(layer).__name__ for layer in viz_pipeline_level_1.layers]
+        assert "TrailLayer" in layer_names
+        assert "VelocityLayer" in layer_names
+        assert len(viz_pipeline_level_1.layers) == 2
 
-    def test_layer_2_adds_vertical_axis(self, meta, poses_norm):
-        pipe = VizPipeline(meta=meta, poses_norm=poses_norm, layer=2)
-        assert len(pipe.layers) == 1
+    def test_layer_2_has_joint_angle_vertical(self, viz_pipeline_level_2):
+        """Level 2: adds joint angles and vertical axis."""
+        layer_names = [type(layer).__name__ for layer in viz_pipeline_level_2.layers]
+        assert "TrailLayer" in layer_names
+        assert "VelocityLayer" in layer_names
+        assert "JointAngleLayer" in layer_names
+        assert "VerticalAxisLayer" in layer_names
+        assert len(viz_pipeline_level_2.layers) == 4
 
-    def test_layer_3_adds_vertical_axis(self, meta, poses_norm):
-        pipe = VizPipeline(meta=meta, poses_norm=poses_norm, layer=3)
-        assert len(pipe.layers) == 1
+    def test_layer_3_has_hud_blade(self, viz_pipeline_level_3):
+        """Level 3: full HUD + blade indicator."""
+        layer_names = [type(layer).__name__ for layer in viz_pipeline_level_3.layers]
+        assert "TrailLayer" in layer_names
+        assert "VelocityLayer" in layer_names
+        assert "JointAngleLayer" in layer_names
+        assert "VerticalAxisLayer" in layer_names
+        assert "HUDLayer" in layer_names
+        assert "BladeLayer" in layer_names
+        assert len(viz_pipeline_level_3.layers) == 6
 
     def test_rebuild_resets_layers(self, meta, poses_norm):
         pipe = VizPipeline(meta=meta, poses_norm=poses_norm, layer=2)
-        assert len(pipe.layers) == 1
+        assert len(pipe.layers) == 4
         pipe.layer = 0
         pipe.build_layers()
         assert len(pipe.layers) == 0
@@ -148,7 +192,7 @@ class TestVizPipelineBuildLayers:
         assert len(pipe.layers) == 0
         pipe.layer = 2
         pipe.build_layers()
-        assert len(pipe.layers) == 1
+        assert len(pipe.layers) == 4
 
 
 # ===========================================================================
@@ -169,10 +213,10 @@ class TestVizPipelineAddMlLayers:
     def test_add_ml_layers_appends_not_replaces(self, meta, poses_norm):
         """add_ml_layers appends, not replaces, existing layers."""
         pipe = VizPipeline(meta=meta, poses_norm=poses_norm, layer=2)
-        assert len(pipe.layers) == 1  # VerticalAxisLayer
+        assert len(pipe.layers) == 4  # trail, velocity, joint_angle, vertical_axis
         fake_layer = SimpleNamespace(name="ml_test")
         pipe.add_ml_layers([fake_layer])
-        assert len(pipe.layers) == 2
+        assert len(pipe.layers) == 5
 
 
 # ===========================================================================
@@ -610,7 +654,7 @@ class TestResolveModel3d:
 
     def test_none_returns_default_candidate_if_exists(self, tmp_path, monkeypatch):
         """When path=None, returns first existing default candidate."""
-        from src.visualization import pipeline as pipe_mod
+        from src import pose_preparation as pipe_mod
 
         fake_path = tmp_path / "motionagformer-s-ap3d.onnx"
         fake_path.touch()
@@ -620,7 +664,7 @@ class TestResolveModel3d:
 
     def test_none_returns_none_when_no_candidates_exist(self, tmp_path, monkeypatch):
         """When path=None and no candidates exist, returns None."""
-        from src.visualization import pipeline as pipe_mod
+        from src import pose_preparation as pipe_mod
 
         monkeypatch.setattr(
             pipe_mod,
@@ -641,12 +685,12 @@ class TestPreparePoses:
         """Return a dict of standard mock patches for prepare_poses dependencies."""
         return {
             "get_video_meta": mock.patch(
-                "src.visualization.pipeline.get_video_meta", return_value=_make_meta()
+                "src.pose_preparation.get_video_meta", return_value=_make_meta()
             ),
-            "PoseExtractor": mock.patch("src.visualization.pipeline.PoseExtractor"),
-            "ONNXPoseExtractor": mock.patch("src.visualization.pipeline.ONNXPoseExtractor"),
+            "PoseExtractor": mock.patch("src.pose_preparation.PoseExtractor"),
+            "ONNXPoseExtractor": mock.patch("src.pose_preparation.ONNXPoseExtractor"),
             "resolve_model_3d": mock.patch(
-                "src.visualization.pipeline._resolve_model_3d",
+                "src.pose_preparation._resolve_model_3d",
                 return_value=Path("model.onnx"),
             ),
             "DeviceConfig": mock.patch("src.device.DeviceConfig"),
@@ -655,12 +699,10 @@ class TestPreparePoses:
     def test_returns_prepared_poses(self):
         """prepare_poses returns PreparedPoses with correct shapes."""
         with (
-            mock.patch("src.visualization.pipeline.get_video_meta", return_value=_make_meta()),
-            mock.patch("src.visualization.pipeline.PoseExtractor") as MockExt,
-            mock.patch("src.visualization.pipeline.ONNXPoseExtractor") as MockOnnx,
-            mock.patch(
-                "src.visualization.pipeline._resolve_model_3d", return_value=Path("model.onnx")
-            ),
+            mock.patch("src.pose_preparation.get_video_meta", return_value=_make_meta()),
+            mock.patch("src.pose_preparation.PoseExtractor") as MockExt,
+            mock.patch("src.pose_preparation.ONNXPoseExtractor") as MockOnnx,
+            mock.patch("src.pose_preparation._resolve_model_3d", return_value=Path("model.onnx")),
             mock.patch("src.device.DeviceConfig") as MockDevCfg,
         ):
             MockDevCfg.return_value.device = "cuda"
@@ -682,9 +724,9 @@ class TestPreparePoses:
     def test_no_3d_when_model_missing(self):
         """When 3D model not found, poses_3d is None."""
         with (
-            mock.patch("src.visualization.pipeline.get_video_meta", return_value=_make_meta()),
-            mock.patch("src.visualization.pipeline.PoseExtractor") as MockExt,
-            mock.patch("src.visualization.pipeline._resolve_model_3d", return_value=None),
+            mock.patch("src.pose_preparation.get_video_meta", return_value=_make_meta()),
+            mock.patch("src.pose_preparation.PoseExtractor") as MockExt,
+            mock.patch("src.pose_preparation._resolve_model_3d", return_value=None),
             mock.patch("src.device.DeviceConfig") as MockDevCfg,
         ):
             MockDevCfg.return_value.device = "cuda"
@@ -705,13 +747,11 @@ class TestPreparePoses:
 
         with (
             mock.patch(
-                "src.visualization.pipeline.get_video_meta", return_value=_make_meta(num_frames=20)
+                "src.pose_preparation.get_video_meta", return_value=_make_meta(num_frames=20)
             ),
-            mock.patch("src.visualization.pipeline.PoseExtractor") as MockExt,
-            mock.patch("src.visualization.pipeline.ONNXPoseExtractor") as MockOnnx,
-            mock.patch(
-                "src.visualization.pipeline._resolve_model_3d", return_value=Path("model.onnx")
-            ),
+            mock.patch("src.pose_preparation.PoseExtractor") as MockExt,
+            mock.patch("src.pose_preparation.ONNXPoseExtractor") as MockOnnx,
+            mock.patch("src.pose_preparation._resolve_model_3d", return_value=Path("model.onnx")),
             mock.patch("src.device.DeviceConfig") as MockDevCfg,
         ):
             MockDevCfg.return_value.device = "cuda"
@@ -731,10 +771,10 @@ class TestPreparePoses:
 
         with (
             mock.patch(
-                "src.visualization.pipeline.get_video_meta", return_value=_make_meta(num_frames=5)
+                "src.pose_preparation.get_video_meta", return_value=_make_meta(num_frames=5)
             ),
-            mock.patch("src.visualization.pipeline.PoseExtractor") as MockExt,
-            mock.patch("src.visualization.pipeline._resolve_model_3d", return_value=None),
+            mock.patch("src.pose_preparation.PoseExtractor") as MockExt,
+            mock.patch("src.pose_preparation._resolve_model_3d", return_value=None),
             mock.patch("src.device.DeviceConfig") as MockDevCfg,
         ):
             MockDevCfg.return_value.device = "cuda"
@@ -753,12 +793,10 @@ class TestPreparePoses:
             progress_calls.append((progress, msg))
 
         with (
-            mock.patch("src.visualization.pipeline.get_video_meta", return_value=_make_meta()),
-            mock.patch("src.visualization.pipeline.PoseExtractor") as MockExt,
-            mock.patch("src.visualization.pipeline.ONNXPoseExtractor") as MockOnnx,
-            mock.patch(
-                "src.visualization.pipeline._resolve_model_3d", return_value=Path("model.onnx")
-            ),
+            mock.patch("src.pose_preparation.get_video_meta", return_value=_make_meta()),
+            mock.patch("src.pose_preparation.PoseExtractor") as MockExt,
+            mock.patch("src.pose_preparation.ONNXPoseExtractor") as MockOnnx,
+            mock.patch("src.pose_preparation._resolve_model_3d", return_value=Path("model.onnx")),
             mock.patch("src.device.DeviceConfig") as MockDevCfg,
         ):
             MockDevCfg.return_value.device = "cuda"
@@ -784,9 +822,9 @@ class TestPreparePoses:
             progress_calls.append((progress, msg))
 
         with (
-            mock.patch("src.visualization.pipeline.get_video_meta", return_value=_make_meta()),
-            mock.patch("src.visualization.pipeline.PoseExtractor") as MockExt,
-            mock.patch("src.visualization.pipeline._resolve_model_3d", return_value=None),
+            mock.patch("src.pose_preparation.get_video_meta", return_value=_make_meta()),
+            mock.patch("src.pose_preparation.PoseExtractor") as MockExt,
+            mock.patch("src.pose_preparation._resolve_model_3d", return_value=None),
             mock.patch("src.device.DeviceConfig") as MockDevCfg,
         ):
             MockDevCfg.return_value.device = "cuda"
@@ -803,9 +841,9 @@ class TestPreparePoses:
         extraction = _fake_extraction(5)
 
         with (
-            mock.patch("src.visualization.pipeline.get_video_meta", return_value=_make_meta()),
-            mock.patch("src.visualization.pipeline.PoseExtractor") as MockExt,
-            mock.patch("src.visualization.pipeline._resolve_model_3d", return_value=None),
+            mock.patch("src.pose_preparation.get_video_meta", return_value=_make_meta()),
+            mock.patch("src.pose_preparation.PoseExtractor") as MockExt,
+            mock.patch("src.pose_preparation._resolve_model_3d", return_value=None),
             mock.patch("src.device.DeviceConfig") as MockDevCfg,
         ):
             MockDevCfg.return_value.device = "cuda"
@@ -833,9 +871,9 @@ class TestPreparePoses:
         click = PersonClick(x=100, y=200)
 
         with (
-            mock.patch("src.visualization.pipeline.get_video_meta", return_value=_make_meta()),
-            mock.patch("src.visualization.pipeline.PoseExtractor") as MockExt,
-            mock.patch("src.visualization.pipeline._resolve_model_3d", return_value=None),
+            mock.patch("src.pose_preparation.get_video_meta", return_value=_make_meta()),
+            mock.patch("src.pose_preparation.PoseExtractor") as MockExt,
+            mock.patch("src.pose_preparation._resolve_model_3d", return_value=None),
             mock.patch("src.device.DeviceConfig") as MockDevCfg,
         ):
             MockDevCfg.return_value.device = "cuda"
@@ -856,10 +894,10 @@ class TestPreparePoses:
 
         with (
             mock.patch(
-                "src.visualization.pipeline.get_video_meta", return_value=_make_meta()
+                "src.pose_preparation.get_video_meta", return_value=_make_meta()
             ) as mock_meta,
-            mock.patch("src.visualization.pipeline.PoseExtractor") as MockExt,
-            mock.patch("src.visualization.pipeline._resolve_model_3d", return_value=None),
+            mock.patch("src.pose_preparation.PoseExtractor") as MockExt,
+            mock.patch("src.pose_preparation._resolve_model_3d", return_value=None),
             mock.patch("src.device.DeviceConfig") as MockDevCfg,
         ):
             MockDevCfg.return_value.device = "cuda"
@@ -876,9 +914,9 @@ class TestPreparePoses:
         extraction = _fake_extraction(5)
 
         with (
-            mock.patch("src.visualization.pipeline.get_video_meta", return_value=_make_meta()),
-            mock.patch("src.visualization.pipeline.PoseExtractor") as MockExt,
-            mock.patch("src.visualization.pipeline._resolve_model_3d", return_value=None),
+            mock.patch("src.pose_preparation.get_video_meta", return_value=_make_meta()),
+            mock.patch("src.pose_preparation.PoseExtractor") as MockExt,
+            mock.patch("src.pose_preparation._resolve_model_3d", return_value=None),
             mock.patch("src.device.DeviceConfig") as MockDevCfg,
         ):
             MockDevCfg.return_value.device = "cuda"
@@ -906,9 +944,9 @@ class TestPreparePoses:
         extraction.poses = raw
 
         with (
-            mock.patch("src.visualization.pipeline.get_video_meta", return_value=_make_meta()),
-            mock.patch("src.visualization.pipeline.PoseExtractor") as MockExt,
-            mock.patch("src.visualization.pipeline._resolve_model_3d", return_value=None),
+            mock.patch("src.pose_preparation.get_video_meta", return_value=_make_meta()),
+            mock.patch("src.pose_preparation.PoseExtractor") as MockExt,
+            mock.patch("src.pose_preparation._resolve_model_3d", return_value=None),
             mock.patch("src.device.DeviceConfig") as MockDevCfg,
         ):
             MockDevCfg.return_value.device = "cuda"
@@ -982,3 +1020,66 @@ class TestVizPipelineIntegration:
                 export_count += 1
 
         assert export_count == 3
+
+
+# ===========================================================================
+# LAYER_REGISTRY and LEVEL_PRESETS constants
+# ===========================================================================
+
+
+class TestLayerRegistry:
+    def test_registry_has_expected_keys(self):
+        """LAYER_REGISTRY contains all 6 expected layer names."""
+        expected_keys = {"trail", "velocity", "joint_angle", "vertical_axis", "hud", "blade"}
+        assert set(LAYER_REGISTRY.keys()) == expected_keys
+
+    def test_registry_values_are_layer_classes(self):
+        """Each value in LAYER_REGISTRY is a class with a render method."""
+        from src.visualization.layers.base import Layer
+
+        for name, cls in LAYER_REGISTRY.items():
+            assert issubclass(cls, Layer), f"{name}: {cls.__name__} is not a Layer subclass"
+
+    def test_registry_instantiation(self):
+        """Each class in LAYER_REGISTRY can be instantiated without args."""
+        for name, cls in LAYER_REGISTRY.items():
+            instance = cls()
+            assert instance is not None, f"Failed to instantiate {name}: {cls.__name__}"
+
+
+class TestLevelPresets:
+    def test_level_0_is_empty(self):
+        """Level 0 preset has no layers."""
+        assert LEVEL_PRESETS[0] == []
+
+    def test_level_1_has_trail_velocity(self):
+        """Level 1 preset includes trail and velocity."""
+        assert LEVEL_PRESETS[1] == ["trail", "velocity"]
+
+    def test_level_2_adds_joint_angle_vertical(self):
+        """Level 2 preset includes trail, velocity, joint_angle, vertical_axis."""
+        assert LEVEL_PRESETS[2] == ["trail", "velocity", "joint_angle", "vertical_axis"]
+
+    def test_level_3_adds_hud_blade(self):
+        """Level 3 preset includes all 6 layers."""
+        assert LEVEL_PRESETS[3] == [
+            "trail",
+            "velocity",
+            "joint_angle",
+            "vertical_axis",
+            "hud",
+            "blade",
+        ]
+
+    def test_presets_are_cumulative(self):
+        """Each level includes all layers from the previous level plus new ones."""
+        for level in range(1, 4):
+            prev = set(LEVEL_PRESETS[level - 1])
+            curr = set(LEVEL_PRESETS[level])
+            assert prev.issubset(curr), f"Level {level} is not a superset of level {level - 1}"
+
+    def test_all_preset_names_in_registry(self):
+        """Every layer name in LEVEL_PRESETS exists in LAYER_REGISTRY."""
+        for level, names in LEVEL_PRESETS.items():
+            for name in names:
+                assert name in LAYER_REGISTRY, f"Level {level}: '{name}' not in LAYER_REGISTRY"

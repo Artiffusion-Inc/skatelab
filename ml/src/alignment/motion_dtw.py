@@ -118,17 +118,17 @@ class MotionDTWAligner:
         This prevents pathological warping across biomechanical boundaries.
 
         Args:
-            user: User pose sequence (num_user_frames, 33, 2).
+            user: User pose sequence (num_user_frames, num_joints, 2).
             user_phases: User phase boundaries with keyframes.
-            reference: Reference pose sequence (num_ref_frames, 33, 2).
+            reference: Reference pose sequence (num_ref_frames, num_joints, 2).
             ref_phases: Reference phase boundaries with keyframes.
-            joints: Joint indices to use for alignment (None = all 33).
+            joints: Joint indices to use for alignment (None = all joints).
 
         Returns:
             MotionDTWResult with phase-wise alignments and combined result.
         """
         if joints is None:
-            joints = list(range(33))
+            joints = list(range(user.shape[1]))
 
         # Determine phase segments
         phases = self._split_into_phases(user_phases, ref_phases)
@@ -385,12 +385,14 @@ class MotionDTWAligner:
                 return sequence[:target_length]
             else:
                 # Pad with last frame
-                padding = np.zeros((target_length - len(sequence), 33, 2), dtype=np.float32)
+                padding = np.zeros(
+                    (target_length - len(sequence), sequence.shape[1], 2), dtype=np.float32
+                )
                 padding[:] = sequence[-1]
                 return np.vstack([sequence, padding])
 
         # Create mapping from reference frames to user frames
-        warped = np.zeros((target_length, 33, 2), dtype=np.float32)
+        warped = np.zeros((target_length, sequence.shape[1], 2), dtype=np.float32)
 
         for ref_idx in range(target_length):
             # Find all user frames mapped to this reference frame
@@ -449,15 +451,15 @@ class MotionDTWAligner:
         For phase-aware analysis, use align_with_keyframes instead.
 
         Args:
-            user: User pose sequence (num_frames, 17, 2) - H3.6M format.
-            reference: Reference pose sequence (num_frames, 17, 2) - H3.6M format.
-            joints: Joint indices to use (None = all 17).
+            user: User pose sequence (num_frames, num_joints, 2).
+            reference: Reference pose sequence (num_frames, num_joints, 2).
+            joints: Joint indices to use (None = all joints).
 
         Returns:
             Normalized DTW distance.
         """
         if joints is None:
-            joints = list(range(17))
+            joints = list(range(user.shape[1]))
 
         # Create default phases (full sequence)
         user_phases = ElementPhase(

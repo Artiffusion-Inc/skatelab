@@ -37,18 +37,18 @@ class MotionAligner:
         """Align user pose sequence to reference using DTW.
 
         Args:
-            user: User pose sequence (num_user_frames, 33, 2).
-            reference: Reference pose sequence (num_ref_frames, 33, 2).
-            joints: List of joint indices to use for alignment (None = all 33).
+            user: User pose sequence (num_user_frames, num_joints, 2).
+            reference: Reference pose sequence (num_ref_frames, num_joints, 2).
+            joints: List of joint indices to use for alignment (None = all joints).
 
         Returns:
             Tuple of (aligned_user, warp_path):
-            - aligned_user: User poses warped to reference timeline (num_ref_frames, 33, 2).
+            - aligned_user: User poses warped to reference timeline (num_ref_frames, num_joints, 2).
             - warp_path: DTW path (N, 2) mapping user frames to reference frames.
         """
         # Select joints for alignment
         if joints is None:
-            joints = list(range(33))
+            joints = list(range(user.shape[1]))
 
         # Flatten to 2D sequences: (num_frames, num_joints * 2)
         user_flat = user[:, joints, :].reshape(len(user), -1)
@@ -80,15 +80,15 @@ class MotionAligner:
         """Compute DTW distance between sequences.
 
         Args:
-            user: User pose sequence (num_user_frames, 33, 2).
-            reference: Reference pose sequence (num_ref_frames, 33, 2).
-            joints: List of joint indices to use for alignment (None = all 33).
+            user: User pose sequence (num_user_frames, num_joints, 2).
+            reference: Reference pose sequence (num_ref_frames, num_joints, 2).
+            joints: List of joint indices to use for alignment (None = all joints).
 
         Returns:
             DTW distance (normalized).
         """
         if joints is None:
-            joints = list(range(33))
+            joints = list(range(user.shape[1]))
 
         # Flatten to 2D sequences
         user_flat = user[:, joints, :].reshape(len(user), -1)
@@ -210,17 +210,17 @@ class MotionAligner:
         """Warp sequence to match reference timeline.
 
         Args:
-            sequence: Original sequence (num_frames, 33, 2).
+            sequence: Original sequence (num_frames, num_joints, 2).
             index1: DTW path indices for sequence.
             index2: DTW path indices for reference.
 
         Returns:
-            Warped sequence (len(index2), 33, 2).
+            Warped sequence (len(index2), num_joints, 2).
         """
         # Create mapping from reference frames to user frames
         # For each reference frame, find the corresponding user frame(s)
         warped_length = len(np.unique(index2))
-        warped = np.zeros((warped_length, 33, 2), dtype=np.float32)
+        warped = np.zeros((warped_length, sequence.shape[1], 2), dtype=np.float32)
 
         for i, ref_idx in enumerate(np.unique(index2)):
             # Find all user frames mapped to this reference frame
