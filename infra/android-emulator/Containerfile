@@ -1,0 +1,40 @@
+FROM docker.io/library/ubuntu:24.04
+ENV ANDROID_HOME=/opt/android-sdk
+ENV PATH="${ANDROID_HOME}/cmdline-tools/latest/bin:${ANDROID_HOME}/platform-tools:${PATH}"
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    openjdk-17-jdk-headless unzip curl wget xz-utils \
+    libgl1-mesa-dri libgl1 dbus-x11 libpulse0 \
+    supervisor \
+    && rm -rf /var/lib/apt/lists/*
+
+# Android SDK
+RUN mkdir -p ${ANDROID_HOME}/cmdline-tools \
+    && curl -fsSL https://dl.google.com/android/repository/commandlinetools-linux-13114758_latest.zip -o /tmp/cmdtools.zip \
+    && unzip /tmp/cmdtools.zip -d ${ANDROID_HOME}/cmdline-tools \
+    && mv ${ANDROID_HOME}/cmdline-tools/cmdline-tools ${ANDROID_HOME}/cmdline-tools/latest \
+    && rm /tmp/cmdtools.zip
+
+RUN yes | sdkmanager --install "platform-tools" && \
+    yes | sdkmanager --install "platforms;android-35" && \
+    yes | sdkmanager --install "build-tools;35.0.1" && \
+    yes | sdkmanager --install "system-images;android-35;google_apis;x86_64" && \
+    yes | sdkmanager --install "emulator"
+
+# scrcpy server (for remote display via ADB)
+RUN curl -fsSL https://github.com/Genymobile/scrcpy/releases/download/v2.7/scrcpy-server-v2.7 -o ${ANDROID_HOME}/scrcpy-server.jar
+
+# AVD
+RUN avdmanager create avd \
+    -n skatelab -k "system-images;android-35;google_apis;x86_64" -d "pixel_6"
+
+# Allow ADB connections (TCP for CI, USB for local)
+RUN mkdir -p /root/.android/avd/skatelab.avd
+
+COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
+
+HEALTHCHECK --interval=30s --timeout=10s --start-period=120s --retries=5 \
+    CMD /opt/android-sdk/platform-tools/adb wait-for-device && \
+        /opt/android-sdk/platform-tools/adb shell getprop sys.boot_completed | grep -q 1 || exit 1
+
+CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]

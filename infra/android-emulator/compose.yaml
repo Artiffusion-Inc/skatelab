@@ -1,0 +1,52 @@
+name: android-emulator
+
+services:
+  emulator:
+    image: android-emulator-emulator:latest
+    build:
+      context: .
+      dockerfile: Containerfile
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:5555:5555"
+      - "127.0.0.1:5037:5037"
+      - "127.0.0.1:27183-27199:27183-27199"
+    devices:
+      - /dev/kvm:/dev/kvm
+    group_add:
+      - "993"
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /run
+      - /var/run
+      - /var/log/supervisor
+    cap_drop:
+      - ALL
+    volumes:
+      - avd-data:/root/.android/avd
+    deploy:
+      resources:
+        limits:
+          memory: 4G
+          cpus: "4.0"
+        reservations:
+          memory: 2G
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/android-sdk/platform-tools/adb wait-for-device && /opt/android-sdk/platform-tools/adb shell getprop sys.boot_completed | grep -q 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 120s
+    networks:
+      - infra
+
+volumes:
+  avd-data:
+
+networks:
+  infra:
+    name: infra_app_network
+    external: true
