@@ -4,7 +4,7 @@
 
 **Architecture:** Merge Python lint+typecheck into single job, remove ast-grep from CI (exists in lefthook), skip docker+smoke on PRs (master only), eliminate uv sync on cache hit, add design lint to lefthook pre-push, shallow checkout where possible.
 
-**Tech Stack:** GitHub Actions (Blacksmith runners), lefthook, uv, bun
+**Tech Stack:** GitHub Actions (Blacksmith runners), lefthook, uv, bun, Blacksmith Docker actions
 
 ---
 
@@ -250,6 +250,58 @@ Already present on fe-check. Apply to lint-typecheck too.
 
 **Savings:** -2-3s per job on checkout step.
 
+### 7. Blacksmith Docker layer caching
+
+**File:** `.github/workflows/ci-reusable.yml`
+
+Currently docker jobs use `useblacksmith/build-push-action@v2` but **without** `useblacksmith/setup-docker-builder@v1`. Per Blacksmith docs, without setup-docker-builder the runner uses the default builder — no NVMe layer cache, no Docker analytics. Adding setup-docker-builder hydrates cached layers from previous runs, only rebuilding changed layers.
+
+```yaml
+docker-backend:
+  name: Docker Build (Backend)
+  needs: [changes, test]
+  if: ${{ !inputs.skip-docker && inputs.run-all && needs.changes.outputs.docker == 'true' }}
+  runs-on: blacksmith-4vcpu-ubuntu-2404
+  steps:
+    - uses: actions/checkout@v6
+    - name: Setup Blacksmith Builder
+      uses: useblacksmith/setup-docker-builder@v1
+    - name: Build backend image
+      uses: useblacksmith/build-push-action@v2
+      with:
+        context: .
+        file: backend/Containerfile
+        push: false
+        tags: skatelab-backend:ci
+
+docker-frontend:
+  name: Docker Build (Frontend)
+  needs: [changes, fe-check, fe-build]
+  if: ${{ !inputs.skip-docker && inputs.run-all && needs.changes.outputs.docker == 'true' }}
+  runs-on: blacksmith-4vcpu-ubuntu-2404
+  steps:
+    - uses: actions/checkout@v6
+    - name: Setup Blacksmith Builder
+      uses: useblacksmith/setup-docker-builder@v1
+    - name: Build frontend image
+      uses: useblacksmith/build-push-action@v2
+      with:
+        context: frontend
+        file: frontend/Containerfile
+        push: false
+        tags: skatelab-frontend:ci
+```
+
+**Savings on master:** First run = uncached (same as now). Subsequent runs: 2x-40x faster Docker builds (per Blacksmith customer reports). If Dockerfile hasn't changed, most layers cached → near-instant rebuild.
+
+**Note:** Docker layer cache is scoped per-repo, shared across all runners (Last Write Wins). No cross-branch cache leakage — Blacksmith caches are branch-scoped by default.
+
+### 8. Leverage Blacksmith colocated cache (no action needed)
+
+Blacksmith automatically redirects `actions/cache@v4` and `setup-*` action caches to their colocated NVMe backend (4x faster than GitHub's Azure Blob Storage). Our setup-python-venv already uses `actions/cache@v4` and `astral-sh/setup-uv@v7` with `enable-cache: true` — both automatically benefit from Blacksmith's colocated cache. No code changes required.
+
+**Free tier:** 25GB per repo per week (vs GitHub's 10GB). No additional cost.
+
 ## ci-passed Updates
 
 Update `needs` and env vars to reflect merged/removed jobs:
@@ -283,6 +335,13 @@ Update summary table accordingly.
 
 ## Files Modified
 
-1. `.github/workflows/ci-reusable.yml` — merge lint+typecheck, remove ast-grep, gate docker/smoke behind `run-all`, shallow checkout, update ci-passed
+1. `.github/workflows/ci-reusable.yml` — merge lint+typecheck, remove ast-grep, gate docker/smoke behind `run-all`, add `setup-docker-builder`, shallow checkout, update ci-passed
 2. `.github/actions/setup-python-venv/action.yml` — add cache-hit output, skip uv sync on cache hit
 3. `lefthook.yml` — add design-lint to pre-push
+
+## Blacksmith-Specific Notes
+
+- **Colocated cache**: `actions/cache@v4` + `setup-uv` cache automatically use Blacksmith's 4x faster NVMe cache. No code changes.
+- **Docker layer caching**: Requires `useblacksmith/setup-docker-builder@v1` before `useblacksmith/build-push-action@v2`. Currently missing.
+- **Sticky disks**: Considered for `.venv` (500MB+) but overkill — `actions/cache` with Blacksmith backend is sufficient and simpler.
+- **Free tier**: 3000 x64-2vCPU min/month, 25GB cache/repo/week. Our CI usage is well within limits.
