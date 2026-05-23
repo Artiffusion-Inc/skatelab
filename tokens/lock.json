@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "timestamp": "2026-05-23T05:52:12.973Z",
+  "timestamp": "2026-05-23T06:00:55.534Z",
   "designMdHash": "sha256:9fcce8cf8e1f8f474a56d0d90e7e67979bf616f100dfdb3885afe339b4fbedca",
   "sectionHashes": {
     "colors": "sha256:a796a678412d2721c420d4f10d488e2c7404e81ee19e38d3ac9c8567810106d9",
@@ -9,7 +9,7 @@
     "components": "sha256:6fc86b44762cbf64c4ffbec1d24f7d9061c0b797cd544d4ea18c68f9bbd7f169"
   },
   "files": {
-    "frontend/src/app/tokens.css": "sha256:e3a14ce2dfa3edde2c2ce62e8b3faf357527440507b4f2fcb2604b0c8c242101",
+    "frontend/src/app/tokens.css": "sha256:95b9a00fe75e0403ae517afa950b2a527513907fc0b2770a4c3a7621c504e2a3",
     "mobile/androidApp/src/main/java/ru/skatelab/capture/presentation/theme/Colors.kt": "sha256:69110a53028ced20d3f0239dd0c4fd48624cc62b02f3e0395acf46a480cdb61f",
     "mobile/androidApp/src/main/java/ru/skatelab/capture/presentation/theme/Type.kt": "sha256:6d6d4cd974aca2ce670f2490dde0208ba90fa9558c80d73d4b83027a81eb71b3",
     "mobile/androidApp/src/main/java/ru/skatelab/capture/presentation/theme/Theme.kt": "sha256:532c8cd1fe4625923833d1a7546ed5e86fccea61394d4b2369b381ac9eee0c24",
@@ -23,7 +23,7 @@
   },
   "platformHashes": {
     "css": {
-      "frontend/src/app/tokens.css": "sha256:e3a14ce2dfa3edde2c2ce62e8b3faf357527440507b4f2fcb2604b0c8c242101"
+      "frontend/src/app/tokens.css": "sha256:95b9a00fe75e0403ae517afa950b2a527513907fc0b2770a4c3a7621c504e2a3"
     },
     "kotlin": {
       "mobile/androidApp/src/main/java/ru/skatelab/capture/presentation/theme/Colors.kt": "sha256:69110a53028ced20d3f0239dd0c4fd48624cc62b02f3e0395acf46a480cdb61f",

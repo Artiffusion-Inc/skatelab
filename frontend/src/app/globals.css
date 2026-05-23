@@ -195,7 +195,7 @@ body {
     font-family: var(--font-sans);
     font-size: 16px;
     font-weight: 700;
-    line-height: 1.0;
+    line-height: 1;
     letter-spacing: 0;
   }
 
@@ -203,7 +203,7 @@ body {
     font-family: var(--font-sans);
     font-size: 14px;
     font-weight: 600;
-    line-height: 1.0;
+    line-height: 1;
     letter-spacing: 0;
   }
 
@@ -252,7 +252,7 @@ body {
     font-family: var(--font-sans);
     font-size: 16px;
     font-weight: 700;
-    line-height: 1.0;
+    line-height: 1;
     letter-spacing: 0;
   }
 
@@ -267,7 +267,7 @@ body {
     font-family: var(--font-sans);
     font-size: 16px;
     font-weight: 700;
-    line-height: 1.0;
+    line-height: 1;
     letter-spacing: 0;
   }
 
@@ -282,7 +282,7 @@ body {
     font-family: var(--font-sans);
     font-size: 16px;
     font-weight: 700;
-    line-height: 1.0;
+    line-height: 1;
     letter-spacing: 0;
   }
 
@@ -298,7 +298,7 @@ body {
     font-family: var(--font-sans);
     font-size: 16px;
     font-weight: 700;
-    line-height: 1.0;
+    line-height: 1;
     letter-spacing: 0;
   }
 
@@ -313,7 +313,7 @@ body {
     font-family: var(--font-sans);
     font-size: 16px;
     font-weight: 700;
-    line-height: 1.0;
+    line-height: 1;
     letter-spacing: 0;
   }
 
@@ -347,7 +347,7 @@ body {
     font-family: var(--font-sans);
     font-size: 16px;
     font-weight: 700;
-    line-height: 1.0;
+    line-height: 1;
     letter-spacing: 0;
   }
 
@@ -434,7 +434,7 @@ body {
     font-family: var(--font-sans);
     font-size: 14px;
     font-weight: 600;
-    line-height: 1.0;
+    line-height: 1;
     letter-spacing: 0;
   }
 
@@ -480,13 +480,22 @@ body {
   }
 
   .sh-ice-backdrop {
-    background: radial-gradient(ellipse at center, var(--color-surface-ice-soft) 0%, transparent 70%);
+    background: radial-gradient(
+      ellipse at center,
+      var(--color-surface-ice-soft) 0%,
+      transparent 70%
+    );
   }
 
   /* Animation */
   @keyframes metric-pulse {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.85; }
+    0%,
+    100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.85;
+    }
   }
 
   .sh-metric-pulse {
