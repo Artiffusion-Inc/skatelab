@@ -11,6 +11,8 @@ import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.isActive
@@ -38,7 +40,11 @@ class ImuCollector
             private const val WARMUP_MIN_ACC_MAGNITUDE = 1.0f
         }
 
-        private val writers = ConcurrentHashMap<SensorId, ImuStreamWriter>()
+    /** Errors emitted when writing IMU samples fails. Collectors can observe this for diagnostics. */
+    private val _writeError = MutableSharedFlow<Throwable>(extraBufferCapacity = 1)
+    val writeError: SharedFlow<Throwable> = _writeError
+
+    private val writers = ConcurrentHashMap<SensorId, ImuStreamWriter>()
         private val counts = ConcurrentHashMap<SensorId, AtomicInteger>()
         private val lastSampleNs = ConcurrentHashMap<SensorId, Long>()
         private val pendingGaps = ConcurrentHashMap<SensorId, PendingGap>()
@@ -153,6 +159,7 @@ class ImuCollector
                 lastSampleNs[sensorId] = sample.timestampNs
             } catch (e: Exception) {
                 appLogger.e(TAG, "Write error for $sensorId: ${e.message}")
+                _writeError.tryEmit(e)
             }
         }
 

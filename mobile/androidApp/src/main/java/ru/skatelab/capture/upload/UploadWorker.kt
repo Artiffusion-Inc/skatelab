@@ -48,10 +48,11 @@ class UploadWorker
         override suspend fun doWork(): Result {
             val uploadId = inputData.getString(KEY_UPLOAD_ID) ?: return Result.failure()
 
-            val entity = pendingUploadDao.getById(uploadId) ?: return Result.failure()
+            // Atomic lock: only proceed if status is READY (prevents duplicate workers)
+            val locked = pendingUploadDao.tryLockForUpload(uploadId)
+            if (locked == 0) return Result.success() // Another worker already processing
 
-            // Mark as UPLOADING
-            pendingUploadDao.updateStatus(entity.id, "UPLOADING")
+            val entity = pendingUploadDao.getById(uploadId) ?: return Result.failure()
 
             return try {
                 // Step 1: Upload video via chunked uploader

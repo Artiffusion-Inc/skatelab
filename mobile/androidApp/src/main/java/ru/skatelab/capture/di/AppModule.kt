@@ -30,8 +30,10 @@ import ru.skatelab.capture.domain.service.ManifestWriter
 import ru.skatelab.capture.domain.service.SessionExporter
 import ru.skatelab.capture.domain.service.TimeSynchronizer
 import ru.skatelab.shared.api.SkateLabClient
+import ru.skatelab.shared.api.UsersApi
 import ru.skatelab.shared.auth.AuthRepository
 import ru.skatelab.shared.auth.TokenStorage
+import ru.skatelab.shared.auth.createAndroidSettings
 
 @Qualifier
 @Retention(AnnotationRetention.BINARY)
@@ -89,23 +91,39 @@ abstract class AppModule {
 
         @Provides
         @Singleton
-        fun provideSkateLabClient(): SkateLabClient =
+        fun provideSkateLabClient(tokenStorage: TokenStorage): SkateLabClient =
             SkateLabClient(
                 baseUrl = "https://api.skatelab.ru/api/v1",
                 engine = OkHttp.create(),
+                tokenStorage = tokenStorage,
             )
 
         @Provides
         @Singleton
         fun provideTokenStorage(
             @ApplicationContext context: Context,
-        ): TokenStorage = TokenStorage().also { it.init(context) }
+        ): TokenStorage = TokenStorage(createAndroidSettings(context))
 
         @Provides
         @Singleton
         fun provideAuthRepository(
             client: SkateLabClient,
             tokenStorage: TokenStorage,
-        ): AuthRepository = AuthRepository(client.auth, tokenStorage)
+        ): AuthRepository =
+            AuthRepository(
+                client.auth,
+                tokenStorage,
+            )
+
+        @Provides
+        @Singleton
+        fun provideUsersApi(client: SkateLabClient): UsersApi = UsersApi(client.httpClient)
+
+        @Provides
+        @Singleton
+        fun provideSharedAuthViewModel(
+            authRepo: AuthRepository,
+            usersApi: UsersApi,
+        ): ru.skatelab.shared.state.AuthViewModel = ru.skatelab.shared.state.AuthViewModel(authRepo, usersApi)
     }
 }

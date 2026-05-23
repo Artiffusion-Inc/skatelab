@@ -6,6 +6,7 @@ import io.ktor.client.request.*
 import io.ktor.http.*
 import ru.skatelab.shared.models.SessionResponse
 import ru.skatelab.shared.models.SessionListResponse
+import ru.skatelab.shared.models.SessionUpdateRequest
 
 class SessionsApi(private val client: HttpClient) {
     suspend fun get(id: String): SessionResponse =
@@ -40,5 +41,18 @@ class SessionsApi(private val client: HttpClient) {
 
     suspend fun delete(id: String) {
         client.delete("/sessions/$id")
+    }
+
+    suspend fun update(id: String, request: SessionUpdateRequest): SessionResponse =
+        client.patch("/sessions/$id") {
+            contentType(ContentType.Application.Json)
+            setBody(request)
+        }.body()
+
+    suspend fun bulkDelete(ids: List<String>) {
+        client.delete("/sessions/bulk") {
+            contentType(ContentType.Application.Json)
+            setBody(mapOf("session_ids" to ids))
+        }
     }
 }

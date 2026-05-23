@@ -8,7 +8,6 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
-import ru.skatelab.shared.auth.AuthRepository
 import ru.skatelab.shared.state.AuthUiState
 import ru.skatelab.shared.state.AuthViewModel as SharedAuthViewModel
 
@@ -16,23 +15,21 @@ import ru.skatelab.shared.state.AuthViewModel as SharedAuthViewModel
 class AuthViewModel
     @Inject
     constructor(
-        private val authRepository: AuthRepository,
+        private val sharedAuthViewModel: SharedAuthViewModel,
     ) : ViewModel() {
-        private val shared = SharedAuthViewModel(authRepository)
-
         val uiState: StateFlow<AuthUiState> =
-            shared.uiState
+            sharedAuthViewModel.uiState
                 .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), AuthUiState.Loading)
 
         fun checkLogin() {
-            viewModelScope.launch { shared.checkLogin() }
+            viewModelScope.launch { sharedAuthViewModel.checkLogin() }
         }
 
         fun login(
             email: String,
             password: String,
         ) {
-            viewModelScope.launch { shared.login(email, password) }
+            viewModelScope.launch { sharedAuthViewModel.login(email, password) }
         }
 
         fun register(
@@ -40,10 +37,10 @@ class AuthViewModel
             password: String,
             displayName: String,
         ) {
-            viewModelScope.launch { shared.register(email, password, displayName) }
+            viewModelScope.launch { sharedAuthViewModel.register(email, password, displayName) }
         }
 
         fun logout() {
-            viewModelScope.launch { shared.logout() }
+            viewModelScope.launch { sharedAuthViewModel.logout() }
         }
     }

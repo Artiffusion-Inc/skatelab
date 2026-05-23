@@ -1,5 +1,6 @@
 package ru.skatelab.shared.models
 
+import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 enum class ProcessStatus {
@@ -12,6 +13,7 @@ data class ProcessEvent(
     val progress: Float = 0f,
     val message: String = "",
     val status: String = "running",
+    @SerialName("session_id") val sessionId: String? = null,
 ) {
     val parsedStatus: ProcessStatus
         get() = when (status) {

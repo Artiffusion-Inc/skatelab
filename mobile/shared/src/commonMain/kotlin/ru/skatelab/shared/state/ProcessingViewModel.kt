@@ -33,11 +33,16 @@ class ProcessingViewModel(private val processApi: ProcessApi) {
                 ProcessStatus.RUNNING ->
                     _uiState.value = ProcessingUiState.Progress(event.progress, event.message)
                 ProcessStatus.COMPLETED ->
-                    _uiState.value = ProcessingUiState.Completed(taskId)
+                    _uiState.value = ProcessingUiState.Completed(event.sessionId ?: taskId)
                 ProcessStatus.FAILED ->
                     _uiState.value = ProcessingUiState.Failed(event.message)
                 else -> {}
             }
         }
+    }
+
+    suspend fun cancelProcessing(taskId: String) {
+        runCatching { processApi.cancel(taskId) }
+            .onFailure { _uiState.value = ProcessingUiState.Failed(it.message ?: "Cancel failed") }
     }
 }

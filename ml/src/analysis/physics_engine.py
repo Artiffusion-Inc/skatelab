@@ -567,3 +567,65 @@ class PhysicsEngine:
             flight_time=flight_time,
             rotation_rate=None,
         )
+
+    def analyze_2d(
+        self,
+        poses_2d: np.ndarray,
+        takeoff_idx: int | None = None,
+        landing_idx: int | None = None,
+        fps: float = 30.0,
+    ) -> dict[str, Any]:
+        """Run 2D physics analysis using CoM trajectory.
+
+        For when 3D poses are unavailable. Computes jump height and
+        flight time from 2D CoM parabolic fit.
+
+        Args:
+            poses_2d: (N, 17, 2) normalized pose sequence.
+            takeoff_idx: Takeoff frame index (None if unknown).
+            landing_idx: Landing frame index (None if unknown).
+            fps: Video framerate.
+
+        Returns:
+            Dict with jump_height, flight_time, takeoff_velocity,
+            fit_quality, avg_inertia (None for 2D).
+        """
+        from ..utils.geometry import calculate_com_trajectory_2d
+
+        com = calculate_com_trajectory_2d(poses_2d)  # (N, 2)
+
+        jump_height: float | None = None
+        flight_time: float | None = None
+        takeoff_velocity: float | None = None
+        fit_quality: float | None = None
+
+        if takeoff_idx is not None and landing_idx is not None:
+            flight_frames = landing_idx - takeoff_idx
+            flight_time = flight_frames / fps
+
+            flight_com_y = com[takeoff_idx : landing_idx + 1, 1]
+
+            jump_height = float(np.max(flight_com_y) - np.min(flight_com_y))
+
+            if takeoff_idx > 0:
+                dt = 1.0 / fps
+                takeoff_velocity_y = float((com[takeoff_idx, 1] - com[takeoff_idx - 1, 1]) / dt)
+                takeoff_velocity = abs(takeoff_velocity_y)
+
+            try:
+                t_flight = np.arange(flight_frames + 1) / fps
+                coeffs = np.polyfit(t_flight, flight_com_y, 2)
+                y_pred = np.polyval(coeffs, t_flight)
+                ss_res = np.sum((flight_com_y - y_pred) ** 2)
+                ss_tot = np.sum((flight_com_y - np.mean(flight_com_y)) ** 2)
+                fit_quality = float(1 - ss_res / ss_tot) if ss_tot > 0 else 0.0
+            except (np.linalg.LinAlgError, ValueError):
+                fit_quality = 0.0
+
+        return {
+            "jump_height": jump_height,
+            "flight_time": flight_time,
+            "takeoff_velocity": takeoff_velocity,
+            "fit_quality": fit_quality,
+            "avg_inertia": None,  # requires 3D
+        }

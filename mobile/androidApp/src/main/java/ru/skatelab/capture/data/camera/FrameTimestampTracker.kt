@@ -68,7 +68,9 @@ class FrameTimestampTracker {
         lastFrameNs = timestampNs
         frameCount++
 
-        queue.offer(index to timestampNs)
+        if (!queue.offer(index to timestampNs)) {
+            // Queue full — entry dropped (lossy backpressure)
+        }
     }
 
     /**

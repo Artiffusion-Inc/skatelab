@@ -32,8 +32,11 @@ class SessionsViewModel(private val sessionsApi: SessionsApi) {
     }
 
     suspend fun loadSession(id: String) {
+        _uiState.value = SessionsUiState.Loading
         try {
             _selectedSession.value = sessionsApi.get(id)
-        } catch (_: Exception) { }
+        } catch (e: Exception) {
+            _uiState.value = SessionsUiState.Error(e.message ?: "Failed to load session")
+        }
     }
 }

@@ -48,18 +48,18 @@ class BleScanViewModel
         private val _factoryResetStatus = MutableStateFlow<String?>(null)
         val factoryResetStatus: StateFlow<String?> = _factoryResetStatus.asStateFlow()
 
-        private var _isScanning = false
-        val isScanning: Boolean get() = _isScanning
+        private val _isScanning = MutableStateFlow(false)
+        val isScanning: StateFlow<Boolean> = _isScanning.asStateFlow()
 
         fun startScan() {
-            if (_isScanning) return
-            _isScanning = true
+            if (_isScanning.value) return
+            _isScanning.value = true
             appLogger.i(tag, "startScan() called")
             bleRepository.startScan()
         }
 
         fun stopScan() {
-            _isScanning = false
+            _isScanning.value = false
             bleRepository.stopScan()
         }
 
@@ -112,6 +112,6 @@ class BleScanViewModel
 
         override fun onCleared() {
             super.onCleared()
-            if (_isScanning) bleRepository.stopScan()
+            if (_isScanning.value) bleRepository.stopScan()
         }
     }

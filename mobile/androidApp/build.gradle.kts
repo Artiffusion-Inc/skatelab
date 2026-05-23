@@ -31,6 +31,10 @@ android {
         compose = true
     }
 
+    ksp {
+        arg("room.schemaLocation", "$projectDir/schemas")
+    }
+
     testOptions {
         unitTests.isReturnDefaultValues = true
     }
@@ -80,6 +84,9 @@ dependencies {
 
     // Ktor (for DI-provided SkateLabClient)
     implementation(libs.ktor.client.okhttp)
+
+    // Multiplatform-settings (for TokenStorage)
+    implementation(libs.multiplatform.settings)
 
     // Room
     implementation(libs.room.runtime)

@@ -45,7 +45,7 @@ class SessionRepositoryImpl
                     metaFile.writeText(sessionToJson(session))
                     appLogger.i(TAG, "Session saved: ${session.id}")
                 }
-            }
+            }.onFailure { appLogger.e(TAG, "Failed to save session ${session.id}: ${it.message}") }
 
         override suspend fun getSessions(): List<CaptureSession> =
             withContext(Dispatchers.IO) {
@@ -73,7 +73,7 @@ class SessionRepositoryImpl
                     val dir = File(sessionsDir, id)
                     if (dir.exists()) dir.deleteRecursively()
                 }
-            }
+            }.onFailure { appLogger.e(TAG, "Failed to delete session $id: ${it.message}") }
 
         private fun sessionToJson(s: CaptureSession): String {
             val imuDelayEntries =

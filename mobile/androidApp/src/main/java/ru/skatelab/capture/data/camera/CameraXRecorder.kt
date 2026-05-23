@@ -152,26 +152,32 @@ class CameraXRecorder
                 val startDeferred = CompletableDeferred<Unit>()
                 finalizeDeferred = CompletableDeferred()
 
-                activeRecording =
-                    pendingRecording.start(cameraExecutor) { event ->
-                        when (event) {
-                            is VideoRecordEvent.Start -> {
-                                _isRecording.value = true
-                                startDeferred.complete(Unit)
-                            }
-                            is VideoRecordEvent.Finalize -> {
-                                _isRecording.value = false
-                                timestampTracker?.close()
-                                if (event.hasError()) {
-                                    _recordingError.value = "Video recording error: ${event.error}"
+                try {
+                    activeRecording =
+                        pendingRecording.start(cameraExecutor) { event ->
+                            when (event) {
+                                is VideoRecordEvent.Start -> {
+                                    _isRecording.value = true
+                                    startDeferred.complete(Unit)
                                 }
-                                val meta = extractVideoMetadata(videoFile)
-                                _videoMetadata.value = meta
-                                finalizeDeferred?.complete(meta)
+                                is VideoRecordEvent.Finalize -> {
+                                    _isRecording.value = false
+                                    timestampTracker?.close()
+                                    if (event.hasError()) {
+                                        _recordingError.value = "Video recording error: ${event.error}"
+                                    }
+                                    val meta = extractVideoMetadata(videoFile)
+                                    _videoMetadata.value = meta
+                                    finalizeDeferred?.complete(meta)
+                                }
+                                else -> {}
                             }
-                            else -> {}
                         }
-                    }
+                } catch (e: Exception) {
+                    timestampTracker?.close()
+                    timestampTracker = null
+                    throw e
+                }
 
                 try {
                     withTimeout(3_000L) { startDeferred.await() }

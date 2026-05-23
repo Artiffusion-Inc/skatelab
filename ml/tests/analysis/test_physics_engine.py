@@ -1,6 +1,7 @@
 """Tests for physics engine calculations."""
 
 import numpy as np
+import pytest
 
 from src.analysis.physics_engine import (
     DEFAULT_BODY_MASS,
@@ -228,3 +229,43 @@ class TestAnalyze:
 
         assert result.jump_height is None
         assert result.flight_time is None
+
+
+class TestPhysicsEngine2D:
+    """2D fallback physics analysis tests."""
+
+    @pytest.fixture
+    def engine_2d(self):
+        return PhysicsEngine(body_mass=70.0)
+
+    @pytest.fixture
+    def poses_2d_jump(self):
+        """Synthetic 2D jump pose sequence (N, 17, 2)."""
+        rng = np.random.default_rng(42)
+        poses = rng.random((60, 17, 2)).astype(np.float32)
+        # Simulate a jump: Y values peak in middle
+        com_y = np.sin(np.linspace(0, np.pi, 60)) * 0.3 + 0.5
+        poses[:, :, 1] = com_y[:, np.newaxis] + rng.random((60, 17)).astype(np.float32) * 0.01
+        return poses
+
+    def test_analyze_2d_returns_required_fields(self, engine_2d, poses_2d_jump):
+        result = engine_2d.analyze_2d(poses_2d_jump, takeoff_idx=10, landing_idx=25, fps=30.0)
+        assert "jump_height" in result
+        assert "flight_time" in result
+        assert "takeoff_velocity" in result
+        assert "fit_quality" in result
+        assert result["avg_inertia"] is None  # requires 3D
+
+    def test_analyze_2d_flight_time(self, engine_2d, poses_2d_jump):
+        result = engine_2d.analyze_2d(poses_2d_jump, takeoff_idx=10, landing_idx=25, fps=30.0)
+        assert result["flight_time"] == pytest.approx(15 / 30.0, abs=0.01)  # (25-10)/30
+
+    def test_analyze_2d_without_takeoff_landing(self, engine_2d, poses_2d_jump):
+        """Without takeoff/landing, should return None for height/time."""
+        result = engine_2d.analyze_2d(poses_2d_jump, takeoff_idx=None, landing_idx=None, fps=30.0)
+        assert result["jump_height"] is None
+        assert result["flight_time"] is None
+
+    def test_analyze_2d_jump_height_positive(self, engine_2d, poses_2d_jump):
+        result = engine_2d.analyze_2d(poses_2d_jump, takeoff_idx=10, landing_idx=25, fps=30.0)
+        assert result["jump_height"] > 0
