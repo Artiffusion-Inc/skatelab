@@ -39,7 +39,7 @@ class AuthRepositoryTest {
         val client = HttpClient(engine) {
             install(ContentNegotiation) { json(json) }
         }
-        val settings = com.russhwolf.settings.Settings()
+        val settings: com.russhwolf.settings.Settings = com.russhwolf.settings.Settings()
         val tokenStorage = TokenStorage(settings)
         tokenStorage.saveTokens("access123", "refresh456")
 
@@ -63,7 +63,7 @@ class AuthRepositoryTest {
         val client = HttpClient(engine) {
             install(ContentNegotiation) { json(json) }
         }
-        val settings = com.russhwolf.settings.Settings()
+        val settings: com.russhwolf.settings.Settings = com.russhwolf.settings.Settings()
         val tokenStorage = TokenStorage(settings)
         tokenStorage.saveTokens("access", "refresh")
 
@@ -77,7 +77,7 @@ class AuthRepositoryTest {
 
     @Test
     fun isLoggedIn_returnsTrueWhenAccessTokenPresent() = kotlinx.coroutines.test.runTest {
-        val settings = com.russhwolf.settings.Settings()
+        val settings: com.russhwolf.settings.Settings = com.russhwolf.settings.Settings()
         val tokenStorage = TokenStorage(settings)
         tokenStorage.saveTokens("access", "refresh")
 
@@ -94,7 +94,7 @@ class AuthRepositoryTest {
 
     @Test
     fun isLoggedIn_returnsFalseWhenNoAccessToken() = kotlinx.coroutines.test.runTest {
-        val settings = com.russhwolf.settings.Settings()
+        val settings: com.russhwolf.settings.Settings = com.russhwolf.settings.Settings()
         val tokenStorage = TokenStorage(settings)
 
         val engine = MockEngine(MockEngineConfig().apply {
