@@ -40,11 +40,11 @@ class ImuCollector
             private const val WARMUP_MIN_ACC_MAGNITUDE = 1.0f
         }
 
-    /** Errors emitted when writing IMU samples fails. Collectors can observe this for diagnostics. */
-    private val _writeError = MutableSharedFlow<Throwable>(extraBufferCapacity = 1)
-    val writeError: SharedFlow<Throwable> = _writeError
+        /** Errors emitted when writing IMU samples fails. Collectors can observe this for diagnostics. */
+        private val _writeError = MutableSharedFlow<Throwable>(extraBufferCapacity = 1)
+        val writeError: SharedFlow<Throwable> = _writeError
 
-    private val writers = ConcurrentHashMap<SensorId, ImuStreamWriter>()
+        private val writers = ConcurrentHashMap<SensorId, ImuStreamWriter>()
         private val counts = ConcurrentHashMap<SensorId, AtomicInteger>()
         private val lastSampleNs = ConcurrentHashMap<SensorId, Long>()
         private val pendingGaps = ConcurrentHashMap<SensorId, PendingGap>()
