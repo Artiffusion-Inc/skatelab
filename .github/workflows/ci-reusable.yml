@@ -251,6 +251,16 @@ jobs:
           name: bundle-analyzer
           path: frontend/.next/analyze/
           retention-days: 14
+      - name: Upload build output for Docker
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: frontend-build-output
+          path: |
+            frontend/public
+            frontend/.next/standalone
+            frontend/.next/static
+          retention-days: 1
 
   fe-test:
     name: Tests (Vitest)
@@ -307,6 +317,11 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v6
+      - name: Download build output
+        uses: actions/download-artifact@v5
+        with:
+          name: frontend-build-output
+          path: frontend
       - name: Setup Blacksmith Builder
         uses: useblacksmith/setup-docker-builder@v1
         with:
@@ -315,7 +330,7 @@ jobs:
         uses: useblacksmith/build-push-action@v2
         with:
           context: frontend
-          file: frontend/Containerfile
+          file: frontend/Containerfile.ci
           push: false
           tags: skatelab-frontend:ci
 
