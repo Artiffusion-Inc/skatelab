@@ -2,14 +2,12 @@ package ru.skatelab.shared.auth
 
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.mock.MockEngine
-import io.ktor.client.engine.mock.MockRequestHandleScope
-import io.ktor.client.engine.mock.HttpResponseData
-import io.ktor.client.request.HttpRequestData
-import io.ktor.client.plugins.defaultRequest
-import io.ktor.client.request.url
+import io.ktor.client.engine.mock.MockRequestHandler
 import io.ktor.client.engine.mock.respond
 import io.ktor.client.engine.mock.respondError
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
+import io.ktor.client.plugins.defaultRequest
+import io.ktor.client.request.url
 import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
@@ -26,7 +24,7 @@ import kotlin.test.assertTrue
 class AuthRepositoryTest {
     private val json = Json { ignoreUnknownKeys = true }
 
-    private fun makeClient(handler: suspend MockRequestHandleScope.(HttpRequestData) -> HttpResponseData): HttpClient =
+    private fun makeClient(handler: MockRequestHandler): HttpClient =
         HttpClient(MockEngine(handler)) {
             install(ContentNegotiation) { json(json) }
             defaultRequest { url("https://api.test/api/v1") }
