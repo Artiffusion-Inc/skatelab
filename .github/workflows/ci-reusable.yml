@@ -110,11 +110,15 @@ jobs:
         run: node scripts/design-lock.js check
 
   test:
-    name: Tests
+    name: Tests (${{ matrix.group }}/${{ strategy.job-total }})
     needs: [changes]
-    if: inputs.run-all || needs.changes.outputs.python == 'true'
+    if: ${{ inputs.run-all || needs.changes.outputs.python == 'true' }}
     runs-on: blacksmith-4vcpu-ubuntu-2404
     timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        group: [1, 2]
     steps:
       - uses: actions/checkout@v6
       - uses: ./.github/actions/setup-python-venv
@@ -127,29 +131,62 @@ jobs:
           ml/tests/test_worker_metrics.py ml/tests/test_tracked_extraction.py
           ml/tests/test_projection.py ml/tests/test_pipeline_parallel.py
           ml/tests/alignment/ ml/tests/analysis/
-          ml/tests/utils/test_gap_filling.py ml/tests/utils/test_geometry.py
-          ml/tests/utils/test_geometry_numba.py ml/tests/utils/test_profiler.py
-          ml/tests/utils/test_profiling.py ml/tests/utils/test_smoothing.py
-          ml/tests/utils/test_smoothing_numba.py ml/tests/utils/test_video_writer_nvenc.py
-          ml/tests/references/ ml/tests/pose_3d/ ml/tests/pose_estimation/ ml/tests/datasets/
+          ml/tests/utils/ ml/tests/references/ ml/tests/pose_3d/ ml/tests/pose_estimation/ ml/tests/datasets/
+          --splits 2 --group ${{ matrix.group }}
           -n auto --dist loadfile
           -v -m "not slow and not integration"
           --cov=backend/app --cov=ml/src
-          --cov-report=xml --junitxml=junit.xml --tb=short
-      - name: Upload coverage (backend)
+          --cov-report= --junitxml=junit.xml --tb=short
+          --durations-file=.test_durations
+      - name: Upload coverage data
         if: always()
-        uses: codecov/codecov-action@v6
+        uses: actions/upload-artifact@v7
+        with:
+          name: coverage-group-${{ matrix.group }}
+          path: .coverage
+      - name: Upload test results
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: test-results-group-${{ matrix.group }}
+          path: junit.xml
+
+  coverage:
+    name: Coverage combine
+    needs: [test]
+    if: always()
+    runs-on: blacksmith-2vcpu-ubuntu-2404-arm
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/setup-python-venv
+        with:
+          python-version: ${{ inputs.python-version }}
+      - uses: actions/download-artifact@v5
+        with:
+          pattern: coverage-group-*
+          path: .coverage-artifacts
+          merge-multiple: true
+      - name: Combine coverage
+        run: |
+          coverage combine .coverage-artifacts/.coverage*
+          coverage xml -o coverage.xml
+          coverage report --fail-under=0
+      - uses: codecov/codecov-action@v6
         with:
           files: coverage.xml
           flags: backend,ml
           name: python-coverage
           token: ${{ secrets.CODECOV_TOKEN }}
-      - name: Upload test results (backend)
-        if: ${{ !cancelled() }}
-        uses: codecov/test-results-action@v1
+      - uses: actions/download-artifact@v5
+        with:
+          pattern: test-results-group-*
+          path: test-results-artifacts
+          merge-multiple: true
+      - uses: codecov/test-results-action@v1
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
-          files: junit.xml
+          files: test-results-artifacts/junit.xml
 
   smoke:
     name: Smoke Tests (ML inference)
