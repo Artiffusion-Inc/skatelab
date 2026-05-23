@@ -1,400 +1,243 @@
 // AUTO-GENERATED — do not edit. Source: DESIGN.md
-
 import SwiftUI
 
-// MARK: - Card Modifier
-
 @available(iOS 15, *)
-struct SkateLabCardModifier: ViewModifier {
-    let backgroundColor: Color
-    let foregroundColor: Color
+public struct SkateLabCardModifier: ViewModifier {
+    let background: Color
     let cornerRadius: CGFloat
-    let padding: CGFloat
-    let showBorder: Bool
+    let padding: EdgeInsets
 
-    init(
-        backgroundColor: Color = .skateCanvas,
-        foregroundColor: Color = .skateInk,
+    public init(
+        background: Color = .skateCanvas,
         cornerRadius: CGFloat = 16,
-        padding: CGFloat = 32,
-        showBorder: Bool = true
+        padding: EdgeInsets = EdgeInsets(top: 32, leading: 32, bottom: 32, trailing: 32)
     ) {
-        self.backgroundColor = backgroundColor
-        self.foregroundColor = foregroundColor
+        self.background = background
         self.cornerRadius = cornerRadius
         self.padding = padding
-        self.showBorder = showBorder
     }
 
-    func body(content: Content) -> some View {
+    public func body(content: Content) -> some View {
         content
             .padding(padding)
-            .background(backgroundColor)
-            .foregroundColor(foregroundColor)
+            .background(background)
             .cornerRadius(cornerRadius)
             .overlay(
                 RoundedRectangle(cornerRadius: cornerRadius)
-                    .stroke(Color.skateHairline, lineWidth: showBorder ? 1 : 0)
+                    .stroke(Color.skateHairline, lineWidth: 1)
             )
     }
 }
 
-// MARK: - Teal Band Card Modifier
-
 @available(iOS 15, *)
-struct SkateLabTealBandModifier: ViewModifier {
-    func body(content: Content) -> some View {
-        content
-            .padding(64)
-            .background(Color.skateSurfaceTealDeep)
-            .foregroundColor(Color.skatePrimaryForeground)
-            .cornerRadius(16)
+public struct SkateLabBadgeModifier: ViewModifier {
+    let background: Color
+    let textColor: Color
+    let cornerRadius: CGFloat
+    let padding: EdgeInsets
+
+    public init(
+        background: Color = .skatePrimaryDeep.opacity(0.85),
+        textColor: Color = .skatePrimaryForeground,
+        cornerRadius: CGFloat = 12,
+        padding: EdgeInsets = EdgeInsets(top: 12, leading: 16, bottom: 12, trailing: 16)
+    ) {
+        self.background = background
+        self.textColor = textColor
+        self.cornerRadius = cornerRadius
+        self.padding = padding
     }
-}
 
-// MARK: - Badge Modifier
-
-@available(iOS 15, *)
-struct SkateLabBadgeModifier: ViewModifier {
-    func body(content: Content) -> some View {
+    public func body(content: Content) -> some View {
         content
-            .padding(.horizontal, 16)
-            .padding(.vertical, 12)
-            .background(Color.skateSurfaceTealDeep.opacity(0.85))
-            .foregroundColor(Color.skatePrimaryForeground)
+            .foregroundColor(textColor)
             .font(.skateMicro)
-            .cornerRadius(12)
+            .padding(padding)
+            .background(background)
+            .cornerRadius(cornerRadius)
             .overlay(
-                RoundedRectangle(cornerRadius: 12)
+                RoundedRectangle(cornerRadius: cornerRadius)
                     .stroke(Color.skateSurfaceIceSoft.opacity(0.4), lineWidth: 1)
             )
     }
 }
 
-// MARK: - Input Modifier
+@available(iOS 15, *)
+public struct SkateLabButtonModifier: ViewModifier {
+    let background: Color
+    let textColor: Color
+    let cornerRadius: CGFloat
+    let padding: EdgeInsets
+
+    public init(
+        background: Color,
+        textColor: Color,
+        cornerRadius: CGFloat = 12,
+        padding: EdgeInsets = EdgeInsets(top: 12, leading: 20, bottom: 12, trailing: 20)
+    ) {
+        self.background = background
+        self.textColor = textColor
+        self.cornerRadius = cornerRadius
+        self.padding = padding
+    }
+
+    public func body(content: Content) -> some View {
+        content
+            .foregroundColor(textColor)
+            .padding(padding)
+            .background(background)
+            .cornerRadius(cornerRadius)
+    }
+}
 
 @available(iOS 15, *)
-struct SkateLabInputModifier: ViewModifier {
-    var isError: Bool = false
-
-    func body(content: Content) -> some View {
+public struct SkateLabTextInputModifier: ViewModifier {
+    public func body(content: Content) -> some View {
         content
-            .padding(.horizontal, 12)
-            .padding(.vertical, 10)
-            .background(Color.skateCanvas)
             .font(.skateBodyMd)
+            .foregroundColor(.skateInk)
+            .padding(EdgeInsets(top: 10, leading: 12, bottom: 10, trailing: 12))
+            .background(.skateCanvas)
             .cornerRadius(6)
             .overlay(
                 RoundedRectangle(cornerRadius: 6)
-                    .stroke(isError ? Color.skateDestructive : Color.skateHairline, lineWidth: 1)
+                    .stroke(Color.skateHairline, lineWidth: 1)
             )
     }
 }
 
-// MARK: - Pill Tab Modifier
-
 @available(iOS 15, *)
-struct SkateLabPillTabModifier: ViewModifier {
-    var isSelected: Bool = false
-
-    func body(content: Content) -> some View {
-        content
-            .padding(.horizontal, 16)
-            .padding(.vertical, 8)
-            .background(isSelected ? Color.skateCanvasSoft : Color.skateCanvas)
-            .foregroundColor(Color.skateInk)
-            .font(.skateButtonCap)
-            .cornerRadius(9999)
+public extension View {
+    func skateCardFeatureLight() -> some View {
+        modifier(SkateLabCardModifier(
+            background: .skateCanvas,
+            cornerRadius: 16,
+            padding: EdgeInsets(top: 32, leading: 32, bottom: 32, trailing: 32)
+        ))
     }
-}
 
-// MARK: - Button Modifiers
-
-@available(iOS 15, *)
-struct SkateLabButtonPrimaryModifier: ViewModifier {
-    var isPressed: Bool = false
-
-    func body(content: Content) -> some View {
-        content
-            .padding(.horizontal, 20)
-            .padding(.vertical, 12)
-            .background(isPressed ? Color.skatePrimaryDeep : Color.skatePrimary)
-            .foregroundColor(Color.skatePrimaryForeground)
-            .font(.skateButtonMd)
-            .cornerRadius(12)
-            .scaleEffect(isPressed ? 0.98 : 1.0)
-            .animation(.easeInOut(duration: 0.15), value: isPressed)
+    func skateCardTealBand() -> some View {
+        modifier(SkateLabCardModifier(
+            background: .skateSurfaceTealDeep,
+            cornerRadius: 16,
+            padding: EdgeInsets(top: 64, leading: 64, bottom: 64, trailing: 64)
+        ))
     }
-}
 
-@available(iOS 15, *)
-struct SkateLabButtonOnDarkPillModifier: ViewModifier {
-    func body(content: Content) -> some View {
-        content
-            .padding(.horizontal, 20)
-            .padding(.vertical, 12)
-            .background(Color.skateSurfaceIceSoft)
-            .foregroundColor(Color.skatePrimary)
-            .font(.skateButtonMd)
-            .cornerRadius(9999)
+    func skateBadgeOpaque() -> some View {
+        modifier(SkateLabBadgeModifier())
     }
-}
 
-@available(iOS 15, *)
-struct SkateLabButtonOutlineModifier: ViewModifier {
-    func body(content: Content) -> some View {
-        content
-            .padding(.horizontal, 20)
-            .padding(.vertical, 12)
-            .background(Color.skateCanvas)
-            .foregroundColor(Color.skateInk)
+    func skateButtonPrimaryDark() -> some View {
+        self
             .font(.skateButtonMd)
-            .cornerRadius(12)
+            .modifier(SkateLabButtonModifier(
+                background: .skatePrimary,
+                textColor: .skatePrimaryForeground,
+                cornerRadius: 12
+            ))
+    }
+
+    func skateButtonPrimaryDarkPressed() -> some View {
+        self
+            .font(.skateButtonMd)
+            .modifier(SkateLabButtonModifier(
+                background: .skatePrimaryDeep,
+                textColor: .skatePrimaryForeground,
+                cornerRadius: 12
+            ))
+    }
+
+    func skateButtonOnDarkPill() -> some View {
+        self
+            .font(.skateButtonMd)
+            .modifier(SkateLabButtonModifier(
+                background: .skateSurfaceIceSoft,
+                textColor: .skatePrimary,
+                cornerRadius: 9999
+            ))
+    }
+
+    func skateButtonSecondaryOutline() -> some View {
+        self
+            .font(.skateButtonMd)
+            .modifier(SkateLabButtonModifier(
+                background: .skateCanvas,
+                textColor: .skateInk,
+                cornerRadius: 12
+            ))
             .overlay(
                 RoundedRectangle(cornerRadius: 12)
                     .stroke(Color.skateHairlineDark, lineWidth: 1)
             )
     }
-}
 
-@available(iOS 15, *)
-struct SkateLabButtonOnTealModifier: ViewModifier {
-    func body(content: Content) -> some View {
-        content
-            .padding(.horizontal, 20)
-            .padding(.vertical, 12)
-            .background(Color.skateCanvas)
-            .foregroundColor(Color.skateSurfaceTealDeep)
-            .font(.skateButtonMd)
-            .cornerRadius(12)
-    }
-}
-
-@available(iOS 15, *)
-struct SkateLabButtonGhostModifier: ViewModifier {
-    func body(content: Content) -> some View {
-        content
-            .padding(.horizontal, 20)
-            .padding(.vertical, 12)
-            .foregroundColor(Color.skateInkMute)
-            .font(.skateBodyMd)
-            .cornerRadius(12)
-    }
-}
-
-@available(iOS 15, *)
-struct SkateLabButtonDestructiveModifier: ViewModifier {
-    func body(content: Content) -> some View {
-        content
-            .padding(.horizontal, 20)
-            .padding(.vertical, 12)
-            .background(Color.skateDestructive.opacity(0.1))
-            .foregroundColor(Color.skateDestructive)
-            .font(.skateButtonMd)
-            .cornerRadius(12)
-    }
-}
-
-// MARK: - Metric Card Modifier
-
-@available(iOS 15, *)
-struct SkateLabMetricCardModifier: ViewModifier {
-    var scoreStatus: SkateLabScoreStatus = .good
-
-    enum SkateLabScoreStatus {
-        case good, mid, bad
-    }
-
-    var scoreColor: Color {
-        switch scoreStatus {
-        case .good: return .skateScoreGood
-        case .mid:  return .skateScoreMid
-        case .bad:  return .skateScoreBad
-        }
-    }
-
-    func body(content: Content) -> some View {
-        content
-            .padding(16)
-            .background(Color.skateCanvas)
-            .cornerRadius(12)
-            .overlay(
-                RoundedRectangle(cornerRadius: 12)
-                    .stroke(Color.skateHairline, lineWidth: 1)
-            )
-    }
-}
-
-// MARK: - Navigation Bar Modifiers
-
-@available(iOS 15, *)
-struct SkateLabNavBarDarkModifier: ViewModifier {
-    func body(content: Content) -> some View {
-        content
-            .padding(.horizontal, 24)
-            .padding(.vertical, 16)
-            .background(Color.skatePrimary)
-            .foregroundColor(Color.skatePrimaryForeground)
-            .font(.skateBodyMd)
-            .cornerRadius(4)
-    }
-}
-
-@available(iOS 15, *)
-struct SkateLabNavBarLightModifier: ViewModifier {
-    func body(content: Content) -> some View {
-        content
-            .padding(.horizontal, 24)
-            .padding(.vertical, 16)
-            .background(Color.skateCanvas)
-            .foregroundColor(Color.skateInk)
-            .font(.skateBodyMd)
-            .cornerRadius(4)
-    }
-}
-
-// MARK: - Footer Modifier
-
-@available(iOS 15, *)
-struct SkateLabFooterModifier: ViewModifier {
-    func body(content: Content) -> some View {
-        content
-            .padding(.horizontal, 24)
-            .padding(.vertical, 64)
-            .background(Color.skateCanvas)
-            .foregroundColor(Color.skateInkMute)
-            .font(.skateCaption)
-            .cornerRadius(4)
-    }
-}
-
-// MARK: - Focus Ring Modifier
-
-@available(iOS 15, *)
-struct SkateLabFocusRingModifier: ViewModifier {
-    var isFocused: Bool = false
-
-    func body(content: Content) -> some View {
-        content
-            .overlay(
-                RoundedRectangle(cornerRadius: 12)
-                    .stroke(Color.skateRing.opacity(0.2), lineWidth: isFocused ? 2 : 0)
-            )
-            .animation(.easeOut(duration: 0.15), value: isFocused)
-    }
-}
-
-// MARK: - Convenience View Extensions
-
-@available(iOS 15, *)
-extension View {
-    /// Light feature card (card-feature-light)
-    func skateCardFeatureLight() -> some View {
-        modifier(SkateLabCardModifier())
-    }
-
-    /// Light feature card with ambient-low elevation
-    func skateCardFeatureLightElevated() -> some View {
-        modifier(SkateLabCardModifier())
-            .skateShadowAmbientLow()
-    }
-
-    /// Teal band card (card-teal-band)
-    func skateCardTealBand() -> some View {
-        modifier(SkateLabTealBandModifier())
-    }
-
-    /// Opaque badge (badge-opaque)
-    func skateBadgeOpaque() -> some View {
-        modifier(SkateLabBadgeModifier())
-    }
-
-    /// Metric card (metric-card)
-    func skateMetricCard(
-        status: SkateLabMetricCardModifier.SkateLabScoreStatus = .good
-    ) -> some View {
-        modifier(SkateLabMetricCardModifier(scoreStatus: status))
-    }
-
-    /// Pill tab (pill-tab-light)
-    func skatePillTab(isSelected: Bool = false) -> some View {
-        modifier(SkateLabPillTabModifier(isSelected: isSelected))
-    }
-
-    /// Primary dark button (button-primary-dark)
-    func skateButtonPrimary(isPressed: Bool = false) -> some View {
-        modifier(SkateLabButtonPrimaryModifier(isPressed: isPressed))
-    }
-
-    /// On-dark pill button (button-on-dark-pill) — hero only
-    func skateButtonOnDarkPill() -> some View {
-        modifier(SkateLabButtonOnDarkPillModifier())
-    }
-
-    /// Secondary outline button (button-secondary-outline)
-    func skateButtonOutline() -> some View {
-        modifier(SkateLabButtonOutlineModifier())
-    }
-
-    /// On-teal button (button-on-teal)
     func skateButtonOnTeal() -> some View {
-        modifier(SkateLabButtonOnTealModifier())
+        self
+            .font(.skateButtonMd)
+            .modifier(SkateLabButtonModifier(
+                background: .skateCanvas,
+                textColor: .skateSurfaceTealDeep,
+                cornerRadius: 12
+            ))
     }
 
-    /// Ghost button (button-ghost)
     func skateButtonGhost() -> some View {
-        modifier(SkateLabButtonGhostModifier())
+        self
+            .font(.skateBodyMd)
+            .modifier(SkateLabButtonModifier(
+                background: .clear,
+                textColor: .skateInkMute,
+                cornerRadius: 12
+            ))
     }
 
-    /// Destructive button (button-destructive)
     func skateButtonDestructive() -> some View {
-        modifier(SkateLabButtonDestructiveModifier())
+        self
+            .font(.skateButtonMd)
+            .modifier(SkateLabButtonModifier(
+                background: .skateDestructive.opacity(0.1),
+                textColor: .skateDestructive,
+                cornerRadius: 12
+            ))
     }
 
-    /// Text input styling (text-input)
-    func skateTextInput(isError: Bool = false) -> some View {
-        modifier(SkateLabInputModifier(isError: isError))
+    func skateTextInput() -> some View {
+        modifier(SkateLabTextInputModifier())
     }
 
-    /// Dark navigation bar (nav-bar-dark)
+    func skatePillTabLight() -> some View {
+        self
+            .font(.skateButtonCap)
+            .modifier(SkateLabButtonModifier(
+                background: .skateCanvas,
+                textColor: .skateInk,
+                cornerRadius: 9999,
+                padding: EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16)
+            ))
+    }
+
     func skateNavBarDark() -> some View {
-        modifier(SkateLabNavBarDarkModifier())
+        modifier(SkateLabCardModifier(
+            background: .skatePrimary,
+            cornerRadius: 4,
+            padding: EdgeInsets(top: 16, leading: 24, bottom: 16, trailing: 24)
+        ))
     }
 
-    /// Light navigation bar (nav-bar-light)
     func skateNavBarLight() -> some View {
-        modifier(SkateLabNavBarLightModifier())
+        modifier(SkateLabCardModifier(
+            background: .skateCanvas,
+            cornerRadius: 4,
+            padding: EdgeInsets(top: 16, leading: 24, bottom: 16, trailing: 24)
+        ))
     }
 
-    /// Footer (footer-light)
     func skateFooterLight() -> some View {
-        modifier(SkateLabFooterModifier())
-    }
-
-    /// Focus ring (ring)
-    func skateFocusRing(isFocused: Bool = false) -> some View {
-        modifier(SkateLabFocusRingModifier(isFocused: isFocused))
-    }
-
-    /// Popover with ambient-medium elevation
-    func skatePopoverElevated() -> some View {
-        background(Color.skateCanvas)
-            .cornerRadius(12)
-            .overlay(
-                RoundedRectangle(cornerRadius: 12)
-                    .stroke(Color.skateHairline, lineWidth: 1)
-            )
-            .skateShadowAmbientMedium()
-    }
-
-    /// Modal with ambient-high elevation
-    func skateModalElevated() -> some View {
-        background(Color.skateCanvas)
-            .cornerRadius(16)
-            .overlay(
-                RoundedRectangle(cornerRadius: 16)
-                    .stroke(Color.skateHairline, lineWidth: 1)
-            )
-            .skateShadowAmbientHigh()
+        modifier(SkateLabCardModifier(
+            background: .skateCanvas,
+            cornerRadius: 4,
+            padding: EdgeInsets(top: 64, leading: 24, bottom: 64, trailing: 24)
+        ))
     }
 }

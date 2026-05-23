@@ -76,7 +76,7 @@ Blacksmith (useblacksmith) for CPU-heavy jobs. ubuntu-latest for lightweight (ac
 | `VPS_HOST` | deploy.yml | Server IP |
 | `VPS_USER` | deploy.yml | SSH user |
 | `GHCR_PAT` | deploy.sh on VPS | GHCR login |
-| `JWT_SECRET` | deploy.yml env | JWT signing |
+| `JWT_SECRET_KEY` | deploy.yml env | JWT signing |
 | `SKATELAB_DB_PASSWORD` | deploy.yml env | Postgres |
 | `CF_R2_*` | container.yml, deploy.yml | Cloudflare R2 |
 | `VASTAI_API_KEY` | deploy.yml env | Remote GPU |

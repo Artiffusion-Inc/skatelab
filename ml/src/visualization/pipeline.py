@@ -13,7 +13,12 @@ from typing import TYPE_CHECKING
 import numpy as np
 
 from src.visualization import (
+    BladeLayer,
+    HUDLayer,
+    JointAngleLayer,
     LayerContext,
+    TrailLayer,
+    VelocityLayer,
     VerticalAxisLayer,
     draw_skeleton,
     render_layers,
@@ -26,6 +31,26 @@ if TYPE_CHECKING:
 
     from src.types import VideoMeta
     from src.visualization.layers.base import Frame
+
+# ---------------------------------------------------------------------------
+# Declarative layer registry
+# ---------------------------------------------------------------------------
+
+LAYER_REGISTRY: dict[str, type] = {
+    "trail": TrailLayer,
+    "velocity": VelocityLayer,
+    "joint_angle": JointAngleLayer,
+    "vertical_axis": VerticalAxisLayer,
+    "hud": HUDLayer,
+    "blade": BladeLayer,
+}
+
+LEVEL_PRESETS: dict[int, list[str]] = {
+    0: [],
+    1: ["trail", "velocity"],
+    2: ["trail", "velocity", "joint_angle", "vertical_axis"],
+    3: ["trail", "velocity", "joint_angle", "vertical_axis", "hud", "blade"],
+}
 
 
 @dataclass
@@ -75,8 +100,11 @@ class VizPipeline:
     def build_layers(self) -> None:
         """Construct visualization layers based on ``self.layer`` level."""
         self.layers = []
-        if self.layer >= 2:
-            self.layers.append(VerticalAxisLayer())
+        preset = LEVEL_PRESETS.get(self.layer, [])
+        for name in preset:
+            cls = LAYER_REGISTRY.get(name)
+            if cls is not None:
+                self.layers.append(cls())
 
     def add_ml_layers(self, ml_layers: list) -> None:
         """Add ML-generated layers to the pipeline."""

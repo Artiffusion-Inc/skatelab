@@ -372,9 +372,7 @@ class BiomechanicsAnalyzer:
         )
 
         # Under-rotation (target based on element definition)
-        target_rotations = float(self._element_def.rotations)
-        if self._element_def.name == "axel":
-            target_rotations = float(self._element_def.rotations) + 0.5
+        target_rotations = self._element_def.rotations
         under_rotation_deg = compute_under_rotation(total_rotation_deg, target_rotations)
         results.append(
             MetricResult(

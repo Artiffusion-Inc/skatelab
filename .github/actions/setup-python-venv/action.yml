@@ -1,0 +1,37 @@
+name: 'Setup Python + uv with venv cache'
+description: 'Install Python, uv, sync deps with .venv caching (run after actions/checkout)'
+inputs:
+  python-version:
+    description: 'Python version'
+    required: false
+    default: '3.11'
+runs:
+  using: 'composite'
+  steps:
+    - uses: astral-sh/setup-uv@v7
+      with:
+        enable-cache: true
+        cache-python: true
+
+    - uses: actions/setup-python@v6
+      with:
+        python-version: ${{ inputs.python-version }}
+
+    - name: Cache venv
+      id: venv-cache
+      uses: actions/cache@v4
+      with:
+        path: .venv
+        key: venv-${{ runner.os }}-py${{ inputs.python-version }}-${{ hashFiles('uv.lock') }}
+        restore-keys: |
+          venv-${{ runner.os }}-py${{ inputs.python-version }}-
+
+    - name: Sync deps
+      if: steps.venv-cache.outputs.cache-hit != 'true'
+      run: uv sync --all-packages --frozen --dev
+      shell: bash
+
+    - name: Verify venv
+      if: steps.venv-cache.outputs.cache-hit == 'true'
+      run: uv sync --all-packages --frozen --dev
+      shell: bash

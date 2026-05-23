@@ -1,72 +1,48 @@
 // AUTO-GENERATED — do not edit. Source: DESIGN.md
-
 import SwiftUI
 
 @available(iOS 15, *)
-extension Color {
-    // MARK: - Brand & Accent
-    static let skatePrimary = Color(red: 0.0824, green: 0.3725, blue: 0.4510)
-    static let skatePrimaryDeep = Color(red: 0.0549, green: 0.2000, blue: 0.2510)
-    static let skatePrimaryForeground = Color(red: 1.0, green: 1.0, blue: 1.0)
+public extension Color {
+    // MARK: Base Colors
+    static let skatePrimary = Color(red: 0.082, green: 0.373, blue: 0.451)
+    static let skatePrimaryDeep = Color(red: 0.055, green: 0.200, blue: 0.251)
+    static let skatePrimaryForeground = Color(red: 1.000, green: 1.000, blue: 1.000)
+    static let skateInk = Color(red: 0.165, green: 0.176, blue: 0.180)
+    static let skateInkMute = Color(red: 0.420, green: 0.447, blue: 0.459)
+    static let skateInkFaint = Color(red: 0.608, green: 0.627, blue: 0.639)
+    static let skateCanvas = Color(red: 1.000, green: 1.000, blue: 1.000)
+    static let skateCanvasSoft = Color(red: 0.961, green: 0.969, blue: 0.973)
+    static let skateSurfaceIceSoft = Color(red: 0.784, green: 0.902, blue: 0.941)
+    static let skateSurfaceTealDeep = Color(red: 0.055, green: 0.200, blue: 0.251)
+    static let skateSurfaceTealMid = Color(red: 0.082, green: 0.373, blue: 0.451)
+    static let skateHairline = Color(red: 0.835, green: 0.867, blue: 0.878)
+    static let skateHairlineDark = Color(red: 0.165, green: 0.290, blue: 0.322)
+    static let skateOnDarkMute = Color(red: 0.773, green: 0.835, blue: 0.859)
+    static let skateOnDarkDim = Color(red: 0.541, green: 0.671, blue: 0.722)
+    static let skateOnDarkFaint = Color(red: 0.353, green: 0.478, blue: 0.522)
+    static let skateDestructive = Color(red: 0.753, green: 0.224, blue: 0.169)
+    static let skateLink = Color(red: 0.082, green: 0.373, blue: 0.451)
+    static let skateRing = Color(red: 0.082, green: 0.373, blue: 0.451)
+    static let skateScoreGood = Color(red: 0.153, green: 0.682, blue: 0.376)
+    static let skateScoreMid = Color(red: 0.953, green: 0.612, blue: 0.071)
+    static let skateScoreBad = Color(red: 0.906, green: 0.298, blue: 0.235)
+    static let skateAccentGold = Color(red: 0.953, green: 0.612, blue: 0.071)
 
-    // MARK: - Text
-    static let skateInk = Color(red: 0.1647, green: 0.1765, blue: 0.1804)
-    static let skateInkMute = Color(red: 0.4196, green: 0.4471, blue: 0.4588)
-    static let skateInkFaint = Color(red: 0.6078, green: 0.6275, blue: 0.6392)
-
-    // MARK: - Surface
-    static let skateCanvas = Color(red: 1.0, green: 1.0, blue: 1.0)
-    static let skateCanvasSoft = Color(red: 0.9608, green: 0.9686, blue: 0.9725)
-    static let skateSurfaceIceSoft = Color(red: 0.7843, green: 0.9020, blue: 0.9412)
-    static let skateSurfaceTealDeep = Color(red: 0.0549, green: 0.2000, blue: 0.2510)
-    static let skateSurfaceTealMid = Color(red: 0.0824, green: 0.3725, blue: 0.4510)
-
-    // MARK: - Border
-    static let skateHairline = Color(red: 0.8353, green: 0.8670, blue: 0.8784)
-    static let skateHairlineDark = Color(red: 0.1647, green: 0.2902, blue: 0.3216)
-
-    // MARK: - On Dark
-    static let skateOnDarkMute = Color(red: 0.7725, green: 0.8353, blue: 0.8588)
-    static let skateOnDarkDim = Color(red: 0.5412, green: 0.6706, blue: 0.7216)
-    static let skateOnDarkFaint = Color(red: 0.3529, green: 0.4784, blue: 0.5216)
-
-    // MARK: - Semantic
-    static let skateDestructive = Color(red: 0.7529, green: 0.2235, blue: 0.1686)
-    static let skateLink = Color(red: 0.0824, green: 0.3725, blue: 0.4510)
-    static let skateRing = Color(red: 0.0824, green: 0.3725, blue: 0.4510)
-    static let skateScoreGood = Color(red: 0.1529, green: 0.6824, blue: 0.3765)
-    static let skateScoreMid = Color(red: 0.9529, green: 0.6118, blue: 0.0706)
-    static let skateScoreBad = Color(red: 0.9059, green: 0.2980, blue: 0.2353)
-    static let skateAccentGold = Color(red: 0.9529, green: 0.6118, blue: 0.0706)
-
-    // MARK: - Semantic Aliases
-    static let skateOnPrimary = Color.skatePrimaryForeground
-    static let skateBackground = Color.skateCanvas
-    static let skateForeground = Color.skateInk
-    static let skateCard = Color.skateCanvas
-    static let skateCardForeground = Color.skateInk
-    static let skatePopover = Color.skateCanvas
-    static let skatePopoverForeground = Color.skateInk
-    static let skateSecondary = Color.skateCanvasSoft
-    static let skateSecondaryForeground = Color.skateInk
-    static let skateMuted = Color.skateCanvasSoft
-    static let skateMutedForeground = Color.skateInkMute
-    static let skateAccent = Color.skateCanvasSoft
-    static let skateAccentForeground = Color.skateInk
-    static let skateDestructiveForeground = Color.skatePrimaryForeground
-    static let skateBorder = Color.skateHairline
-    static let skateInput = Color.skateHairline
-    static let skateChart1 = Color.skatePrimary
-    static let skateChart2 = Color.skateScoreGood
-    static let skateChart3 = Color.skateScoreMid
-    static let skateChart4 = Color.skateScoreBad
-    static let skateChart5 = Color.skateAccentGold
-    static let skateSidebarBackground = Color.skateCanvas
-    static let skateSidebarForeground = Color.skateInk
-    static let skateSidebarPrimary = Color.skatePrimary
-    static let skateSidebarPrimaryForeground = Color.skatePrimaryForeground
-    static let skateSidebarAccent = Color.skateCanvasSoft
-    static let skateSidebarAccentForeground = Color.skateInk
-    static let skateSidebarBorder = Color.skateHairline
-    static let skateSidebarRing = Color.skateRing
+    // MARK: Semantic Aliases
+    static let skateOnPrimary = Color(red: 1.000, green: 1.000, blue: 1.000)
+    static let skateBackground = Color(red: 1.000, green: 1.000, blue: 1.000)
+    static let skateForeground = Color(red: 0.165, green: 0.176, blue: 0.180)
+    static let skateCard = Color(red: 1.000, green: 1.000, blue: 1.000)
+    static let skateCardForeground = Color(red: 0.165, green: 0.176, blue: 0.180)
+    static let skatePopover = Color(red: 1.000, green: 1.000, blue: 1.000)
+    static let skatePopoverForeground = Color(red: 0.165, green: 0.176, blue: 0.180)
+    static let skateSecondary = Color(red: 0.961, green: 0.969, blue: 0.973)
+    static let skateSecondaryForeground = Color(red: 0.165, green: 0.176, blue: 0.180)
+    static let skateMuted = Color(red: 0.961, green: 0.969, blue: 0.973)
+    static let skateMutedForeground = Color(red: 0.420, green: 0.447, blue: 0.459)
+    static let skateAccent = Color(red: 0.784, green: 0.902, blue: 0.941)
+    static let skateAccentForeground = Color(red: 0.082, green: 0.373, blue: 0.451)
+    static let skateDestructiveForeground = Color(red: 1.000, green: 1.000, blue: 1.000)
+    static let skateBorder = Color(red: 0.835, green: 0.867, blue: 0.878)
+    static let skateInput = Color(red: 0.835, green: 0.867, blue: 0.878)
 }

@@ -71,9 +71,9 @@ class BleScanViewModelTest {
 
     @Test
     fun startScan_setsScanning() {
-        assertFalse(viewModel.isScanning)
+        assertFalse(viewModel.isScanning.value)
         viewModel.startScan()
-        assertTrue(viewModel.isScanning)
+        assertTrue(viewModel.isScanning.value)
         verify { bleRepository.startScan() }
     }
 
@@ -87,10 +87,10 @@ class BleScanViewModelTest {
     @Test
     fun stopScan_clearsScanning() {
         viewModel.startScan()
-        assertTrue(viewModel.isScanning)
+        assertTrue(viewModel.isScanning.value)
 
         viewModel.stopScan()
-        assertFalse(viewModel.isScanning)
+        assertFalse(viewModel.isScanning.value)
 
         verify { bleRepository.stopScan() }
     }

@@ -220,7 +220,7 @@ class SpatialReferenceDetector:
         vertical/horizontal instead of camera frame.
 
         Args:
-            poses: Pose array (N, 33, 2) in pixel coordinates
+            poses: Pose array (N, num_joints, 2) in pixel coordinates
             camera_pose: Estimated camera orientation
 
         Returns:

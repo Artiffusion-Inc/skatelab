@@ -39,13 +39,8 @@ def classify_jump(
         score = 0.0
 
         # Rotation count matching.
-        # For axel: observed rotations = base + 0.5 (e.g., 1.5 for single axel).
-        #   Compare rotation_count against elem.rotations + 0.5.
-        # For other jumps: compare rotation_count directly against elem.rotations.
-        if elem.name == "axel":
-            expected_rotations = float(elem.rotations) + 0.5
-        else:
-            expected_rotations = float(elem.rotations)
+        # elem.rotations is now float: 1.0 for single jumps, 1.5 for axel, etc.
+        expected_rotations = elem.rotations
 
         diff = abs(rotation_count - expected_rotations)
 

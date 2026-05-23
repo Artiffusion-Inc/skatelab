@@ -28,10 +28,12 @@ export function getRefreshToken(): string | null {
 export function setTokens(_access: string, _refresh: string): void {
   // No-op: backend sets httpOnly cookies via Set-Cookie headers.
   // Keep sb_auth sentinel for SSR gating
+  // biome-ignore lint/suspicious/noDocumentCookie: intentional sentinel cookie for SSR gating
   document.cookie = "sb_auth=1; path=/; max-age=31536000; SameSite=Lax"
 }
 
 export function clearTokens(): void {
+  // biome-ignore lint/suspicious/noDocumentCookie: intentional sentinel cookie for SSR gating
   document.cookie = "sb_auth=; path=/; max-age=0"
 }
 
@@ -65,6 +67,7 @@ async function silentRefresh(): Promise<boolean> {
 
     // Backend sets new httpOnly cookies via Set-Cookie headers automatically.
     // Refresh the sb_auth sentinel so SSR gating stays in sync.
+    // biome-ignore lint/suspicious/noDocumentCookie: intentional sentinel cookie for SSR gating
     document.cookie = "sb_auth=1; path=/; max-age=31536000; SameSite=Lax"
     return true
   } catch {

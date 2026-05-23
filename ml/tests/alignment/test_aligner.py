@@ -1,9 +1,17 @@
 """Tests for DTW motion alignment."""
 
 import numpy as np
+import pytest
 
 from src.alignment.aligner import MotionAligner
 from src.types import ElementPhase
+
+
+@pytest.fixture
+def sample_poses_17():
+    """Normalized poses in H3.6M format (N, 17, 2)."""
+    rng = np.random.default_rng(42)
+    return rng.random((60, 17, 2)).astype(np.float32)
 
 
 class TestMotionAligner:
@@ -201,3 +209,19 @@ class TestMotionAlignerEdgeCases:
         distance = aligner.compute_distance(user, reference)
 
         assert isinstance(distance, float)
+
+
+class TestMotionAligner17Keypoints:
+    """Test MotionAligner with H3.6M 17-keypoint format (not hardcoded 33)."""
+
+    def test_aligner_warp_preserves_keypoint_count(self, sample_poses_17):
+        """Warped sequence must have same keypoint count as input."""
+        from src.alignment.aligner import MotionAligner
+
+        # Use window_type=None for random data (Sakoe-Chiba may reject short random sequences)
+        aligner = MotionAligner(window_type=None)
+        user = sample_poses_17
+        ref = sample_poses_17[: len(sample_poses_17) // 2]
+        aligned, _path = aligner.align(user, ref)
+        assert aligned.shape[1] == 17  # NOT 33
+        assert aligned.shape[2] == 2

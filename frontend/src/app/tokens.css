@@ -1,7 +1,10 @@
 /* AUTO-GENERATED — do not edit. Source: DESIGN.md */
 
 :root {
-  /* ── Colors ─────────────────────────────────────────────── */
+  /* Font Family */
+  --font-sans: "Inter Variable", "Inter", "Helvetica Neue", Helvetica, Arial, sans-serif;
+
+  /* Colors — OKLCH with sRGB hex reference */
   --color-primary: oklch(0.452 0.075 221); /* #155f73 */
   --color-primary-deep: oklch(0.301 0.047 225); /* #0e3340 */
   --color-primary-foreground: oklch(1 0 0); /* #ffffff */
@@ -26,7 +29,7 @@
   --color-score-bad: oklch(0.631 0.194 29); /* #e74c3c */
   --color-accent-gold: oklch(0.763 0.163 69); /* #f39c12 */
 
-  /* ── Spacing ─────────────────────────────────────────────── */
+  /* Spacing */
   --spacing-xxs: 2px;
   --spacing-xs: 4px;
   --spacing-sm: 8px;
@@ -36,24 +39,21 @@
   --spacing-xxl: 32px;
   --spacing-huge: 64px;
 
-  /* ── Radius ──────────────────────────────────────────────── */
+  /* Radius */
   --radius-xs: 4px;
   --radius-sm: 6px;
   --radius-md: 12px;
   --radius-lg: 16px;
   --radius-xl: 20px;
-  --radius-2xl: 30px;
   --radius-full: 9999px;
+  --radius-2xl: 30px;
 
-  /* ── Shadows ─────────────────────────────────────────────── */
+  /* Shadows */
   --shadow-ambient-low: 0 1px 3px rgba(0, 0, 0, 0.08);
   --shadow-ambient-medium: 0 4px 12px rgba(0, 0, 0, 0.1);
   --shadow-ambient-high: 0 8px 24px rgba(0, 0, 0, 0.12);
 
-  /* ── Font family ─────────────────────────────────────────── */
-  --font-family: "Inter Variable", "Inter", "Helvetica Neue", Helvetica, Arial, sans-serif;
-
-  /* ── Semantic aliases (shadcn/ui) ─────────────────────────── */
+  /* shadcn Semantic Aliases */
   --background: var(--color-canvas);
   --foreground: var(--color-ink);
   --card: var(--color-canvas);
@@ -66,24 +66,11 @@
   --secondary-foreground: var(--color-ink);
   --muted: var(--color-canvas-soft);
   --muted-foreground: var(--color-ink-mute);
-  --accent: var(--color-canvas-soft);
-  --accent-foreground: var(--color-ink);
+  --accent: var(--color-surface-ice-soft);
+  --accent-foreground: var(--color-primary);
   --destructive: var(--color-destructive);
   --destructive-foreground: var(--color-primary-foreground);
   --border: var(--color-hairline);
   --input: var(--color-hairline);
   --ring: var(--color-ring);
-  --chart-1: var(--color-primary);
-  --chart-2: var(--color-score-good);
-  --chart-3: var(--color-score-mid);
-  --chart-4: var(--color-score-bad);
-  --chart-5: var(--color-accent-gold);
-  --sidebar-background: var(--color-canvas);
-  --sidebar-foreground: var(--color-ink);
-  --sidebar-primary: var(--color-primary);
-  --sidebar-primary-foreground: var(--color-primary-foreground);
-  --sidebar-accent: var(--color-canvas-soft);
-  --sidebar-accent-foreground: var(--color-ink);
-  --sidebar-border: var(--color-hairline);
-  --sidebar-ring: var(--color-ring);
 }

@@ -66,6 +66,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await auth.login({ email, password })
     // Backend sets httpOnly cookies via Set-Cookie headers.
     // Set sb_auth sentinel for SSR gating.
+    // biome-ignore lint/suspicious/noDocumentCookie: intentional sentinel cookie for SSR gating
     document.cookie = "sb_auth=1; path=/; max-age=31536000; SameSite=Lax"
     const u = await auth.fetchMe()
     setUser(u)
@@ -74,6 +75,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   async function register(email: string, password: string, displayName?: string) {
     await auth.register({ email, password, display_name: displayName })
     // Backend sets httpOnly cookies via Set-Cookie headers.
+    // biome-ignore lint/suspicious/noDocumentCookie: intentional sentinel cookie for SSR gating
     document.cookie = "sb_auth=1; path=/; max-age=31536000; SameSite=Lax"
     const u = await auth.fetchMe()
     setUser(u)

@@ -28,7 +28,7 @@ class PhaseDetector:
         """Detect phases for a skating element.
 
         Args:
-            poses: NormalizedPose (num_frames, 33, 2).
+            poses: NormalizedPose (num_frames, num_joints, 2).
             fps: Frame rate.
             element_type: Type of element (jump or step).
 
@@ -78,7 +78,7 @@ class PhaseDetector:
         video qualities and jump types.
 
         Args:
-            poses: NormalizedPose (num_frames, 33, 2).
+            poses: NormalizedPose (num_frames, num_joints, 2).
             fps: Frame rate.
 
         Returns:
@@ -398,7 +398,7 @@ class PhaseDetector:
         """Detect three-turn phases by edge change.
 
         Args:
-            poses: NormalizedPose (num_frames, 33, 2).
+            poses: NormalizedPose (num_frames, num_joints, 2).
             fps: Frame rate.
 
         Returns:

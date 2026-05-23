@@ -1195,10 +1195,28 @@ class TestWorkerLifecycle:
         from app.worker import startup
 
         with (
+            patch("app.worker.get_settings") as mock_settings,
             patch("app.worker.init_valkey_pool", new_callable=AsyncMock),
             patch("app.worker.close_valkey_pool", new_callable=AsyncMock),
         ):
+            s = MagicMock()
+            s.vastai.api_key.get_secret_value.return_value = "test-vastai-key"
+            mock_settings.return_value = s
             await startup(ctx={})
+
+    @pytest.mark.asyncio
+    async def test_startup_raises_without_vastai_api_key(self):
+        """startup() raises RuntimeError when VASTAI_API_KEY is not set."""
+        from app.worker import startup
+
+        with (
+            patch("app.worker.get_settings") as mock_settings,
+        ):
+            s = MagicMock()
+            s.vastai.api_key.get_secret_value.return_value = ""
+            mock_settings.return_value = s
+            with pytest.raises(RuntimeError, match="VASTAI_API_KEY is required"):
+                await startup(ctx={})
 
     @pytest.mark.asyncio
     async def test_shutdown_closes_pool(self):
