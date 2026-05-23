@@ -12,7 +12,6 @@ import io.ktor.http.HttpStatusCode
 import io.ktor.http.headersOf
 import io.ktor.serialization.kotlinx.json.json
 import kotlinx.serialization.json.Json
-import ru.skatelab.shared.api.AuthApi
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -21,11 +20,18 @@ import kotlin.test.assertTrue
 class AuthRepositoryTest {
     private val json = Json { ignoreUnknownKeys = true }
 
+    private fun makeClient(block: MockEngineConfig.() -> Unit): HttpClient {
+        val config = MockEngineConfig().apply(block)
+        return HttpClient(MockEngine(config)) {
+            install(ContentNegotiation) { json(json) }
+        }
+    }
+
     @Test
     fun logout_sendsRefreshTokenAndClearsTokens() = kotlinx.coroutines.test.runTest {
         var requestUrl: String? = null
         var requestContentType: ContentType? = null
-        val engine = MockEngine(MockEngineConfig().apply {
+        val client = makeClient {
             addHandler { request ->
                 requestUrl = request.url.toString()
                 requestContentType = request.headers[HttpHeaders.ContentType]?.let { ContentType.parse(it) }
@@ -35,11 +41,8 @@ class AuthRepositoryTest {
                     headers = headersOf(HttpHeaders.ContentType, ContentType.Application.Json.toString()),
                 )
             }
-        })
-        val client = HttpClient(engine) {
-            install(ContentNegotiation) { json(json) }
         }
-        val settings: com.russhwolf.settings.Settings = com.russhwolf.settings.Settings()
+        val settings = com.russhwolf.settings.Settings()
         val tokenStorage = TokenStorage(settings)
         tokenStorage.saveTokens("access123", "refresh456")
 
@@ -55,15 +58,12 @@ class AuthRepositoryTest {
 
     @Test
     fun logout_clearsTokensEvenWhenApiFails() = kotlinx.coroutines.test.runTest {
-        val engine = MockEngine(MockEngineConfig().apply {
+        val client = makeClient {
             addHandler { _ ->
                 respondError(HttpStatusCode.InternalServerError)
             }
-        })
-        val client = HttpClient(engine) {
-            install(ContentNegotiation) { json(json) }
         }
-        val settings: com.russhwolf.settings.Settings = com.russhwolf.settings.Settings()
+        val settings = com.russhwolf.settings.Settings()
         val tokenStorage = TokenStorage(settings)
         tokenStorage.saveTokens("access", "refresh")
 
@@ -77,15 +77,12 @@ class AuthRepositoryTest {
 
     @Test
     fun isLoggedIn_returnsTrueWhenAccessTokenPresent() = kotlinx.coroutines.test.runTest {
-        val settings: com.russhwolf.settings.Settings = com.russhwolf.settings.Settings()
+        val settings = com.russhwolf.settings.Settings()
         val tokenStorage = TokenStorage(settings)
         tokenStorage.saveTokens("access", "refresh")
 
-        val engine = MockEngine(MockEngineConfig().apply {
+        val client = makeClient {
             addHandler { respond("{}", status = HttpStatusCode.OK) }
-        })
-        val client = HttpClient(engine) {
-            install(ContentNegotiation) { json(json) }
         }
         val repo = AuthRepository(AuthApi(client), tokenStorage)
 
@@ -94,14 +91,11 @@ class AuthRepositoryTest {
 
     @Test
     fun isLoggedIn_returnsFalseWhenNoAccessToken() = kotlinx.coroutines.test.runTest {
-        val settings: com.russhwolf.settings.Settings = com.russhwolf.settings.Settings()
+        val settings = com.russhwolf.settings.Settings()
         val tokenStorage = TokenStorage(settings)
 
-        val engine = MockEngine(MockEngineConfig().apply {
+        val client = makeClient {
             addHandler { respond("{}", status = HttpStatusCode.OK) }
-        })
-        val client = HttpClient(engine) {
-            install(ContentNegotiation) { json(json) }
         }
         val repo = AuthRepository(AuthApi(client), tokenStorage)
 
