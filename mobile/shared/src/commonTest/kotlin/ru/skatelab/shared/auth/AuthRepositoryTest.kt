@@ -11,7 +11,6 @@ import io.ktor.client.request.url
 import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
-import io.ktor.http.contentType
 import io.ktor.http.headersOf
 import io.ktor.serialization.kotlinx.json.json
 import kotlinx.serialization.json.Json
@@ -36,7 +35,7 @@ class AuthRepositoryTest {
         var requestContentType: ContentType? = null
         val client = makeClient { request ->
             requestUrl = request.url.toString()
-            requestContentType = request.contentType()
+            requestContentType = request.headers[HttpHeaders.ContentType]?.let { ContentType.parse(it) }
             respond(
                 "{}",
                 status = HttpStatusCode.OK,
