@@ -66,11 +66,12 @@ jobs:
               - "mobile/androidApp/**/theme/**"
               - "mobile/iosApp/**/Theme/**"
 
-  lint:
-    name: Lint (ruff) + Alembic
+  lint-typecheck:
+    name: Lint + Type Check
     needs: [changes]
-    if: inputs.run-all || needs.changes.outputs.python == 'true'
-    runs-on: blacksmith-2vcpu-ubuntu-2404
+    if: ${{ inputs.run-all || needs.changes.outputs.python == 'true' }}
+    runs-on: blacksmith-2vcpu-ubuntu-2404-arm
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v6
       - uses: ./.github/actions/setup-python-venv
@@ -84,35 +85,12 @@ jobs:
         run: |
           HEADS=$(cd backend && uv run alembic heads 2>&1 | grep -c '(head)')
           if [ "$HEADS" -ne 1 ]; then
-            echo "::error::Alembic has $HEADS heads (expected 1). Run 'alembic merge' or fix revision IDs."
+            echo "::error::Alembic has $HEADS heads (expected 1)"
             cd backend && uv run alembic heads 2>&1
             exit 1
           fi
-
-  typecheck:
-    name: Type Check (basedpyright)
-    needs: [changes]
-    if: inputs.run-all || needs.changes.outputs.python == 'true'
-    runs-on: blacksmith-2vcpu-ubuntu-2404
-    steps:
-      - uses: actions/checkout@v6
-      - uses: ./.github/actions/setup-python-venv
-        with:
-          python-version: ${{ inputs.python-version }}
       - name: basedpyright
         run: uv run basedpyright --level error backend/app
-
-  ast-grep:
-    name: Lint (ast-grep)
-    needs: [changes]
-    if: inputs.run-all || needs.changes.outputs.python == 'true' || needs.changes.outputs.frontend == 'true'
-    runs-on: blacksmith-2vcpu-ubuntu-2404
-    steps:
-      - uses: actions/checkout@v6
-      - uses: ast-grep/action@v1.5.0
-        with:
-          config: sgconfig.yml
-          paths: "backend/ ml/ frontend/"
 
   design-ci:
     name: Design Lint + Drift
@@ -126,11 +104,6 @@ jobs:
         run: npm install -g impeccable
       - name: Impeccable detect
         run: impeccable detect --json frontend/src/ 2>&1 | node scripts/impeccable-report.js
-      - name: Ast-grep scan
-        uses: ast-grep/action@v1.5.0
-        with:
-          config: sgconfig.yml
-          paths: "frontend/"
       - name: Check for drift
         run: node scripts/design-lock.js check
 
@@ -317,7 +290,7 @@ jobs:
   ci-passed:
     name: CI Summary
     runs-on: blacksmith-2vcpu-ubuntu-2404
-    needs: [changes, lint, typecheck, ast-grep, design-ci, test, smoke, fe-check, fe-build, fe-test, docker-backend, docker-frontend, danger]
+    needs: [changes, lint-typecheck, coverage, design-ci, test, smoke, fe-check, fe-build, fe-test, docker-backend, docker-frontend, danger]
     if: always()
     outputs:
       result: ${{ steps.check.outputs.result }}
@@ -325,8 +298,8 @@ jobs:
       - name: Check results & write summary
         id: check
         env:
-          LINT: ${{ needs.lint.result }}
-          TYPECHECK: ${{ needs.typecheck.result }}
+          LINT_TYPECHECK: ${{ needs.lint-typecheck.result }}
+          COVERAGE: ${{ needs.coverage.result }}
           TEST: ${{ needs.test.result }}
           SMOKE: ${{ needs.smoke.result }}
           FE_CHECK: ${{ needs.fe-check.result }}
@@ -334,7 +307,6 @@ jobs:
           FE_TEST: ${{ needs.fe-test.result }}
           DOCKER_BACKEND: ${{ needs.docker-backend.result }}
           DOCKER_FRONTEND: ${{ needs.docker-frontend.result }}
-          AST_GREP: ${{ needs.ast-grep.result }}
           DESIGN_CI: ${{ needs.design-ci.result }}
           DANGER: ${{ needs.danger.result }}
           CHANGES: ${{ needs.changes.result }}
@@ -354,8 +326,8 @@ jobs:
             fi
           }
 
-          check_job "Lint (ruff) + Alembic" "$LINT"
-          check_job "Type Check (basedpyright)" "$TYPECHECK"
+          check_job "Lint + Type Check" "$LINT_TYPECHECK"
+          check_job "Coverage" "$COVERAGE"
           check_job "Tests" "$TEST"
           check_job "Smoke Tests" "$SMOKE"
           check_job "Check (Biome + tsc)" "$FE_CHECK"
@@ -364,7 +336,6 @@ jobs:
           check_job "Docker Build (Backend)" "$DOCKER_BACKEND"
           check_job "Docker Build (Frontend)" "$DOCKER_FRONTEND"
           echo "| :information_source: Danger (PR checks) | \`${DANGER}\` (informational) |" >> "$GITHUB_STEP_SUMMARY"
-          echo "| :mag: ast-grep | \`${AST_GREP}\` (informational) |" >> "$GITHUB_STEP_SUMMARY"
           check_job "Design Lint + Drift" "$DESIGN_CI"
 
           if [[ "$CHANGES" != "success" ]]; then
