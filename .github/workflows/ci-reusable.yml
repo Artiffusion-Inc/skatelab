@@ -307,9 +307,13 @@ jobs:
         with:
           python-version: ${{ inputs.python-version }}
       - uses: oven-sh/setup-bun@v2
-      - uses: evilmartians/lefthook-action@v1
-        with:
-          version: latest
+      - name: Install lefthook
+        run: |
+          LEFTHOOK_VERSION="v2.1.8"
+          curl -sSL "https://github.com/evilmartians/lefthook/releases/download/${LEFTHOOK_VERSION}/lefthook_${LEFTHOOK_VERSION#v}_linux_amd64.gz" -o lefthook.gz
+          gzip -d lefthook.gz
+          chmod +x lefthook
+          sudo mv lefthook /usr/local/bin/lefthook
       - name: Install lefthook hooks
         run: lefthook install
       - name: Run pre-commit hooks
