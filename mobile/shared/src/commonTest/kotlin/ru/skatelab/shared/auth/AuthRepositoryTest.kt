@@ -2,12 +2,12 @@ package ru.skatelab.shared.auth
 
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.mock.MockEngine
+import io.ktor.client.engine.mock.MockRequestHandleScope
 import io.ktor.client.engine.mock.respond
 import io.ktor.client.engine.mock.respondError
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
-import io.ktor.client.plugins.defaultRequest
 import io.ktor.client.request.HttpRequestData
-import io.ktor.client.request.url
+import io.ktor.client.statement.HttpResponseData
 import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
@@ -26,14 +26,13 @@ class AuthRepositoryTest {
     private fun makeClient(engine: MockEngine): HttpClient =
         HttpClient(engine) {
             install(ContentNegotiation) { json(json) }
-            defaultRequest { url("https://api.test/api/v1") }
         }
 
     @Test
     fun logout_sendsRefreshTokenAndClearsTokens() = kotlinx.coroutines.test.runTest {
         var requestUrl: String? = null
         var requestContentType: ContentType? = null
-        val engine = MockEngine { request: HttpRequestData ->
+        val handler: suspend MockRequestHandleScope.(HttpRequestData) -> HttpResponseData = { request ->
             requestUrl = request.url.toString()
             requestContentType = request.headers[HttpHeaders.ContentType]?.let { ContentType.parse(it) }
             respond(
@@ -42,6 +41,7 @@ class AuthRepositoryTest {
                 headers = headersOf(HttpHeaders.ContentType, ContentType.Application.Json.toString()),
             )
         }
+        val engine = MockEngine(handler)
         val client = makeClient(engine)
         val settings = com.russhwolf.settings.Settings()
         val tokenStorage = TokenStorage(settings)
@@ -59,9 +59,10 @@ class AuthRepositoryTest {
 
     @Test
     fun logout_clearsTokensEvenWhenApiFails() = kotlinx.coroutines.test.runTest {
-        val engine = MockEngine { _: HttpRequestData ->
+        val handler: suspend MockRequestHandleScope.(HttpRequestData) -> HttpResponseData = { _ ->
             respondError(HttpStatusCode.InternalServerError)
         }
+        val engine = MockEngine(handler)
         val client = makeClient(engine)
         val settings = com.russhwolf.settings.Settings()
         val tokenStorage = TokenStorage(settings)
@@ -81,7 +82,8 @@ class AuthRepositoryTest {
         val tokenStorage = TokenStorage(settings)
         tokenStorage.saveTokens("access", "refresh")
 
-        val engine = MockEngine { _: HttpRequestData -> respond("{}", status = HttpStatusCode.OK) }
+        val handler: suspend MockRequestHandleScope.(HttpRequestData) -> HttpResponseData = { _: HttpRequestData -> respond("{}", status = HttpStatusCode.OK) }
+        val engine = MockEngine(handler)
         val client = makeClient(engine)
         val repo = AuthRepository(AuthApi(client), tokenStorage)
 
@@ -93,7 +95,8 @@ class AuthRepositoryTest {
         val settings = com.russhwolf.settings.Settings()
         val tokenStorage = TokenStorage(settings)
 
-        val engine = MockEngine { _: HttpRequestData -> respond("{}", status = HttpStatusCode.OK) }
+        val handler: suspend MockRequestHandleScope.(HttpRequestData) -> HttpResponseData = { _: HttpRequestData -> respond("{}", status = HttpStatusCode.OK) }
+        val engine = MockEngine(handler)
         val client = makeClient(engine)
         val repo = AuthRepository(AuthApi(client), tokenStorage)
 
