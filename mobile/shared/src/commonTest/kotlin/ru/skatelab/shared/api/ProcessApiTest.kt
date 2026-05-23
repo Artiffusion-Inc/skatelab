@@ -2,7 +2,6 @@ package ru.skatelab.shared.api
 
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.mock.MockEngine
-import io.ktor.client.engine.mock.MockRequestHandler
 import io.ktor.client.engine.mock.respond
 import io.ktor.client.engine.mock.respondError
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
@@ -18,14 +17,14 @@ import kotlin.test.assertEquals
 class ProcessApiTest {
     private val json = Json { ignoreUnknownKeys = true }
 
-    private fun makeClient(handler: MockRequestHandler): HttpClient =
-        HttpClient(MockEngine(handler)) {
+    private fun makeClient(engine: MockEngine): HttpClient =
+        HttpClient(engine) {
             install(ContentNegotiation) { json(json) }
         }
 
     @Test
     fun queue_returnsTaskId() = kotlinx.coroutines.test.runTest {
-        val client = makeClient { request ->
+        val engine = MockEngine { request ->
             when (request.url.encodedPath) {
                 "/process/queue" -> respond(
                     """{"task_id": "task-123", "status": "pending"}""",
@@ -35,7 +34,7 @@ class ProcessApiTest {
                 else -> respondError(HttpStatusCode.NotFound)
             }
         }
-        val api = ProcessApi(client)
+        val api = ProcessApi(makeClient(engine))
         val response = api.queue("video-key")
         assertEquals("task-123", response.taskId)
         assertEquals("pending", response.status)
@@ -43,7 +42,7 @@ class ProcessApiTest {
 
     @Test
     fun status_returnsProgress() = kotlinx.coroutines.test.runTest {
-        val client = makeClient { request ->
+        val engine = MockEngine { request ->
             when (request.url.encodedPath) {
                 "/process/task-123/status" -> respond(
                     """{"task_id": "task-123", "status": "running", "progress": 0.5, "message": "Processing"}""",
@@ -53,7 +52,7 @@ class ProcessApiTest {
                 else -> respondError(HttpStatusCode.NotFound)
             }
         }
-        val api = ProcessApi(client)
+        val api = ProcessApi(makeClient(engine))
         val response = api.status("task-123")
         assertEquals("task-123", response.taskId)
         assertEquals("running", response.status)
@@ -63,7 +62,7 @@ class ProcessApiTest {
     @Test
     fun cancel_postsToCancelEndpoint() = kotlinx.coroutines.test.runTest {
         var requestPath: String? = null
-        val client = makeClient { request ->
+        val engine = MockEngine { request ->
             requestPath = request.url.encodedPath
             respond(
                 "{}",
@@ -71,7 +70,7 @@ class ProcessApiTest {
                 headers = headersOf(HttpHeaders.ContentType, ContentType.Application.Json.toString()),
             )
         }
-        val api = ProcessApi(client)
+        val api = ProcessApi(makeClient(engine))
         api.cancel("task-456")
         assertEquals("/process/task-456/cancel", requestPath)
     }
