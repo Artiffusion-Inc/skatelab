@@ -24,6 +24,8 @@ jobs:
   changes:
     name: Detect changed files
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     outputs:
       python: ${{ steps.filter.outputs.python }}
       ml: ${{ steps.filter.outputs.ml }}
@@ -35,6 +37,7 @@ jobs:
       - uses: dorny/paths-filter@v3
         id: filter
         with:
+          token: ${{ secrets.GITHUB_TOKEN }}
           filters: |
             python:
               - "backend/**"
@@ -153,7 +156,7 @@ jobs:
           ml/tests/utils/test_profiling.py ml/tests/utils/test_smoothing.py
           ml/tests/utils/test_smoothing_numba.py ml/tests/utils/test_video_writer_nvenc.py
           ml/tests/references/ ml/tests/pose_3d/ ml/tests/pose_estimation/ ml/tests/datasets/
-          -n auto --dist worksteal
+          -n auto --dist loadfile
           -v -m "not slow and not integration"
           --cov=backend/app --cov=ml/src
           --cov-report=xml --junitxml=junit.xml --tb=short
