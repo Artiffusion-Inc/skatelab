@@ -309,9 +309,8 @@ jobs:
       - uses: oven-sh/setup-bun@v2
       - name: Install lefthook
         run: |
-          LEFTHOOK_VERSION="v2.1.8"
-          curl -sSL "https://github.com/evilmartians/lefthook/releases/download/${LEFTHOOK_VERSION}/lefthook_${LEFTHOOK_VERSION#v}_linux_amd64.gz" -o lefthook.gz
-          gzip -d lefthook.gz
+          LEFTHOOK_VERSION="2.1.8"
+          curl -sSL "https://github.com/evilmartians/lefthook/releases/download/v${LEFTHOOK_VERSION}/lefthook_${LEFTHOOK_VERSION}_Linux_x86_64.gz" | gzip -d > lefthook
           chmod +x lefthook
           sudo mv lefthook /usr/local/bin/lefthook
       - name: Install lefthook hooks
@@ -324,12 +323,17 @@ jobs:
   danger:
     name: Danger (PR checks)
     if: github.event_name == 'pull_request'
+    permissions:
+      contents: read
+      pull-requests: write
     runs-on: blacksmith-2vcpu-ubuntu-2404
     steps:
       - uses: actions/checkout@v6
         with:
           fetch-depth: 0
-      - uses: oven-sh/setup-bun@v2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
       - name: Install danger-js
         run: npm install -g danger
       - name: Run Danger
