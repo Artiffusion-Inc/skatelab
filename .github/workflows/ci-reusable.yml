@@ -24,6 +24,7 @@ jobs:
   changes:
     name: Detect changed files
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     permissions:
       contents: read
       pull-requests: read
@@ -97,6 +98,7 @@ jobs:
     needs: [changes]
     if: inputs.run-all || needs.changes.outputs.design == 'true'
     runs-on: blacksmith-2vcpu-ubuntu-2404
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v6
       - uses: ./.github/actions/setup-frontend
@@ -112,6 +114,7 @@ jobs:
     needs: [changes]
     if: inputs.run-all || needs.changes.outputs.python == 'true'
     runs-on: blacksmith-4vcpu-ubuntu-2404
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v6
       - uses: ./.github/actions/setup-python-venv
@@ -153,6 +156,7 @@ jobs:
     needs: [changes, test]
     if: ${{ inputs.run-all && needs.changes.outputs.ml == 'true' }}
     runs-on: blacksmith-4vcpu-ubuntu-2404
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v6
       - uses: ./.github/actions/setup-python-venv
@@ -166,6 +170,7 @@ jobs:
     needs: [changes]
     if: inputs.run-all || needs.changes.outputs.frontend == 'true'
     runs-on: blacksmith-2vcpu-ubuntu-2404
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v6
         with:
@@ -187,6 +192,7 @@ jobs:
     needs: [changes, fe-check]
     if: inputs.run-all || needs.changes.outputs.frontend == 'true'
     runs-on: blacksmith-4vcpu-ubuntu-2404
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v6
       - uses: ./.github/actions/setup-frontend
@@ -214,6 +220,7 @@ jobs:
     needs: [changes]
     if: inputs.run-all || needs.changes.outputs.frontend == 'true'
     runs-on: blacksmith-2vcpu-ubuntu-2404
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v6
       - uses: ./.github/actions/setup-frontend
@@ -240,6 +247,7 @@ jobs:
     needs: [changes, test]
     if: ${{ !inputs.skip-docker && (inputs.run-all || needs.changes.outputs.docker == 'true') }}
     runs-on: blacksmith-4vcpu-ubuntu-2404
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v6
       - name: Setup Blacksmith Builder
@@ -257,6 +265,7 @@ jobs:
     needs: [changes, fe-check, fe-build]
     if: ${{ !inputs.skip-docker && (inputs.run-all || needs.changes.outputs.docker == 'true') }}
     runs-on: blacksmith-4vcpu-ubuntu-2404
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v6
       - name: Setup Blacksmith Builder
@@ -273,6 +282,7 @@ jobs:
     name: Danger (PR checks)
     if: github.event_name == 'pull_request'
     runs-on: blacksmith-2vcpu-ubuntu-2404
+    timeout-minutes: 5
     steps:
       - uses: actions/checkout@v6
         with:
@@ -290,6 +300,7 @@ jobs:
   ci-passed:
     name: CI Summary
     runs-on: blacksmith-2vcpu-ubuntu-2404
+    timeout-minutes: 5
     needs: [changes, lint-typecheck, coverage, design-ci, test, smoke, fe-check, fe-build, fe-test, docker-backend, docker-frontend, danger]
     if: always()
     outputs:
