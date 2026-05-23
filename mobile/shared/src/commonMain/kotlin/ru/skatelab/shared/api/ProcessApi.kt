@@ -8,6 +8,7 @@ import io.ktor.http.*
 import io.ktor.utils.io.*
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
+import kotlinx.serialization.EncodeDefault
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
@@ -26,15 +27,14 @@ class ProcessApi(private val client: HttpClient) {
     ): QueueProcessResponse =
         client.post("/process/queue") {
             contentType(ContentType.Application.Json)
-            setBody(buildMap {
-                put("video_key", videoKey)
-                put("frame_skip", frameSkip)
-                put("tracking", tracking)
-                if (sessionId != null) put("session_id", sessionId)
-                if (personClickX != null && personClickY != null) {
-                    put("person_click", mapOf("x" to personClickX, "y" to personClickY))
-                }
-            })
+            setBody(QueueProcessRequest(
+                videoKey = videoKey,
+                frameSkip = frameSkip,
+                tracking = tracking,
+                sessionId = sessionId,
+                personClick = if (personClickX != null && personClickY != null)
+                    PersonClick(personClickX, personClickY) else null,
+            ))
         }.body()
 
     suspend fun status(taskId: String): TaskStatusResponse =
@@ -64,6 +64,18 @@ class ProcessApi(private val client: HttpClient) {
         }
     }
 }
+
+@Serializable
+data class QueueProcessRequest(
+    @SerialName("video_key") val videoKey: String,
+    @EncodeDefault(EncodeDefault.Mode.ALWAYS) @SerialName("frame_skip") val frameSkip: Int = 1,
+    @EncodeDefault(EncodeDefault.Mode.ALWAYS) val tracking: String = "auto",
+    @SerialName("session_id") val sessionId: String? = null,
+    @SerialName("person_click") val personClick: PersonClick? = null,
+)
+
+@Serializable
+data class PersonClick(val x: Float, val y: Float)
 
 @Serializable
 data class QueueProcessResponse(
