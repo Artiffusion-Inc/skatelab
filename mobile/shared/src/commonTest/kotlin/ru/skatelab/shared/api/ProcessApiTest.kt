@@ -3,8 +3,8 @@ package ru.skatelab.shared.api
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.mock.MockEngine
 import io.ktor.client.engine.mock.MockRequestHandleScope
+import io.ktor.client.engine.mock.HttpResponseData
 import io.ktor.client.request.HttpRequestData
-import io.ktor.client.statement.HttpResponseData
 import io.ktor.client.engine.mock.respond
 import io.ktor.client.engine.mock.respondError
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
