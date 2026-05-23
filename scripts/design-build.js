@@ -38,11 +38,11 @@ const GLOBALS_CSS = resolve(ROOT, "frontend", "src", "app", "globals.css");
 const PLATFORM_FILES = {
   css: ["frontend/src/app/tokens.css"],
   kotlin: [
-    "mobile/androidApp/src/main/java/ru/skatelab/capture/presentation/theme/Colors.kt",
+    "mobile/androidApp/src/main/java/ru/skatelab/capture/presentation/theme/SkateLabColors.kt",
     "mobile/androidApp/src/main/java/ru/skatelab/capture/presentation/theme/Type.kt",
     "mobile/androidApp/src/main/java/ru/skatelab/capture/presentation/theme/Theme.kt",
-    "mobile/androidApp/src/main/java/ru/skatelab/capture/presentation/theme/Shadows.kt",
-    "mobile/androidApp/src/main/java/ru/skatelab/capture/presentation/theme/Modifiers.kt",
+    "mobile/androidApp/src/main/java/ru/skatelab/capture/presentation/theme/SkateLabShadows.kt",
+    "mobile/androidApp/src/main/java/ru/skatelab/capture/presentation/theme/SkateLabModifiers.kt",
   ],
   swift: [
     "mobile/iosApp/SkateLab/Theme/SkateLabColors.swift",
@@ -335,7 +335,7 @@ const KOTLIN_PLATFORM_SCHEMA = {
     files: {
       type: "object",
       properties: {
-        "mobile/androidApp/src/main/java/ru/skatelab/capture/presentation/theme/Colors.kt": {
+        "mobile/androidApp/src/main/java/ru/skatelab/capture/presentation/theme/SkateLabColors.kt": {
           type: "string",
         },
         "mobile/androidApp/src/main/java/ru/skatelab/capture/presentation/theme/Type.kt": {
@@ -344,19 +344,19 @@ const KOTLIN_PLATFORM_SCHEMA = {
         "mobile/androidApp/src/main/java/ru/skatelab/capture/presentation/theme/Theme.kt": {
           type: "string",
         },
-        "mobile/androidApp/src/main/java/ru/skatelab/capture/presentation/theme/Shadows.kt": {
+        "mobile/androidApp/src/main/java/ru/skatelab/capture/presentation/theme/SkateLabShadows.kt": {
           type: "string",
         },
-        "mobile/androidApp/src/main/java/ru/skatelab/capture/presentation/theme/Modifiers.kt": {
+        "mobile/androidApp/src/main/java/ru/skatelab/capture/presentation/theme/SkateLabModifiers.kt": {
           type: "string",
         },
       },
       required: [
-        "mobile/androidApp/src/main/java/ru/skatelab/capture/presentation/theme/Colors.kt",
+        "mobile/androidApp/src/main/java/ru/skatelab/capture/presentation/theme/SkateLabColors.kt",
         "mobile/androidApp/src/main/java/ru/skatelab/capture/presentation/theme/Type.kt",
         "mobile/androidApp/src/main/java/ru/skatelab/capture/presentation/theme/Theme.kt",
-        "mobile/androidApp/src/main/java/ru/skatelab/capture/presentation/theme/Shadows.kt",
-        "mobile/androidApp/src/main/java/ru/skatelab/capture/presentation/theme/Modifiers.kt",
+        "mobile/androidApp/src/main/java/ru/skatelab/capture/presentation/theme/SkateLabShadows.kt",
+        "mobile/androidApp/src/main/java/ru/skatelab/capture/presentation/theme/SkateLabModifiers.kt",
       ],
     },
     validation: {
@@ -492,13 +492,13 @@ ${JSON.stringify(vocab, null, 2)}
 
 Generate a JSON object with:
 1. "files": object with these exact keys:
-   - "mobile/androidApp/src/main/java/ru/skatelab/capture/presentation/theme/Colors.kt": Colors.kt content
+   - "mobile/androidApp/src/main/java/ru/skatelab/capture/presentation/theme/SkateLabColors.kt": SkateLabColors.kt content
    - "mobile/androidApp/src/main/java/ru/skatelab/capture/presentation/theme/Type.kt": Type.kt content
    - "mobile/androidApp/src/main/java/ru/skatelab/capture/presentation/theme/Theme.kt": Theme.kt content
-   - "mobile/androidApp/src/main/java/ru/skatelab/capture/presentation/theme/Shadows.kt": Shadows.kt content
-   - "mobile/androidApp/src/main/java/ru/skatelab/capture/presentation/theme/Modifiers.kt": Modifiers.kt content
+   - "mobile/androidApp/src/main/java/ru/skatelab/capture/presentation/theme/SkateLabShadows.kt": SkateLabShadows.kt content
+   - "mobile/androidApp/src/main/java/ru/skatelab/capture/presentation/theme/SkateLabModifiers.kt": SkateLabModifiers.kt content
 
-Colors.kt requirements:
+SkateLabColors.kt requirements:
    - Must start with comment: "AUTO-GENERATED — do not edit. Source: DESIGN.md"
    - Package: ru.skatelab.capture.presentation.theme
    - Object SkateLabColors with Color vals for ALL 23+ color tokens
@@ -523,14 +523,14 @@ Theme.kt requirements:
    - AppTheme composable with status bar color setup
    - toMaterialTypography() mapping function
 
-Shadows.kt requirements:
+SkateLabShadows.kt requirements:
    - Must start with comment: "AUTO-GENERATED — do not edit. Source: DESIGN.md"
    - Package: ru.skatelab.capture.presentation.theme
    - Object SkateLabShadows with Modifier vals for each shadow token (ambient-low, ambient-medium, ambient-high)
    - Use Modifier.shadow() with appropriate offsetX, offsetY, blur, color values
    - Map shadow names from vocabulary exactly
 
-Modifiers.kt requirements:
+SkateLabModifiers.kt requirements:
    - Must start with comment: "AUTO-GENERATED — do not edit. Source: DESIGN.md"
    - Package: ru.skatelab.capture.presentation.theme
    - Object SkateLabModifiers with common Modifier combinations used in components
@@ -682,7 +682,7 @@ function validateResponse(response, platform, architectVocab) {
   }
 
   if (platform === "kotlin") {
-    const colors = response.files["mobile/androidApp/src/main/java/ru/skatelab/capture/presentation/theme/Colors.kt"] || "";
+    const colors = response.files["mobile/androidApp/src/main/java/ru/skatelab/capture/presentation/theme/SkateLabColors.kt"] || "";
     if (!colors.includes("package ru.skatelab.capture.presentation.theme")) {
       errors.push("Kotlin Colors.kt missing package declaration");
     }

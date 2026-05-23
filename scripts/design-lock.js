@@ -25,11 +25,11 @@ const LOCK_FILE = resolve(ROOT, "tokens", "lock.json");
 
 const GENERATED_FILES = [
   "frontend/src/app/tokens.css",
-  "mobile/androidApp/src/main/java/ru/skatelab/capture/presentation/theme/Colors.kt",
+  "mobile/androidApp/src/main/java/ru/skatelab/capture/presentation/theme/SkateLabColors.kt",
   "mobile/androidApp/src/main/java/ru/skatelab/capture/presentation/theme/Type.kt",
   "mobile/androidApp/src/main/java/ru/skatelab/capture/presentation/theme/Theme.kt",
-  "mobile/androidApp/src/main/java/ru/skatelab/capture/presentation/theme/Shadows.kt",
-  "mobile/androidApp/src/main/java/ru/skatelab/capture/presentation/theme/Modifiers.kt",
+  "mobile/androidApp/src/main/java/ru/skatelab/capture/presentation/theme/SkateLabShadows.kt",
+  "mobile/androidApp/src/main/java/ru/skatelab/capture/presentation/theme/SkateLabModifiers.kt",
   "mobile/iosApp/SkateLab/Theme/SkateLabColors.swift",
   "mobile/iosApp/SkateLab/Theme/SkateLabTypography.swift",
   "mobile/iosApp/SkateLab/Theme/SkateLabTheme.swift",

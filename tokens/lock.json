@@ -10,11 +10,11 @@
   },
   "files": {
     "frontend/src/app/tokens.css": "sha256:95b9a00fe75e0403ae517afa950b2a527513907fc0b2770a4c3a7621c504e2a3",
-    "mobile/androidApp/src/main/java/ru/skatelab/capture/presentation/theme/Colors.kt": "sha256:69110a53028ced20d3f0239dd0c4fd48624cc62b02f3e0395acf46a480cdb61f",
-    "mobile/androidApp/src/main/java/ru/skatelab/capture/presentation/theme/Type.kt": "sha256:6d6d4cd974aca2ce670f2490dde0208ba90fa9558c80d73d4b83027a81eb71b3",
+    "mobile/androidApp/src/main/java/ru/skatelab/capture/presentation/theme/SkateLabColors.kt": "sha256:69110a53028ced20d3f0239dd0c4fd48624cc62b02f3e0395acf46a480cdb61f",
+    "mobile/androidApp/src/main/java/ru/skatelab/capture/presentation/theme/Type.kt": "sha256:f6e79dccc53d704012225b3da86b73db4a5c1699eac2e978ca6a292654d9654e",
     "mobile/androidApp/src/main/java/ru/skatelab/capture/presentation/theme/Theme.kt": "sha256:532c8cd1fe4625923833d1a7546ed5e86fccea61394d4b2369b381ac9eee0c24",
-    "mobile/androidApp/src/main/java/ru/skatelab/capture/presentation/theme/Shadows.kt": "sha256:85b87a7562c061456c8c913b9e5202ee366e2a1246b06daeb9cd2b7f5f1a12d6",
-    "mobile/androidApp/src/main/java/ru/skatelab/capture/presentation/theme/Modifiers.kt": "sha256:e8d5236fc6167c700a6411424f04ea3cb28fc8b17310d70c303a14e59fb0f3fb",
+    "mobile/androidApp/src/main/java/ru/skatelab/capture/presentation/theme/SkateLabShadows.kt": "sha256:85b87a7562c061456c8c913b9e5202ee366e2a1246b06daeb9cd2b7f5f1a12d6",
+    "mobile/androidApp/src/main/java/ru/skatelab/capture/presentation/theme/SkateLabModifiers.kt": "sha256:e8d5236fc6167c700a6411424f04ea3cb28fc8b17310d70c303a14e59fb0f3fb",
     "mobile/iosApp/SkateLab/Theme/SkateLabColors.swift": "sha256:2cfbbc5cf43bda2b4c4fab12e37cd978e80dc9fd9ce53c698a869ecd28ba31fa",
     "mobile/iosApp/SkateLab/Theme/SkateLabTypography.swift": "sha256:1c51e5a1b5e9eadb21cc22d228a34109fcfce6ab7e233565c5ffdf6a70018fe9",
     "mobile/iosApp/SkateLab/Theme/SkateLabTheme.swift": "sha256:8e5c17b90436b6b05d14ae611243282d957c03a7075d513e07d5cda8e4ca374b",
@@ -26,11 +26,11 @@
       "frontend/src/app/tokens.css": "sha256:95b9a00fe75e0403ae517afa950b2a527513907fc0b2770a4c3a7621c504e2a3"
     },
     "kotlin": {
-      "mobile/androidApp/src/main/java/ru/skatelab/capture/presentation/theme/Colors.kt": "sha256:69110a53028ced20d3f0239dd0c4fd48624cc62b02f3e0395acf46a480cdb61f",
-      "mobile/androidApp/src/main/java/ru/skatelab/capture/presentation/theme/Type.kt": "sha256:6d6d4cd974aca2ce670f2490dde0208ba90fa9558c80d73d4b83027a81eb71b3",
+      "mobile/androidApp/src/main/java/ru/skatelab/capture/presentation/theme/SkateLabColors.kt": "sha256:69110a53028ced20d3f0239dd0c4fd48624cc62b02f3e0395acf46a480cdb61f",
+      "mobile/androidApp/src/main/java/ru/skatelab/capture/presentation/theme/Type.kt": "sha256:f6e79dccc53d704012225b3da86b73db4a5c1699eac2e978ca6a292654d9654e",
       "mobile/androidApp/src/main/java/ru/skatelab/capture/presentation/theme/Theme.kt": "sha256:532c8cd1fe4625923833d1a7546ed5e86fccea61394d4b2369b381ac9eee0c24",
-      "mobile/androidApp/src/main/java/ru/skatelab/capture/presentation/theme/Shadows.kt": "sha256:85b87a7562c061456c8c913b9e5202ee366e2a1246b06daeb9cd2b7f5f1a12d6",
-      "mobile/androidApp/src/main/java/ru/skatelab/capture/presentation/theme/Modifiers.kt": "sha256:e8d5236fc6167c700a6411424f04ea3cb28fc8b17310d70c303a14e59fb0f3fb"
+      "mobile/androidApp/src/main/java/ru/skatelab/capture/presentation/theme/SkateLabShadows.kt": "sha256:85b87a7562c061456c8c913b9e5202ee366e2a1246b06daeb9cd2b7f5f1a12d6",
+      "mobile/androidApp/src/main/java/ru/skatelab/capture/presentation/theme/SkateLabModifiers.kt": "sha256:e8d5236fc6167c700a6411424f04ea3cb28fc8b17310d70c303a14e59fb0f3fb"
     },
     "swift": {
       "mobile/iosApp/SkateLab/Theme/SkateLabColors.swift": "sha256:2cfbbc5cf43bda2b4c4fab12e37cd978e80dc9fd9ce53c698a869ecd28ba31fa",
