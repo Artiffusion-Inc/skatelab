@@ -1,5 +1,6 @@
 package ru.skatelab.shared.auth
 
+import com.russhwolf.settings.Settings
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.mock.MockEngine
 import io.ktor.client.engine.mock.MockEngineConfig
@@ -40,7 +41,7 @@ class AuthRepositoryTest {
         val client = HttpClient(engine) {
             install(ContentNegotiation) { json(json) }
         }
-        val settings = com.russhwolf.settings.Settings()
+        val settings: Settings = Settings()
         val tokenStorage = TokenStorage(settings)
         tokenStorage.saveTokens("access123", "refresh456")
 
@@ -49,7 +50,7 @@ class AuthRepositoryTest {
         repo.logout()
 
         assertEquals(null, tokenStorage.getAccessToken(), "access token should be cleared after logout")
-        assertEquals(null, tokenStorage.getRefreshToken(), "refresh token should be cleared after logout")
+        assertEquals(null, tokenStorage.getRefreshToken(), "refresh token should be cleared even on API failure")
         assertTrue(requestUrl!!.contains("/auth/logout"), "logout should POST to /auth/logout, got $requestUrl")
         assertEquals(ContentType.Application.Json, requestContentType, "request should use JSON content type")
     }
@@ -64,7 +65,7 @@ class AuthRepositoryTest {
         val client = HttpClient(engine) {
             install(ContentNegotiation) { json(json) }
         }
-        val settings = com.russhwolf.settings.Settings()
+        val settings: Settings = Settings()
         val tokenStorage = TokenStorage(settings)
         tokenStorage.saveTokens("access", "refresh")
 
@@ -84,7 +85,7 @@ class AuthRepositoryTest {
         val client = HttpClient(engine) {
             install(ContentNegotiation) { json(json) }
         }
-        val settings = com.russhwolf.settings.Settings()
+        val settings: Settings = Settings()
         val tokenStorage = TokenStorage(settings)
         tokenStorage.saveTokens("access", "refresh")
 
@@ -101,7 +102,7 @@ class AuthRepositoryTest {
         val client = HttpClient(engine) {
             install(ContentNegotiation) { json(json) }
         }
-        val settings = com.russhwolf.settings.Settings()
+        val settings: Settings = Settings()
         val tokenStorage = TokenStorage(settings)
 
         val repo = AuthRepository(AuthApi(client), tokenStorage)
