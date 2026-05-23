@@ -2,9 +2,8 @@
 package ru.skatelab.capture.presentation.theme
 
 import android.os.Build
-import androidx.annotation.OptIn
+import androidx.compose.ui.text.ExperimentalTextApi
 import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.font.ExperimentalResourceApi
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontVariation
@@ -13,7 +12,7 @@ import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import ru.skatelab.capture.R
 
-@OptIn(ExperimentalResourceApi::class)
+@OptIn(ExperimentalTextApi::class)
 private val InterVariable =
     FontFamily(
         Font(
