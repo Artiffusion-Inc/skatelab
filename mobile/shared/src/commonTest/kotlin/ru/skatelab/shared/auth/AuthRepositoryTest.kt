@@ -3,7 +3,6 @@ package ru.skatelab.shared.auth
 import com.russhwolf.settings.MapSettings
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.mock.MockEngine
-import io.ktor.client.engine.mock.MockEngineConfig
 import io.ktor.client.engine.mock.respond
 import io.ktor.client.engine.mock.respondError
 import io.ktor.client.engine.mock.respondOk
@@ -27,17 +26,15 @@ class AuthRepositoryTest {
     fun logout_sendsRefreshTokenAndClearsTokens() = kotlinx.coroutines.test.runTest {
         var requestUrl: String? = null
         var requestContentType: ContentType? = null
-        val engine = MockEngine(MockEngineConfig().apply {
-            addHandler { request ->
-                requestUrl = request.url.toString()
-                requestContentType = request.headers[HttpHeaders.ContentType]?.let { ContentType.parse(it) }
-                respond(
-                    "{}",
-                    status = HttpStatusCode.OK,
-                    headers = headersOf(HttpHeaders.ContentType, ContentType.Application.Json.toString()),
-                )
-            }
-        })
+        val engine = MockEngine { request ->
+            requestUrl = request.url.toString()
+            requestContentType = request.headers[HttpHeaders.ContentType]?.let { ContentType.parse(it) }
+            respond(
+                "{}",
+                status = HttpStatusCode.OK,
+                headers = headersOf(HttpHeaders.ContentType, ContentType.Application.Json.toString()),
+            )
+        }
         val client = HttpClient(engine) {
             install(ContentNegotiation) { json(json) }
         }
@@ -56,11 +53,9 @@ class AuthRepositoryTest {
 
     @Test
     fun logout_clearsTokensEvenWhenApiFails() = kotlinx.coroutines.test.runTest {
-        val engine = MockEngine(MockEngineConfig().apply {
-            addHandler { _ ->
-                respondError(HttpStatusCode.InternalServerError)
-            }
-        })
+        val engine = MockEngine { _ ->
+            respondError(HttpStatusCode.InternalServerError)
+        }
         val client = HttpClient(engine) {
             install(ContentNegotiation) { json(json) }
         }
@@ -77,9 +72,7 @@ class AuthRepositoryTest {
 
     @Test
     fun isLoggedIn_returnsTrueWhenAccessTokenPresent() = kotlinx.coroutines.test.runTest {
-        val engine = MockEngine(MockEngineConfig().apply {
-            addHandler { respondOk("{}") }
-        })
+        val engine = MockEngine { respondOk("{}") }
         val client = HttpClient(engine) {
             install(ContentNegotiation) { json(json) }
         }
@@ -93,9 +86,7 @@ class AuthRepositoryTest {
 
     @Test
     fun isLoggedIn_returnsFalseWhenNoAccessToken() = kotlinx.coroutines.test.runTest {
-        val engine = MockEngine(MockEngineConfig().apply {
-            addHandler { respondOk("{}") }
-        })
+        val engine = MockEngine { respondOk("{}") }
         val client = HttpClient(engine) {
             install(ContentNegotiation) { json(json) }
         }

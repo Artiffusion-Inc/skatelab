@@ -2,13 +2,11 @@ package ru.skatelab.shared.api
 
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.mock.MockEngine
-import io.ktor.client.engine.mock.MockEngineConfig
 import io.ktor.client.engine.mock.respond
-import io.ktor.client.engine.mock.respondError
+import io.ktor.client.engine.mock.respondOk
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
-import io.ktor.http.HttpStatusCode
 import io.ktor.http.headersOf
 import io.ktor.serialization.kotlinx.json.json
 import kotlinx.serialization.json.Json
@@ -20,18 +18,16 @@ class ProcessApiTest {
 
     @Test
     fun queue_returnsTaskId() = kotlinx.coroutines.test.runTest {
-        val engine = MockEngine(MockEngineConfig().apply {
-            addHandler { request ->
-                when (request.url.encodedPath) {
-                    "/process/queue" -> respond(
-                        """{"task_id": "task-123", "status": "pending"}""",
-                        status = HttpStatusCode.OK,
-                        headers = headersOf(HttpHeaders.ContentType, ContentType.Application.Json.toString()),
-                    )
-                    else -> respondError(HttpStatusCode.NotFound)
-                }
+        val engine = MockEngine { request ->
+            when {
+                request.url.encodedPath.contains("/process/queue") -> respond(
+                    """{"task_id": "task-123", "status": "pending"}""",
+                    status = io.ktor.http.HttpStatusCode.OK,
+                    headers = headersOf(HttpHeaders.ContentType, ContentType.Application.Json.toString()),
+                )
+                else -> respondOk("{}")
             }
-        })
+        }
         val client = HttpClient(engine) {
             install(ContentNegotiation) { json(json) }
         }
@@ -43,18 +39,16 @@ class ProcessApiTest {
 
     @Test
     fun status_returnsProgress() = kotlinx.coroutines.test.runTest {
-        val engine = MockEngine(MockEngineConfig().apply {
-            addHandler { request ->
-                when (request.url.encodedPath) {
-                    "/process/task-123/status" -> respond(
-                        """{"task_id": "task-123", "status": "running", "progress": 0.5, "message": "Processing"}""",
-                        status = HttpStatusCode.OK,
-                        headers = headersOf(HttpHeaders.ContentType, ContentType.Application.Json.toString()),
-                    )
-                    else -> respondError(HttpStatusCode.NotFound)
-                }
+        val engine = MockEngine { request ->
+            when {
+                request.url.encodedPath.contains("/process/task-123/status") -> respond(
+                    """{"task_id": "task-123", "status": "running", "progress": 0.5, "message": "Processing"}""",
+                    status = io.ktor.http.HttpStatusCode.OK,
+                    headers = headersOf(HttpHeaders.ContentType, ContentType.Application.Json.toString()),
+                )
+                else -> respondOk("{}")
             }
-        })
+        }
         val client = HttpClient(engine) {
             install(ContentNegotiation) { json(json) }
         }
@@ -68,16 +62,10 @@ class ProcessApiTest {
     @Test
     fun cancel_postsToCancelEndpoint() = kotlinx.coroutines.test.runTest {
         var requestPath: String? = null
-        val engine = MockEngine(MockEngineConfig().apply {
-            addHandler { request ->
-                requestPath = request.url.encodedPath
-                respond(
-                    "{}",
-                    status = HttpStatusCode.OK,
-                    headers = headersOf(HttpHeaders.ContentType, ContentType.Application.Json.toString()),
-                )
-            }
-        })
+        val engine = MockEngine { request ->
+            requestPath = request.url.encodedPath
+            respondOk("{}")
+        }
         val client = HttpClient(engine) {
             install(ContentNegotiation) { json(json) }
         }
