@@ -2,6 +2,9 @@ package ru.skatelab.shared.api
 
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.mock.MockEngine
+import io.ktor.client.engine.mock.MockRequestHandleScope
+import io.ktor.client.request.HttpRequestData
+import io.ktor.client.statement.HttpResponseData
 import io.ktor.client.engine.mock.respond
 import io.ktor.client.engine.mock.respondError
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
@@ -18,7 +21,7 @@ import kotlin.test.assertEquals
 class ProcessApiTest {
     private val json = Json { ignoreUnknownKeys = true }
 
-    private fun makeClient(handler: suspend io.ktor.client.engine.mock.MockRequestHandleScope.(io.ktor.client.request.HttpRequestData) -> io.ktor.client.engine.mock.HttpResponseData): HttpClient =
+    private fun makeClient(handler: suspend MockRequestHandleScope.(HttpRequestData) -> HttpResponseData): HttpClient =
         HttpClient(MockEngine(handler)) {
             install(ContentNegotiation) { json(json) }
         }
