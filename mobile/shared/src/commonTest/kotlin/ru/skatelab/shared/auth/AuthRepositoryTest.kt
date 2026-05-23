@@ -1,6 +1,6 @@
 package ru.skatelab.shared.auth
 
-import com.russhwolf.settings.Settings
+import com.russhwolf.settings.MapSettings
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.mock.MockEngine
 import io.ktor.client.engine.mock.MockEngineConfig
@@ -41,8 +41,7 @@ class AuthRepositoryTest {
         val client = HttpClient(engine) {
             install(ContentNegotiation) { json(json) }
         }
-        val settings: Settings = Settings()
-        val tokenStorage = TokenStorage(settings)
+        val tokenStorage = TokenStorage(MapSettings())
         tokenStorage.saveTokens("access123", "refresh456")
 
         val repo = AuthRepository(AuthApi(client), tokenStorage)
@@ -50,7 +49,7 @@ class AuthRepositoryTest {
         repo.logout()
 
         assertEquals(null, tokenStorage.getAccessToken(), "access token should be cleared after logout")
-        assertEquals(null, tokenStorage.getRefreshToken(), "refresh token should be cleared even on API failure")
+        assertEquals(null, tokenStorage.getRefreshToken(), "refresh token should be cleared after logout")
         assertTrue(requestUrl!!.contains("/auth/logout"), "logout should POST to /auth/logout, got $requestUrl")
         assertEquals(ContentType.Application.Json, requestContentType, "request should use JSON content type")
     }
@@ -65,8 +64,7 @@ class AuthRepositoryTest {
         val client = HttpClient(engine) {
             install(ContentNegotiation) { json(json) }
         }
-        val settings: Settings = Settings()
-        val tokenStorage = TokenStorage(settings)
+        val tokenStorage = TokenStorage(MapSettings())
         tokenStorage.saveTokens("access", "refresh")
 
         val repo = AuthRepository(AuthApi(client), tokenStorage)
@@ -85,8 +83,7 @@ class AuthRepositoryTest {
         val client = HttpClient(engine) {
             install(ContentNegotiation) { json(json) }
         }
-        val settings: Settings = Settings()
-        val tokenStorage = TokenStorage(settings)
+        val tokenStorage = TokenStorage(MapSettings())
         tokenStorage.saveTokens("access", "refresh")
 
         val repo = AuthRepository(AuthApi(client), tokenStorage)
@@ -102,8 +99,7 @@ class AuthRepositoryTest {
         val client = HttpClient(engine) {
             install(ContentNegotiation) { json(json) }
         }
-        val settings: Settings = Settings()
-        val tokenStorage = TokenStorage(settings)
+        val tokenStorage = TokenStorage(MapSettings())
 
         val repo = AuthRepository(AuthApi(client), tokenStorage)
 
