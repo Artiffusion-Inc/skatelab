@@ -151,7 +151,7 @@ jobs:
   smoke:
     name: Smoke Tests (ML inference)
     needs: [changes, test]
-    if: inputs.run-all || needs.changes.outputs.ml == 'true'
+    if: ${{ inputs.run-all && needs.changes.outputs.ml == 'true' }}
     runs-on: blacksmith-4vcpu-ubuntu-2404
     steps:
       - uses: actions/checkout@v6
