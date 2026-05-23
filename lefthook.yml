@@ -2,6 +2,9 @@
 # Lefthook configuration for skatelab
 assert_lefthook_installed: true
 colors: true
+output:
+  - execution
+  - failure
 
 pre-commit:
   parallel: true
@@ -24,6 +27,11 @@ pre-commit:
 
     - name: ruff
       glob: "*.py"
+      exclude:
+        - "*/alembic/versions/*"
+      tags:
+        - backend
+        - lint
       group:
         piped: true
         jobs:
@@ -36,15 +44,24 @@ pre-commit:
 
     - name: biome-check
       glob: "frontend/**/*.{ts,tsx,js,jsx,json,css}"
+      tags:
+        - frontend
+        - lint
       run: bunx biome check --write {staged_files}
       stage_fixed: true
 
     - name: ktlint-format
-      glob: "mobile/**/*.{kt,kts}"
-      run: cd mobile && ./gradlew ktlintFormat 2>&1 | tail -5
+      root: "mobile/"
+      glob: "*.{kt,kts}"
+      tags:
+        - mobile
+        - lint
+      run: ./gradlew ktlintFormat 2>&1 | tail -5
       stage_fixed: true
 
     - name: ast-grep-scan
+      tags:
+        - lint
       run: |
         if ! command -v sg &> /dev/null; then
           exit 0
@@ -76,6 +93,8 @@ commit-msg:
 
 pre-push:
   parallel: false
+  skip:
+    - rebase
   commands:
     warn-pr-size:
       run: |
@@ -125,6 +144,36 @@ pre-push:
         fi
 
         echo "📊 PR Size: $EMOJI $SIZE (~$TOTAL_LINES lines, $CHANGED_FILES files)"
+
+    design-lint:
+      tags:
+        - frontend
+        - lint
+      run: |
+        cd frontend
+        if [ -f node_modules/.bin/impeccable ] || command -v impeccable &> /dev/null; then
+          impeccable detect --json src/ 2>&1 | node ../scripts/impeccable-report.js || true
+        fi
+        if command -v sg &> /dev/null; then
+          sg scan -c ../sgconfig.yml frontend/ || true
+        fi
+        node ../scripts/design-lock.js check || exit 1
+
+post-merge:
+  parallel: true
+  only:
+    - ref: master
+  files: "git diff-tree -r --name-only --no-commit-id ORIG_HEAD HEAD"
+  commands:
+    uv-sync:
+      glob: "{uv.lock,pyproject.toml,backend/pyproject.toml,ml/pyproject.toml}"
+      run: uv sync
+    bun-install:
+      glob: "{frontend/package.json,frontend/bun.lock}"
+      run: cd frontend && bun install
+    alembic-migrate:
+      glob: "backend/alembic/versions/*"
+      run: cd backend && uv run alembic upgrade head
 
 # Manual groups
 format:
