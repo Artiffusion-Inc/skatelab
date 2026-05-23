@@ -21,16 +21,11 @@ import kotlin.test.assertTrue
 class AuthRepositoryTest {
     private val json = Json { ignoreUnknownKeys = true }
 
-    private fun makeClient(config: MockEngineConfig.() -> Unit): HttpClient =
-        HttpClient(MockEngine(config)) {
-            install(ContentNegotiation) { json(json) }
-        }
-
     @Test
     fun logout_sendsRefreshTokenAndClearsTokens() = kotlinx.coroutines.test.runTest {
         var requestUrl: String? = null
         var requestContentType: ContentType? = null
-        val client = makeClient {
+        val engine = MockEngine(MockEngineConfig().apply {
             addHandler { request ->
                 requestUrl = request.url.toString()
                 requestContentType = request.headers[HttpHeaders.ContentType]?.let { ContentType.parse(it) }
@@ -40,6 +35,9 @@ class AuthRepositoryTest {
                     headers = headersOf(HttpHeaders.ContentType, ContentType.Application.Json.toString()),
                 )
             }
+        })
+        val client = HttpClient(engine) {
+            install(ContentNegotiation) { json(json) }
         }
         val settings = com.russhwolf.settings.Settings()
         val tokenStorage = TokenStorage(settings)
@@ -57,10 +55,13 @@ class AuthRepositoryTest {
 
     @Test
     fun logout_clearsTokensEvenWhenApiFails() = kotlinx.coroutines.test.runTest {
-        val client = makeClient {
+        val engine = MockEngine(MockEngineConfig().apply {
             addHandler { _ ->
                 respondError(HttpStatusCode.InternalServerError)
             }
+        })
+        val client = HttpClient(engine) {
+            install(ContentNegotiation) { json(json) }
         }
         val settings = com.russhwolf.settings.Settings()
         val tokenStorage = TokenStorage(settings)
@@ -80,8 +81,11 @@ class AuthRepositoryTest {
         val tokenStorage = TokenStorage(settings)
         tokenStorage.saveTokens("access", "refresh")
 
-        val client = makeClient {
+        val engine = MockEngine(MockEngineConfig().apply {
             addHandler { respond("{}", status = HttpStatusCode.OK) }
+        })
+        val client = HttpClient(engine) {
+            install(ContentNegotiation) { json(json) }
         }
         val repo = AuthRepository(AuthApi(client), tokenStorage)
 
@@ -93,8 +97,11 @@ class AuthRepositoryTest {
         val settings = com.russhwolf.settings.Settings()
         val tokenStorage = TokenStorage(settings)
 
-        val client = makeClient {
+        val engine = MockEngine(MockEngineConfig().apply {
             addHandler { respond("{}", status = HttpStatusCode.OK) }
+        })
+        val client = HttpClient(engine) {
+            install(ContentNegotiation) { json(json) }
         }
         val repo = AuthRepository(AuthApi(client), tokenStorage)
 

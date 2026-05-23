@@ -18,14 +18,9 @@ import kotlin.test.assertEquals
 class ProcessApiTest {
     private val json = Json { ignoreUnknownKeys = true }
 
-    private fun makeClient(config: MockEngineConfig.() -> Unit): HttpClient =
-        HttpClient(MockEngine(config)) {
-            install(ContentNegotiation) { json(json) }
-        }
-
     @Test
     fun queue_returnsTaskId() = kotlinx.coroutines.test.runTest {
-        val api = ProcessApi(makeClient {
+        val engine = MockEngine(MockEngineConfig().apply {
             addHandler { request ->
                 when (request.url.encodedPath) {
                     "/process/queue" -> respond(
@@ -37,6 +32,10 @@ class ProcessApiTest {
                 }
             }
         })
+        val client = HttpClient(engine) {
+            install(ContentNegotiation) { json(json) }
+        }
+        val api = ProcessApi(client)
         val response = api.queue("video-key")
         assertEquals("task-123", response.taskId)
         assertEquals("pending", response.status)
@@ -44,7 +43,7 @@ class ProcessApiTest {
 
     @Test
     fun status_returnsProgress() = kotlinx.coroutines.test.runTest {
-        val api = ProcessApi(makeClient {
+        val engine = MockEngine(MockEngineConfig().apply {
             addHandler { request ->
                 when (request.url.encodedPath) {
                     "/process/task-123/status" -> respond(
@@ -56,6 +55,10 @@ class ProcessApiTest {
                 }
             }
         })
+        val client = HttpClient(engine) {
+            install(ContentNegotiation) { json(json) }
+        }
+        val api = ProcessApi(client)
         val response = api.status("task-123")
         assertEquals("task-123", response.taskId)
         assertEquals("running", response.status)
@@ -65,7 +68,7 @@ class ProcessApiTest {
     @Test
     fun cancel_postsToCancelEndpoint() = kotlinx.coroutines.test.runTest {
         var requestPath: String? = null
-        val api = ProcessApi(makeClient {
+        val engine = MockEngine(MockEngineConfig().apply {
             addHandler { request ->
                 requestPath = request.url.encodedPath
                 respond(
@@ -75,6 +78,10 @@ class ProcessApiTest {
                 )
             }
         })
+        val client = HttpClient(engine) {
+            install(ContentNegotiation) { json(json) }
+        }
+        val api = ProcessApi(client)
         api.cancel("task-456")
         assertEquals("/process/task-456/cancel", requestPath)
     }
