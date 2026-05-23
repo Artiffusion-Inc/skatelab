@@ -77,6 +77,14 @@ mf.{$DOMAIN} {
   }
 }
 
+s3.{$DOMAIN} {
+  reverse_proxy rustfs:9000
+}
+
+s3c.{$DOMAIN} {
+  reverse_proxy rustfs:9001
+}
+
 headscale.skatelab.ru {
   reverse_proxy headscale:8080 {
     flush_interval -1
