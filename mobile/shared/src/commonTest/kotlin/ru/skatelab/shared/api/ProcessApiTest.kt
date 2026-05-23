@@ -5,6 +5,7 @@ import io.ktor.client.engine.mock.MockEngine
 import io.ktor.client.engine.mock.respond
 import io.ktor.client.engine.mock.respondError
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
+import io.ktor.client.request.HttpRequestData
 import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
@@ -24,7 +25,7 @@ class ProcessApiTest {
 
     @Test
     fun queue_returnsTaskId() = kotlinx.coroutines.test.runTest {
-        val engine = MockEngine { request ->
+        val engine = MockEngine { request: HttpRequestData ->
             when (request.url.encodedPath) {
                 "/process/queue" -> respond(
                     """{"task_id": "task-123", "status": "pending"}""",
@@ -42,7 +43,7 @@ class ProcessApiTest {
 
     @Test
     fun status_returnsProgress() = kotlinx.coroutines.test.runTest {
-        val engine = MockEngine { request ->
+        val engine = MockEngine { request: HttpRequestData ->
             when (request.url.encodedPath) {
                 "/process/task-123/status" -> respond(
                     """{"task_id": "task-123", "status": "running", "progress": 0.5, "message": "Processing"}""",
@@ -62,7 +63,7 @@ class ProcessApiTest {
     @Test
     fun cancel_postsToCancelEndpoint() = kotlinx.coroutines.test.runTest {
         var requestPath: String? = null
-        val engine = MockEngine { request ->
+        val engine = MockEngine { request: HttpRequestData ->
             requestPath = request.url.encodedPath
             respond(
                 "{}",
