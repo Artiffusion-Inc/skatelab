@@ -55,13 +55,13 @@ os.environ.setdefault("PROJECT_ROOT", "/app")
 
 _PROJECT_ROOT = Path(os.environ.get("PROJECT_ROOT", "/app"))
 MOGANET_MODEL_PATH = _PROJECT_ROOT / "data/models/moganet/moganet_b_ap2d_384x288.onnx"
-YOLO_MODEL_PATH = _PROJECT_ROOT / "data/models/yolov8n.onnx"
+RF_DETR_MODEL_PATH = _PROJECT_ROOT / "data/models/rf_detr_nano.onnx"
 TAS_MODEL_PATH = _PROJECT_ROOT / "data/models/tas/bigr_refiner_best.onnx"
 
 # R2 keys for each model
 _R2_MODELS: list[tuple[Path, str]] = [
     (MOGANET_MODEL_PATH, "models/moganet/moganet_b_ap2d_384x288.onnx"),
-    (YOLO_MODEL_PATH, "models/yolov8n.onnx"),
+    (RF_DETR_MODEL_PATH, "models/rf_detr_nano.onnx"),
     (TAS_MODEL_PATH, "models/tas/bigr_refiner_best.onnx"),
 ]
 
@@ -80,8 +80,8 @@ async def _background_init():
     try:
         if not MOGANET_MODEL_PATH.exists():
             raise OSError(f"Model not found: {MOGANET_MODEL_PATH}")
-        if not YOLO_MODEL_PATH.exists():
-            raise OSError(f"Model not found: {YOLO_MODEL_PATH}")
+        if not RF_DETR_MODEL_PATH.exists():
+            raise OSError(f"Model not found: {RF_DETR_MODEL_PATH}")
 
         from src.device import DeviceConfig
 
