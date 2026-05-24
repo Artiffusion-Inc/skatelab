@@ -86,24 +86,24 @@ def create_app(
             "Set SKIP_JWT_SECRET_CHECK=true to bypass (dev only)."
         )
 
-    # Assemble routers under /api/v1
-    api_v1 = Router(
-        path="/api/v1",
-        route_handlers=[
-            auth,
-            users,
-            detect,
-            models,
-            process,
-            misc,
-            sessions,
-            metrics,
-            connections,
-            uploads,
-            choreography,
-            workspaces,
-        ],
-    )
+    # Assemble routers under /api/v1 (legacy) and /v1 (new)
+    _handlers = [
+        auth,
+        users,
+        detect,
+        models,
+        process,
+        misc,
+        sessions,
+        metrics,
+        connections,
+        uploads,
+        choreography,
+        workspaces,
+    ]
+
+    api_v1_legacy = Router(path="/api/v1", route_handlers=_handlers)
+    api_v1 = Router(path="/v1", route_handlers=_handlers)
 
     cors_config = CORSConfig(
         allow_origins=settings.cors.origins,
@@ -112,33 +112,35 @@ def create_app(
         allow_headers=["*"],
     )
 
+    _prefixes = ["/api/v1", "/v1"]
     rate_limit_config = RateLimitConfig(
         rate_limit=("minute", 60),
-        exclude=["/api/v1/health", "/api/v1/docs", "/api/v1/redoc", "/api/v1/openapi.json"],
+        exclude=[f"{p}/health" for p in _prefixes]
+        + [f"{p}/docs" for p in _prefixes]
+        + [f"{p}/redoc" for p in _prefixes]
+        + [f"{p}/openapi.json" for p in _prefixes],
     )
 
     jwt_auth = JWTAuth[User](
         token_secret=settings.jwt.secret_key.get_secret_value(),
         retrieve_user_handler=retrieve_user_handler,
         algorithm="HS256",  # noqa: S106
-        exclude=[
-            "/api/v1/auth/register",
-            "/api/v1/auth/login",
-            "/api/v1/auth/refresh",
-            "/api/v1/auth/logout",
-            "/api/v1/auth/forgot-password",
-            "/api/v1/auth/reset-password",
-            "/api/v1/auth/verify-email",
-            "/api/v1/auth/resend-verification",
-            "/api/v1/health",
-            "/api/v1/models",
-            "/api/v1/outputs",
-            "/api/v1/metrics/registry",
-            "/api/v1/choreography/elements/registry",
-            "/api/v1/docs",
-            "/api/v1/redoc",
-            "/api/v1/openapi.json",
-        ],
+        exclude=[f"{p}/auth/register" for p in _prefixes]
+        + [f"{p}/auth/login" for p in _prefixes]
+        + [f"{p}/auth/refresh" for p in _prefixes]
+        + [f"{p}/auth/logout" for p in _prefixes]
+        + [f"{p}/auth/forgot-password" for p in _prefixes]
+        + [f"{p}/auth/reset-password" for p in _prefixes]
+        + [f"{p}/auth/verify-email" for p in _prefixes]
+        + [f"{p}/auth/resend-verification" for p in _prefixes]
+        + [f"{p}/health" for p in _prefixes]
+        + [f"{p}/models" for p in _prefixes]
+        + [f"{p}/outputs" for p in _prefixes]
+        + [f"{p}/metrics/registry" for p in _prefixes]
+        + [f"{p}/choreography/elements/registry" for p in _prefixes]
+        + [f"{p}/docs" for p in _prefixes]
+        + [f"{p}/redoc" for p in _prefixes]
+        + [f"{p}/openapi.json" for p in _prefixes],
     )
 
     def _inject_cookie_middleware(app_config: AppConfig) -> AppConfig:
@@ -156,7 +158,7 @@ def create_app(
         init_handlers.extend(on_app_init if isinstance(on_app_init, list) else [on_app_init])
 
     return Litestar(
-        route_handlers=[api_v1],
+        route_handlers=[api_v1_legacy, api_v1],
         lifespan=[app_lifespan],
         cors_config=cors_config,
         compression_config=CompressionConfig(backend="gzip"),
