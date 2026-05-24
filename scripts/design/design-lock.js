@@ -19,7 +19,7 @@ import { fileURLToPath } from "node:url";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const DESIGN_MD = resolve(ROOT, "DESIGN.md");
-const LOCK_FILE = resolve(ROOT, "tokens", "lock.json");
+const LOCK_FILE = resolve(ROOT, "lock.json");
 
 // ─── Generated files (must match design-build.js PLATFORM_FILES) ──────────
 

@@ -31,8 +31,8 @@ import PQueue from "p-queue";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const DESIGN_MD = resolve(ROOT, "DESIGN.md");
-const LOCK_FILE = resolve(ROOT, "tokens", "lock.json");
-const BUILD_LOG = resolve(ROOT, "tokens", "build.log");
+const LOCK_FILE = resolve(ROOT, "lock.json");
+const BUILD_LOG = resolve(ROOT, "scripts", "design", "build.log");
 const GLOBALS_CSS = resolve(ROOT, "frontend", "src", "app", "globals.css");
 
 const PLATFORM_FILES = {
