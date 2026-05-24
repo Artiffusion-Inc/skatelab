@@ -22,7 +22,6 @@ kotlin {
         }
         iosMain.dependencies {
             implementation("io.ktor:ktor-client-darwin:${libs.versions.ktor.get()}")
-            implementation(libs.multiplatform.settings.keychain)
         }
         commonTest.dependencies {
             implementation(libs.kotlin.test)
