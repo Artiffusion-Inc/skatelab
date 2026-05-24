@@ -22,7 +22,7 @@ function buildCsp(nonce: string, isDev: boolean): string {
         "ws://localhost:*",
         "http://localhost:8400",
       ]
-    : ["'self'", "blob:", "https://*.r2.cloudflarestorage.com"]
+    : ["'self'", "blob:", "https://*.r2.cloudflarestorage.com", "https://api.skatelab.ru"]
 
   const directives: Record<string, string[]> = {
     "default-src": ["'self'"],

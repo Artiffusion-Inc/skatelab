@@ -95,7 +95,7 @@ headscale.skatelab.ru {
   }
 }
 
-skatelab.ru {
+api.skatelab.ru {
   tls {
     dns cloudflare {env.CLOUDFLARE_API_TOKEN} {
       propagation_timeout -1
@@ -111,9 +111,9 @@ skatelab.ru {
     -permissions-policy "accelerometer=(), camera=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), payment=(), usb=()"
   }
 
-  handle /api/* {
+  handle /v1/* {
     reverse_proxy backend:8000 {
-      health_uri /api/v1/health
+      health_uri /v1/health
       health_interval 10s
       health_timeout 5s
       flush_interval -1
@@ -123,6 +123,27 @@ skatelab.ru {
         dial_timeout 30s
       }
     }
+  }
+
+  handle {
+    respond "Not Found" 404
+  }
+}
+
+skatelab.ru {
+  tls {
+    dns cloudflare {env.CLOUDFLARE_API_TOKEN} {
+      propagation_timeout -1
+    }
+  }
+
+  header {
+    Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+    X-Content-Type-Options "nosniff"
+    X-Frame-Options "DENY"
+    X-XSS-Protection "1; mode=block"
+    Referrer-Policy "strict-origin-when-cross-origin"
+    -permissions-policy "accelerometer=(), camera=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), payment=(), usb=()"
   }
 
   handle /prometheus/* {

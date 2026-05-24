@@ -14,7 +14,7 @@ if TYPE_CHECKING:
 @pytest.mark.asyncio
 async def test_health_returns_ok(client: AsyncTestClient):
     """GET /health returns {"status": "ok"} without authentication."""
-    response = await client.get("/api/v1/health")
+    response = await client.get("/v1/health")
     assert response.status_code == 200
     data = response.json()
     assert data["status"] in ("ok", "degraded")
@@ -25,7 +25,7 @@ async def test_health_returns_ok(client: AsyncTestClient):
 async def test_serve_output_not_found(client: AsyncTestClient):
     """GET /outputs/{key} returns 404 when object does not exist in R2."""
     with patch("app.routes.misc.object_exists_async", new_callable=AsyncMock, return_value=False):
-        response = await client.get("/api/v1/outputs/nonexistent/video.mp4")
+        response = await client.get("/v1/outputs/nonexistent/video.mp4")
     assert response.status_code == 404
     data = response.json()
     assert data["message"] == "File not found"
@@ -51,7 +51,7 @@ async def test_serve_output_streams_file(client: AsyncTestClient):
             return_value=(mock_body, 999, "application/octet-stream"),
         ),
     ):
-        response = await client.get("/api/v1/outputs/session123/result.mp4")
+        response = await client.get("/v1/outputs/session123/result.mp4")
 
     assert response.status_code == 200
     assert response.content == b"chunk1chunk2chunk3"
@@ -79,7 +79,7 @@ async def test_serve_output_content_type_by_extension(client: AsyncTestClient):
             return_value=(mock_body, 9, "application/octet-stream"),
         ),
     ):
-        response = await client.get("/api/v1/outputs/session123/metrics.csv")
+        response = await client.get("/v1/outputs/session123/metrics.csv")
 
     assert response.status_code == 200
     assert "text/csv" in response.headers["content-type"]
@@ -103,7 +103,7 @@ async def test_serve_output_preserves_unknown_extension(client: AsyncTestClient)
             return_value=(mock_body, 3, "application/special-type"),
         ),
     ):
-        response = await client.get("/api/v1/outputs/session123/data.xyz")
+        response = await client.get("/v1/outputs/session123/data.xyz")
 
     assert response.status_code == 200
     assert response.headers["content-type"] == "application/special-type"
@@ -113,6 +113,6 @@ async def test_serve_output_preserves_unknown_extension(client: AsyncTestClient)
 async def test_serve_output_path_with_slashes(client: AsyncTestClient):
     """GET /outputs/{key:path} handles nested paths with slashes."""
     with patch("app.routes.misc.object_exists_async", new_callable=AsyncMock, return_value=False):
-        response = await client.get("/api/v1/outputs/user/42/session/7/video.webm")
+        response = await client.get("/v1/outputs/user/42/session/7/video.webm")
 
     assert response.status_code == 404

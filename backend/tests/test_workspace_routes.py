@@ -22,7 +22,7 @@ async def member_user(db_session: AsyncSession) -> User:
 
 async def test_create_workspace(client, auth_headers):
     response = await client.post(
-        "/api/v1/workspaces",
+        "/v1/workspaces",
         json={"name": "Ice Academy", "slug": "ice-academy"},
         headers=auth_headers,
     )
@@ -44,7 +44,7 @@ async def test_list_workspaces(client, auth_headers, db_session):
     db_session.add(member)
     await db_session.flush()
 
-    response = await client.get("/api/v1/workspaces", headers=auth_headers)
+    response = await client.get("/v1/workspaces", headers=auth_headers)
     assert response.status_code == 200
     data = response.json()
     assert len(data) == 1
@@ -64,7 +64,7 @@ async def test_invite_member(client, auth_headers, member_user, db_session):
     await db_session.flush()
 
     response = await client.post(
-        f"/api/v1/workspaces/{ws.id}/invite",
+        f"/v1/workspaces/{ws.id}/invite",
         json={"email": "member@ice.com", "role": "coach"},
         headers=auth_headers,
     )

@@ -6,7 +6,7 @@
  */
 
 import { z } from "zod"
-import { ApiError, apiFetch, clearTokens } from "@/lib/api-client"
+import { API_BASE, ApiError, apiFetch, clearTokens } from "@/lib/api-client"
 
 // ---------------------------------------------------------------------------
 // Schemas
@@ -102,7 +102,7 @@ export async function refreshToken(): Promise<TokenResponse> {
 }
 
 export async function logout(): Promise<void> {
-  await fetch("/api/v1/auth/logout", {
+  await fetch(`${API_BASE}/auth/logout`, {
     method: "POST",
     credentials: "include",
     headers: JSON_POST,
@@ -141,7 +141,7 @@ export async function updateOnboardingRole(
 }
 
 export async function verifyEmail(token: string): Promise<{ message: string }> {
-  const res = await fetch("/api/v1/auth/verify-email", {
+  const res = await fetch(`${API_BASE}/auth/verify-email`, {
     method: "POST",
     credentials: "include",
     headers: JSON_POST,
@@ -155,7 +155,7 @@ export async function verifyEmail(token: string): Promise<{ message: string }> {
 }
 
 export async function resendVerification(email: string): Promise<{ message: string }> {
-  const res = await fetch("/api/v1/auth/resend-verification", {
+  const res = await fetch(`${API_BASE}/auth/resend-verification`, {
     method: "POST",
     credentials: "include",
     headers: JSON_POST,

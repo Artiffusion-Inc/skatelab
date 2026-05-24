@@ -7,7 +7,7 @@ from unittest.mock import MagicMock, patch
 
 async def test_presign_returns_url_and_key(client, auth_headers, authed_user):
     resp = await client.post(
-        "/api/v1/uploads/presign",
+        "/v1/uploads/presign",
         headers=auth_headers,
         params={"file_name": "imu_left.pb", "content_type": "application/x-protobuf"},
     )
@@ -21,7 +21,7 @@ async def test_presign_returns_url_and_key(client, auth_headers, authed_user):
 
 async def test_presign_default_content_type(client, auth_headers):
     resp = await client.post(
-        "/api/v1/uploads/presign",
+        "/v1/uploads/presign",
         headers=auth_headers,
         params={"file_name": "manifest.json"},
     )

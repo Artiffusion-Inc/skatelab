@@ -14,7 +14,7 @@ if TYPE_CHECKING:
 
 @pytest.mark.anyio
 async def test_elements_registry_returns_all_elements(client: AsyncTestClient) -> None:
-    response = await client.get("/api/v1/choreography/elements/registry")
+    response = await client.get("/v1/choreography/elements/registry")
     assert response.status_code == 200
     data = response.json()
     assert len(data["elements"]) >= 30  # jumps + spins + sequences
@@ -47,7 +47,7 @@ async def test_create_program_persists_music_analysis_id(
     await db_session.refresh(music)
 
     response = await client.post(
-        "/api/v1/choreography/programs",
+        "/v1/choreography/programs",
         json={
             "discipline": "mens_singles",
             "segment": "free_skate",

@@ -45,8 +45,8 @@ async def client(app):
 
 @pytest.mark.anyio
 async def test_health_endpoint(client):
-    """GET /api/v1/health returns 200 and status ok."""
-    response = await client.get("/api/v1/health")
+    """GET /v1/health returns 200 and status ok."""
+    response = await client.get("/v1/health")
     assert response.status_code == 200
     data = response.json()
     assert data["status"] in ("ok", "degraded")
@@ -58,7 +58,7 @@ async def test_lifespan_initializes_arq_pool(client):
     """Lifespan context should have started without raising."""
     # If lifespan failed, AsyncTestClient context manager would have raised.
     # A simple successful request proves the app is up.
-    response = await client.get("/api/v1/health")
+    response = await client.get("/v1/health")
     assert response.status_code == 200
 
 

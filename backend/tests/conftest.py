@@ -175,7 +175,10 @@ def app():
                             with patch("app.storage.close_r2_clients", new_callable=AsyncMock):
                                 with patch("app.main.get_settings") as mock_get:
                                     settings = MagicMock()
-                                    settings.cors.origins = ["http://localhost:3000"]
+                                    settings.cors.origins = [
+                                        "http://localhost:3000",
+                                        "https://skatelab.ru",
+                                    ]
                                     settings.jwt.secret_key.get_secret_value.return_value = (
                                         "test-secret"
                                     )
@@ -253,7 +256,7 @@ async def client(db_engine, db_session):
 
         mock_get = stack.enter_context(patch("app.main.get_settings"))
         settings = MagicMock()
-        settings.cors.origins = ["http://localhost:3000"]
+        settings.cors.origins = ["http://localhost:3000", "https://skatelab.ru"]
         settings.jwt.secret_key.get_secret_value.return_value = "test-secret"
         settings.valkey.host = "localhost"
         settings.valkey.port = 6379

@@ -80,6 +80,7 @@ class AuthController(Controller):
                 samesite=settings.app.cookie_samesite,
                 max_age=settings.jwt.access_token_expire_minutes * 60,
                 path="/",
+                domain="skatelab.ru",
             )
         )
         response.cookies.append(
@@ -90,7 +91,8 @@ class AuthController(Controller):
                 secure=settings.app.cookie_secure,
                 samesite=settings.app.cookie_samesite,
                 max_age=settings.jwt.refresh_token_expire_days * 86400,
-                path="/api/v1/auth",
+                path="/",
+                domain="skatelab.ru",
             )
         )
         response.cookies.append(
@@ -102,16 +104,21 @@ class AuthController(Controller):
                 samesite=settings.app.cookie_samesite,
                 max_age=settings.jwt.refresh_token_expire_days * 86400,
                 path="/",
+                domain="skatelab.ru",
             )
         )
         return response
 
     def _clear_auth_cookies(self, response: Response) -> Response:
-        response.cookies.append(Cookie(key="access_token", value="", max_age=0, path="/"))
         response.cookies.append(
-            Cookie(key="refresh_token", value="", max_age=0, path="/api/v1/auth")
+            Cookie(key="access_token", value="", max_age=0, path="/", domain="skatelab.ru")
         )
-        response.cookies.append(Cookie(key="sb_auth", value="", max_age=0, path="/"))
+        response.cookies.append(
+            Cookie(key="refresh_token", value="", max_age=0, path="/", domain="skatelab.ru")
+        )
+        response.cookies.append(
+            Cookie(key="sb_auth", value="", max_age=0, path="/", domain="skatelab.ru")
+        )
         return response
 
     async def _issue_token_pair(
