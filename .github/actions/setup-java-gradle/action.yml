@@ -1,5 +1,5 @@
 name: 'Setup Java + Gradle'
-description: 'JDK 17 + Gradle cache (setup-gradle@v6) + Sticky Disks (~/.gradle, ~/.konan) + wrapper validation'
+description: 'JDK 17 + Gradle cache (setup-gradle@v6) + Sticky Disks (~/.gradle, ~/.konan)'
 
 inputs:
   java-version:
@@ -12,8 +12,6 @@ inputs:
 runs:
   using: "composite"
   steps:
-    - uses: gradle/actions/wrapper-validation@v3
-
     - uses: actions/setup-java@v5
       with:
         distribution: temurin
