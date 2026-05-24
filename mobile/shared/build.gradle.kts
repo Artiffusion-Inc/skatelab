@@ -14,7 +14,7 @@ kotlin {
             implementation(libs.ktor.client.content.negotiation)
             implementation(libs.ktor.serialization.json)
             implementation(libs.ktor.client.auth)
-            implementation(libs.ktor.client.logging)
+            implementation("io.ktor:ktor-client-logging:${libs.versions.ktor.get()}")
             implementation(libs.multiplatform.settings)
         }
         androidMain.dependencies {
