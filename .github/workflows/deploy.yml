@@ -143,8 +143,8 @@ jobs:
           scp -i ~/.ssh/deploy_key -P 43210 \
             infra/deploy.sh \
             infra/compose.prod.yaml \
-            infra/Caddyfile \
-            infra/prometheus.yml \
+            infra/caddy/Caddyfile \
+            infra/prometheus/prometheus.yml \
             $DST/
           scp -i ~/.ssh/deploy_key -P 43210 \
             infra/prometheus/rules/alerts.yml \
