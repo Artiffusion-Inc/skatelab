@@ -45,8 +45,10 @@ ENV/
 *.swo
 *~
 
-# Claude Code (local memory — per-machine, not shared)
-.claude/
+# Claude Code — track settings + hooks, ignore per-machine state
+.claude/worktrees/
+.claude/scheduled_tasks.json
+.claude/settings.local.json
 
 # Testing
 .pytest_cache/
