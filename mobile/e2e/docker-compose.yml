@@ -1,0 +1,37 @@
+services:
+  emulator:
+    image: budtmo/docker-android:emulator_34.0
+    container_name: skatelab-emulator
+    devices:
+      - /dev/kvm
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges=true
+    ports:
+      - "127.0.0.1:5555:5555"
+      - "127.0.0.1:5554:5554"
+    environment:
+      EMULATOR_FLAGS: "-no-window -no-audio -no-boot-anim -gpu swiftshader_indirect -memory 2048 -netfast -accel on -partition-size 1024 -no-snapshot-save"
+      DATAPARTITION: "1024m"
+    tmpfs:
+      - /data:size=2G
+    volumes:
+      - emulator_data:/root/.android
+    deploy:
+      resources:
+        limits:
+          cpus: "4"
+          memory: 16G
+        reservations:
+          memory: 4G
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "adb shell getprop sys.boot_completed | grep -q 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 60s
+
+volumes:
+  emulator_data:
