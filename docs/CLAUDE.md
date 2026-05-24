@@ -61,4 +61,4 @@ docs/
 - `research/PIPELINE_PROFILING_2026-04-18.md` — ONNX op-level profiling, DeepSORT internals
 - `research/RESEARCH_CHOREOGRAPHY_PLANNING_2026-04-12.md` — Gemini deep research on choreography planning
 - `../data/DATASETS.md` — dataset registry with download links and relationships
-- `@ROADMAP.md` — SINGLE SOURCE OF TRUTH for implementation status
+- `@CLAUDE.md` — project overview and architecture reference

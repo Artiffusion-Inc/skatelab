@@ -152,12 +152,12 @@ pre-push:
       run: |
         cd frontend
         if [ -f node_modules/.bin/impeccable ] || command -v impeccable &> /dev/null; then
-          impeccable detect --json src/ 2>&1 | node ../scripts/impeccable-report.js || true
+          impeccable detect --json src/ 2>&1 | node ../scripts/design/impeccable-report.js || true
         fi
         if command -v sg &> /dev/null; then
           sg scan -c ../sgconfig.yml frontend/ || true
         fi
-        node ../scripts/design-lock.js check || exit 1
+        node ../scripts/design/design-lock.js check || exit 1
 
 post-merge:
   parallel: true

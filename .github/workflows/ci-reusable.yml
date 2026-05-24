@@ -61,8 +61,8 @@ jobs:
               - "infra/**"
             design:
               - "DESIGN.md"
-              - "scripts/design-*.js"
-              - "tokens/lock.json"
+              - "scripts/design/*.js"
+              - "lock.json"
               - "frontend/src/app/tokens.css"
               - "frontend/src/app/globals.css"
               - "mobile/androidApp/**/theme/**"
@@ -106,9 +106,9 @@ jobs:
       - name: Install impeccable
         run: npm install -g impeccable
       - name: Impeccable detect
-        run: impeccable detect --json frontend/src/ 2>&1 | node scripts/impeccable-report.js
+        run: impeccable detect --json frontend/src/ 2>&1 | node scripts/design/impeccable-report.js
       - name: Check for drift
-        run: node scripts/design-lock.js check
+        run: node scripts/design/design-lock.js check
 
   test:
     name: Tests (${{ matrix.group }}/${{ strategy.job-total }})
