@@ -24,14 +24,16 @@ YOLOv8n (AGPL-3.0 веса) — единственный AGPL-компонент
 - INT8 ONNX медленнее FP32 на GPU — использовать FP32
 - FP16 TensorRT имеет проблемы с LayerNorm — для onnxruntime-gpu FP32 безопасно
 
-### Доменная пригодность — КРИТИЧЕСКИЕ ОГРАНИЧЕНИЯ
+### Доменная пригодность — НУЖЕН БЕНЧМАРК
 
-**RF-DETR-Nano (384x384) НЕ подходит для фигурного катания:**
-- Фигурист на дальнем плане: 20-40px в кадре 1920x1080 → 4-8px при ресайзе до 384x384
-- Это ниже порога детекции для любой модели
-- Официальные бенчмарки НЕ публикуют AP_S (small object AP)
+**Разрешение vs точность — открытый вопрос:**
+- YOLOv8n 640x640: фигурист 20-40px в кадре 1920×1080 → 6-13px на кадре
+- RF-DETR-Nano 384x384: тот же фигурист → 4-8px — меньше пикселей, но DETR global attention может компенсировать
+- MogaNet-B на 384x288 справляется с pose estimation — но получает кропнутого человека (заполняет кадр)
+- Официальные бенчмарки НЕ публикуют AP_S (small object AP) — нужно тестировать на skating видео
+- COCO AP 48.4 для Nano vs 37.4 для YOLOv8n — +11 AP, значимое улучшение
 
-**Минимум: RF-DETR-Small (512x512). Оптимально: RF-DETR-Medium (576x576).**
+**Вердикт: бенчмарк Nano + Small + Medium на skating видео. Данные решат.**
 
 | Модель | Вход | COCO AP50:95 | Params | ONNX ~размер | RTX 3050 Ti FPS (оценка) |
 |--------|------|-------------|--------|-------------|-------------------------|
@@ -90,14 +92,16 @@ YOLOv8n (AGPL-3.0 веса) — единственный AGPL-компонент
 
 ### Выбор модели
 
-**RF-DETR-Small (512x512)** — минимум для фигурного катания. RF-DETR-Medium (576x576) — оптимально, если FPS достаточен.
+**Бенчмарк трёх вариантов:** RF-DETR-Nano (384x384) + Small (512x512) + Medium (576x576). Данные решат, не предположения.
 
-Обоснование:
-- Nano (384x384) отброшен — слишком мало пикселей для далёких фигуристов
-- Small (512x512) — компромисс: 2.7x больше пикселей чем Nano, COCO AP 53.0 (+15.6 vs YOLOv8n)
-- Base (640x640) — максимальное разрешение, но 29M params, медленнее
+Обоснование включения Nano:
+- MogaNet-B работает на 384x288 и справляется — кропнутый человек заполняет кадр
+- DETR global attention может компенсировать меньшее разрешение vs YOLO anchor-based
+- COCO AP 48.4 для Nano vs 37.4 для YOLOv8n — +11 AP, значимое улучшение
+- Nano самый быстрый (2.3ms на T4) и компактный — лучший FPS на RTX 3050 Ti
+- Если бенчмарк покажет что Nano детектирует маленьких фигуристов ≥ YOLOv8n — берём Nano
 
-Бенчмарк: Small vs Medium на skating видео. Если Medium FPS ≥ 25 — берём Medium.
+Бенчмарк: Nano vs Small vs Medium на skating видео. Критерий: recall на маленьких объектах ≥ YOLOv8n, FPS ≥ 25.
 
 ### Текущая интеграция YOLO
 
@@ -131,19 +135,19 @@ class PersonDetector:
 
 ## RF-DETR спецификации (пересмотренные)
 
-| Аспект | RF-DETR-Small | RF-DETR-Medium |
-|--------|--------------|----------------|
-| Параметры | ~32M | ~34M |
-| COCO AP50:95 | 53.0 | 54.7 |
-| COCO AP50 | 72.1 | 73.6 |
-| Лицензия | Apache 2.0 | Apache 2.0 |
-| Вход | (1, 3, 512, 512) float32 | (1, 3, 576, 576) float32 |
-| Препроцессинг | ImageNet normalize | ImageNet normalize |
-| Выход boxes | (1, 300, 4) cxcywh norm | (1, 300, 4) cxcywh norm |
-| Выход logits | (1, 300, 81) | (1, 300, 81) |
-| ONNX opset | 17 | 17 |
-| Latency (T4 TRT FP16) | 3.5 ms | 4.4 ms |
-| Latency (3050 Ti ORT FP32 est) | 15-25 ms | 20-30 ms |
+| Аспект | RF-DETR-Nano | RF-DETR-Small | RF-DETR-Medium |
+|--------|-------------|--------------|----------------|
+| Параметры | ~30M | ~32M | ~34M |
+| COCO AP50:95 | 48.4 | 53.0 | 54.7 |
+| COCO AP50 | 67.6 | 72.1 | 73.6 |
+| Лицензия | Apache 2.0 | Apache 2.0 | Apache 2.0 |
+| Вход | (1, 3, 384, 384) float32 | (1, 3, 512, 512) float32 | (1, 3, 576, 576) float32 |
+| Препроцессинг | ImageNet normalize | ImageNet normalize | ImageNet normalize |
+| Выход boxes | (1, 300, 4) cxcywh norm | (1, 300, 4) cxcywh norm | (1, 300, 4) cxcywh norm |
+| Выход logits | (1, 300, 81) | (1, 300, 81) | (1, 300, 81) |
+| ONNX opset | 17 | 17 | 17 |
+| Latency (T4 TRT FP16) | 2.3 ms | 3.5 ms | 4.4 ms |
+| Latency (3050 Ti ORT FP32 est) | 10-20 ms | 15-25 ms | 20-30 ms |
 
 **Источник ONNX весов:** Самостоятельный экспорт через `rfdetr >=1.7.0` (Python 3.12).
 Альтернатива: `PierreMarieCurie/rf-detr-onnx` на HuggingFace (но rfdetr 1.4.1, нет Small/Medium).
@@ -209,17 +213,17 @@ best_idx = person_scores[mask].argmax()
    - `_nms()` оставить (работает для любого формата bbox)
    - Переписать `detect_frame()`: sigmoid, drop last logit, cxcywh→xyxy, denormalize
    - Добавить warmup inference на модельной загрузке
-   - `_DEFAULT_MODEL` → `data/models/rf_detr_small.onnx`
-   - `_INPUT_SIZE` → конфигурируемый (512 для Small, 576 для Medium)
+   - `_DEFAULT_MODEL` → `data/models/rf_detr_nano.onnx` (default, configurable)
+   - `_INPUT_SIZE` → конфигурируемый (384 для Nano, 512 для Small, 576 для Medium)
 
 2. **`ml/gpu_server/server.py`** — заменить:
    - `YOLO_MODEL_PATH` → `RF_DETR_MODEL_PATH`
-   - R2 key: `models/yolov8n.onnx` → `models/rf_detr_small.onnx`
+   - R2 key: `models/yolov8n.onnx` → `models/rf_detr_nano.onnx`
    - Startup check: обновить имя модели
 
 3. **`ml/pyproject.toml`** — удалить `ultralytics>=8.0.0` из dependencies
 
-4. **`data/models/models.manifest.json`** — добавить записи `rf_detr_small` и `rf_detr_medium`
+4. **`data/models/models.manifest.json`** — добавить записи `rf_detr_nano`, `rf_detr_small`, `rf_detr_medium`
 
 5. **`ml/scripts/download_ml_models.py`** — добавить скачивание RF-DETR ONNX
 
@@ -232,7 +236,7 @@ best_idx = person_scores[mask].argmax()
 
 ### Новые файлы
 
-10. **`ml/scripts/benchmark_detector.py`** — сравнение RF-DETR Small vs Medium на skating видео
+10. **`ml/scripts/benchmark_detector.py`** — сравнение RF-DETR Nano vs Small vs Medium на skating видео
 11. **`ml/scripts/export_rf_detr.py`** — экспорт ONNX из PyTorch (rfdetr >=1.7.0, Python 3.12)
 
 ### Тесты
@@ -255,10 +259,11 @@ best_idx = person_scores[mask].argmax()
 | Recall | % кадров где детекция успешна (сравнение с YOLOv8n baseline) |
 
 Тестируемые модели:
+- `rf_detr_nano.onnx` (384x384, ~30M params)
 - `rf_detr_small.onnx` (512x512, ~32M params)
 - `rf_detr_medium.onnx` (576x576, ~34M params)
 
-Критерий успеха: RF-DETR-Small recall на маленьких объектах ≥ YOLOv8n, FPS ≥ 25.
+Критерий успеха: recall на маленьких объектах ≥ YOLOv8n, FPS ≥ 25. Выбираем наименьшую модель, проходящую критерий.
 
 ## Pipeline оптимизация (параллельно с миграцией)
 
@@ -297,14 +302,14 @@ Impact: VRAM headroom для MogaNet-B, исключает OOM на RTX 3050 Ti.
 
 ## Порядок миграции
 
-1. Экспортировать RF-DETR-Small и Medium ONNX (rfdetr >=1.7.0, Python 3.12)
+1. Экспортировать RF-DETR-Nano, Small, Medium ONNX (rfdetr >=1.7.0, Python 3.12)
 2. Переписать `person_detector.py` (RF-DETR inference, все 5 gotcha)
 3. Обновить `gpu_server/server.py`
 4. Удалить ultralytics из pyproject.toml
 5. Удалить YOLO скрипты и веса
 6. Обновить manifest + download script
 7. Написать benchmark_detector.py
-8. Запустить бенчмарк на skating видео (Small vs Medium)
+8. Запустить бенчмарк на skating видео (Nano vs Small vs Medium)
 9. Выбрать модель по результатам
 10. Добавить detection stride + интерполяцию в pose_extractor.py
 11. Обновить тесты
@@ -314,7 +319,7 @@ Impact: VRAM headroom для MogaNet-B, исключает OOM на RTX 3050 Ti.
 
 | Риск | Серьёзность | Митигация |
 |------|------------|-----------|
-| RF-DETR-Small хуже YOLOv8n на маленьких объектах (512 vs 640) | HIGH | Бенчмарк на skating видео; fallback на Medium (576) |
+| RF-DETR хуже YOLOv8n на маленьких объектах | HIGH | Бенчмарк 3 варианта (Nano/Small/Medium) на skating видео |
 | CPU fallback 10x медленнее | HIGH | GPU-only inference (уже требование проекта) |
 | Тихий провал пост-обработки (sigmoid, drop last col) | CRITICAL | 5 отдельных тестов на каждый gotcha |
 | RF-DETR FP16 LayerNorm деградация | MEDIUM | FP32 ONNX inference только |
