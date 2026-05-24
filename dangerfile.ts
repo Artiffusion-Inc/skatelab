@@ -19,7 +19,10 @@ if (!validPrefixes.some((p) => branch.startsWith(p))) {
 }
 
 // ── Commit message format ─────────────────────────────────────
-const pattern = new RegExp(`^(${typesLine})\\(([a-z0-9_-]+)\\): .{3,}$`);
+const scopeRequired = conventions.match(/^scope_required:(.+)$/m)?.[1]?.trim() !== "false";
+const pattern = scopeRequired
+  ? new RegExp(`^(${typesLine})\\(([a-z0-9_-]+)\\): .{3,}$`)
+  : new RegExp(`^(${typesLine})(\\(([a-z0-9_-]+)\\))?: .{3,}$`);
 for (const commit of danger.git.commits) {
   if (!pattern.test(commit.message.split("\n")[0])) {
     fail(

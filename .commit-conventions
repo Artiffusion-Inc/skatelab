@@ -5,5 +5,6 @@
 # Branch: type/short-name
 
 types:feat|fix|refactor|chore|docs|test|ci
+scope_required:false
 scopes:pose|viz|tracking|analysis|pipeline|cli|models|repo|frontend|backend|dev|ci|vastai|infra
 branches:feature/|fix/|hotfix/|refactor/|chore/|ci/|docs/|test/

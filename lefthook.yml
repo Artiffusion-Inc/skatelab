@@ -80,7 +80,12 @@ commit-msg:
 
         TYPES=$(grep '^types:' .commit-conventions | cut -d: -f2)
         SCOPES=$(grep '^scopes:' .commit-conventions | cut -d: -f2)
-        PATTERN="^(${TYPES})\(([a-z0-9_-]+)\): .{3,}$"
+        SCOPE_REQUIRED=$(grep '^scope_required:' .commit-conventions | cut -d: -f2)
+        if [ "$SCOPE_REQUIRED" = "false" ]; then
+          PATTERN="^(${TYPES})(\(([a-z0-9_-]+)\))?: .{3,}$"
+        else
+          PATTERN="^(${TYPES})\(([a-z0-9_-]+)\): .{3,}$"
+        fi
 
         if ! echo "$COMMIT_MSG" | grep -Eq "$PATTERN"; then
           echo "❌ Bad commit message:"
