@@ -38,7 +38,7 @@ jobs:
           key: ${{ github.repository }}-android-build-cache
           path: mobile/.gradle
       - name: Build debug APK
-        run: ./gradlew assembleDebug
+        run: ./gradlew assembleDebug --no-configuration-cache
       - uses: actions/upload-artifact@v7
         with:
           name: apk-debug
