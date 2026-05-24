@@ -31,7 +31,7 @@ jobs:
   # ── Detect which modules changed ──────────────────────────────
   changes:
     name: Detect changes
-    runs-on: blacksmith-2vcpu-ubuntu-2404
+    runs-on: blacksmith-2vcpu-ubuntu-2404-arm
     outputs:
       shared: ${{ steps.filter.outputs.shared }}
       android: ${{ steps.filter.outputs.android }}
@@ -65,7 +65,7 @@ jobs:
     name: Shared module tests
     needs: changes
     if: needs.changes.outputs.shared == 'true'
-    runs-on: blacksmith-2vcpu-ubuntu-2404
+    runs-on: blacksmith-2vcpu-ubuntu-2404-arm
     defaults:
       run:
         working-directory: mobile
@@ -102,7 +102,7 @@ jobs:
     name: Android lint
     needs: changes
     if: needs.changes.outputs.android == 'true'
-    runs-on: blacksmith-2vcpu-ubuntu-2404
+    runs-on: blacksmith-2vcpu-ubuntu-2404-arm
     defaults:
       run:
         working-directory: mobile
@@ -118,7 +118,7 @@ jobs:
     name: Android unit tests
     needs: changes
     if: needs.changes.outputs.android == 'true'
-    runs-on: blacksmith-2vcpu-ubuntu-2404
+    runs-on: blacksmith-2vcpu-ubuntu-2404-arm
     defaults:
       run:
         working-directory: mobile
@@ -158,7 +158,7 @@ jobs:
     name: Build debug APK
     needs: [android-test]
     if: needs.changes.outputs.android == 'true'
-    runs-on: blacksmith-2vcpu-ubuntu-2404
+    runs-on: blacksmith-2vcpu-ubuntu-2404-arm
     defaults:
       run:
         working-directory: mobile
