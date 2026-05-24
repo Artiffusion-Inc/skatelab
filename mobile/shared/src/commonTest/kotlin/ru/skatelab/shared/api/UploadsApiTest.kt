@@ -65,8 +65,10 @@ class UploadsApiTest {
     @Test
     fun complete_postsToCompleteEndpoint() = kotlinx.coroutines.test.runTest {
         var requestPath: String? = null
+        var requestMethod: io.ktor.http.HttpMethod? = null
         val engine = MockEngine { request ->
             requestPath = request.url.encodedPath
+            requestMethod = request.method
             respond("""{}""", status = HttpStatusCode.OK,
                 headers = headersOf(HttpHeaders.ContentType, ContentType.Application.Json.toString()),
             )
@@ -75,9 +77,9 @@ class UploadsApiTest {
             install(ContentNegotiation) { json(json) }
         }
         val api = UploadsApi(client)
-        val parts = listOf(CompletedPart(1, "etag-a"), CompletedPart(2, "etag-b"))
-        api.complete("up-42", "videos/test.mp4", parts)
+        api.complete("up-42", "videos/test.mp4", listOf(CompletedPart(1, "etag-a")))
         assertEquals("/uploads/complete", requestPath)
+        assertEquals(io.ktor.http.HttpMethod.Post, requestMethod)
     }
 
     @Test
