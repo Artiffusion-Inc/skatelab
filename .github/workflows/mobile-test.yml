@@ -39,7 +39,7 @@ jobs:
         with:
           cache-encryption-key: ${{ secrets.GRADLE_CACHE_ENCRYPTION_KEY }}
       - name: Run shared module tests
-        run: ./gradlew :shared:testDebugUnitTest
+        run: ./gradlew :shared:allTests
       - name: Generate Kover coverage
         if: success()
         run: ./gradlew :shared:koverXmlReport

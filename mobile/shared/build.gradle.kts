@@ -38,3 +38,24 @@ android {
     defaultConfig { minSdk = 24 }
     namespace = "ru.skatelab.shared"
 }
+
+kover {
+    reports {
+        filters {
+            excludes {
+                classes(
+                    "*_Generated*",
+                    "*.di.*",
+                    "*.ui.state.*",
+                    "*.platform.*",
+                )
+            }
+        }
+    }
+    verify {
+        rule {
+            minBound(70)
+            targetPackages["ru.skatelab.shared"]
+        }
+    }
+}
