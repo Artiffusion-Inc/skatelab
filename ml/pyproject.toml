@@ -16,7 +16,6 @@ dependencies = [
     "av>=17.0.0",
     "trimesh>=4.11.5",
     "pygltflib>=1.16.5",
-    "ultralytics>=8.0.0",
     "aiobotocore>=3.4.0",
     "prometheus-client>=0.21.0",
     "httpx>=0.28.0",
