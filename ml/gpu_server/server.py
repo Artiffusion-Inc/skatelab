@@ -1,7 +1,7 @@
 """FastAPI inference server for Vast.ai Serverless GPU worker.
 
-Runs on the remote GPU. Receives R2 keys, processes video, returns results.
-R2 credentials are passed per-request so the worker does not store cloud credentials.
+Runs on the remote GPU. Receives S3 keys, processes video, returns results.
+S3 credentials are passed per-request so the worker does not store cloud credentials.
 
 Output: poses (.npy) + metrics (.json) — no video render.
 """
@@ -58,8 +58,8 @@ MOGANET_MODEL_PATH = _PROJECT_ROOT / "data/models/moganet/moganet_b_ap2d_384x288
 YOLO_MODEL_PATH = _PROJECT_ROOT / "data/models/yolov8n.onnx"
 TAS_MODEL_PATH = _PROJECT_ROOT / "data/models/tas/bigr_refiner_best.onnx"
 
-# R2 keys for each model
-_R2_MODELS: list[tuple[Path, str]] = [
+# S3 keys for each model
+_S3_MODELS: list[tuple[Path, str]] = [
     (MOGANET_MODEL_PATH, "models/moganet/moganet_b_ap2d_384x288.onnx"),
     (YOLO_MODEL_PATH, "models/yolov8n.onnx"),
     (TAS_MODEL_PATH, "models/tas/bigr_refiner_best.onnx"),
@@ -67,7 +67,7 @@ _R2_MODELS: list[tuple[Path, str]] = [
 
 # TAS segmenter (loaded at startup, None if model unavailable)
 _tas_segmenter = None
-# Async session for R2
+# Async session for S3
 _async_session = aiobotocore.session.get_session()
 
 
@@ -144,13 +144,13 @@ async def ready():
 
 
 class DetectRequest(BaseModel):
-    video_r2_key: str
+    video_s3_key: str
     tracking: str = "auto"
-    # R2 credentials passed per-request (worker doesn't store them)
-    r2_endpoint_url: str = ""
-    r2_access_key_id: str = ""
-    r2_secret_access_key: str = ""
-    r2_bucket: str = ""
+    # S3 credentials passed per-request (worker doesn't store them)
+    s3_endpoint_url: str = ""
+    s3_access_key_id: str = ""
+    s3_secret_access_key: str = ""
+    s3_bucket: str = ""
 
 
 class DetectPerson(BaseModel):
@@ -171,23 +171,23 @@ class DetectResponse(BaseModel):
 
 
 class ProcessRequest(BaseModel):
-    video_r2_key: str
+    video_s3_key: str
     person_click: dict[str, int] | None = None
     frame_skip: int = 1
     layer: int = 3
     tracking: str = "auto"
     ml_flags: dict[str, bool] = {}
     element_type: str | None = None
-    # R2 credentials passed per-request (worker doesn't store them)
-    r2_endpoint_url: str = ""
-    r2_access_key_id: str = ""
-    r2_secret_access_key: str = ""
-    r2_bucket: str = ""
+    # S3 credentials passed per-request (worker doesn't store them)
+    s3_endpoint_url: str = ""
+    s3_access_key_id: str = ""
+    s3_secret_access_key: str = ""
+    s3_bucket: str = ""
 
 
 class ProcessResponse(BaseModel):
-    poses_r2_key: str | None = None
-    metrics_r2_key: str | None = None
+    poses_s3_key: str | None = None
+    metrics_s3_key: str | None = None
     stats: dict
     metrics: list | None = None
     phases: object | None = None
@@ -206,10 +206,10 @@ def _s3(creds: ProcessRequest | DetectRequest):
     )
     return _async_session.create_client(
         "s3",
-        endpoint_url=creds.r2_endpoint_url,
-        aws_access_key_id=creds.r2_access_key_id,
-        aws_secret_access_key=creds.r2_secret_access_key,
-        region_name="auto",
+        endpoint_url=creds.s3_endpoint_url,
+        aws_access_key_id=creds.s3_access_key_id,
+        aws_secret_access_key=creds.s3_secret_access_key,
+        region_name="us-east-1",
         config=cfg,
     )
 
@@ -264,8 +264,8 @@ async def detect(req: DetectRequest):
             with tempfile.TemporaryDirectory() as tmpdir:
                 video_local = Path(tmpdir) / "input.mp4"
 
-                logger.info("Downloading video for detection from R2: %s", req.video_r2_key)
-                await _s3_download(s3, req.r2_bucket, req.video_r2_key, str(video_local))
+                logger.info("Downloading video for detection from S3: %s", req.video_s3_key)
+                await _s3_download(s3, req.s3_bucket, req.video_s3_key, str(video_local))
 
                 cfg = DeviceConfig.default()
                 extractor = PoseExtractor(
@@ -282,7 +282,7 @@ async def detect(req: DetectRequest):
                     return DetectResponse(
                         persons=[],
                         preview_image="",
-                        video_key=req.video_r2_key,
+                        video_key=req.video_s3_key,
                         auto_click=None,
                         width=0,
                         height=0,
@@ -331,7 +331,7 @@ async def detect(req: DetectRequest):
                 return DetectResponse(
                     persons=persons_out,
                     preview_image=preview_b64,
-                    video_key=req.video_r2_key,
+                    video_key=req.video_s3_key,
                     auto_click=auto_click,
                     width=w,
                     height=h,
@@ -378,17 +378,17 @@ def _render_person_preview(frame, persons, selected_idx=None):
     return annotated
 
 
-def _make_output_keys(video_r2_key: str) -> tuple[str, str]:
-    """Generate R2 output keys: (poses_key, metrics_key).
+def _make_output_keys(video_s3_key: str) -> tuple[str, str]:
+    """Generate S3 output keys: (poses_key, metrics_key).
 
     'uploads/abc/input.mp4' → poses='uploads/abc/output_poses.npy', metrics='uploads/abc/output_metrics.json'
     'uploads/test/waltz.mp4' → poses='output/uploads/test/waltz_poses.npy', metrics='output/uploads/test/waltz_metrics.json'
     """
-    p = Path(video_r2_key)
+    p = Path(video_s3_key)
     if p.stem == "input":
         base = str(p.with_name("output"))
     else:
-        base = f"output/{video_r2_key.rsplit('.', 1)[0]}"
+        base = f"output/{video_s3_key.rsplit('.', 1)[0]}"
 
     return f"{base}_poses.npy", f"{base}_metrics.json"
 
@@ -407,8 +407,8 @@ async def process(req: ProcessRequest):
             with tempfile.TemporaryDirectory() as tmpdir:
                 video_local = Path(tmpdir) / "input.mp4"
 
-                logger.info("Downloading video from R2: %s", req.video_r2_key)
-                await _s3_download(s3, req.r2_bucket, req.video_r2_key, str(video_local))
+                logger.info("Downloading video from S3: %s", req.video_s3_key)
+                await _s3_download(s3, req.s3_bucket, req.video_s3_key, str(video_local))
 
                 click = (
                     PersonClick(x=req.person_click["x"], y=req.person_click["y"])
@@ -473,16 +473,16 @@ async def process(req: ProcessRequest):
 
                 # Wait for TAS to finish
                 segments_result = await segments_coro
-                # --- Upload results to R2 ---
-                poses_key, metrics_key = _make_output_keys(req.video_r2_key)
+                # --- Upload results to S3 ---
+                poses_key, metrics_key = _make_output_keys(req.video_s3_key)
                 upload_tasks = []
 
-                logger.info("Uploading poses + metrics to R2")
+                logger.info("Uploading poses + metrics to S3")
 
                 # Save poses as .npy
                 poses_local = Path(tmpdir) / "poses.npy"
                 np.save(str(poses_local), prepared.poses_norm)
-                upload_tasks.append(_s3_upload(s3, req.r2_bucket, poses_key, str(poses_local)))
+                upload_tasks.append(_s3_upload(s3, req.s3_bucket, poses_key, str(poses_local)))
 
                 # Save metrics + phases + recommendations as JSON
                 import json as _json
@@ -504,14 +504,14 @@ async def process(req: ProcessRequest):
                     "element_type": req.element_type,
                 }
                 metrics_json.write_text(_json.dumps(metrics_data, ensure_ascii=False, indent=2))
-                upload_tasks.append(_s3_upload(s3, req.r2_bucket, metrics_key, str(metrics_json)))
+                upload_tasks.append(_s3_upload(s3, req.s3_bucket, metrics_key, str(metrics_json)))
 
                 await asyncio.gather(*upload_tasks)
 
                 INFERENCE_REQUESTS.labels(status="success").inc()
                 return ProcessResponse(
-                    poses_r2_key=poses_key,
-                    metrics_r2_key=metrics_key,
+                    poses_s3_key=poses_key,
+                    metrics_s3_key=metrics_key,
                     stats=metrics_data["stats"],
                     metrics=metrics_data["metrics"],
                     phases=metrics_data["phases"],

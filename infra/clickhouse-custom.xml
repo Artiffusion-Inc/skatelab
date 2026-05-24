@@ -1,6 +1,0 @@
-<clickhouse>
-    <max_server_memory_usage>4294967296</max_server_memory_usage>
-    <mark_cache_size>1073741824</mark_cache_size>
-    <index_mark_cache_size>268435456</index_mark_cache_size>
-    <max_bytes_to_merge_at_max_space_in_pool>536870912</max_bytes_to_merge_at_max_space_in_pool>
-</clickhouse>

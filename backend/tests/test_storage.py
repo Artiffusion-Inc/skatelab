@@ -1,4 +1,4 @@
-"""Tests for R2 storage operations."""
+"""Tests for S3 storage operations."""
 
 from __future__ import annotations
 
@@ -35,7 +35,7 @@ from app.storage import (  # noqa: E402
 # --- Sync storage tests ---
 
 
-@patch("app.storage.get_r2_client")
+@patch("app.storage.get_s3_client")
 def test_upload_file_calls_s3(mock_get_client):
     mock_s3 = MagicMock()
     mock_get_client.return_value = mock_s3
@@ -44,7 +44,7 @@ def test_upload_file_calls_s3(mock_get_client):
     mock_s3.upload_file.assert_called_once()
 
 
-@patch("app.storage.get_r2_client")
+@patch("app.storage.get_s3_client")
 def test_download_file_calls_s3(mock_get_client):
     mock_s3 = MagicMock()
     mock_get_client.return_value = mock_s3
@@ -53,7 +53,7 @@ def test_download_file_calls_s3(mock_get_client):
     mock_s3.download_file.assert_called_once()
 
 
-@patch("app.storage.get_r2_client")
+@patch("app.storage.get_s3_client")
 def test_delete_object_calls_s3(mock_get_client):
     mock_s3 = MagicMock()
     mock_get_client.return_value = mock_s3
@@ -62,7 +62,7 @@ def test_delete_object_calls_s3(mock_get_client):
     mock_s3.delete_object.assert_called_once()
 
 
-@patch("app.storage.get_r2_client")
+@patch("app.storage.get_s3_client")
 def test_upload_bytes_calls_s3(mock_get_client):
     mock_s3 = MagicMock()
     mock_get_client.return_value = mock_s3
@@ -74,7 +74,7 @@ def test_upload_bytes_calls_s3(mock_get_client):
     )
 
 
-@patch("app.storage.get_r2_client")
+@patch("app.storage.get_s3_client")
 def test_stream_object_calls_s3(mock_get_client):
     mock_body = MagicMock()
     mock_body.iter_chunks.return_value = [b"chunk1", b"chunk2"]
@@ -95,7 +95,7 @@ def test_stream_object_calls_s3(mock_get_client):
     assert list(body.iter_chunks()) == [b"chunk1", b"chunk2"]
 
 
-@patch("app.storage.get_r2_client")
+@patch("app.storage.get_s3_client")
 def test_object_exists_true(mock_get_client):
     mock_s3 = MagicMock()
     mock_s3.head_object.return_value = {"ContentLength": 100}
@@ -105,7 +105,7 @@ def test_object_exists_true(mock_get_client):
     mock_s3.head_object.assert_called_once()
 
 
-@patch("app.storage.get_r2_client")
+@patch("app.storage.get_s3_client")
 def test_object_exists_false(mock_get_client):
     from botocore.exceptions import ClientError
 
@@ -116,10 +116,10 @@ def test_object_exists_false(mock_get_client):
         assert object_exists("output/missing.mp4") is False
 
 
-@patch("app.storage.get_r2_client")
+@patch("app.storage.get_s3_client")
 def test_get_object_url_calls_s3(mock_get_client):
     mock_s3 = MagicMock()
-    mock_s3.generate_presigned_url.return_value = "https://r2.example.com/output/test.mp4?sig=abc"
+    mock_s3.generate_presigned_url.return_value = "https://s3.example.com/output/test.mp4?sig=abc"
     mock_get_client.return_value = mock_s3
     with patch("app.storage.get_settings"):
         url = get_object_url("output/test.mp4", expires=1800)
@@ -127,7 +127,7 @@ def test_get_object_url_calls_s3(mock_get_client):
     mock_s3.generate_presigned_url.assert_called_once()
 
 
-@patch("app.storage.get_r2_client")
+@patch("app.storage.get_s3_client")
 def test_list_objects(mock_get_client):
     mock_s3 = MagicMock()
     mock_s3.list_objects_v2.return_value = {
@@ -147,9 +147,9 @@ class TestPresignedURL:
 
     def test_get_object_url_default_method(self):
         """Should generate GET presigned URL by default."""
-        with patch("app.storage.get_r2_client") as mock_get_client:
+        with patch("app.storage.get_s3_client") as mock_get_client:
             mock_get_client.return_value.generate_presigned_url.return_value = (
-                "https://test.r2.dev/test-bucket/test-key?signature=abc"
+                "https://s3.skatelab.ru/test-bucket/test-key?signature=abc"
             )
 
             url = get_object_url("test-key")
@@ -165,7 +165,7 @@ class TestPresignedURL:
 
     def test_get_object_url_custom_expires(self):
         """Should respect custom expiration time."""
-        with patch("app.storage.get_r2_client") as mock_get_client:
+        with patch("app.storage.get_s3_client") as mock_get_client:
             mock_get_client.return_value.generate_presigned_url.return_value = "url"
 
             url = get_object_url("test-key", expires=7200)
@@ -183,7 +183,7 @@ class TestAsyncUpload:
     @pytest.mark.asyncio
     async def test_upload_file_async(self):
         mock_s3 = AsyncMock()
-        with patch("app.storage.get_r2_async_client", new_callable=AsyncMock, return_value=mock_s3):
+        with patch("app.storage.get_s3_async_client", new_callable=AsyncMock, return_value=mock_s3):
             with patch("app.storage.get_settings"):
                 await upload_file_async("/tmp/test.mp4", "input/test.mp4")
         mock_s3.upload_file.assert_called_once()
@@ -191,7 +191,7 @@ class TestAsyncUpload:
     @pytest.mark.asyncio
     async def test_upload_bytes_async(self):
         mock_s3 = AsyncMock()
-        with patch("app.storage.get_r2_async_client", new_callable=AsyncMock, return_value=mock_s3):
+        with patch("app.storage.get_s3_async_client", new_callable=AsyncMock, return_value=mock_s3):
             with patch("app.storage.get_settings"):
                 result = await upload_bytes_async(b"hello async", "input/test.txt")
         assert result == "input/test.txt"
@@ -204,7 +204,7 @@ class TestAsyncDownload:
     @pytest.mark.asyncio
     async def test_download_file_async(self):
         mock_s3 = AsyncMock()
-        with patch("app.storage.get_r2_async_client", new_callable=AsyncMock, return_value=mock_s3):
+        with patch("app.storage.get_s3_async_client", new_callable=AsyncMock, return_value=mock_s3):
             with patch("app.storage.get_settings"):
                 result = await download_file_async("output/test.mp4", "/tmp/result.mp4")
         assert result == "/tmp/result.mp4"
@@ -218,7 +218,7 @@ class TestAsyncObjectOperations:
     async def test_object_exists_async_true(self):
         mock_s3 = MagicMock()
         mock_s3.head_object = AsyncMock(return_value={"ContentLength": 100})
-        with patch("app.storage.get_r2_async_client", new_callable=AsyncMock, return_value=mock_s3):
+        with patch("app.storage.get_s3_async_client", new_callable=AsyncMock, return_value=mock_s3):
             with patch("app.storage.get_settings"):
                 assert await object_exists_async("output/test.mp4") is True
 
@@ -230,7 +230,7 @@ class TestAsyncObjectOperations:
         mock_s3.head_object = AsyncMock(
             side_effect=ClientError({"Error": {"Code": "404"}}, "head_object")
         )
-        with patch("app.storage.get_r2_async_client", new_callable=AsyncMock, return_value=mock_s3):
+        with patch("app.storage.get_s3_async_client", new_callable=AsyncMock, return_value=mock_s3):
             with patch("app.storage.get_settings"):
                 assert await object_exists_async("output/missing.mp4") is False
 
@@ -246,7 +246,7 @@ class TestAsyncObjectOperations:
                 "ContentType": "video/mp4",
             }
         )
-        with patch("app.storage.get_r2_async_client", new_callable=AsyncMock, return_value=mock_s3):
+        with patch("app.storage.get_s3_async_client", new_callable=AsyncMock, return_value=mock_s3):
             with patch("app.storage.get_settings"):
                 _body, length, ctype = await stream_object_async("output/test.mp4")
         assert length == 12
@@ -256,9 +256,9 @@ class TestAsyncObjectOperations:
     async def test_get_object_url_async(self):
         mock_s3 = MagicMock()
         mock_s3.generate_presigned_url = AsyncMock(
-            return_value="https://r2.example.com/output/test.mp4?sig=abc"
+            return_value="https://s3.example.com/output/test.mp4?sig=abc"
         )
-        with patch("app.storage.get_r2_async_client", new_callable=AsyncMock, return_value=mock_s3):
+        with patch("app.storage.get_s3_async_client", new_callable=AsyncMock, return_value=mock_s3):
             with patch("app.storage.get_settings"):
                 url = await get_object_url_async("output/test.mp4", expires=1800)
         assert "sig=abc" in url
@@ -268,7 +268,7 @@ class TestAsyncObjectOperations:
     async def test_delete_object_async(self):
         mock_s3 = MagicMock()
         mock_s3.delete_object = AsyncMock()
-        with patch("app.storage.get_r2_async_client", new_callable=AsyncMock, return_value=mock_s3):
+        with patch("app.storage.get_s3_async_client", new_callable=AsyncMock, return_value=mock_s3):
             with patch("app.storage.get_settings"):
                 await delete_object_async("input/test.mp4")
         mock_s3.delete_object.assert_called_once()
@@ -279,7 +279,7 @@ class TestAsyncObjectOperations:
         mock_s3.list_objects_v2 = AsyncMock(
             return_value={"Contents": [{"Key": "input/a.mp4"}, {"Key": "input/b.mp4"}]}
         )
-        with patch("app.storage.get_r2_async_client", new_callable=AsyncMock, return_value=mock_s3):
+        with patch("app.storage.get_s3_async_client", new_callable=AsyncMock, return_value=mock_s3):
             with patch("app.storage.get_settings"):
                 keys = await list_objects_async("input/")
         assert keys == ["input/a.mp4", "input/b.mp4"]

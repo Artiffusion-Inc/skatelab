@@ -98,7 +98,7 @@ const PresignResponseSchema = z.object({
   key: z.string(),
 })
 
-/** Get a presigned PUT URL for direct R2 upload (small files like IMU/manifest). */
+/** Get a presigned PUT URL for direct S3 upload (small files like IMU/manifest). */
 export async function presignUpload(
   fileName: string,
   contentType = "application/octet-stream",
@@ -110,7 +110,7 @@ export async function presignUpload(
   )
 }
 
-/** Upload data directly to R2 via presigned PUT URL. */
+/** Upload data directly to S3 via presigned PUT URL. */
 export async function uploadToPresignedUrl(
   url: string,
   data: Blob | ArrayBuffer,

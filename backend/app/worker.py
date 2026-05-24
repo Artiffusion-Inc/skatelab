@@ -236,12 +236,12 @@ async def startup(ctx: dict[str, Any]) -> None:
 async def shutdown(ctx: dict[str, Any]) -> None:
     """Close shared pools. arq's own Redis pool is closed by Worker.close() automatically."""
     from app.analytics import shutdown_posthog
-    from app.storage import close_r2_clients
+    from app.storage import close_s3_clients
 
     shutdown_posthog()
     logger.info("Worker shutting down")
     await close_valkey_pool()
-    await close_r2_clients()
+    await close_s3_clients()
 
 
 async def process_video_task(
@@ -581,13 +581,13 @@ async def analyze_music_task(
     ctx: dict[str, Any],
     *,
     music_id: str,
-    r2_key: str,
+    s3_key: str,
 ) -> dict[str, Any]:
     """arq task: analyze music file for BPM, structure, and energy peaks.
 
     Args:
         music_id: Database ID of the music record
-        r2_key: R2 storage key for the audio file
+        s3_key: S3 storage key for the audio file
 
     Returns:
         dict with status and analysis results
@@ -604,16 +604,16 @@ async def analyze_music_task(
         from app.services.choreography.fingerprint import compute_fingerprint
         from app.services.choreography.music_analyzer import analyze_music_sync
 
-        logger.info("Starting music analysis for music_id=%s, r2_key=%s", music_id, r2_key)
+        logger.info("Starting music analysis for music_id=%s, s3_key=%s", music_id, s3_key)
 
-        # Download from R2 to temp file
+        # Download from S3 to temp file
         import tempfile
         from pathlib import Path
 
         with tempfile.TemporaryDirectory() as tmpdir:
             audio_path = Path(tmpdir) / f"music_{music_id}.mp3"
-            logger.info("Downloading music from R2: %s -> %s", r2_key, audio_path)
-            await asyncio.to_thread(download_file, r2_key, str(audio_path))
+            logger.info("Downloading music from S3: %s -> %s", s3_key, audio_path)
+            await asyncio.to_thread(download_file, s3_key, str(audio_path))
 
             # Compute fingerprint
             logger.info("Computing fingerprint for %s", audio_path)
@@ -670,7 +670,7 @@ async def analyze_music_task(
                 await update_music_analysis(
                     db,
                     music,
-                    audio_url=f"/files/{r2_key}",
+                    audio_url=f"/files/{s3_key}",
                     duration_sec=result["duration_sec"],
                     bpm=result["bpm"],
                     peaks=result["peaks"],

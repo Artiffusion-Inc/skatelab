@@ -15,7 +15,7 @@ from pydantic import BaseModel
 from app.auth.deps import VerifiedUser
 from app.config import get_settings
 from app.middleware.rate_limit import check_rate_limit
-from app.storage import get_r2_client
+from app.storage import get_s3_client
 
 CHUNK_SIZE = 5 * 1024 * 1024  # 5MB
 
@@ -43,11 +43,11 @@ class UploadsController(Controller):
             f"upload:init:{verified_user.id}", max_requests=10, window_seconds=60
         )
 
-        r2 = get_r2_client()
-        bucket = get_settings().r2.bucket
+        s3 = get_s3_client()
+        bucket = get_settings().s3.bucket
         key = f"uploads/{verified_user.id}/{uuid.uuid4()}/{file_name}"
 
-        upload_id = r2.create_multipart_upload(
+        upload_id = s3.create_multipart_upload(
             Bucket=bucket,
             Key=key,
             ContentType=content_type,
@@ -59,7 +59,7 @@ class UploadsController(Controller):
         # Generate pre-signed URLs for each part
         part_urls = []
         for part_number in range(1, part_count + 1):
-            url = r2.generate_presigned_url(
+            url = s3.generate_presigned_url(
                 ClientMethod="upload_part",
                 Params={
                     "Bucket": bucket,
@@ -88,8 +88,8 @@ class UploadsController(Controller):
             f"upload:complete:{verified_user.id}", max_requests=10, window_seconds=60
         )
 
-        r2 = get_r2_client()
-        bucket = get_settings().r2.bucket
+        s3 = get_s3_client()
+        bucket = get_settings().s3.bucket
 
         multipart_parts = [
             {"PartNumber": p["part_number"], "ETag": p["etag"]}
@@ -102,7 +102,7 @@ class UploadsController(Controller):
                 detail="No parts provided",
             )
 
-        r2.complete_multipart_upload(
+        s3.complete_multipart_upload(
             Bucket=bucket,
             Key=data.key,
             UploadId=data.upload_id,
@@ -118,16 +118,16 @@ class UploadsController(Controller):
         file_name: str = Parameter(min_length=1),
         content_type: str = Parameter(default="application/octet-stream"),
     ) -> dict:
-        """Generate a presigned PUT URL for direct R2 upload (small files)."""
+        """Generate a presigned PUT URL for direct S3 upload (small files)."""
         await check_rate_limit(
             f"upload:presign:{verified_user.id}", max_requests=10, window_seconds=60
         )
 
-        r2 = get_r2_client()
-        bucket = get_settings().r2.bucket
+        s3 = get_s3_client()
+        bucket = get_settings().s3.bucket
         key = f"uploads/{verified_user.id}/{uuid.uuid4()}/{file_name}"
 
-        url = r2.generate_presigned_url(
+        url = s3.generate_presigned_url(
             ClientMethod="put_object",
             Params={
                 "Bucket": bucket,

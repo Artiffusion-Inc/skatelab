@@ -82,7 +82,7 @@ export default function UploadPage() {
     setStep("idle")
   }
 
-  async function uploadToR2(
+  async function uploadToS3(
     data: Blob | ArrayBuffer,
     fileName: string,
     contentType: string,
@@ -131,19 +131,19 @@ export default function UploadPage() {
       let imuRightKey: string | null = null
       let manifestKey: string | null = null
 
-      // Phase 1: Upload IMU/manifest to R2 via presigned URLs (if ZIP)
+      // Phase 1: Upload IMU/manifest to S3 via presigned URLs (if ZIP)
       if (zipContents) {
         setUploadPhase(t("uploadingImu"))
 
         if (zipContents.imuLeft) {
-          imuLeftKey = await uploadToR2(
+          imuLeftKey = await uploadToS3(
             new Blob([new Uint8Array(zipContents.imuLeft)]),
             "imu_left.pb",
             "application/x-protobuf",
           )
         }
         if (zipContents.imuRight) {
-          imuRightKey = await uploadToR2(
+          imuRightKey = await uploadToS3(
             new Blob([new Uint8Array(zipContents.imuRight)]),
             "imu_right.pb",
             "application/x-protobuf",
@@ -151,7 +151,7 @@ export default function UploadPage() {
         }
         if (zipContents.manifest) {
           const manifestData = new TextEncoder().encode(JSON.stringify(zipContents.manifest))
-          manifestKey = await uploadToR2(
+          manifestKey = await uploadToS3(
             new Blob([manifestData]),
             "manifest.json",
             "application/json",

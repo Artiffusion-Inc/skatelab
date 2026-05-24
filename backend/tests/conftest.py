@@ -171,8 +171,8 @@ def app():
                         mock_pool = AsyncMock()
                         mock_create_pool.return_value = mock_pool
 
-                        with patch("app.storage.get_r2_async_client", new_callable=AsyncMock):
-                            with patch("app.storage.close_r2_clients", new_callable=AsyncMock):
+                        with patch("app.storage.get_s3_async_client", new_callable=AsyncMock):
+                            with patch("app.storage.close_s3_clients", new_callable=AsyncMock):
                                 with patch("app.main.get_settings") as mock_get:
                                     settings = MagicMock()
                                     settings.cors.origins = ["http://localhost:3000"]
@@ -248,8 +248,8 @@ async def client(db_engine, db_session):
             patch("app.lifespan.create_pool", new_callable=AsyncMock)
         )
         mock_create_pool.return_value = AsyncMock()
-        stack.enter_context(patch("app.storage.get_r2_async_client", new_callable=AsyncMock))
-        stack.enter_context(patch("app.storage.close_r2_clients", new_callable=AsyncMock))
+        stack.enter_context(patch("app.storage.get_s3_async_client", new_callable=AsyncMock))
+        stack.enter_context(patch("app.storage.close_s3_clients", new_callable=AsyncMock))
 
         mock_get = stack.enter_context(patch("app.main.get_settings"))
         settings = MagicMock()

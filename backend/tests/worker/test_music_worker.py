@@ -33,7 +33,7 @@ async def test_analyze_music_task_duplicate_found():
     mock_ctx = {}
 
     music_id = "music_123"
-    r2_key = "music/user_123/music_123.mp3"
+    s3_key = "music/user_123/music_123.mp3"
 
     # Mock all external dependencies
     with (
@@ -85,7 +85,7 @@ async def test_analyze_music_task_duplicate_found():
         mock_async_session_factory.return_value.__aenter__.return_value = mock_db
 
         # Run task
-        result = await analyze_music_task(mock_ctx, music_id=music_id, r2_key=r2_key)
+        result = await analyze_music_task(mock_ctx, music_id=music_id, s3_key=s3_key)
 
         # Verify result
         assert result["status"] == "completed"
@@ -119,7 +119,7 @@ async def test_analyze_music_task_full_analysis():
     mock_ctx = {}
 
     music_id = "music_123"
-    r2_key = "music/user_123/music_123.mp3"
+    s3_key = "music/user_123/music_123.mp3"
 
     with (
         patch("asyncio.to_thread") as mock_to_thread,
@@ -171,7 +171,7 @@ async def test_analyze_music_task_full_analysis():
         mock_async_session_factory.return_value.__aenter__.return_value = mock_db
 
         # Run task
-        result = await analyze_music_task(mock_ctx, music_id=music_id, r2_key=r2_key)
+        result = await analyze_music_task(mock_ctx, music_id=music_id, s3_key=s3_key)
 
         # Verify result
         assert result["status"] == "completed"
@@ -204,7 +204,7 @@ async def test_analyze_music_task_failure():
     mock_ctx = {}
 
     music_id = "music_123"
-    r2_key = "music/user_123/music_123.mp3"
+    s3_key = "music/user_123/music_123.mp3"
 
     with (
         patch("app.database.async_session_factory") as mock_async_session_factory,
@@ -227,7 +227,7 @@ async def test_analyze_music_task_failure():
 
             # Run task - should raise
             with pytest.raises(RuntimeError, match="Download failed"):
-                await analyze_music_task(mock_ctx, music_id=music_id, r2_key=r2_key)
+                await analyze_music_task(mock_ctx, music_id=music_id, s3_key=s3_key)
 
             # Verify status was updated to failed
             mock_update_music.assert_called_with(mock_db, mock_music, status="failed")

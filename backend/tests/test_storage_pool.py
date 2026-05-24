@@ -1,4 +1,4 @@
-"""Tests for R2/S3 client pooling."""
+"""Tests for S3 client pooling."""
 
 from __future__ import annotations
 
@@ -9,46 +9,46 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 
-def test_get_r2_client_per_thread():
-    """get_r2_client() must return per-thread boto3 client."""
-    from app.storage import _thread_local, get_r2_client
+def test_get_s3_client_per_thread():
+    """get_s3_client() must return per-thread boto3 client."""
+    from app.storage import _thread_local, get_s3_client
 
     with patch("app.storage.get_settings") as mock_get:
         settings = MagicMock()
-        settings.r2.endpoint_url = "https://r2.example.com"
-        settings.r2.access_key_id.get_secret_value.return_value = "key"
-        settings.r2.secret_access_key.get_secret_value.return_value = "secret"
+        settings.s3.endpoint_url = "https://s3.example.com"
+        settings.s3.access_key_id.get_secret_value.return_value = "key"
+        settings.s3.secret_access_key.get_secret_value.return_value = "secret"
         mock_get.return_value = settings
 
         # Clear any cached client
-        if hasattr(_thread_local, "r2_client"):
-            del _thread_local.r2_client
+        if hasattr(_thread_local, "s3_client"):
+            del _thread_local.s3_client
 
-        client1 = get_r2_client()
+        client1 = get_s3_client()
         assert client1 is not None
 
         # Same thread = same client
-        client2 = get_r2_client()
+        client2 = get_s3_client()
         assert client2 is client1
 
 
-def test_get_r2_client_different_threads():
-    """get_r2_client() must return different clients in different threads."""
-    from app.storage import _thread_local, get_r2_client
+def test_get_s3_client_different_threads():
+    """get_s3_client() must return different clients in different threads."""
+    from app.storage import _thread_local, get_s3_client
 
     with patch("app.storage.get_settings") as mock_get:
         settings = MagicMock()
-        settings.r2.endpoint_url = "https://r2.example.com"
-        settings.r2.access_key_id.get_secret_value.return_value = "key"
-        settings.r2.secret_access_key.get_secret_value.return_value = "secret"
+        settings.s3.endpoint_url = "https://s3.example.com"
+        settings.s3.access_key_id.get_secret_value.return_value = "key"
+        settings.s3.secret_access_key.get_secret_value.return_value = "secret"
         mock_get.return_value = settings
 
         results = {}
 
         def get_in_thread(name):
-            if hasattr(_thread_local, "r2_client"):
-                del _thread_local.r2_client
-            results[name] = get_r2_client()
+            if hasattr(_thread_local, "s3_client"):
+                del _thread_local.s3_client
+            results[name] = get_s3_client()
 
         t1 = threading.Thread(target=get_in_thread, args=("t1",))
         t2 = threading.Thread(target=get_in_thread, args=("t2",))
@@ -62,8 +62,8 @@ def test_get_r2_client_different_threads():
 
 
 @pytest.mark.asyncio
-async def test_close_r2_clients_cleans_up():
-    """close_r2_clients() must close both async and sync clients."""
+async def test_close_s3_clients_cleans_up():
+    """close_s3_clients() must close both async and sync clients."""
     import app.storage as _st
 
     mock_async = AsyncMock()
@@ -71,10 +71,10 @@ async def test_close_r2_clients_cleans_up():
     _st._async_client_instance = mock_async
 
     mock_sync = MagicMock()
-    _st._thread_local.r2_client = mock_sync
+    _st._thread_local.s3_client = mock_sync
 
-    await _st.close_r2_clients()
+    await _st.close_s3_clients()
 
     mock_async.__aexit__.assert_awaited_once()
     assert _st._async_client_instance is None
-    assert _st._thread_local.r2_client is None
+    assert _st._thread_local.s3_client is None

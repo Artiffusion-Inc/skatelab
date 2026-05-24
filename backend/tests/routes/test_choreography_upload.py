@@ -118,7 +118,7 @@ async def test_upload_music_enqueues_job(mock_user, mock_db, mock_file, mock_req
         mock_request.app.state.arq_pool.enqueue_job.assert_called_once_with(
             "analyze_music_task",
             music_id="music_456",
-            r2_key="music/user_123/music_456.mp3",
+            s3_key="music/user_123/music_456.mp3",
             _queue_name="skatelab:queue:fast",
         )
 

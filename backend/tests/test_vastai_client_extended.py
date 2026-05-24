@@ -16,10 +16,10 @@ def _make_settings():
     s = MagicMock()
     s.vastai.api_key.get_secret_value.return_value = "test-api-key"
     s.vastai.endpoint_name = "skatelab-workers"
-    s.r2.endpoint_url = "https://r2.example.com"
-    s.r2.access_key_id.get_secret_value.return_value = "r2-key-id"
-    s.r2.secret_access_key.get_secret_value.return_value = "r2-secret"
-    s.r2.bucket = "test-bucket"
+    s.s3.endpoint_url = "https://s3.example.com"
+    s.s3.access_key_id.get_secret_value.return_value = "s3-key-id"
+    s.s3.secret_access_key.get_secret_value.return_value = "s3-secret"
+    s.s3.bucket = "test-bucket"
     return s
 
 
@@ -40,8 +40,8 @@ def _make_route_resp():
 
 def _make_process_result(**overrides):
     data = {
-        "poses_r2_key": "output/test_poses.npy",
-        "metrics_r2_key": "output/test_metrics.json",
+        "poses_s3_key": "output/test_poses.npy",
+        "metrics_s3_key": "output/test_metrics.json",
         "stats": {"total_frames": 100, "valid_frames": 90, "fps": 30.0},
         "metrics": [{"name": "airtime", "value": 0.5}],
         "phases": {"takeoff": 10, "peak": 20, "landing": 30},
@@ -147,7 +147,7 @@ async def test_process_video_remote_async_happy_path():
     body = process_call.kwargs["json"]
     assert "auth_data" in body
     assert "payload" in body
-    assert body["payload"]["video_r2_key"] == "input/test.mp4"
+    assert body["payload"]["video_s3_key"] == "input/test.mp4"
     assert body["payload"]["person_click"] == {"x": 100, "y": 200}
     assert body["payload"]["frame_skip"] == 8
     assert body["payload"]["tracking"] == "centroid"
@@ -163,8 +163,8 @@ async def test_process_video_remote_async_defaults():
     """Default parameter values produce correct payload."""
     route_resp = _make_route_resp()
     result_data = _make_process_result()
-    del result_data["poses_r2_key"]
-    del result_data["metrics_r2_key"]
+    del result_data["poses_s3_key"]
+    del result_data["metrics_s3_key"]
     del result_data["metrics"]
     del result_data["phases"]
     del result_data["recommendations"]

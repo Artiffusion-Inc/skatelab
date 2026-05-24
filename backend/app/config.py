@@ -8,7 +8,7 @@ Env Prefixes:
   DATABASE_   — PostgreSQL
   JWT_        — authentication tokens
   CORS_       — cross-origin policy
-  R2_         — Cloudflare R2 object storage
+  S3_         — S3-compatible object storage (RustFS)
   VASTAI_     — remote GPU
   RESEND_     — transactional email
   SENTRY_     — error monitoring
@@ -97,17 +97,20 @@ class CORSConfig(BaseSettings):
         env_prefix = "CORS_"
 
 
-class R2Config(BaseSettings):
-    """Cloudflare R2 object storage (S3-compatible)."""
+class S3Config(BaseSettings):
+    """S3-compatible object storage (RustFS / any S3 backend)."""
 
     access_key_id: SecretStr = SecretStr("")
     secret_access_key: SecretStr = SecretStr("")
     bucket: str = "skatelab-pipeline"
     endpoint_url: str = ""
+    public_endpoint_url: str = ""
+    region: str = "us-east-1"
+    path_style: bool = True
     presign_expires: int = 3600
 
     class Config:
-        env_prefix = "R2_"
+        env_prefix = "S3_"
 
 
 class VastAIConfig(BaseSettings):
@@ -187,7 +190,7 @@ class Settings(BaseSettings):
     database: DatabaseConfig = Field(default_factory=DatabaseConfig)
     jwt: JWTConfig = Field(default_factory=JWTConfig)
     cors: CORSConfig = Field(default_factory=CORSConfig)
-    r2: R2Config = Field(default_factory=R2Config)
+    s3: S3Config = Field(default_factory=S3Config)
     vastai: VastAIConfig = Field(default_factory=VastAIConfig)
     resend: ResendConfig = Field(default_factory=ResendConfig)
     sentry: SentryConfig = Field(default_factory=SentryConfig)

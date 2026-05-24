@@ -4,7 +4,7 @@ Flow:
   1. POST /route to get worker URL + auth from Vast.ai
   2. POST /{endpoint} to PyWorker with {auth_data, payload}
   3. PyWorker validates auth, proxies payload to FastAPI (port 8000)
-  4. Return R2 keys (no local download)
+  4. Return S3 keys (no local download)
 """
 
 from __future__ import annotations
@@ -108,8 +108,8 @@ async def process_video_remote_async(
 ) -> VastResult:
     """Async: send video processing to Vast.ai Serverless GPU.
 
-    Video must already be in R2 at `video_key`.
-    Returns R2 keys for poses.npy + metrics.json (no video render).
+    Video must already be in S3 at `video_key`.
+    Returns S3 keys for poses.npy + metrics.json (no video render).
 
     Raises httpx.HTTPStatusError on routing/processing failures.
     """
@@ -127,16 +127,16 @@ async def process_video_remote_async(
 
     # 2. Send processing request wrapped in PyWorker format
     payload = {
-        "video_r2_key": video_key,
+        "video_s3_key": video_key,
         "person_click": person_click,
         "frame_skip": frame_skip,
         "tracking": tracking,
         "ml_flags": ml_flags,
         "element_type": element_type,
-        "r2_endpoint_url": settings.r2.endpoint_url,
-        "r2_access_key_id": settings.r2.access_key_id.get_secret_value(),
-        "r2_secret_access_key": settings.r2.secret_access_key.get_secret_value(),
-        "r2_bucket": settings.r2.bucket,
+        "s3_endpoint_url": settings.s3.endpoint_url,
+        "s3_access_key_id": settings.s3.access_key_id.get_secret_value(),
+        "s3_secret_access_key": settings.s3.secret_access_key.get_secret_value(),
+        "s3_bucket": settings.s3.bucket,
     }
     body = {
         "auth_data": _build_auth_data(route, endpoint_name),
@@ -150,11 +150,11 @@ async def process_video_remote_async(
     resp.raise_for_status()
     result = resp.json()
 
-    # 3. Return R2 keys directly (no download)
+    # 3. Return S3 keys directly (no download)
     segments = result.get("segments")
     return VastResult(
-        poses_key=result.get("poses_r2_key"),
-        metrics_key=result.get("metrics_r2_key"),
+        poses_key=result.get("poses_s3_key"),
+        metrics_key=result.get("metrics_s3_key"),
         stats=result["stats"],
         metrics=result.get("metrics"),
         phases=result.get("phases"),
@@ -169,7 +169,7 @@ async def detect_video_remote_async(
 ) -> VastDetectResult:
     """Send person detection to Vast.ai Serverless GPU.
 
-    Video must already be in R2 at `video_key`.
+    Video must already be in S3 at `video_key`.
     Returns detected persons, preview image, and auto-click.
 
     Raises httpx.HTTPStatusError on routing/processing failures.
@@ -186,12 +186,12 @@ async def detect_video_remote_async(
 
     # 2. Send detection request wrapped in PyWorker format
     payload = {
-        "video_r2_key": video_key,
+        "video_s3_key": video_key,
         "tracking": tracking,
-        "r2_endpoint_url": settings.r2.endpoint_url,
-        "r2_access_key_id": settings.r2.access_key_id.get_secret_value(),
-        "r2_secret_access_key": settings.r2.secret_access_key.get_secret_value(),
-        "r2_bucket": settings.r2.bucket,
+        "s3_endpoint_url": settings.s3.endpoint_url,
+        "s3_access_key_id": settings.s3.access_key_id.get_secret_value(),
+        "s3_secret_access_key": settings.s3.secret_access_key.get_secret_value(),
+        "s3_bucket": settings.s3.bucket,
     }
     body = {
         "auth_data": _build_auth_data(route, endpoint_name),

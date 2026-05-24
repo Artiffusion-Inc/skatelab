@@ -32,7 +32,7 @@ skatelab/
 │   │   ├── services/                 # Business logic (diagnostics, music analysis, choreography solver)
 │   │   ├── auth/                     # JWT auth (deps.py)
 │   │   ├── config.py                 # Settings (Pydantic BaseSettings)
-│   │   ├── storage.py                # R2/S3 client
+│   │   ├── storage.py                # S3 client
 │   │   ├── task_manager.py           # Valkey task queue helpers
 │   │   ├── metrics_registry.py       # 12+ biomechanical metric definitions
 │   │   ├── vastai/                   # Vast.ai Serverless GPU dispatch
@@ -76,7 +76,7 @@ skatelab/
 ```
 Frontend (Next.js 16) → FastAPI (backend/) → Valkey queue → arq worker (backend/app/)
   → [VASTAI_API_KEY set?]
-    → YES: upload to R2 → Vast.ai route → GPU worker → download from R2
+    → YES: upload to S3 → Vast.ai route → GPU worker → download from S3
     → NO:  local GPU (process_video_pipeline)
 
 ML Pipeline:
@@ -112,7 +112,7 @@ Choreography Planner:
 | **ML Pipeline**     | Python, ultralytics, onnxruntime-gpu, scipy, numba                              |
 | **Backend API**     | FastAPI, SQLAlchemy, Alembic, arq + Valkey                                 |
 | **Frontend**        | Next.js 16, React, Tailwind CSS, shadcn/ui, Recharts, three.js             |
-| **Storage**         | Cloudflare R2 (S3-compatible), Postgres                                    |
+| **Storage**         | S3-compatible (RustFS), Postgres                                    |
 | **Remote GPU**      | Vast.ai Serverless                                                         |
 | **Testing**         | pytest (backend), tsc + next lint + vitest (frontend) |
 | **Task Runner**     | go-task (Taskfile.yaml)                                                    |

@@ -34,7 +34,7 @@ backend/
 │   ├── crud/                         # Database CRUD operations
 │   ├── services/                     # Business logic (diagnostics, choreography solver, email, audit, pr_tracker)
 │   ├── config.py                     # Settings (Pydantic BaseSettings)
-│   ├── storage.py                    # R2/S3 client
+│   ├── storage.py                    # S3 client
 │   ├── task_manager.py               # Valkey task queue helpers
 │   ├── database.py                   # SQLAlchemy async engine
 │   ├── logging_config.py             # structlog configuration
@@ -58,7 +58,7 @@ backend/
 | **DI** | `Provide` + `Dependency()` annotations |
 | **ORM** | SQLAlchemy 2.0 async |
 | **Queue** | arq + Valkey (Redis-compatible) |
-| **Storage** | Cloudflare R2 (S3-compatible) |
+| **Storage** | S3-compatible (RustFS) |
 
 ## Architectural Constraint
 
@@ -84,7 +84,7 @@ backend/
 | GET | `/metrics/prs` | Current personal records |
 | GET | `/metrics/diagnostics` | Run diagnostic rules (stagnation, declining, etc.) |
 | POST | `/uploads/init` | Start chunked upload (returns presigned URL) |
-| POST | `/uploads/chunk` | Upload chunk to R2 |
+| POST | `/uploads/chunk` | Upload chunk to S3 |
 | POST | `/uploads/complete` | Finalize upload, trigger processing |
 | POST | `/detect` | Enqueue person detection job (async) |
 | GET | `/detect/{task_id}/status` | Poll detection job status |

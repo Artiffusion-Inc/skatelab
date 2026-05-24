@@ -122,17 +122,17 @@ class ChoreographyController(Controller):
         )
 
         try:
-            # Upload to R2 (blocking boto3 — run in thread pool)
-            r2_key = f"music/{verified_user.id}/{music.id}{suffix}"
-            logger.info("Uploading to R2: %s", r2_key)
-            await asyncio.to_thread(upload_file, tmp_path, r2_key)
-            logger.info("R2 upload complete")
+            # Upload to S3 (blocking boto3 — run in thread pool)
+            s3_key = f"music/{verified_user.id}/{music.id}{suffix}"
+            logger.info("Uploading to S3: %s", s3_key)
+            await asyncio.to_thread(upload_file, tmp_path, s3_key)
+            logger.info("S3 upload complete")
 
             # Enqueue analysis job
             await request.app.state.arq_pool.enqueue_job(
                 "analyze_music_task",
                 music_id=music.id,
-                r2_key=r2_key,
+                s3_key=s3_key,
                 _queue_name="skatelab:queue:fast",
             )
             logger.info("Enqueued analyze_music_task for music_id=%s", music.id)

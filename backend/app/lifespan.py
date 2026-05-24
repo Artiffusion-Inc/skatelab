@@ -46,13 +46,13 @@ async def app_lifespan(app: Litestar) -> AsyncGenerator[None, None]:
     except (ConnectionError, OSError) as e:
         logger.warning("Valkey pool init failed — task tracking disabled: %s", e)
 
-    # 2. R2 async client — eager init to fail fast on bad credentials
-    from app.storage import close_r2_clients, get_r2_async_client
+    # 2. S3 async client — eager init to fail fast on bad credentials
+    from app.storage import close_s3_clients, get_s3_async_client
 
     try:
-        await get_r2_async_client()
+        await get_s3_async_client()
     except Exception as e:
-        logger.warning("R2 client init failed: %s", e)
+        logger.warning("S3 client init failed: %s", e)
 
     # 3. Response cache store (separate pool, decode_responses=False)
     url = settings.valkey.build_url()
@@ -80,6 +80,6 @@ async def app_lifespan(app: Litestar) -> AsyncGenerator[None, None]:
         with contextlib.suppress(Exception):
             await close_valkey_pool()
         with contextlib.suppress(Exception):
-            await close_r2_clients()
+            await close_s3_clients()
         with contextlib.suppress(Exception):
             await redis_client.aclose()

@@ -86,6 +86,12 @@ s3c.{$DOMAIN} {
 }
 
 ph.skatelab.ru {
+    tls {
+        dns cloudflare {env.CLOUDFLARE_API_TOKEN} {
+            propagation_timeout -1
+        }
+    }
+
     reverse_proxy posthog_web:8000
 
     handle /e/* {

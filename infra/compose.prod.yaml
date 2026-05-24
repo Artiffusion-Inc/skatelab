@@ -7,21 +7,23 @@ name: skatelab
 
 services:
   backend:
-    image: ghcr.io/${GHCR_OWNER:-artiffusion-inc}/skatelab-backend:${TAG:-latest}
+    image: ghcr.io/artiffusion-inc/skatelab-backend:latest
     restart: unless-stopped
     environment:
-      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-skatelab}:${POSTGRES_PASSWORD}@infra-postgres-1/${POSTGRES_DB:-skatelab}
+      DATABASE_URL: postgresql+asyncpg://skatelab:${POSTGRES_PASSWORD}@infra-postgres-1/skatelab
       VALKEY_URL: redis://infra-valkey-1:6379/3
-      R2_ENDPOINT_URL: ${R2_ENDPOINT_URL}
-      R2_ACCESS_KEY_ID: ${R2_ACCESS_KEY_ID}
-      R2_SECRET_ACCESS_KEY: ${R2_SECRET_ACCESS_KEY}
-      R2_BUCKET: ${R2_BUCKET}
+      S3_ENDPOINT_URL: ${S3_ENDPOINT_URL:-}
+      S3_PUBLIC_ENDPOINT_URL: ${S3_PUBLIC_ENDPOINT_URL:-}
+      S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:-}
+      S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:-}
+      S3_BUCKET: ${S3_BUCKET:-skatelab-pipeline}
+      S3_REGION: ${S3_REGION:-us-east-1}
+      S3_PATH_STYLE: ${S3_PATH_STYLE:-true}
       JWT_SECRET_KEY: ${JWT_SECRET_KEY}
-      VASTAI_API_KEY: ${VASTAI_API_KEY}
-      RESEND_API_KEY: ${RESEND_API_KEY}
+      VASTAI_API_KEY: ${VASTAI_API_KEY:-}
+      RESEND_API_KEY: ${RESEND_API_KEY:-}
       POSTHOG_API_KEY: ${POSTHOG_API_KEY:-}
       POSTHOG_HOST: ${POSTHOG_HOST:-https://ph.skatelab.ru}
-      LOG_LEVEL: ${LOG_LEVEL:-info}
     healthcheck:
       test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/v1/health', timeout=2)\""]
       interval: 30s
@@ -36,13 +38,12 @@ services:
       - infra
 
   frontend:
-    image: ghcr.io/${GHCR_OWNER:-artiffusion-inc}/skatelab-frontend:${TAG:-latest}
+    image: ghcr.io/artiffusion-inc/skatelab-frontend:latest
     restart: unless-stopped
     depends_on:
       backend:
         condition: service_healthy
     environment:
-      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-/api}
       NEXT_PUBLIC_POSTHOG_KEY: ${NEXT_PUBLIC_POSTHOG_KEY:-}
       NEXT_PUBLIC_POSTHOG_HOST: ${NEXT_PUBLIC_POSTHOG_HOST:-https://ph.skatelab.ru}
       POSTHOG_PERSONAL_API_KEY: ${POSTHOG_PERSONAL_API_KEY:-}
