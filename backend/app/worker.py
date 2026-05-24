@@ -228,11 +228,17 @@ async def startup(ctx: dict[str, Any]) -> None:
     else:
         raise RuntimeError("Failed to initialize Valkey pool after 5 attempts")
 
+    from app.analytics import get_posthog
+
+    get_posthog()
+
 
 async def shutdown(ctx: dict[str, Any]) -> None:
     """Close shared pools. arq's own Redis pool is closed by Worker.close() automatically."""
+    from app.analytics import shutdown_posthog
     from app.storage import close_r2_clients
 
+    shutdown_posthog()
     logger.info("Worker shutting down")
     await close_valkey_pool()
     await close_r2_clients()
