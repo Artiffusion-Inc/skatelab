@@ -105,7 +105,7 @@ class R2Config(BaseSettings):
 
     access_key_id: SecretStr = SecretStr("")
     secret_access_key: SecretStr = SecretStr("")
-    bucket: str = "skatelab-pipeline"
+    bucket: str = "skatelab-data"
     endpoint_url: str = ""
     presign_expires: int = 3600
 
