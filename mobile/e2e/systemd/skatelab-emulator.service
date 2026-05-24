@@ -1,0 +1,23 @@
+[Unit]
+Description=SkateLab Android Emulator (Docker)
+After=docker.service
+Requires=docker.service
+Wants=network-online.target
+
+[Service]
+Slice=emulator.slice
+Type=simple
+ExecStartPre=-/usr/bin/docker compose -f /opt/skatelab-e2e/docker-compose.yml down
+ExecStart=/usr/bin/docker compose -f /opt/skatelab-e2e/docker-compose.yml up --abort-on-container-exit
+ExecStop=/usr/bin/docker compose -f /opt/skatelab-e2e/docker-compose.yml down
+Restart=on-failure
+RestartSec=10
+WatchdogSec=60
+
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=read-only
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target
