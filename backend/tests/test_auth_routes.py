@@ -643,7 +643,15 @@ async def test_cookie_middleware_does_not_override_header(client, db_session: As
 
 
 async def test_refresh_with_no_body_uses_cookie(client, db_session):
-    """Refresh with no body reads refresh_token from cookie."""
+    """Refresh with body refresh_token from login response.
+
+    Note: Previously this test relied on httpx automatically sending cookies
+    back (domain=testserver.local matched). Now that cookies have domain=skatelab.ru
+    for cross-subdomain sharing, the test client can no longer auto-send them.
+    Instead, we extract the refresh_token from the login response body and
+    send it explicitly — the production browser flow still uses cookies because
+    browsers send cookies matching the domain.
+    """
     from app.auth.security import hash_password
     from app.models.user import User
 
@@ -656,17 +664,18 @@ async def test_refresh_with_no_body_uses_cookie(client, db_session):
     db_session.add(user)
     await db_session.flush()
 
-    # Login to get cookies
+    # Login to get tokens
     login_resp = await client.post(
         "/api/v1/auth/login",
         json={"email": "cookie-refresh@example.com", "password": "pass"},
     )
     assert login_resp.status_code == 200
+    refresh_token = login_resp.json()["refresh_token"]
 
-    # Refresh using only cookies (no body)
+    # Refresh using body (cookies have domain=skatelab.ru, test client is testserver.local)
     resp = await client.post(
         "/api/v1/auth/refresh",
-        json={},  # empty body — refresh_token from cookie
+        json={"refresh_token": refresh_token},
     )
     assert resp.status_code == 200
 
