@@ -62,7 +62,7 @@ jobs:
             design:
               - "DESIGN.md"
               - "scripts/design/*.js"
-              - "lock.json"
+              - "design.lock"
               - "frontend/src/app/tokens.css"
               - "frontend/src/app/globals.css"
               - "mobile/androidApp/**/theme/**"
