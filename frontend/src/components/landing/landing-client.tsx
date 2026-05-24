@@ -17,15 +17,12 @@ import { FooterSection } from "./footer-section"
 import { StickyHeader } from "./sticky-header"
 import { MobileCTABar } from "./mobile-cta-bar"
 
-const CookieBanner = dynamic(() => import("./cookie-banner"), { ssr: false })
-
 if (typeof window !== "undefined") {
   gsap.registerPlugin(ScrollTrigger)
 }
 
 export function LandingClient() {
   const containerRef = useRef<HTMLDivElement>(null)
-  const [showCookieBanner, setShowCookieBanner] = useState(false)
 
   useLayoutEffect(() => {
     const ctx = gsap.context(() => {
@@ -264,20 +261,6 @@ export function LandingClient() {
     return () => window.removeEventListener("pageshow", onPageShow)
   })
 
-  useMountEffect(() => {
-    const accepted = localStorage.getItem("consent_accepted")
-    if (!accepted) setShowCookieBanner(true)
-  })
-
-  const acceptCookies = () => {
-    localStorage.setItem("consent_accepted", "true")
-    setShowCookieBanner(false)
-  }
-
-  const declineCookies = () => {
-    localStorage.setItem("consent_accepted", "declined")
-    setShowCookieBanner(false)
-  }
 
   return (
     <>
@@ -300,9 +283,8 @@ export function LandingClient() {
           <CTASection />
         </main>
         <FooterSection />
-        <MobileCTABar hidden={showCookieBanner} />
+        <MobileCTABar />
       </div>
-      {showCookieBanner && <CookieBanner onAccept={acceptCookies} onDecline={declineCookies} />}
     </>
   )
 }

@@ -23,3 +23,13 @@ scrape_configs:
   # - job_name: "gpu-worker-local"
   #   static_configs:
   #     - targets: ["host.docker.internal:8000"]
+
+  # PostHog ClickHouse
+  - job_name: "posthog_clickhouse"
+    static_configs:
+      - targets: ["posthog_clickhouse:8123"]
+
+  # PostHog Redpanda
+  - job_name: "posthog_kafka"
+    static_configs:
+      - targets: ["posthog_kafka:9644"]

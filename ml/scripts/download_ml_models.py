@@ -27,8 +27,8 @@ MANIFEST_PATH = MODELS_DIR / "models.manifest.json"
 
 MODELS: dict[str, dict] = {
     "moganet_b": {
-        "source": "r2",
-        "r2_key": "models/moganet/moganet_b_ap2d_384x288.onnx",
+        "source": "s3",
+        "s3_key": "models/moganet/moganet_b_ap2d_384x288.onnx",
         "local_filename": "moganet/moganet_b_ap2d_384x288.onnx",
         "size_mb": "~181MB",
         "description": "MogaNet-B pose estimator (AthletePose3D fine-tuned, ONNX)",
@@ -157,42 +157,39 @@ def download_model(model_id: str) -> None:
         )
         return
 
-    if source == "r2":
+    if source == "s3":
         import os
 
         import boto3
+        from botocore.config import Config as BotoConfig
 
         dest = MODELS_DIR / info["local_filename"]
         if dest.exists():
             print(f"  Already exists: {dest}")
         else:
-            r2_endpoint = os.environ.get("R2_ENDPOINT_URL") or os.environ.get(
-                "CF_R2_ENDPOINT_URL", ""
-            )
-            r2_key_id = os.environ.get("R2_ACCESS_KEY_ID") or os.environ.get(
-                "CF_R2_ACCESS_KEY_ID", ""
-            )
-            r2_secret = os.environ.get("R2_SECRET_ACCESS_KEY") or os.environ.get(
-                "CF_R2_SECRET_ACCESS_KEY", ""
-            )
-            r2_bucket = os.environ.get("R2_BUCKET") or os.environ.get("CF_R2_BUCKET", "")
+            s3_endpoint = os.environ.get("S3_ENDPOINT_URL", "")
+            s3_key_id = os.environ.get("S3_ACCESS_KEY_ID", "")
+            s3_secret = os.environ.get("S3_SECRET_ACCESS_KEY", "")
+            s3_bucket = os.environ.get("S3_BUCKET", "")
+            s3_region = os.environ.get("S3_REGION", "us-east-1")
 
-            if not all([r2_endpoint, r2_key_id, r2_secret, r2_bucket]):
+            if not all([s3_endpoint, s3_key_id, s3_secret, s3_bucket]):
                 print(
-                    f"  [SKIP] {info['description']} — set R2 credentials (R2_ENDPOINT_URL, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_BUCKET)"
+                    f"  [SKIP] {info['description']} — set S3 credentials (S3_ENDPOINT_URL, S3_ACCESS_KEY_ID, S3_SECRET_ACCESS_KEY, S3_BUCKET)"
                 )
                 return
 
-            print(f"  Downloading {info['description']} ({info['size_mb']}) from R2...")
+            print(f"  Downloading {info['description']} ({info['size_mb']}) from S3...")
             dest.parent.mkdir(parents=True, exist_ok=True)
-            s3 = boto3.client(
+            client = boto3.client(
                 "s3",
-                endpoint_url=r2_endpoint,
-                aws_access_key_id=r2_key_id,
-                aws_secret_access_key=r2_secret,
-                region_name="auto",
+                endpoint_url=s3_endpoint,
+                aws_access_key_id=s3_key_id,
+                aws_secret_access_key=s3_secret,
+                region_name=s3_region,
+                config=BotoConfig(s3={"addressing_style": "path"}),
             )
-            s3.download_file(r2_bucket, info["r2_key"], str(dest))
+            client.download_file(s3_bucket, info["s3_key"], str(dest))
             print(f"  Saved: {dest}")
         ok = verify_checksum(model_id, dest, manifest)
         if ok:
@@ -311,7 +308,7 @@ def main() -> None:
                 "hf": "[HuggingFace]",
                 "hf_multi": "[HuggingFace, multi-file]",
                 "url": "[GitHub Release]",
-                "r2": "[R2]",
+                "s3": "[S3]",
                 "manual": "[Manual export required]",
             }[src]
             print(f"  {mid}: {info['description']} ({info['size_mb']}) {tag}")

@@ -97,6 +97,7 @@ known-first-party = ["backend", "src"]
 "ml/src/cli.py" = []
 "ml/**/*.py" = ["ARG001", "F841", "S110", "BLE001", "S306", "RUF100", "E402"]  # legacy error handling, lazy imports
 "backend/**/*.py" = ["ARG001", "F841", "S110", "BLE001", "TC001", "S105", "S311", "RUF100"]
+"backend/app/analytics.py" = ["PLW0603"]
 
 [tool.ruff.format]
 quote-style = "double"

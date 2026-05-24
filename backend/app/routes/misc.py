@@ -1,4 +1,4 @@
-"""Health check and file serving routes (R2 streaming proxy)."""
+"""Health check and file serving routes (S3 streaming proxy)."""
 
 from __future__ import annotations
 
@@ -38,7 +38,7 @@ class MiscController(Controller):
 
     @get("/outputs/{key:path}")
     async def serve_output(self, key: str) -> Stream:
-        """Stream file from R2 as a proxy (frontend never talks to R2 directly)."""
+        """Stream file from S3 as a proxy (frontend never talks to S3 directly)."""
         if not await object_exists_async(key):
             raise ClientException(
                 status_code=404,

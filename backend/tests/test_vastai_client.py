@@ -163,10 +163,10 @@ async def test_detect_video_remote_async_wraps_in_auth_data():
         s = MagicMock()
         s.vastai.api_key.get_secret_value.return_value = "test-key"
         s.vastai.endpoint_name = "skatelab-workers"
-        s.r2.endpoint_url = "https://r2.example.com"
-        s.r2.access_key_id.get_secret_value.return_value = "key-id"
-        s.r2.secret_access_key.get_secret_value.return_value = "secret"
-        s.r2.bucket = "test-bucket"
+        s.s3.endpoint_url = "https://s3.example.com"
+        s.s3.access_key_id.get_secret_value.return_value = "key-id"
+        s.s3.secret_access_key.get_secret_value.return_value = "secret"
+        s.s3.bucket = "test-bucket"
         mock_settings.return_value = s
 
         result = await detect_video_remote_async(

@@ -85,6 +85,32 @@ s3c.{$DOMAIN} {
   reverse_proxy rustfs:9001
 }
 
+ph.skatelab.ru {
+    tls {
+        dns cloudflare {env.CLOUDFLARE_API_TOKEN} {
+            propagation_timeout -1
+        }
+    }
+
+    reverse_proxy posthog_web:8000
+
+    handle /e/* {
+        reverse_proxy posthog_capture:3000
+    }
+    handle /s/* {
+        reverse_proxy posthog_replay-capture:3000
+    }
+    handle /i/v0/* {
+        reverse_proxy posthog_capture:3000
+    }
+    handle /batch/* {
+        reverse_proxy posthog_capture:3000
+    }
+    handle /flags/* {
+        reverse_proxy posthog_feature-flags:3001
+    }
+}
+
 headscale.skatelab.ru {
   reverse_proxy headscale:8080 {
     flush_interval -1

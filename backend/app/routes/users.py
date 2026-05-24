@@ -111,7 +111,7 @@ class UsersController(Controller):
         }[data.content_type]
         key = f"avatars/{user.id}{ext}"
 
-        # Upload to R2 (sync boto3 — run in thread pool to avoid blocking)
+        # Upload to S3 (sync boto3 — run in thread pool to avoid blocking)
         await asyncio.to_thread(upload_bytes, content, key)
         url = await asyncio.to_thread(get_object_url, key)
 

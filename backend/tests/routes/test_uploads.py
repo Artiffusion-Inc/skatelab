@@ -16,17 +16,17 @@ sys.modules["aiobotocore.session"] = _mock_aiobotocore_session
 from app.routes.uploads import CHUNK_SIZE  # noqa: E402
 
 
-def _mock_r2():
-    r2 = MagicMock()
-    r2.create_multipart_upload.return_value = {"UploadId": "up_123"}
-    r2.generate_presigned_url.return_value = "https://presigned.url/part"
-    r2.complete_multipart_upload.return_value = {}
-    return r2
+def _mock_s3():
+    s3 = MagicMock()
+    s3.create_multipart_upload.return_value = {"UploadId": "up_123"}
+    s3.generate_presigned_url.return_value = "https://presigned.url/part"
+    s3.complete_multipart_upload.return_value = {}
+    return s3
 
 
 def _mock_settings():
     cfg = MagicMock()
-    cfg.r2.bucket = "test-bucket"
+    cfg.s3.bucket = "test-bucket"
     return cfg
 
 
@@ -34,10 +34,10 @@ def _mock_settings():
 async def test_init_upload(client, auth_headers):
     """POST /uploads/init returns upload_id, key, chunk_size, part_count, parts."""
     with (
-        patch("app.routes.uploads.get_r2_client") as mock_s3_client,
+        patch("app.routes.uploads.get_s3_client") as mock_s3_client,
         patch("app.routes.uploads.get_settings") as mock_settings,
     ):
-        mock_s3_client.return_value = _mock_r2()
+        mock_s3_client.return_value = _mock_s3()
         mock_settings.return_value = _mock_settings()
 
         response = await client.post(
@@ -61,10 +61,10 @@ async def test_init_upload(client, auth_headers):
 async def test_init_upload_part_count(client, auth_headers):
     """15MB file / 5MB chunk = 3 parts."""
     with (
-        patch("app.routes.uploads.get_r2_client") as mock_s3_client,
+        patch("app.routes.uploads.get_s3_client") as mock_s3_client,
         patch("app.routes.uploads.get_settings") as mock_settings,
     ):
-        mock_s3_client.return_value = _mock_r2()
+        mock_s3_client.return_value = _mock_s3()
         mock_settings.return_value = _mock_settings()
 
         total_size = 15 * 1024 * 1024  # exactly 3 chunks
@@ -84,10 +84,10 @@ async def test_init_upload_part_count(client, auth_headers):
 async def test_init_upload_single_part(client, auth_headers):
     """3MB file = 1 part."""
     with (
-        patch("app.routes.uploads.get_r2_client") as mock_s3_client,
+        patch("app.routes.uploads.get_s3_client") as mock_s3_client,
         patch("app.routes.uploads.get_settings") as mock_settings,
     ):
-        mock_s3_client.return_value = _mock_r2()
+        mock_s3_client.return_value = _mock_s3()
         mock_settings.return_value = _mock_settings()
 
         total_size = 3 * 1024 * 1024  # fits in 1 chunk
@@ -107,11 +107,11 @@ async def test_init_upload_single_part(client, auth_headers):
 async def test_complete_upload(client, auth_headers):
     """POST /uploads/complete calls complete_multipart_upload with sorted parts."""
     with (
-        patch("app.routes.uploads.get_r2_client") as mock_s3_client,
+        patch("app.routes.uploads.get_s3_client") as mock_s3_client,
         patch("app.routes.uploads.get_settings") as mock_settings,
     ):
-        r2 = _mock_r2()
-        mock_s3_client.return_value = r2
+        s3 = _mock_s3()
+        mock_s3_client.return_value = s3
         mock_settings.return_value = _mock_settings()
 
         response = await client.post(
@@ -132,8 +132,8 @@ async def test_complete_upload(client, auth_headers):
     assert data["status"] == "completed"
     assert data["key"] == "uploads/user-id/uuid/video.mp4"
 
-    r2.complete_multipart_upload.assert_called_once()
-    call_kwargs = r2.complete_multipart_upload.call_args
+    s3.complete_multipart_upload.assert_called_once()
+    call_kwargs = s3.complete_multipart_upload.call_args
     parts = call_kwargs.kwargs["MultipartUpload"]["Parts"]
     assert parts == [
         {"PartNumber": 1, "ETag": '"etag1"'},
@@ -145,10 +145,10 @@ async def test_complete_upload(client, auth_headers):
 async def test_complete_upload_empty_parts(client, auth_headers):
     """POST /uploads/complete with no parts returns 400."""
     with (
-        patch("app.routes.uploads.get_r2_client") as mock_s3_client,
+        patch("app.routes.uploads.get_s3_client") as mock_s3_client,
         patch("app.routes.uploads.get_settings") as mock_settings,
     ):
-        mock_s3_client.return_value = _mock_r2()
+        mock_s3_client.return_value = _mock_s3()
         mock_settings.return_value = _mock_settings()
 
         response = await client.post(
@@ -170,11 +170,11 @@ async def test_complete_upload_empty_parts(client, auth_headers):
 async def test_complete_upload_parts_sorted(client, auth_headers):
     """Parts are sorted by part_number regardless of input order."""
     with (
-        patch("app.routes.uploads.get_r2_client") as mock_s3_client,
+        patch("app.routes.uploads.get_s3_client") as mock_s3_client,
         patch("app.routes.uploads.get_settings") as mock_settings,
     ):
-        r2 = _mock_r2()
-        mock_s3_client.return_value = r2
+        s3 = _mock_s3()
+        mock_s3_client.return_value = s3
         mock_settings.return_value = _mock_settings()
 
         response = await client.post(
@@ -193,7 +193,7 @@ async def test_complete_upload_parts_sorted(client, auth_headers):
 
     assert response.status_code == 201
 
-    call_kwargs = r2.complete_multipart_upload.call_args
+    call_kwargs = s3.complete_multipart_upload.call_args
     parts = call_kwargs.kwargs["MultipartUpload"]["Parts"]
     assert parts == [
         {"PartNumber": 1, "ETag": '"etag1"'},
@@ -206,10 +206,10 @@ async def test_complete_upload_parts_sorted(client, auth_headers):
 async def test_init_upload_auth_required(client):
     """POST /uploads/init without auth returns 401."""
     with (
-        patch("app.routes.uploads.get_r2_client") as mock_s3_client,
+        patch("app.routes.uploads.get_s3_client") as mock_s3_client,
         patch("app.routes.uploads.get_settings") as mock_settings,
     ):
-        mock_s3_client.return_value = _mock_r2()
+        mock_s3_client.return_value = _mock_s3()
         mock_settings.return_value = _mock_settings()
 
         response = await client.post(
