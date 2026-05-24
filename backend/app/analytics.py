@@ -54,7 +54,7 @@ def capture_event(event: str, distinct_id: str, properties: dict | None = None) 
 
 def shutdown_posthog() -> None:
     """Flush + stop consumer threads. 5s timeout to prevent hanging."""
-    global _posthog
+    global _posthog  # noqa: PLW0603
     if _posthog is None:
         return
     try:
