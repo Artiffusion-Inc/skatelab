@@ -4,9 +4,16 @@ import io.ktor.client.*
 import io.ktor.client.call.*
 import io.ktor.client.request.*
 import io.ktor.http.*
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
 import ru.skatelab.shared.models.SessionResponse
 import ru.skatelab.shared.models.SessionListResponse
 import ru.skatelab.shared.models.SessionUpdateRequest
+
+@Serializable
+data class BulkDeleteRequest(@SerialName("session_ids") val ids: List<String>)
 
 class SessionsApi(private val client: HttpClient) {
     suspend fun get(id: String): SessionResponse =
@@ -31,12 +38,12 @@ class SessionsApi(private val client: HttpClient) {
     ): SessionResponse =
         client.post("/sessions") {
             contentType(ContentType.Application.Json)
-            setBody(mapOf(
-                "element_type" to elementType,
-                "video_key" to videoKey,
-                "imu_left_key" to imuLeftKey,
-                "imu_right_key" to imuRightKey,
-            ).filterValues { it != null })
+            setBody(buildJsonObject {
+                put("element_type", elementType)
+                videoKey?.let { put("video_key", it) }
+                imuLeftKey?.let { put("imu_left_key", it) }
+                imuRightKey?.let { put("imu_right_key", it) }
+            })
         }.body()
 
     suspend fun delete(id: String) {
@@ -52,7 +59,7 @@ class SessionsApi(private val client: HttpClient) {
     suspend fun bulkDelete(ids: List<String>) {
         client.delete("/sessions/bulk") {
             contentType(ContentType.Application.Json)
-            setBody(mapOf("session_ids" to ids))
+            setBody(BulkDeleteRequest(ids))
         }
     }
 }

@@ -4,6 +4,8 @@ import io.ktor.client.*
 import io.ktor.client.call.*
 import io.ktor.client.request.*
 import io.ktor.http.*
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
 import ru.skatelab.shared.models.UserResponse
 
 class UsersApi(private val client: HttpClient) {
@@ -18,12 +20,12 @@ class UsersApi(private val client: HttpClient) {
     ): UserResponse =
         client.patch("/users/me") {
             contentType(ContentType.Application.Json)
-            setBody(mapOf(
-                "display_name" to displayName,
-                "bio" to bio,
-                "height_cm" to heightCm,
-                "weight_kg" to weightKg,
-            ).filterValues { it != null })
+            setBody(buildJsonObject {
+                displayName?.let { put("display_name", it) }
+                bio?.let { put("bio", it) }
+                heightCm?.let { put("height_cm", it) }
+                weightKg?.let { put("weight_kg", it) }
+            })
         }.body()
 
     suspend fun updateSettings(
@@ -34,11 +36,11 @@ class UsersApi(private val client: HttpClient) {
     ): UserResponse =
         client.patch("/users/me/settings") {
             contentType(ContentType.Application.Json)
-            setBody(mapOf(
-                "angular_unit" to angularUnit,
-                "language" to language,
-                "timezone" to timezone,
-                "theme" to theme,
-            ).filterValues { it != null })
+            setBody(buildJsonObject {
+                angularUnit?.let { put("angular_unit", it) }
+                language?.let { put("language", it) }
+                timezone?.let { put("timezone", it) }
+                theme?.let { put("theme", it) }
+            })
         }.body()
 }
