@@ -14,7 +14,7 @@ class UsersApi(private val client: HttpClient) {
         displayName: String? = null,
         bio: String? = null,
         heightCm: Int? = null,
-        weightKg: Float? = null,
+        weightKg: Double? = null,
     ): UserResponse =
         client.patch("/users/me") {
             contentType(ContentType.Application.Json)

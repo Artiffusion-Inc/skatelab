@@ -243,7 +243,7 @@ fun ProfileScreen(
                                 displayName = displayName.ifBlank { null },
                                 bio = bio.ifBlank { null },
                                 heightCm = heightCm.toIntOrNull(),
-                                weightKg = weightKg.toFloatOrNull(),
+                                weightKg = weightKg.toDoubleOrNull(),
                             )
                         },
                         modifier = Modifier.fillMaxWidth(),
