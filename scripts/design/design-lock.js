@@ -4,8 +4,8 @@
  *
  * Subcommands:
  *   node scripts/design-lock.js update  — Compute SHA-256 of each generated file
- *                                          + DESIGN.md hash, write tokens/lock.json
- *   node scripts/design-lock.js check   — Compute hashes, compare with lock.json.
+ *                                          + DESIGN.md hash, write design.lock
+ *   node scripts/design-lock.js check   — Compute hashes, compare with design.lock.
  *                                          Exit 0 if match, exit 1 if drift.
  *                                          Missing files log a warning but don't fail.
  */
@@ -19,7 +19,7 @@ import { fileURLToPath } from "node:url";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const DESIGN_MD = resolve(ROOT, "DESIGN.md");
-const LOCK_FILE = resolve(ROOT, "lock.json");
+const LOCK_FILE = resolve(ROOT, "design.lock");
 
 // ─── Generated files (must match design-build.js PLATFORM_FILES) ──────────
 
@@ -125,7 +125,7 @@ function update() {
   };
 
   writeLock(lock);
-  console.log("Updated: tokens/lock.json");
+  console.log("Updated: design.lock");
 
   const fileCount = Object.keys(files).length;
   const totalCount = GENERATED_FILES.length;
@@ -142,12 +142,12 @@ function update() {
 function check() {
   const lock = readLock();
   if (!lock) {
-    console.error("Error: tokens/lock.json not found. Run `update` first.");
+    console.error("Error: design.lock not found. Run `update` first.");
     process.exit(1);
   }
 
   if (lock.version !== 2) {
-    console.error(`Error: lock.json version ${lock.version}, expected 2`);
+    console.error(`Error: design.lock version ${lock.version}, expected 2`);
     process.exit(1);
   }
 
@@ -233,8 +233,8 @@ const command = process.argv[2];
 if (!command || command === "--help" || command === "-h") {
   console.log(`Usage: design-lock.js <update|check>
 
-  update  Compute SHA-256 of generated files + DESIGN.md, write tokens/lock.json
-  check   Compare current hashes with lock.json, exit 1 on drift
+  update  Compute SHA-256 of generated files + DESIGN.md, write design.lock
+  check   Compare current hashes with design.lock, exit 1 on drift
 `);
   process.exit(0);
 }

@@ -13,7 +13,7 @@
  *   --trigger   Which sections to regenerate (default: all)
  *   --force     Skip hash check, always regenerate
  *
- * Hash check: Reads tokens/lock.json, computes SHA-256 of DESIGN.md.
+ * Hash check: Reads design.lock, computes SHA-256 of DESIGN.md.
  *   If unchanged, exits 0 (no-op). Use --force to override.
  *
  * Circuit breaker: After 5 consecutive failures, skips generation
@@ -31,7 +31,7 @@ import PQueue from "p-queue";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const DESIGN_MD = resolve(ROOT, "DESIGN.md");
-const LOCK_FILE = resolve(ROOT, "lock.json");
+const LOCK_FILE = resolve(ROOT, "design.lock");
 const BUILD_LOG = resolve(ROOT, "scripts", "design", "build.log");
 const GLOBALS_CSS = resolve(ROOT, "frontend", "src", "app", "globals.css");
 
@@ -133,7 +133,7 @@ function hashCheck(designContent) {
   }
   const lock = readLock();
   if (!lock) {
-    console.log("No lock.json found — will generate.");
+    console.log("No design.lock found — will generate.");
     return false;
   }
   if (lock.version !== 2) {
@@ -946,7 +946,7 @@ function updateLock(designContent, platformResults) {
   }
 
   writeLock(lock);
-  console.log("  Updated: tokens/lock.json");
+  console.log("  Updated: design.lock");
 }
 
 // ─── Main Pipeline ──────────────────────────────────────────────────────────
