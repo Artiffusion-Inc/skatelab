@@ -7,6 +7,8 @@ import {
   useState,
   type ReactNode,
 } from "react"
+import { posthog } from "posthog-js"
+import { posthogKey } from "@/lib/env"
 import { useMountEffect } from "@/lib/useMountEffect"
 
 export interface ConsentState {
@@ -78,12 +80,35 @@ export function ConsentProvider({ children }: { children: ReactNode }) {
     setConsentState(stored)
     setShowBanner(!localStorage.getItem(STORAGE_KEY))
     setInitialized(true)
+
+    // Sync PostHog with stored consent on mount
+    if (posthogKey && stored.analytics) {
+      setTimeout(() => {
+        posthog.opt_in_capturing()
+        if (stored.recordings) {
+          posthog.startSessionRecording()
+        }
+      }, 100)
+    }
   })
 
   const setConsent = useCallback((state: ConsentState) => {
     setConsentState(state)
     writeConsent(state)
     setShowBanner(false)
+
+    // Sync PostHog with consent state
+    if (!posthogKey) return
+    if (state.analytics) {
+      posthog.opt_in_capturing()
+    } else {
+      posthog.opt_out_capturing()
+    }
+    if (state.recordings) {
+      posthog.startSessionRecording()
+    } else {
+      posthog.stopSessionRecording()
+    }
   }, [])
 
   const dismissBanner = useCallback(() => {

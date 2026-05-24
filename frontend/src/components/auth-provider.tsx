@@ -1,7 +1,7 @@
 "use client"
 
 import { useRouter } from "next/navigation"
-import { createContext, type ReactNode, useContext, useEffect, useRef, useState } from "react"
+import { createContext, type ReactNode, useContext, useState } from "react"
 import { devMockAuth, isDevelopment } from "@/lib/env"
 import type { UserResponse } from "@/lib/auth"
 import * as auth from "@/lib/auth"
@@ -26,7 +26,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<UserResponse | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const { hasConsented } = useConsent()
-  const prevAnalyticsConsent = useRef(false)
 
   useMountEffect(() => {
     if (devMockAuth && isDevelopment) {
@@ -65,20 +64,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       })
       .finally(() => setIsLoading(false))
   })
-
-  // Re-identify when analytics consent is granted after login
-  useEffect(() => {
-    const analyticsNow = hasConsented("analytics")
-    if (analyticsNow && !prevAnalyticsConsent.current && user) {
-      identifyUser(user.id, {
-        email: user.email,
-        role: user.onboarding_role,
-        language: user.language,
-        onboarding_completed: user.is_verified,
-      })
-    }
-    prevAnalyticsConsent.current = analyticsNow
-  }, [hasConsented, user])
 
   async function login(email: string, password: string) {
     await auth.login({ email, password })
