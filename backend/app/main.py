@@ -28,6 +28,7 @@ from app.exceptions import http_exception_handler
 from app.lifespan import app_lifespan
 from app.logging_config import configure_logging
 from app.middleware.cookie_auth import CookieToHeaderMiddleware
+from app.middleware.posthog_context import PostHogContextMiddleware
 from app.models.user import User
 from app.routes import (
     auth,
@@ -144,6 +145,7 @@ def create_app(
     def _inject_cookie_middleware(app_config: AppConfig) -> AppConfig:
         """Insert CookieToHeaderMiddleware at position 0 (before JWTAuth) so it runs first on request."""
         app_config.middleware.insert(0, DefineMiddleware(CookieToHeaderMiddleware))
+        app_config.middleware.insert(0, DefineMiddleware(PostHogContextMiddleware))
         return app_config
 
     # jwt_auth.on_app_init inserts JWTAuth at position 0.
