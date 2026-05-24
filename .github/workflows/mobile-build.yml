@@ -48,7 +48,7 @@ jobs:
   ios-build:
     name: iOS framework build
     if: inputs.should-run-ios
-    runs-on: macos-14
+    runs-on: blacksmith-6vcpu-macos-15
     timeout-minutes: 20
     defaults:
       run:
