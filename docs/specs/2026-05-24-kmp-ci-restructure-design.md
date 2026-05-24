@@ -104,7 +104,7 @@ Outputs: `shouldRunShared`, `shouldRunAndroid`, `shouldRunIos`, `shouldRunBuildL
 ```yaml
 mobile-ci-passed:
   name: Mobile CI Passed
-  needs: [changes, lint, shared-test, android-test, ios-test, android-build, ios-build]
+  needs: [changes, android-lint, shared-test, android-test, ios-test, android-build, ios-build]
   if: always()
   runs-on: blacksmith-2vcpu-ubuntu-2404
   timeout-minutes: 2
@@ -149,7 +149,7 @@ Label `run-ios-tests` on PR opts into iOS tests before merge queue.
 
 **Jobs:**
 - `android-build` (blacksmith-4vcpu-ubuntu-2404-arm): `./gradlew :androidApp:assembleDebug` → upload APK (retention: 7 days)
-- `ios-compile` (macos-14): `setup-java-gradle` → `./gradlew :shared:linkDebugFrameworkIosSimulatorArm64` (simulator only for CI speed)
+- `ios-build` (macos-14): `setup-java-gradle` → `./gradlew :shared:linkDebugFrameworkIosSimulatorArm64` (simulator only for CI speed)
 
 ### mobile-test.yml (reusable)
 
@@ -209,7 +209,7 @@ jobs:
 
 ```yaml
 name: Setup Java + Gradle
-description: JDK 17 + Gradle cache + Kotlin/Native cache + wrapper validation
+description: JDK 17 + Gradle cache + Kotlin/Native cache + wrapper validation + sticky disks
 inputs:
   java-version:
     default: '17'
@@ -232,14 +232,19 @@ runs:
         cache-encryption-key: ${{ secrets.GRADLE_CACHE_ENCRYPTION_KEY }}
         dependency-graph: generate-and-submit
 
-    # Explicit Kotlin/Native cache (not covered by setup-gradle basic)
-    - name: Cache Kotlin/Native .konan
-      uses: actions/cache@v4
+    # Sticky disk: ~/.gradle (persistent across jobs, 3s access vs 15s cache download)
+    - name: Mount Gradle home sticky disk
+      uses: useblacksmith/stickydisk@v1
       with:
+        key: ${{ github.repository }}-gradle-home
+        path: ~/.gradle
+
+    # Sticky disk: ~/.konan (Kotlin/Native compiler, ~500MB)
+    - name: Mount Kotlin/Native sticky disk
+      uses: useblacksmith/stickydisk@v1
+      with:
+        key: ${{ github.repository }}-konan
         path: ~/.konan
-        key: konan-${{ runner.os }}-${{ hashFiles('mobile/gradle/libs.versions.toml', 'mobile/gradle/wrapper/gradle-wrapper.properties') }}
-        restore-keys: |
-          konan-${{ runner.os }}-
 
     - name: Make gradlew executable
       shell: bash
@@ -248,19 +253,63 @@ runs:
 
 **Secret required:** `GRADLE_CACHE_ENCRYPTION_KEY` — generate via `openssl rand -base64 16`, save as repo secret.
 
+**Why Sticky Disks instead of `actions/cache`:**
+- `actions/cache`: 90 MB/s (GitHub) / 400 MB/s (Blacksmith colo) → ~15s for 6GB
+- `useblacksmith/stickydisk`: hot-loaded block device, ext4 mount → **~3 seconds** for any size
+- Gradle home (`~/.gradle`) easily 5-10GB with caches + wrappers + daemon
+- `.konan` is ~500MB for Kotlin/Native compiler
+- Sticky disks persist across runs without re-download — near-instant access
+- Cost: $0.50/GB/mo — for ~15GB total = ~$7.50/mo (negligible vs runner minutes saved)
+
 **Why this replaces both old actions:**
 - `setup-ios` composite removed: CocoaPods deprecated (KT-53877), `generateDummyFramework` obsolete (Kotlin 1.5.20+)
-- iOS jobs just need JDK + Gradle + .konan cache — same as Android
+- iOS jobs just need JDK + Gradle + .konan — same as Android
 - No CocoaPods setup needed for `iosSimulatorArm64Test` (Gradle-native task)
+
+### Sticky Disk for Android build directory
+
+For the `android-build` job specifically, the Gradle project build cache (`mobile/.gradle`) is also large. Add a project-level sticky disk:
+
+```yaml
+# In android-build job only
+- name: Mount Android project build cache
+  uses: useblacksmith/stickydisk@v1
+  with:
+    key: ${{ github.repository }}-android-build-cache
+    path: mobile/.gradle
+```
+
+This persists `mobile/.gradle/caches/transforms-*`, `build-cache/`, and other per-project artifacts between runs.
 
 ## Caching Strategy
 
-| Cache target | Mechanism | Key basis | Notes |
-|---|---|---|---|
-| Gradle build cache | `setup-gradle@v6` (basic) | auto by action | Replaces manual `actions/cache` for Gradle |
-| Configuration cache | `setup-gradle@v6` + encryption key | auto | **Critical:** without encryption key, config-cache state silently discarded |
-| Kotlin/Native `.konan` | explicit `actions/cache@v4` | OS + toml + wrapper props | Compiler download (~500MB) + unpack (~24s) avoided |
-| Gradle wrapper | `wrapper-validation@v3` | checksum verification | Supply-chain security |
+### 3-Layer Caching (fastest → largest)
+
+| Layer | Mechanism | Access time | Size | Cost |
+|---|---|---|---|---|
+| 1. Gradle build cache | `setup-gradle@v6` (basic) | ~15s (Blacksmith colo) | 1-3 GB | Free (included) |
+| 2. Configuration cache | `setup-gradle@v6` + encryption key | ~15s | 100-500 MB | Free (included) |
+| 3. Sticky disks | `useblacksmith/stickydisk@v1` | **~3s** | 10-15 GB total | ~$7.50/mo |
+
+### What goes where
+
+| Cache target | Layer | Why |
+|---|---|---|
+| `~/.gradle/caches` | Sticky disk | Gradle dependency cache, 5-10GB, slow to repopulate |
+| `~/.gradle/wrapper` | Sticky disk | Wrapper distributions, ~200MB |
+| `~/.konan` | Sticky disk | Kotlin/Native compiler (~500MB) + klib caches |
+| `mobile/.gradle` | Sticky disk (build job only) | Project build cache, transforms, 1-5GB |
+| Gradle build cache | `setup-gradle@v6` | Task outputs, incremental compilation |
+| Configuration cache | `setup-gradle@v6` + encryption key | Config phase skip — **critical:** without key = no-op in CI |
+| Gradle wrapper | `wrapper-validation@v3` | Checksum verification (supply-chain security) |
+
+### Git checkout caching
+
+Use `useblacksmith/checkout` (drop-in for `actions/checkout`) for repos where clone is slow:
+```yaml
+- uses: useblacksmith/checkout@v1  # instead of actions/checkout@v6
+```
+Keeps a persistent git mirror on sticky disk — incremental fetch instead of full clone. Worth it for repos >1GB.
 
 **gradle.properties tuning:**
 ```properties
@@ -289,7 +338,7 @@ Private repos: 2 vCPU / 8GB → `workers.max=2`, `Xmx2g`. Public repos: 4 vCPU /
 | `android-test` | blacksmith-4vcpu-ubuntu-2404-arm | Unit tests need RAM |
 | `android-build` | blacksmith-4vcpu-ubuntu-2404-arm | APK assembly needs RAM |
 | `ios-test` | macos-14 | Apple Silicon M1, native ARM64 simulator |
-| `ios-compile` | macos-14 | Same — Apple Silicon for native simulator |
+| `ios-build` | macos-14 | Same — Apple Silicon for native simulator |
 | `mobile-ci-passed` | blacksmith-2vcpu-ubuntu-2404-arm | Summary gate, <30s |
 
 **Already on Blacksmith ARM runners** (matching existing `ci-reusable.yml` config). iOS uses `macos-14` (Apple Silicon M1).
@@ -308,9 +357,10 @@ Private repos: 2 vCPU / 8GB → `workers.max=2`, `Xmx2g`. Public repos: 4 vCPU /
 
 | Technique | Estimated saving |
 |---|---|
-| Concurrency cancel-in-progress (already present) | ~30% fewer runs on busy PRs |
+| Sticky disks (~/.gradle, ~/.konan, mobile/.gradle) | **~60-70% faster builds** (3s access vs 15-66s cache download) |
 | Config-cache encryption key | ~30% faster (config phase skipped on cache hit) |
-| Gradle + Konan cache | ~40% faster builds (4-5min → 2-3min) |
+| Concurrency cancel-in-progress (already present) | ~30% fewer runs on busy PRs |
+| Gradle build cache (setup-gradle@v6) | ~40% faster incremental builds |
 | Label-based skip + tiered CI | Skip iOS builds on Android-only PRs (~50% macOS minutes) |
 | Build parallel to test | -5 to -15min from critical path |
 | 4vcpu runners for heavy jobs (vs 2vcpu) | Faster Gradle builds on test/build |
