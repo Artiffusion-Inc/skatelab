@@ -171,7 +171,7 @@ class AuthViewModelTest {
         viewModel.login("alice@example.com", "wrong")
 
         val state = viewModel.uiState.value
-        assert(state is AuthUiState.Error) { "Expected Error state, got $state" }
+        assertIs<AuthUiState.Error>(state)
     }
 
     @Test
@@ -237,7 +237,7 @@ class AuthViewModelTest {
         viewModel.register("existing@example.com", "pass", "Name")
 
         val state = viewModel.uiState.value
-        assert(state is AuthUiState.Error) { "Expected Error state, got $state" }
+        assertIs<AuthUiState.Error>(state)
     }
 
     @Test
@@ -301,6 +301,6 @@ class AuthViewModelTest {
 
         // After login failure, state is Error
         val state = viewModel.uiState.value
-        assert(state is AuthUiState.Error) { "Expected Error state, got $state" }
+        assertIs<AuthUiState.Error>(state)
     }
 }

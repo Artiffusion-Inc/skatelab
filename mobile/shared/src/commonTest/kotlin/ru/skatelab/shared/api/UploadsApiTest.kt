@@ -13,6 +13,7 @@ import kotlinx.serialization.json.Json
 import ru.skatelab.shared.models.CompletedPart
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 
 class UploadsApiTest {
     private val json = Json { ignoreUnknownKeys = true }
@@ -57,9 +58,9 @@ class UploadsApiTest {
         val api = UploadsApi(client)
         api.init("file.bin", "application/octet-stream", 500)
         val url = capturedUrl!!
-        assert(url.contains("file_name=file.bin"))
-        assert(url.contains("content_type=application%2Foctet-stream"))
-        assert(url.contains("total_size=500"))
+        assertTrue(url.contains("file_name=file.bin"))
+        assertTrue(url.contains("content_type=application%2Foctet-stream"))
+        assertTrue(url.contains("total_size=500"))
     }
 
     @Test
@@ -117,7 +118,7 @@ class UploadsApiTest {
         val api = UploadsApi(client)
         api.presign("photo.jpg", "image/jpeg")
         val url = capturedUrl!!
-        assert(url.contains("file_name=photo.jpg"))
-        assert(url.contains("content_type=image%2Fjpeg"))
+        assertTrue(url.contains("file_name=photo.jpg"))
+        assertTrue(url.contains("content_type=image%2Fjpeg"))
     }
 }
