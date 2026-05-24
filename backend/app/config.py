@@ -106,7 +106,7 @@ class S3Config(BaseSettings):
 
     access_key_id: SecretStr = SecretStr("")
     secret_access_key: SecretStr = SecretStr("")
-    bucket: str = "skatelab-pipeline"
+    bucket: str = "skatelab-data"
     endpoint_url: str = ""
     public_endpoint_url: str = ""
     region: str = "us-east-1"
