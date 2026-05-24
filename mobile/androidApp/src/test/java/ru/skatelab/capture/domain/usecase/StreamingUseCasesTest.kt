@@ -99,3 +99,36 @@ class FactoryResetSensorUseCaseTest {
 
     private class IOException(msg: String) : java.io.IOException(msg)
 }
+
+class AccCalibrateSensorUseCaseTest {
+    private lateinit var bleRepository: BleRepository
+    private lateinit var useCase: AccCalibrateSensorUseCase
+
+    @Before
+    fun setUp() {
+        bleRepository = mockk(relaxed = true)
+        useCase = AccCalibrateSensorUseCase(bleRepository)
+    }
+
+    @Test
+    fun accCalibrateSuccess() =
+        runTest {
+            coEvery { bleRepository.accCalibrateSensor(SensorId.LEFT) } returns Result.success(Unit)
+
+            val result = useCase(SensorId.LEFT)
+
+            assertTrue(result.isSuccess)
+            coVerify { bleRepository.accCalibrateSensor(SensorId.LEFT) }
+        }
+
+    @Test
+    fun accCalibrateFailure() =
+        runTest {
+            coEvery { bleRepository.accCalibrateSensor(SensorId.RIGHT) } returns
+                Result.failure(IllegalStateException("Not connected"))
+
+            val result = useCase(SensorId.RIGHT)
+
+            assertTrue(result.isFailure)
+        }
+}
