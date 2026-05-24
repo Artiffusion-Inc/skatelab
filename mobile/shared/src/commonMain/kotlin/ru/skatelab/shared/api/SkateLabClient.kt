@@ -21,6 +21,7 @@ class SkateLabClient(
     private val baseUrl: String,
     engine: HttpClientEngine,
     private val tokenStorage: TokenStorage,
+    private val logger: Logger = Logger.DEFAULT,
 ) {
     val json = Json { ignoreUnknownKeys = true; isLenient = true }
 
@@ -29,7 +30,7 @@ class SkateLabClient(
 
         install(Logging) {
             level = LogLevel.ALL
-            logger = Logger.DEFAULT
+            this.logger = this@SkateLabClient.logger
         }
 
         defaultRequest { url(baseUrl) }
