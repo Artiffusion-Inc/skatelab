@@ -37,6 +37,7 @@ import ru.skatelab.capture.domain.usecase.RecordingStartInfo
 import ru.skatelab.capture.domain.usecase.StartRecordingUseCase
 import ru.skatelab.capture.domain.usecase.StopRecordingUseCase
 
+@OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 class RecordingViewModelTest {
     private val testDispatcher = UnconfinedTestDispatcher()
     private val testScope = TestScope(testDispatcher)

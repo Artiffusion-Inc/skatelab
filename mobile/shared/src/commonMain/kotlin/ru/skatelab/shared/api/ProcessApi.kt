@@ -9,6 +9,7 @@ import io.ktor.utils.io.*
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.serialization.EncodeDefault
+import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
@@ -16,14 +17,14 @@ import ru.skatelab.shared.models.ProcessEvent
 
 private val sseJson = Json { ignoreUnknownKeys = true }
 
-class ProcessApi(private val client: HttpClient) {
-    suspend fun queue(
+class ProcessApi(private val client: HttpClient) : IProcessApi {
+    override suspend fun queue(
         videoKey: String,
-        sessionId: String? = null,
-        personClickX: Float? = null,
-        personClickY: Float? = null,
-        frameSkip: Int = 1,
-        tracking: String = "auto",
+        sessionId: String?,
+        personClickX: Float?,
+        personClickY: Float?,
+        frameSkip: Int,
+        tracking: String,
     ): QueueProcessResponse =
         client.post("/process/queue") {
             contentType(ContentType.Application.Json)
@@ -37,14 +38,14 @@ class ProcessApi(private val client: HttpClient) {
             ))
         }.body()
 
-    suspend fun status(taskId: String): TaskStatusResponse =
+    override suspend fun status(taskId: String): TaskStatusResponse =
         client.get("/process/$taskId/status").body()
 
-    suspend fun cancel(taskId: String) {
+    override suspend fun cancel(taskId: String) {
         client.post("/process/$taskId/cancel")
     }
 
-    fun stream(taskId: String): Flow<ProcessEvent> = flow {
+    override fun stream(taskId: String): Flow<ProcessEvent> = flow {
         val response: HttpResponse = client.get("/process/$taskId/stream")
         val channel: ByteReadChannel = response.body()
         val buffer = StringBuilder()
@@ -65,6 +66,7 @@ class ProcessApi(private val client: HttpClient) {
     }
 }
 
+@OptIn(ExperimentalSerializationApi::class)
 @Serializable
 data class QueueProcessRequest(
     @SerialName("video_key") val videoKey: String,

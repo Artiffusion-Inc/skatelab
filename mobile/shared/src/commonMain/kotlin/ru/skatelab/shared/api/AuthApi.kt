@@ -18,6 +18,21 @@ data class RegisterRequest(
     @SerialName("display_name") val displayName: String? = null,
 )
 
+@Serializable
+data class LogoutRequest(@SerialName("refresh_token") val refreshToken: String)
+
+@Serializable
+data class VerifyEmailRequest(val token: String)
+
+@Serializable
+data class ResendVerificationRequest(val email: String)
+
+@Serializable
+data class ForgotPasswordRequest(val email: String)
+
+@Serializable
+data class ResetPasswordRequest(val token: String, @SerialName("new_password") val newPassword: String)
+
 class AuthApi(private val client: HttpClient) {
     suspend fun login(email: String, password: String): TokenResponse =
         client.post("/auth/login") {
@@ -34,35 +49,35 @@ class AuthApi(private val client: HttpClient) {
     suspend fun logout(refreshToken: String) {
         client.post("/auth/logout") {
             contentType(ContentType.Application.Json)
-            setBody(mapOf("refresh_token" to refreshToken))
+            setBody(LogoutRequest(refreshToken))
         }
     }
 
     suspend fun verifyEmail(token: String) {
         client.post("/auth/verify-email") {
             contentType(ContentType.Application.Json)
-            setBody(mapOf("token" to token))
+            setBody(VerifyEmailRequest(token))
         }
     }
 
     suspend fun resendVerification(email: String) {
         client.post("/auth/resend-verification") {
             contentType(ContentType.Application.Json)
-            setBody(mapOf("email" to email))
+            setBody(ResendVerificationRequest(email))
         }
     }
 
     suspend fun forgotPassword(email: String) {
         client.post("/auth/forgot-password") {
             contentType(ContentType.Application.Json)
-            setBody(mapOf("email" to email))
+            setBody(ForgotPasswordRequest(email))
         }
     }
 
     suspend fun resetPassword(token: String, newPassword: String) {
         client.post("/auth/reset-password") {
             contentType(ContentType.Application.Json)
-            setBody(mapOf("token" to token, "new_password" to newPassword))
+            setBody(ResetPasswordRequest(token, newPassword))
         }
     }
 }

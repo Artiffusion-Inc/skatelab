@@ -20,6 +20,7 @@ import ru.skatelab.capture.domain.model.CaptureSession
 import ru.skatelab.capture.domain.model.SensorId
 import ru.skatelab.capture.domain.repository.SessionRepository
 
+@OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 class SessionListViewModelTest {
     private val testDispatcher = StandardTestDispatcher()
     private val testScope = TestScope(testDispatcher)

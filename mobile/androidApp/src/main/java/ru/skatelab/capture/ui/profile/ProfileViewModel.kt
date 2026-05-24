@@ -65,7 +65,7 @@ class ProfileViewModel
             displayName: String? = null,
             bio: String? = null,
             heightCm: Int? = null,
-            weightKg: Float? = null,
+            weightKg: Double? = null,
         ) {
             viewModelScope.launch {
                 _uiState.value = _uiState.value.copy(isSaving = true, saveSuccess = false)

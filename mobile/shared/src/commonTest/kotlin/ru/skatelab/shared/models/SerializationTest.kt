@@ -4,6 +4,16 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.decodeFromString
 import ru.skatelab.shared.api.PresignResponse
+import ru.skatelab.shared.models.MetricsRegistryResponse
+import ru.skatelab.shared.models.MetricDefinition
+import ru.skatelab.shared.models.TrendResponse
+import ru.skatelab.shared.models.TrendDataPoint
+import ru.skatelab.shared.models.PRsResponse
+import ru.skatelab.shared.models.PersonalRecord
+import ru.skatelab.shared.models.DiagnosticsResponse
+import ru.skatelab.shared.models.DiagnosticsFinding
+import ru.skatelab.shared.models.SummaryResponse
+import ru.skatelab.shared.models.SessionUpdateRequest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
@@ -91,8 +101,8 @@ class SerializationTest {
             displayName = "Alice",
             avatarUrl = null,
             bio = "Figure skater",
-            heightCm = 165f,
-            weightKg = 52f,
+            heightCm = 165.0,
+            weightKg = 52.0,
             language = "ru",
             timezone = "Europe/Moscow",
             theme = "dark",
@@ -110,5 +120,51 @@ class SerializationTest {
         val decoded = json.decodeFromString<PresignResponse>(payload)
         assertEquals("https://r2.example.com/presign?x-id=PutObject", decoded.url)
         assertEquals("videos/u1/small.mp4", decoded.key)
+    }
+
+    @Test
+    fun sessionUpdateRequestRoundtrip() {
+        val original = SessionUpdateRequest(elementType = "axel", notes = "PR attempt")
+        val encoded = json.encodeToString(original)
+        val decoded = json.decodeFromString<SessionUpdateRequest>(encoded)
+        assertEquals("axel", decoded.elementType)
+        assertEquals("PR attempt", decoded.notes)
+    }
+
+    @Test
+    fun metricsRegistryResponseDeserialize() {
+        val payload = """{"metrics":{"jump_height":{"name":"jump_height","label_ru":"Высота","unit":"cm","format":"%.1f","direction":"higher_is_better","element_types":["axel"],"ideal_range":{"min":30.0,"max":60.0}}}}"""
+        val decoded = json.decodeFromString<MetricsRegistryResponse>(payload)
+        assertEquals(1, decoded.metrics.size)
+        assertEquals("jump_height", decoded.metrics["jump_height"]!!.name)
+        assertEquals("cm", decoded.metrics["jump_height"]!!.unit)
+    }
+
+    @Test
+    fun trendResponseDeserialize() {
+        val payload = """{"metric_name":"jump_height","element_type":"axel","data_points":[{"session_id":"s1","value":45.2,"is_pr":true,"date":"2026-05-01"}],"trend":"improving","current_pr":45.2,"reference_range":{"min":30.0,"max":60.0}}"""
+        val decoded = json.decodeFromString<TrendResponse>(payload)
+        assertEquals("jump_height", decoded.metricName)
+        assertEquals(1, decoded.dataPoints.size)
+        assertEquals(45.2, decoded.dataPoints[0].value)
+        assertEquals("improving", decoded.trend)
+    }
+
+    @Test
+    fun prsResponseDeserialize() {
+        val payload = """{"prs":[{"element_type":"axel","metric_name":"jump_height","value":45.2,"session_id":"s1"}]}"""
+        val decoded = json.decodeFromString<PRsResponse>(payload)
+        assertEquals(1, decoded.prs.size)
+        assertEquals("axel", decoded.prs[0].elementType)
+        assertEquals(45.2, decoded.prs[0].value)
+    }
+
+    @Test
+    fun diagnosticsResponseDeserialize() {
+        val payload = """{"user_id":"u1","findings":[{"severity":"warning","element":"axel","metric":"jump_height","message":"Below range","detail":"45cm vs 50cm"}]}"""
+        val decoded = json.decodeFromString<DiagnosticsResponse>(payload)
+        assertEquals("u1", decoded.userId)
+        assertEquals(1, decoded.findings.size)
+        assertEquals("warning", decoded.findings[0].severity)
     }
 }

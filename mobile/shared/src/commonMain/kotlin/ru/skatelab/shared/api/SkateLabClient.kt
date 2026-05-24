@@ -13,6 +13,8 @@ import io.ktor.http.*
 import io.ktor.serialization.kotlinx.json.*
 import kotlinx.io.IOException
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
 import ru.skatelab.shared.auth.TokenStorage
 import ru.skatelab.shared.models.TokenResponse
 
@@ -41,7 +43,7 @@ class SkateLabClient(
                         client.post("/auth/refresh") {
                             markAsRefreshTokenRequest()
                             contentType(ContentType.Application.Json)
-                            setBody(mapOf("refresh_token" to refreshToken))
+                            setBody(buildJsonObject { put("refresh_token", refreshToken) })
                         }.body<TokenResponse>()
                     }
                     if (result.isSuccess) {

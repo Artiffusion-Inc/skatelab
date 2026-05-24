@@ -68,4 +68,23 @@ class ProcessApiTest {
         api.cancel("task-456")
         assertEquals("/process/task-456/cancel", requestPath)
     }
+
+    @Test
+    fun queue_withSessionId_sendsBody() = kotlinx.coroutines.test.runTest {
+        var capturedBody: String? = null
+        val engine = MockEngine { request ->
+            capturedBody = request.body.toString()
+            respond(
+                """{"task_id": "task-789", "status": "pending"}""",
+                status = HttpStatusCode.OK,
+                headers = headersOf(HttpHeaders.ContentType, ContentType.Application.Json.toString()),
+            )
+        }
+        val client = HttpClient(engine) {
+            install(ContentNegotiation) { json(json) }
+        }
+        val api = ProcessApi(client)
+        val response = api.queue("video-key", sessionId = "sess-1", frameSkip = 2)
+        assertEquals("task-789", response.taskId)
+    }
 }

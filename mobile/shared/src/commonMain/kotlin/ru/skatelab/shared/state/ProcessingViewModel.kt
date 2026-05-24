@@ -3,7 +3,7 @@ package ru.skatelab.shared.state
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import ru.skatelab.shared.api.ProcessApi
+import ru.skatelab.shared.api.IProcessApi
 import ru.skatelab.shared.models.ProcessStatus
 
 sealed interface ProcessingUiState {
@@ -13,7 +13,7 @@ sealed interface ProcessingUiState {
     data class Failed(val message: String) : ProcessingUiState
 }
 
-class ProcessingViewModel(private val processApi: ProcessApi) {
+class ProcessingViewModel(private val processApi: IProcessApi) {
     private val _uiState = MutableStateFlow<ProcessingUiState>(ProcessingUiState.Idle)
     val uiState: StateFlow<ProcessingUiState> = _uiState.asStateFlow()
 
