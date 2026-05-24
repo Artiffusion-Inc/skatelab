@@ -303,6 +303,16 @@ async def process_video_task(
             await mark_cancelled(task_id)
             return {"status": "cancelled"}
 
+        # TODO: propagate user_id from session for proper distinct_id
+        from app.analytics_events import vastai_dispatched
+
+        vastai_dispatched(
+            distinct_id=session_id or task_id,
+            session_id=session_id or "",
+            instance_type="vastai-serverless",
+            estimated_cost_usd=0.0,  # No estimate available at dispatch time
+        )
+
         async with _VASTAI_SEMAPHORE:
             vast_result = await process_video_remote_async(
                 video_key=video_key,
@@ -431,6 +441,19 @@ async def process_video_task(
 
         # Write Valkey status LAST, after DB commit (if any)
         await store_result(task_id, response_data)
+
+        # TODO: propagate user_id from session for proper distinct_id
+        from app.analytics_events import analysis_completed
+
+        analysis_completed(
+            distinct_id=session_id or task_id,
+            session_id=session_id or "",
+            duration_s=0,  # TODO: compute from started_at timestamp stored in valkey
+            model="moganet-b",
+            elements_count=len(vast_result.segments) if vast_result.segments else 0,
+            gpu="vastai",
+        )
+
         await update_progress(task_id, 1.0, "Done")
         await publish_task_event(
             task_id, {"status": "completed", "progress": 1.0, "message": "Done"}
@@ -441,6 +464,17 @@ async def process_video_task(
     except (OSError, ValueError, RuntimeError, ConnectionError, TimeoutError) as e:
         logger.exception("Pipeline task %s failed", task_id)
         await store_error(task_id, str(e))
+
+        # TODO: propagate user_id from session for proper distinct_id
+        from app.analytics_events import analysis_failed
+
+        analysis_failed(
+            distinct_id=session_id or task_id,
+            session_id=session_id or "",
+            error_type=type(e).__name__,
+            retry_count=ctx.get("job_try", 1),
+        )
+
         try:
             await publish_task_event(
                 task_id, {"status": "failed", "progress": 0.0, "message": str(e)}
