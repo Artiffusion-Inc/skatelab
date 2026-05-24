@@ -1,0 +1,47 @@
+groups:
+  - name: posthog
+    rules:
+      - alert: PostHogClickHouseDiskHigh
+        expr: clickhouse_disk_usage_ratio > 0.8
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "PostHog ClickHouse disk usage above 80%"
+          description: "ClickHouse disk usage is {{ $value | humanizePercentage }}. Consider increasing retention cleanup frequency."
+
+      - alert: PostHogClickHouseMemoryHigh
+        expr: clickhouse_memory_usage_ratio > 0.9
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "PostHog ClickHouse memory usage above 90%"
+          description: "ClickHouse memory usage is {{ $value | humanizePercentage }} of the 4GB limit. May cause OOM."
+
+      - alert: PostHogRedpandaNotReady
+        expr: redpanda_cluster_partition_leader_count < redpanda_cluster_partition_count
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "PostHog Redpanda has under-replicated partitions"
+          description: "Redpanda has {{ $value }} under-replicated partitions. Event pipeline may be blocked."
+
+      - alert: PostHogWebDown
+        expr: up{job="posthog_web"} == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "PostHog web service is down"
+          description: "PostHog Django web service has been down for more than 2 minutes."
+
+      - alert: PostHogWorkerLag
+        expr: posthog_celery_queue_length > 10000
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: "PostHog worker queue backlog"
+          description: "Celery worker queue has {{ $value }} pending events. Processing may be delayed."
