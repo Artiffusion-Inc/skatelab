@@ -12,6 +12,7 @@ Env Prefixes:
   VASTAI_     — remote GPU
   RESEND_     — transactional email
   SENTRY_     — error monitoring
+  POSTHOG_    — product analytics
   APP_        — general (host, port, dirs, logging)
 """
 
@@ -145,6 +146,16 @@ class SentryConfig(BaseSettings):
         env_prefix = "SENTRY_"
 
 
+class PostHogConfig(BaseSettings):
+    """PostHog analytics settings."""
+
+    api_key: SecretStr = SecretStr("")
+    host: str = "https://ph.skatelab.ru"
+
+    class Config:
+        env_prefix = "POSTHOG_"
+
+
 class AppConfig(BaseSettings):
     """General application settings."""
 
@@ -180,6 +191,7 @@ class Settings(BaseSettings):
     vastai: VastAIConfig = Field(default_factory=VastAIConfig)
     resend: ResendConfig = Field(default_factory=ResendConfig)
     sentry: SentryConfig = Field(default_factory=SentryConfig)
+    posthog: PostHogConfig = Field(default_factory=PostHogConfig)
     app: AppConfig = Field(default_factory=AppConfig)
 
     model_config = SettingsConfigDict(
