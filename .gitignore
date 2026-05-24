@@ -1,124 +1,151 @@
-
-!CLAUDE.md
-!data/processed/.gitkeep
-!data/raw/.gitkeep
-!data/references/.gitkeep
-!flutter_app/lib/
-!frontend/src/lib/
-!mobile/lib/
-!requirements.txt
-# Alembic (keep versions/, ignore __pycache__)
-# Bun (root only — frontend/bun.lock tracked)
-# Claude Code (local memory — per-machine, not shared)
-# Coverage
-# Data
-# Design token pipeline
-# Environment variables
-# Experiment checkpoints
-# Frontend build output
-# IDE
-# Jupyter
-# Logs
-# Models
-# Node / Frontend
-# OS
-# Output files
 # Python
-# RTMPose KD experiments (generated data, not source)
-# Stray generated artifacts
-# Submodules (managed separately)
-# Temp session files
-# Testing
-# Vast.ai
-# Virtual environments
-# YOLO26 KD experiments (generated data)
-# uv
-*$py.class
-*.cover
-*.egg
-*.egg-info/
-*.ipynb
-*.log
-*.onnx
-*.onnx_data
-*.pkl
-*.pt
-*.pth
-*.py[cod]
-*.so
-*.swo
-*.swp
-*.txt
-*.weights
-*~
-.DS_Store
-.Python
-.claude/
-.coverage
-.eggs/
-.env
-.envrc
-.hypothesis/
-.idea/
-.installed.cfg
-.ipynb_checkpoints/
-.playwright-cli/
-.pytest_cache/
-.uv/
-.venv
-.vscode/
-.worktrees/
-/bun.lock
-ENV/
-MANIFEST
-Sports2D/
-TCPFormer/
-Thumbs.db
 __pycache__/
-alembic/__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
 build/
-coverage.json
-coverage/
-data/dataset/
-data/datasets/
-data/processed/*
-data/raw/*
-data/references/*
-data/uploads/
 develop-eggs/
 dist/
-docs/design-audit.json
 downloads/
 eggs/
+.eggs/
+lib/
+!frontend/src/lib/
+!flutter_app/lib/
+!mobile/lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Bun (root only — frontend/bun.lock tracked)
+/bun.lock
+
+# Virtual environments
+venv/
 env/
+ENV/
+.venv
+
+# uv
+.uv/
+
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Claude Code — track settings + hooks, ignore per-machine state
+.claude/worktrees/
+.claude/scheduled_tasks.json
+.claude/settings.local.json
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+coverage.json
+*.cover
+.hypothesis/
+
+# Data
+data/raw/*
+data/processed/*
+!data/raw/.gitkeep
+!data/processed/.gitkeep
+data/references/*
+!data/references/.gitkeep
+data/datasets/
+data/dataset/
+data/uploads/
+
+# Models
+*.pt
+*.pth
+*.onnx
+*.onnx_data
+*.weights
+*.pkl
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb
+
+# Experiment checkpoints
 experiments/checkpoints/
-experiments/rtmpose-simcc-kd/.venv/
-experiments/rtmpose-simcc-kd/checkpoints/*.pth
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Environment variables
+.env
+.envrc
+
+# Output files
+out*.mp4
+out*.csv
+out*.npy
+
+# Submodules (managed separately)
+Sports2D/
+TCPFormer/
+
+# Vast.ai
+vast-instances.json
+
+# Temp session files
+*.txt
+!requirements.txt
+!CLAUDE.md
+
+# Node / Frontend
+node_modules/
+
+# Frontend build output
+frontend/dist/
+
+# Coverage
+coverage/
+package-lock.json
+
+# Alembic (keep versions/, ignore __pycache__)
+alembic/__pycache__/
+
+# RTMPose KD experiments (generated data, not source)
 experiments/rtmpose-simcc-kd/data/
+experiments/rtmpose-simcc-kd/checkpoints/*.pth
+experiments/rtmpose-simcc-kd/work_dirs/
+experiments/rtmpose-simcc-kd/.venv/
 experiments/rtmpose-simcc-kd/logs/
 experiments/rtmpose-simcc-kd/results/
-experiments/rtmpose-simcc-kd/work_dirs/
-experiments/yolo26-pose-kd/checkpoints/
+
+# YOLO26 KD experiments (generated data)
 experiments/yolo26-pose-kd/data/
-experiments/yolo26-pose-kd/runs/
+experiments/yolo26-pose-kd/checkpoints/
 experiments/yolo26-pose-kd/work_dirs/
-frontend/dist/
-htmlcov/
-lefthook-local.yml
-lib/
-lib64/
-node_modules/
-out*.csv
-out*.mp4
-out*.npy
-package-lock.json
-parts/
+experiments/yolo26-pose-kd/runs/
+
+# Stray generated artifacts
 row
 runs/
-sdist/
-share/python-wheels/
+.worktrees/
+.playwright-cli/
+
+# Design token pipeline
+node_modules/
 tokens/build.log
-var/
-vast-instances.json
-venv/
-wheels/
+docs/design-audit.json
