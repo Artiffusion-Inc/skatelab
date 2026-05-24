@@ -24,7 +24,7 @@
 
 **Backup:** `clickhouse-backup` (Altinity) вместо `clickhouse-client dump` — надёжнее, поддерживает S3 upload.
 
-**RustFS risk:** Alpha software, crashes under high concurrency (512+ threads). Минный migration plan (RustFS → MinIO) если понадобится.
+**RustFS risk:** Alpha software, crashes under high concurrency (512+ threads). `S3_*` абстракция позволяет сменить бекенд заменой endpoint.
 
 См. полные отчёты: `research-agent-s3-migration.md`, `research-agent-compose-structure.md`, `research-agent-posthog-optimization.md`, `research-agent-env-management.md`, `research-agent-single-server.md`.
 
@@ -152,12 +152,9 @@ Bucket `skatelab-pipeline` для SkateLab видео, bucket `posthog` для P
 
 **RustFS НЕ создаёт buckets автоматически** — нужен init-step (через mc/aws cli или console).
 
-### RustFS alpha risk mitigation
+### RustFS alpha risk
 
-RustFS — alpha software (1.0.0-alpha.89), падает при высокой concurrency. Митигация:
-1. `S3_*` абстракция позволяет переключиться на MinIO/SearweedFS заменой endpoint
-2. Минный migration plan: если RustFS нестабилен → `S3_ENDPOINT_URL` на MinIO, `rclone sync` данные
-3. Бэкапы ClickHouse/PG в RustFS + отдельный backup location
+RustFS — alpha software (1.0.0-alpha.89), падает при высокой concurrency (512+ threads). Для нашего single-server MVP с низким трафиком — допустимо. `S3_*` абстракция позволяет сменить бекенд заменой endpoint если понадобится.
 
 ## 3. PostHog image tags — хардкод в compose
 
@@ -358,7 +355,7 @@ caddy:     depends_on: [backend:healthy]
 - Убрать RUSTFS_* из env vars
 - Обновить Commands секцию
 - Обновить Gotchas (S3_ вместо R2_/RUSTFS_)
-- Добавить RustFS alpha risk note + MinIO migration plan
+- Добавить RustFS alpha risk note
 - Добавить S3_PATH_STYLE и S3_REGION в env vars
 - Добавить `name: infra` / `name: skatelab` в compose
 - Добавить clickhouse-backup вместо clickhouse-client dump
