@@ -8,7 +8,6 @@ import io.ktor.client.plugins.*
 import io.ktor.client.plugins.auth.*
 import io.ktor.client.plugins.auth.providers.*
 import io.ktor.client.plugins.contentnegotiation.*
-import io.ktor.client.plugins.logging.*
 import io.ktor.client.request.*
 import io.ktor.http.*
 import io.ktor.serialization.kotlinx.json.*
@@ -21,17 +20,11 @@ class SkateLabClient(
     private val baseUrl: String,
     engine: HttpClientEngine,
     private val tokenStorage: TokenStorage,
-    private val logger: Logger = Logger.DEFAULT,
 ) {
     val json = Json { ignoreUnknownKeys = true; isLenient = true }
 
     val httpClient = HttpClient(engine) {
         install(ContentNegotiation) { json(json) }
-
-        install(Logging) {
-            level = LogLevel.ALL
-            this.logger = this@SkateLabClient.logger
-        }
 
         defaultRequest { url(baseUrl) }
 

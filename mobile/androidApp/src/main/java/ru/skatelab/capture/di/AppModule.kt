@@ -9,7 +9,7 @@ import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import io.ktor.client.engine.okhttp.*
-import io.ktor.client.plugins.logging.*
+import okhttp3.logging.HttpLoggingInterceptor
 import javax.inject.Named
 import javax.inject.Qualifier
 import javax.inject.Singleton
@@ -95,13 +95,16 @@ abstract class AppModule {
         fun provideSkateLabClient(tokenStorage: TokenStorage): SkateLabClient =
             SkateLabClient(
                 baseUrl = "https://skatelab.ru/api/v1",
-                engine = OkHttp.create(),
-                tokenStorage = tokenStorage,
-                logger = object : Logger {
-                    override fun log(message: String) {
-                        android.util.Log.d("Ktor", message)
-                    }
+                engine = OkHttp.create {
+                    val loggingInterceptor = HttpLoggingInterceptor(
+                        HttpLoggingInterceptor.Logger { message ->
+                            android.util.Log.d("OkHttp", message)
+                        },
+                    )
+                    loggingInterceptor.level = HttpLoggingInterceptor.Level.BODY
+                    addInterceptor(loggingInterceptor)
                 },
+                tokenStorage = tokenStorage,
             )
 
         @Provides
