@@ -1,0 +1,119 @@
+name: Mobile CI
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - 'mobile/**'
+      - '.github/workflows/mobile*.yml'
+      - '.github/actions/setup-java-gradle/**'
+  pull_request:
+    branches: [master]
+    paths:
+      - 'mobile/**'
+      - '.github/workflows/mobile*.yml'
+      - '.github/actions/setup-java-gradle/**'
+  merge_group:
+  workflow_dispatch:
+    inputs:
+      run-all:
+        description: 'Run all jobs regardless of changed files'
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+  pull-requests: read
+
+concurrency:
+  group: mobile-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/master' }}
+
+jobs:
+  changes:
+    name: Detect changes
+    runs-on: blacksmith-2vcpu-ubuntu-2404-arm
+    timeout-minutes: 2
+    outputs:
+      shared: ${{ steps.filter.outputs.shared }}
+      android: ${{ steps.filter.outputs.android }}
+      ios: ${{ steps.filter.outputs.ios }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          filters: |
+            shared:
+              - 'mobile/shared/**'
+              - 'mobile/build-logic/**'
+              - 'mobile/gradle/**'
+              - 'mobile/build.gradle.kts'
+              - 'mobile/settings.gradle.kts'
+              - 'mobile/gradle.properties'
+            android:
+              - 'mobile/androidApp/**'
+              - 'mobile/build-logic/**'
+              - 'mobile/gradle/**'
+              - 'mobile/build.gradle.kts'
+              - 'mobile/settings.gradle.kts'
+              - 'mobile/gradle.properties'
+              - 'mobile/proto/**'
+            ios:
+              - 'mobile/shared/**'
+              - 'mobile/iosApp/**'
+              - 'mobile/build-logic/**'
+              - 'mobile/gradle/**'
+              - 'mobile/build.gradle.kts'
+              - 'mobile/settings.gradle.kts'
+              - 'mobile/gradle.properties'
+
+  lint:
+    name: Lint
+    needs: changes
+    if: ${{ inputs.run-all || needs.changes.outputs.android == 'true' }}
+    uses: ./.github/workflows/mobile-lint.yml
+    with:
+      should-run: ${{ inputs.run-all || needs.changes.outputs.android == 'true' }}
+    secrets: inherit
+
+  test:
+    name: Test
+    needs: changes
+    uses: ./.github/workflows/mobile-test.yml
+    with:
+      should-run-shared: ${{ inputs.run-all || needs.changes.outputs.shared == 'true' }}
+      should-run-android: ${{ inputs.run-all || needs.changes.outputs.android == 'true' }}
+      should-run-ios: ${{ inputs.run-all || needs.changes.outputs.ios == 'true' || github.event_name == 'merge_group' || contains(github.event.pull_request.labels.*.name, 'run-ios-tests') }}
+    secrets: inherit
+
+  build:
+    name: Build
+    needs: changes
+    if: ${{ inputs.run-all || needs.changes.outputs.android == 'true' || needs.changes.outputs.ios == 'true' || github.event_name == 'merge_group' }}
+    uses: ./.github/workflows/mobile-build.yml
+    with:
+      should-run-android: ${{ inputs.run-all || needs.changes.outputs.android == 'true' || github.event_name == 'merge_group' }}
+      should-run-ios: ${{ inputs.run-all || needs.changes.outputs.ios == 'true' || github.event_name == 'merge_group' }}
+    secrets: inherit
+
+  mobile-ci-passed:
+    name: Mobile CI Passed
+    needs: [changes, lint, test, build]
+    if: always()
+    runs-on: blacksmith-2vcpu-ubuntu-2404-arm
+    timeout-minutes: 2
+    steps:
+      - name: Evaluate results
+        run: |
+          echo "lint: ${{ needs.lint.result }}"
+          echo "test: ${{ needs.test.result }}"
+          echo "build: ${{ needs.build.result }}"
+          for result in "${{ needs.lint.result }}" "${{ needs.test.result }}" "${{ needs.build.result }}"; do
+            if [[ "$result" == "failure" || "$result" == "cancelled" ]]; then
+              echo "::error::A required mobile CI job failed with result: $result"
+              exit 1
+            fi
+          done
+          echo "All mobile checks passed"
