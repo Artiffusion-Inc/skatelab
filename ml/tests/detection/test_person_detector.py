@@ -1,4 +1,4 @@
-"""Tests for YOLOv8n ONNX person detector."""
+"""Tests for RF-DETR ONNX person detector."""
 
 import numpy as np
 import pytest
@@ -9,18 +9,20 @@ from src.types import BoundingBox
 
 @pytest.mark.slow
 class TestPersonDetector:
-    """Test PersonDetector with YOLOv8n ONNX model."""
+    """Test PersonDetector with RF-DETR ONNX model."""
 
     def test_detector_initialization(self):
         """Should initialize with default parameters."""
         detector = PersonDetector()
         assert detector._confidence == 0.5
         assert detector._session is None  # Lazy load
+        assert detector._input_size == 384  # RF-DETR-Nano default
 
     def test_detector_custom_params(self):
         """Should initialize with custom parameters."""
-        detector = PersonDetector(confidence=0.7)
+        detector = PersonDetector(confidence=0.7, input_size=512)
         assert detector._confidence == 0.7
+        assert detector._input_size == 512
 
     def test_model_lazy_load(self):
         """Should load ONNX session on first access."""
