@@ -18,6 +18,7 @@ import ru.skatelab.shared.auth.AuthRepository
 import ru.skatelab.shared.auth.TokenStorage
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertIs
 
 class AuthViewModelTest {
     private val json = Json { ignoreUnknownKeys = true }
