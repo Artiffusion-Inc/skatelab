@@ -24,6 +24,7 @@ jobs:
   changes:
     name: Detect changed files
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     permissions:
       contents: read
       pull-requests: read
@@ -60,18 +61,19 @@ jobs:
               - "infra/**"
             design:
               - "DESIGN.md"
-              - "scripts/design-*.js"
-              - "tokens/lock.json"
+              - "scripts/design/*.js"
+              - "design.lock"
               - "frontend/src/app/tokens.css"
               - "frontend/src/app/globals.css"
               - "mobile/androidApp/**/theme/**"
               - "mobile/iosApp/**/Theme/**"
 
-  lint:
-    name: Lint (ruff) + Alembic
+  lint-typecheck:
+    name: Lint + Type Check
     needs: [changes]
-    if: inputs.run-all || needs.changes.outputs.python == 'true'
+    if: ${{ inputs.run-all || needs.changes.outputs.python == 'true' }}
     runs-on: blacksmith-2vcpu-ubuntu-2404
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v6
       - uses: ./.github/actions/setup-python-venv
@@ -85,61 +87,39 @@ jobs:
         run: |
           HEADS=$(cd backend && uv run alembic heads 2>&1 | grep -c '(head)')
           if [ "$HEADS" -ne 1 ]; then
-            echo "::error::Alembic has $HEADS heads (expected 1). Run 'alembic merge' or fix revision IDs."
+            echo "::error::Alembic has $HEADS heads (expected 1)"
             cd backend && uv run alembic heads 2>&1
             exit 1
           fi
-
-  typecheck:
-    name: Type Check (basedpyright)
-    needs: [changes]
-    if: inputs.run-all || needs.changes.outputs.python == 'true'
-    runs-on: blacksmith-2vcpu-ubuntu-2404
-    steps:
-      - uses: actions/checkout@v6
-      - uses: ./.github/actions/setup-python-venv
-        with:
-          python-version: ${{ inputs.python-version }}
       - name: basedpyright
         run: uv run basedpyright --level error backend/app
-
-  ast-grep:
-    name: Lint (ast-grep)
-    needs: [changes]
-    if: inputs.run-all || needs.changes.outputs.python == 'true' || needs.changes.outputs.frontend == 'true'
-    runs-on: blacksmith-2vcpu-ubuntu-2404
-    steps:
-      - uses: actions/checkout@v6
-      - uses: ast-grep/action@v1.5.0
-        with:
-          config: sgconfig.yml
-          paths: "backend/ ml/ frontend/"
 
   design-ci:
     name: Design Lint + Drift
     needs: [changes]
     if: inputs.run-all || needs.changes.outputs.design == 'true'
-    runs-on: blacksmith-2vcpu-ubuntu-2404
+    runs-on: blacksmith-2vcpu-ubuntu-2404-arm
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v6
       - uses: ./.github/actions/setup-frontend
       - name: Install impeccable
         run: npm install -g impeccable
       - name: Impeccable detect
-        run: impeccable detect --json frontend/src/ 2>&1 | node scripts/impeccable-report.js
-      - name: Ast-grep scan
-        uses: ast-grep/action@v1.5.0
-        with:
-          config: sgconfig.yml
-          paths: "frontend/"
+        run: impeccable detect --json frontend/src/ 2>&1 | node scripts/design/impeccable-report.js
       - name: Check for drift
-        run: node scripts/design-lock.js check
+        run: node scripts/design/design-lock.js check
 
   test:
-    name: Tests
+    name: Tests (${{ matrix.group }}/${{ strategy.job-total }})
     needs: [changes]
-    if: inputs.run-all || needs.changes.outputs.python == 'true'
+    if: ${{ inputs.run-all || needs.changes.outputs.python == 'true' }}
     runs-on: blacksmith-4vcpu-ubuntu-2404
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        group: [1, 2]
     steps:
       - uses: actions/checkout@v6
       - uses: ./.github/actions/setup-python-venv
@@ -152,35 +132,75 @@ jobs:
           ml/tests/test_worker_metrics.py ml/tests/test_tracked_extraction.py
           ml/tests/test_projection.py ml/tests/test_pipeline_parallel.py
           ml/tests/alignment/ ml/tests/analysis/
-          ml/tests/utils/test_gap_filling.py ml/tests/utils/test_geometry.py
-          ml/tests/utils/test_geometry_numba.py ml/tests/utils/test_profiler.py
-          ml/tests/utils/test_profiling.py ml/tests/utils/test_smoothing.py
-          ml/tests/utils/test_smoothing_numba.py ml/tests/utils/test_video_writer_nvenc.py
-          ml/tests/references/ ml/tests/pose_3d/ ml/tests/pose_estimation/ ml/tests/datasets/
+          ml/tests/utils/ ml/tests/references/ ml/tests/pose_3d/ ml/tests/pose_estimation/ ml/tests/datasets/
+          --splits 2 --group ${{ matrix.group }}
           -n auto --dist loadfile
           -v -m "not slow and not integration"
           --cov=backend/app --cov=ml/src
-          --cov-report=xml --junitxml=junit.xml --tb=short
-      - name: Upload coverage (backend)
+          --cov-report= --junitxml=junit.xml --tb=short
+          --durations-path=.test_durations
+      - name: Upload coverage data
         if: always()
-        uses: codecov/codecov-action@v6
+        uses: actions/upload-artifact@v7
+        with:
+          name: coverage-group-${{ matrix.group }}
+          path: .coverage
+      - name: Upload test results
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: test-results-group-${{ matrix.group }}
+          path: junit.xml
+
+  coverage:
+    name: Coverage combine
+    needs: [test]
+    if: always()
+    runs-on: blacksmith-2vcpu-ubuntu-2404
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/setup-python-venv
+        with:
+          python-version: ${{ inputs.python-version }}
+      - uses: actions/download-artifact@v5
+        with:
+          pattern: coverage-group-*
+          path: .coverage-artifacts
+          merge-multiple: true
+      - name: Combine coverage
+        run: |
+          shopt -s nullglob
+          files=(.coverage-artifacts/.coverage*)
+          if [ ${#files[@]} -eq 0 ]; then
+            echo "No coverage artifacts found — tests were skipped"
+            exit 0
+          fi
+          uv run coverage combine "${files[@]}"
+          uv run coverage xml -o coverage.xml
+          uv run coverage report --fail-under=0
+      - uses: codecov/codecov-action@v6
         with:
           files: coverage.xml
           flags: backend,ml
           name: python-coverage
           token: ${{ secrets.CODECOV_TOKEN }}
-      - name: Upload test results (backend)
-        if: ${{ !cancelled() }}
-        uses: codecov/test-results-action@v1
+      - uses: actions/download-artifact@v5
+        with:
+          pattern: test-results-group-*
+          path: test-results-artifacts
+          merge-multiple: true
+      - uses: codecov/test-results-action@v1
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
-          files: junit.xml
+          files: test-results-artifacts/junit.xml
 
   smoke:
     name: Smoke Tests (ML inference)
     needs: [changes, test]
-    if: inputs.run-all || needs.changes.outputs.ml == 'true'
+    if: ${{ inputs.run-all && needs.changes.outputs.ml == 'true' }}
     runs-on: blacksmith-4vcpu-ubuntu-2404
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v6
       - uses: ./.github/actions/setup-python-venv
@@ -193,7 +213,8 @@ jobs:
     name: Check (Biome + tsc)
     needs: [changes]
     if: inputs.run-all || needs.changes.outputs.frontend == 'true'
-    runs-on: blacksmith-2vcpu-ubuntu-2404
+    runs-on: blacksmith-2vcpu-ubuntu-2404-arm
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v6
         with:
@@ -215,6 +236,7 @@ jobs:
     needs: [changes, fe-check]
     if: inputs.run-all || needs.changes.outputs.frontend == 'true'
     runs-on: blacksmith-4vcpu-ubuntu-2404
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v6
       - uses: ./.github/actions/setup-frontend
@@ -236,12 +258,23 @@ jobs:
           name: bundle-analyzer
           path: frontend/.next/analyze/
           retention-days: 14
+      - name: Upload build output for Docker
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: frontend-build-output
+          path: |
+            frontend/public
+            frontend/.next/standalone
+            frontend/.next/static
+          retention-days: 1
 
   fe-test:
     name: Tests (Vitest)
     needs: [changes]
     if: inputs.run-all || needs.changes.outputs.frontend == 'true'
-    runs-on: blacksmith-2vcpu-ubuntu-2404
+    runs-on: blacksmith-2vcpu-ubuntu-2404-arm
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v6
       - uses: ./.github/actions/setup-frontend
@@ -268,10 +301,13 @@ jobs:
     needs: [changes, test]
     if: ${{ !inputs.skip-docker && (inputs.run-all || needs.changes.outputs.docker == 'true') }}
     runs-on: blacksmith-4vcpu-ubuntu-2404
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v6
       - name: Setup Blacksmith Builder
         uses: useblacksmith/setup-docker-builder@v1
+        with:
+          max-cache-size-mb: "10240"
       - name: Build backend image
         uses: useblacksmith/build-push-action@v2
         with:
@@ -285,22 +321,50 @@ jobs:
     needs: [changes, fe-check, fe-build]
     if: ${{ !inputs.skip-docker && (inputs.run-all || needs.changes.outputs.docker == 'true') }}
     runs-on: blacksmith-4vcpu-ubuntu-2404
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v6
+      - name: Download build output
+        uses: actions/download-artifact@v5
+        with:
+          name: frontend-build-output
+          path: frontend
       - name: Setup Blacksmith Builder
         uses: useblacksmith/setup-docker-builder@v1
+        with:
+          max-cache-size-mb: "10240"
       - name: Build frontend image
         uses: useblacksmith/build-push-action@v2
         with:
           context: frontend
-          file: frontend/Containerfile
+          file: frontend/Containerfile.ci
           push: false
           tags: skatelab-frontend:ci
 
+  danger:
+    name: Danger (PR checks)
+    if: github.event_name == 'pull_request'
+    runs-on: blacksmith-2vcpu-ubuntu-2404-arm
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Install danger-js
+        run: npm install -g danger
+      - name: Run Danger
+        run: danger ci
+        env:
+          DANGER_GITHUB_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
   ci-passed:
     name: CI Summary
-    runs-on: blacksmith-2vcpu-ubuntu-2404
-    needs: [changes, lint, typecheck, ast-grep, design-ci, test, smoke, fe-check, fe-build, fe-test, docker-backend, docker-frontend]
+    runs-on: blacksmith-2vcpu-ubuntu-2404-arm
+    timeout-minutes: 5
+    needs: [changes, lint-typecheck, coverage, design-ci, test, smoke, fe-check, fe-build, fe-test, docker-backend, docker-frontend, danger]
     if: always()
     outputs:
       result: ${{ steps.check.outputs.result }}
@@ -308,8 +372,8 @@ jobs:
       - name: Check results & write summary
         id: check
         env:
-          LINT: ${{ needs.lint.result }}
-          TYPECHECK: ${{ needs.typecheck.result }}
+          LINT_TYPECHECK: ${{ needs.lint-typecheck.result }}
+          COVERAGE: ${{ needs.coverage.result }}
           TEST: ${{ needs.test.result }}
           SMOKE: ${{ needs.smoke.result }}
           FE_CHECK: ${{ needs.fe-check.result }}
@@ -317,8 +381,8 @@ jobs:
           FE_TEST: ${{ needs.fe-test.result }}
           DOCKER_BACKEND: ${{ needs.docker-backend.result }}
           DOCKER_FRONTEND: ${{ needs.docker-frontend.result }}
-          AST_GREP: ${{ needs.ast-grep.result }}
           DESIGN_CI: ${{ needs.design-ci.result }}
+          DANGER: ${{ needs.danger.result }}
           CHANGES: ${{ needs.changes.result }}
         run: |
           FAILED=0
@@ -336,8 +400,8 @@ jobs:
             fi
           }
 
-          check_job "Lint (ruff) + Alembic" "$LINT"
-          check_job "Type Check (basedpyright)" "$TYPECHECK"
+          check_job "Lint + Type Check" "$LINT_TYPECHECK"
+          check_job "Coverage" "$COVERAGE"
           check_job "Tests" "$TEST"
           check_job "Smoke Tests" "$SMOKE"
           check_job "Check (Biome + tsc)" "$FE_CHECK"
@@ -345,7 +409,7 @@ jobs:
           check_job "Tests (Vitest)" "$FE_TEST"
           check_job "Docker Build (Backend)" "$DOCKER_BACKEND"
           check_job "Docker Build (Frontend)" "$DOCKER_FRONTEND"
-          echo "| :mag: ast-grep | \`${AST_GREP}\` (informational) |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| :information_source: Danger (PR checks) | \`${DANGER}\` (informational) |" >> "$GITHUB_STEP_SUMMARY"
           check_job "Design Lint + Drift" "$DESIGN_CI"
 
           if [[ "$CHANGES" != "success" ]]; then

@@ -101,7 +101,7 @@ Daily 04:00 via cron (`/usr/local/bin/backup-dbs.sh`):
 
 ## Container Build
 
-`infra/Containerfile`: multi-stage Python 3.11 + uv + bun. Copies `backend/`, `ml/`, `data/`, builds frontend. Excludes `docs/`, `experiments/`, `infra/`.
+`backend/Containerfile` + `frontend/Containerfile`: separate multi-stage builds. Backend: Python 3.11 + uv. Frontend: bun + Next.js standalone.
 
 ## GPU Worker
 

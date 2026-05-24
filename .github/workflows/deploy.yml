@@ -123,9 +123,37 @@ jobs:
 
           EOF
 
+  deploy-files:
+    name: Deploy Files to VPS
+    needs: ci
+    runs-on: blacksmith-2vcpu-ubuntu-2404
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Setup SSH key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.VPS_SSH_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -p 43210 ${{ secrets.VPS_HOST }} >> ~/.ssh/known_hosts 2>/dev/null
+
+      - name: SCP deploy files to VPS
+        run: |
+          DST="${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}:/opt/skatelab"
+          scp -i ~/.ssh/deploy_key -P 43210 \
+            infra/deploy.sh \
+            infra/compose.prod.yaml \
+            infra/caddy/Caddyfile \
+            infra/prometheus/prometheus.yml \
+            $DST/
+          scp -i ~/.ssh/deploy_key -P 43210 \
+            infra/prometheus/rules/alerts.yml \
+            infra/prometheus/rules/recording.yml \
+            $DST/prometheus/rules/
+
   deploy:
     name: Deploy to VPS
-    needs: [build-frontend, build-backend]
+    needs: [build-frontend, build-backend, deploy-files]
     runs-on: blacksmith-4vcpu-ubuntu-2404
     environment: production
     steps:
@@ -141,20 +169,6 @@ jobs:
           echo "${{ secrets.VPS_SSH_KEY }}" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
           ssh-keyscan -p 43210 ${{ secrets.VPS_HOST }} >> ~/.ssh/known_hosts 2>/dev/null
-
-      - name: SCP deploy files to VPS
-        run: |
-          DST="${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}:/opt/skatelab"
-          scp -i ~/.ssh/deploy_key -P 43210 \
-            infra/deploy.sh \
-            infra/compose.prod.yaml \
-            infra/Caddyfile \
-            infra/prometheus.yml \
-            $DST/
-          scp -i ~/.ssh/deploy_key -P 43210 \
-            infra/prometheus/rules/alerts.yml \
-            infra/prometheus/rules/recording.yml \
-            $DST/prometheus/rules/
 
       - name: Write .env and deploy
         uses: appleboy/ssh-action@v1.2.5
@@ -195,7 +209,7 @@ jobs:
 
   deploy-summary:
     name: Pipeline Summary
-    needs: [ci, build-frontend, build-backend, deploy]
+    needs: [ci, build-frontend, build-backend, deploy-files, deploy]
     runs-on: blacksmith-4vcpu-ubuntu-2404
     if: always()
     steps:
@@ -209,6 +223,7 @@ jobs:
           | CI | \`${{ needs.ci.result }}\` |
           | Build Frontend | \`${{ needs.build-frontend.result }}\` |
           | Build Backend | \`${{ needs.build-backend.result }}\` |
+          | Deploy Files | \`${{ needs.deploy-files.result }}\` |
           | Deploy | \`${{ needs.deploy.result }}\` |
 
           **Commit:** \`${{ github.sha }}\`

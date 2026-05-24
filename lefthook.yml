@@ -2,20 +2,21 @@
 # Lefthook configuration for skatelab
 assert_lefthook_installed: true
 colors: true
+output:
+  - execution
+  - failure
 
 pre-commit:
   parallel: true
-  commands:
-    protect-branches:
+  jobs:
+    - name: protect-branches
       run: |
         BRANCH=$(git symbolic-ref --short HEAD 2>/dev/null)
-
         if [[ $BRANCH =~ ^(main|master|develop)$ ]]; then
           echo "❌ Direct commits to '$BRANCH' are not allowed."
           echo "Please use a feature/hotfix/release branch."
           exit 1
         fi
-
         GIT_DIR=$(git rev-parse --git-dir)
         GIT_COMMON_DIR=$(git rev-parse --git-common-dir)
         if [ "$GIT_DIR" = "$GIT_COMMON_DIR" ]; then
@@ -24,36 +25,48 @@ pre-commit:
           exit 1
         fi
 
-    ruff-check:
+    - name: ruff
       glob: "*.py"
-      run: uv run ruff check {staged_files} --fix
-      stage_fixed: true
+      exclude:
+        - "*/alembic/versions/*"
+      tags:
+        - backend
+        - lint
+      group:
+        piped: true
+        jobs:
+          - name: ruff-check
+            run: uv run ruff check {staged_files} --fix
+            stage_fixed: true
+          - name: ruff-format
+            run: uv run ruff format {staged_files}
+            stage_fixed: true
 
-    ruff-format:
-      glob: "*.py"
-      run: uv run ruff format {staged_files}
-      stage_fixed: true
-
-    biome-check:
+    - name: biome-check
       glob: "frontend/**/*.{ts,tsx,js,jsx,json,css}"
+      tags:
+        - frontend
+        - lint
       run: bunx biome check --write {staged_files}
       stage_fixed: true
 
-    ktlint-format:
-      glob: "mobile/**/*.{kt,kts}"
-      run: cd mobile && ./gradlew ktlintFormat 2>&1 | tail -5
+    - name: ktlint-format
+      root: "mobile/"
+      glob: "*.{kt,kts}"
+      tags:
+        - mobile
+        - lint
+      run: ./gradlew ktlintFormat 2>&1 | tail -5
       stage_fixed: true
 
-    ast-grep-scan:
+    - name: ast-grep-scan
+      tags:
+        - lint
       run: |
         if ! command -v sg &> /dev/null; then
           exit 0
         fi
         sg scan -c sgconfig.yml backend/ ml/ frontend/ mobile/ || true
-
-    impeccable:
-      glob: "frontend/src/**/*.{tsx,jsx,css}"
-      run: npx impeccable detect --fast {staged_files} --json 2>/dev/null | node scripts/impeccable-report.js
 
 commit-msg:
   commands:
@@ -80,6 +93,8 @@ commit-msg:
 
 pre-push:
   parallel: false
+  skip:
+    - rebase
   commands:
     warn-pr-size:
       run: |
@@ -129,6 +144,36 @@ pre-push:
         fi
 
         echo "📊 PR Size: $EMOJI $SIZE (~$TOTAL_LINES lines, $CHANGED_FILES files)"
+
+    design-lint:
+      tags:
+        - frontend
+        - lint
+      run: |
+        cd frontend
+        if [ -f node_modules/.bin/impeccable ] || command -v impeccable &> /dev/null; then
+          impeccable detect --json src/ 2>&1 | node ../scripts/design/impeccable-report.js || true
+        fi
+        if command -v sg &> /dev/null; then
+          sg scan -c ../sgconfig.yml frontend/ || true
+        fi
+        node ../scripts/design/design-lock.js check || exit 1
+
+post-merge:
+  parallel: true
+  only:
+    - ref: master
+  files: "git diff-tree -r --name-only --no-commit-id ORIG_HEAD HEAD"
+  commands:
+    uv-sync:
+      glob: "{uv.lock,pyproject.toml,backend/pyproject.toml,ml/pyproject.toml}"
+      run: uv sync
+    bun-install:
+      glob: "{frontend/package.json,frontend/bun.lock}"
+      run: cd frontend && bun install
+    alembic-migrate:
+      glob: "backend/alembic/versions/*"
+      run: cd backend && uv run alembic upgrade head
 
 # Manual groups
 format:

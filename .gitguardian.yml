@@ -1,7 +1,0 @@
-version: 2
-secret:
-  ignored-paths:
-    - "infra/compose.yaml"
-  ignored-matches:
-    - name: POSTGRES_PASSWORD env var placeholder
-      match: POSTGRES_PASSWORD

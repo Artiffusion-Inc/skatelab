@@ -147,5 +147,5 @@ runs/
 
 # Design token pipeline
 node_modules/
-tokens/build.log
+scripts/design/build.log
 docs/design-audit.json

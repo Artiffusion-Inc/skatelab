@@ -24,9 +24,10 @@ dev = [
     "structlog>=25.5.0",
     "bandit>=1.9.4",
     "pytest-asyncio>=1.3.0",
-    "pytest-xdist>=3.6.0",
     "aiosqlite>=0.22.1",
     "httpx>=0.28.1",
+    "pytest-xdist>=3.8.0",
+    "pytest-split>=0.10",
 ]
 
 [tool.ruff]
@@ -86,11 +87,10 @@ known-first-party = ["backend", "src"]
 "ml/tests/**/*.py" = ["ARG", "PLR2004", "ERA", "SIM117", "T20", "S101", "S106", "S108", "S110", "BLE001", "F401", "S105", "F841"]
 "experiments/**/*.py" = ["B006", "PLW2901", "PTH123", "RUF059", "B007", "BLE001", "B905", "RUF024", "RUF012", "PLR0913", "T201", "ERA001", "S101"]
 "__init__.py" = ["F401"]  # unused imports
-"scripts/visualize_with_skeleton.py" = ["ARG001"]
-"scripts/add_reference.py" = ["T20", "S310"]
-"scripts/add_frontmatter.py" = ["T20"]
-"scripts/sync_notebooklm.py" = ["T20", "S603", "S607"]
-"scripts/generate_index.py" = ["T20", "F841", "PLW2901"]
+"scripts/docs/add_reference.py" = ["T20", "S310"]
+"scripts/docs/add_frontmatter.py" = ["T20"]
+"scripts/docs/sync_notebooklm.py" = ["T20", "S603", "S607"]
+"scripts/docs/generate_index.py" = ["T20", "F841", "PLW2901"]
 "ml/scripts/**/*.py" = ["T20", "S602", "ERA", "E402", "S101", "B007", "PTH", "S108", "S310", "S603", "BLE001", "ARG001", "F841", "I001", "S607", "C414", "B905", "F401", "RUF100"]
 "ml/src/analysis/rules/*.py" = []
 "ml/src/visualization/**/*.py" = []
