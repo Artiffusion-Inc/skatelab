@@ -23,7 +23,7 @@ runs:
       with:
         cache-provider: basic
         cache-encryption-key: ${{ inputs.cache-encryption-key }}
-        dependency-graph: generate-and-submit
+        dependency-graph: generate
 
     - name: Mount Gradle home sticky disk
       uses: useblacksmith/stickydisk@v1
