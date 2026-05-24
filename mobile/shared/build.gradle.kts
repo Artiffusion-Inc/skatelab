@@ -54,7 +54,6 @@ kover {
         verify {
             rule {
                 minBound(70)
-                targetPackages("ru.skatelab.shared")
             }
         }
     }
