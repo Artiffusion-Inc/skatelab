@@ -18,6 +18,8 @@ def test_get_s3_client_per_thread():
         settings.s3.endpoint_url = "https://s3.example.com"
         settings.s3.access_key_id.get_secret_value.return_value = "key"
         settings.s3.secret_access_key.get_secret_value.return_value = "secret"
+        settings.s3.region = "us-east-1"
+        settings.s3.bucket = "test-bucket"
         mock_get.return_value = settings
 
         # Clear any cached client
@@ -41,6 +43,8 @@ def test_get_s3_client_different_threads():
         settings.s3.endpoint_url = "https://s3.example.com"
         settings.s3.access_key_id.get_secret_value.return_value = "key"
         settings.s3.secret_access_key.get_secret_value.return_value = "secret"
+        settings.s3.region = "us-east-1"
+        settings.s3.bucket = "test-bucket"
         mock_get.return_value = settings
 
         results = {}
