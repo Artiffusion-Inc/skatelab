@@ -1,0 +1,11 @@
+appId: ru.skatelab
+tags:
+  - smokeTest
+  - auth
+---
+- launchApp
+- assertVisible: "Войти"
+- tapOn: "Войти"
+- inputText: ${MAESTRO_TEST_EMAIL}
+- tapOn: "Продолжить"
+- assertVisible: "Сессии"
