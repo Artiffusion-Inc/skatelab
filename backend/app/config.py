@@ -91,7 +91,11 @@ class JWTConfig(BaseSettings):
 class CORSConfig(BaseSettings):
     """Cross-origin resource sharing."""
 
-    origins: list[str] = ["http://localhost:3000", "http://127.0.0.1:3000"]
+    origins: list[str] = [
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+        "https://skatelab.ru",
+    ]
 
     class Config:
         env_prefix = "CORS_"

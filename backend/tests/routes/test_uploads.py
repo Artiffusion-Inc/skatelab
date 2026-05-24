@@ -41,7 +41,7 @@ async def test_init_upload(client, auth_headers):
         mock_settings.return_value = _mock_settings()
 
         response = await client.post(
-            "/api/v1/uploads/init",
+            "/v1/uploads/init",
             params={"file_name": "video.mp4", "total_size": 10000000},
             headers=auth_headers,
         )
@@ -69,7 +69,7 @@ async def test_init_upload_part_count(client, auth_headers):
 
         total_size = 15 * 1024 * 1024  # exactly 3 chunks
         response = await client.post(
-            "/api/v1/uploads/init",
+            "/v1/uploads/init",
             params={"file_name": "big.mp4", "total_size": total_size},
             headers=auth_headers,
         )
@@ -92,7 +92,7 @@ async def test_init_upload_single_part(client, auth_headers):
 
         total_size = 3 * 1024 * 1024  # fits in 1 chunk
         response = await client.post(
-            "/api/v1/uploads/init",
+            "/v1/uploads/init",
             params={"file_name": "small.mp4", "total_size": total_size},
             headers=auth_headers,
         )
@@ -115,7 +115,7 @@ async def test_complete_upload(client, auth_headers):
         mock_settings.return_value = _mock_settings()
 
         response = await client.post(
-            "/api/v1/uploads/complete",
+            "/v1/uploads/complete",
             json={
                 "upload_id": "up_123",
                 "key": "uploads/user-id/uuid/video.mp4",
@@ -152,7 +152,7 @@ async def test_complete_upload_empty_parts(client, auth_headers):
         mock_settings.return_value = _mock_settings()
 
         response = await client.post(
-            "/api/v1/uploads/complete",
+            "/v1/uploads/complete",
             json={
                 "upload_id": "up_123",
                 "key": "uploads/user-id/uuid/video.mp4",
@@ -178,7 +178,7 @@ async def test_complete_upload_parts_sorted(client, auth_headers):
         mock_settings.return_value = _mock_settings()
 
         response = await client.post(
-            "/api/v1/uploads/complete",
+            "/v1/uploads/complete",
             json={
                 "upload_id": "up_123",
                 "key": "uploads/user-id/uuid/video.mp4",
@@ -213,7 +213,7 @@ async def test_init_upload_auth_required(client):
         mock_settings.return_value = _mock_settings()
 
         response = await client.post(
-            "/api/v1/uploads/init",
+            "/v1/uploads/init",
             params={"file_name": "video.mp4", "total_size": 10000000},
         )
 

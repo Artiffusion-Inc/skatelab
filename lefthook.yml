@@ -78,7 +78,14 @@ commit-msg:
           exit 0
         fi
 
-        PATTERN='^(feat|fix|refactor|chore|docs|test|ci)\(([a-z0-9_-]+)\): .{3,}$'
+        TYPES=$(grep '^types:' .commit-conventions | cut -d: -f2)
+        SCOPES=$(grep '^scopes:' .commit-conventions | cut -d: -f2)
+        SCOPE_REQUIRED=$(grep '^scope_required:' .commit-conventions | cut -d: -f2)
+        if [ "$SCOPE_REQUIRED" = "false" ]; then
+          PATTERN="^(${TYPES})(\(([a-z0-9_-]+)\))?: .{3,}$"
+        else
+          PATTERN="^(${TYPES})\(([a-z0-9_-]+)\): .{3,}$"
+        fi
 
         if ! echo "$COMMIT_MSG" | grep -Eq "$PATTERN"; then
           echo "❌ Bad commit message:"
@@ -158,6 +165,14 @@ pre-push:
           sg scan -c ../sgconfig.yml frontend/ || true
         fi
         node ../scripts/design/design-lock.js check || exit 1
+
+    actionlint:
+      glob: ".github/workflows/*.{yml,yaml}"
+      run: |
+        if ! command -v actionlint &> /dev/null; then
+          exit 0
+        fi
+        actionlint -config-file .github/actionlint.yaml {staged_files}
 
 post-merge:
   parallel: true

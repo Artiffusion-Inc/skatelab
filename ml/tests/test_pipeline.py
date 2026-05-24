@@ -714,8 +714,8 @@ class TestPipelineLazyLoading:
     """
 
     def test_detector_lazy_load(self):
-        """Should lazy-load person detector (requires ultralytics)."""
-        pytest.importorskip("ultralytics")
+        """Should lazy-load person detector (requires onnxruntime-gpu)."""
+        pytest.importorskip("onnxruntime")
         pipeline = AnalysisPipeline()
 
         assert pipeline._detector is None

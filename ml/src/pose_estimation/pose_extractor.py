@@ -1,7 +1,7 @@
 """Top-down pose extractor using PersonDetector + MogaNetBatch.
 
 Architecture:
-    Video → PersonDetector (YOLOv11n) → crop → MogaNetBatch (ONNX)
+    Video → PersonDetector (RF-DETR) → crop → MogaNetBatch (ONNX)
     → COCO 17kp → H3.6M 17kp
 
 Key advantages:
@@ -23,7 +23,7 @@ import numpy as np
 from ..detection.person_detector import PersonDetector
 from ..tracking.skeletal_identity import compute_2d_skeletal_ratios
 from ..tracking.tracklet_merger import TrackletMerger, build_tracklets
-from ..types import PersonClick, TrackedExtraction
+from ..types import BoundingBox, PersonClick, TrackedExtraction
 from ..utils.frame_buffer import AsyncFrameReader
 from ..utils.video import get_video_meta
 from ._frame_processor import FrameProcessor
@@ -34,6 +34,36 @@ from .h36m import coco_to_h36m
 from .moganet_batch import MogaNetBatch
 
 logger = logging.getLogger(__name__)
+
+
+def _lerp_bbox(bboxes: dict[int, BoundingBox | None], frame_idx: int) -> BoundingBox | None:
+    """Linear interpolation of bounding box for non-detected frames."""
+    prev_idx = None
+    for i in range(frame_idx - 1, -1, -1):
+        if i in bboxes and bboxes[i] is not None:
+            prev_idx = i
+            break
+    next_idx = None
+    for i in range(frame_idx + 1, max(bboxes.keys()) + 1):
+        if i in bboxes and bboxes[i] is not None:
+            next_idx = i
+            break
+    if prev_idx is None and next_idx is None:
+        return None
+    if prev_idx is None:
+        return bboxes[next_idx]
+    if next_idx is None:
+        return bboxes[prev_idx]
+    t = (frame_idx - prev_idx) / (next_idx - prev_idx)
+    prev_box = bboxes[prev_idx]
+    next_box = bboxes[next_idx]
+    return BoundingBox(
+        x1=prev_box.x1 + t * (next_box.x1 - prev_box.x1),
+        y1=prev_box.y1 + t * (next_box.y1 - prev_box.y1),
+        x2=prev_box.x2 + t * (next_box.x2 - prev_box.x2),
+        y2=prev_box.y2 + t * (next_box.y2 - prev_box.y2),
+        confidence=min(prev_box.confidence, next_box.confidence),
+    )
 
 
 def _get_tqdm():
@@ -85,6 +115,8 @@ class PoseExtractor:
         conf_threshold: Minimum keypoint confidence to accept [0, 1].
         output_format: "normalized" for [0, 1] coords, "pixels" for absolute.
         frame_skip: Process every Nth frame (1 = every frame).
+        detection_stride: Run person detection every Nth frame, interpolate
+            bounding boxes for in-between frames (1 = detect every frame).
         device: "cpu", "cuda", or "auto".
     """
 
@@ -96,6 +128,7 @@ class PoseExtractor:
         conf_threshold: float = 0.3,
         output_format: str = "normalized",
         frame_skip: int = 1,
+        detection_stride: int = 1,
         device: str = "auto",
     ) -> None:
         self._model_path = model_path
@@ -104,6 +137,7 @@ class PoseExtractor:
         self._conf_threshold = conf_threshold
         self._output_format = output_format
         self._frame_skip = max(1, frame_skip)
+        self._detection_stride = max(1, detection_stride)
         self._device = device
 
         # Resolve device
@@ -417,16 +451,48 @@ class PoseExtractor:
         if not frames_to_process:
             raise ValueError(f"No frames read from video: {video_path}")
 
-        # Detect + collect crops across all frames
+        # Detect every Nth frame (detection stride), then interpolate
+        all_detection_results: dict[int, BoundingBox | None] = {}
+        for frame_i, frame in enumerate(frames_to_process):
+            if frame_i % self._detection_stride == 0:
+                detection = self._person_detector.detect_frame(frame)
+                all_detection_results[frame_i] = detection
+            else:
+                all_detection_results[frame_i] = None
+
+        # Interpolate missing detections
+        for frame_i in range(len(frames_to_process)):
+            if all_detection_results[frame_i] is None:
+                all_detection_results[frame_i] = _lerp_bbox(all_detection_results, frame_i)
+
+        # Collect crops using (possibly interpolated) detections
         all_crops: list[np.ndarray] = []
         all_bboxes: list[tuple[int, int, int, int]] = []
         frame_detection_counts: list[int] = []
 
-        for frame in frames_to_process:
-            crops, bboxes = self._detect_and_crop(frame)
-            all_crops.extend(crops)
-            all_bboxes.extend(bboxes)
-            frame_detection_counts.append(len(crops))
+        for frame_i, frame in enumerate(frames_to_process):
+            det = all_detection_results[frame_i]
+            if det is None:
+                frame_detection_counts.append(0)
+                continue
+
+            h, w = frame.shape[:2]
+            x1, y1, x2, y2 = float(det.x1), float(det.y1), float(det.x2), float(det.y2)
+            bw = x2 - x1
+            bh = y2 - y1
+            pad_x = bw * 0.2
+            pad_y = bh * 0.2
+            x1 = max(0, int(x1 - pad_x))
+            y1 = max(0, int(y1 - pad_y))
+            x2 = min(w, int(x2 + pad_x))
+            y2 = min(h, int(y2 + pad_y))
+            crop = frame[y1:y2, x1:x2]
+            if crop.size == 0:
+                frame_detection_counts.append(0)
+                continue
+            all_crops.append(crop)
+            all_bboxes.append((x1, y1, x2, y2))
+            frame_detection_counts.append(1)
 
         # Batch inference on all crops at once
         if all_crops:

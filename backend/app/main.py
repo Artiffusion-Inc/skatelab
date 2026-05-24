@@ -87,9 +87,9 @@ def create_app(
             "Set SKIP_JWT_SECRET_CHECK=true to bypass (dev only)."
         )
 
-    # Assemble routers under /api/v1
+    # Assemble router under /v1
     api_v1 = Router(
-        path="/api/v1",
+        path="/v1",
         route_handlers=[
             auth,
             users,
@@ -115,7 +115,12 @@ def create_app(
 
     rate_limit_config = RateLimitConfig(
         rate_limit=("minute", 60),
-        exclude=["/api/v1/health", "/api/v1/docs", "/api/v1/redoc", "/api/v1/openapi.json"],
+        exclude=[
+            "/v1/health",
+            "/v1/docs",
+            "/v1/redoc",
+            "/v1/openapi.json",
+        ],
     )
 
     jwt_auth = JWTAuth[User](
@@ -123,22 +128,22 @@ def create_app(
         retrieve_user_handler=retrieve_user_handler,
         algorithm="HS256",  # noqa: S106
         exclude=[
-            "/api/v1/auth/register",
-            "/api/v1/auth/login",
-            "/api/v1/auth/refresh",
-            "/api/v1/auth/logout",
-            "/api/v1/auth/forgot-password",
-            "/api/v1/auth/reset-password",
-            "/api/v1/auth/verify-email",
-            "/api/v1/auth/resend-verification",
-            "/api/v1/health",
-            "/api/v1/models",
-            "/api/v1/outputs",
-            "/api/v1/metrics/registry",
-            "/api/v1/choreography/elements/registry",
-            "/api/v1/docs",
-            "/api/v1/redoc",
-            "/api/v1/openapi.json",
+            "/v1/auth/register",
+            "/v1/auth/login",
+            "/v1/auth/refresh",
+            "/v1/auth/logout",
+            "/v1/auth/forgot-password",
+            "/v1/auth/reset-password",
+            "/v1/auth/verify-email",
+            "/v1/auth/resend-verification",
+            "/v1/health",
+            "/v1/models",
+            "/v1/outputs",
+            "/v1/metrics/registry",
+            "/v1/choreography/elements/registry",
+            "/v1/docs",
+            "/v1/redoc",
+            "/v1/openapi.json",
         ],
     )
 

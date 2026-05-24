@@ -77,6 +77,8 @@ class BatchPoseExtractor:
         model_path: Path to MogaNet-B ONNX model.
         conf_threshold: Minimum keypoint confidence [0, 1].
         output_format: "normalized" or "pixels".
+        detection_stride: Run person detection every Nth frame, interpolate
+            bounding boxes for in-between frames (1 = detect every frame).
         device: "cpu", "cuda", or "auto".
     """
 
@@ -86,12 +88,14 @@ class BatchPoseExtractor:
         model_path: str = "data/models/moganet/moganet_b_ap2d_384x288.onnx",
         conf_threshold: float = 0.3,
         output_format: str = "normalized",
+        detection_stride: int = 1,
         device: str = "auto",
     ) -> None:
         self.batch_size = max(1, batch_size)
         self._model_path = model_path
         self._conf_threshold = conf_threshold
         self._output_format = output_format
+        self._detection_stride = max(1, detection_stride)
 
         # Resolve device
         if device == "auto":

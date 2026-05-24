@@ -35,11 +35,11 @@ class TestErrorResponse:
         assert e.details[0].field == "email"  # type: ignore[index]
 
     def test_model_dump(self):
-        e = ErrorResponse(error="Test", message="Msg", path="/api/v1/users")
+        e = ErrorResponse(error="Test", message="Msg", path="/v1/users")
         d = e.model_dump()
         assert d["error"] == "Test"
         assert d["message"] == "Msg"
-        assert d["path"] == "/api/v1/users"
+        assert d["path"] == "/v1/users"
         assert d["details"] is None
 
 

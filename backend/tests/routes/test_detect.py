@@ -22,7 +22,7 @@ async def test_enqueue_detect(client, auth_headers):
         patch("app.routes.detect.upload_bytes_async", new_callable=AsyncMock),
     ):
         response = await client.post(
-            "/api/v1/detect",
+            "/v1/detect",
             files={"video": ("test.mp4", BytesIO(video_content), "video/mp4")},
             data={"tracking": "auto"},
             headers=auth_headers,
@@ -54,7 +54,7 @@ async def test_enqueue_detect_custom_tracking(client, auth_headers):
         patch("app.routes.detect.upload_bytes_async", new_callable=AsyncMock),
     ):
         response = await client.post(
-            "/api/v1/detect?tracking=manual",
+            "/v1/detect?tracking=manual",
             files={"video": ("test.webm", BytesIO(video_content), "video/webm")},
             headers=auth_headers,
         )
@@ -85,7 +85,7 @@ async def test_detect_status(client, auth_headers):
     with (
         patch("app.routes.detect.get_task_state", new_callable=AsyncMock, return_value=fake_state),
     ):
-        response = await client.get("/api/v1/detect/det_abc123/status", headers=auth_headers)
+        response = await client.get("/v1/detect/det_abc123/status", headers=auth_headers)
 
     assert response.status_code == 200
     data = response.json()
@@ -103,7 +103,7 @@ async def test_detect_status_not_found(client, auth_headers):
     with (
         patch("app.routes.detect.get_task_state", new_callable=AsyncMock, return_value=None),
     ):
-        response = await client.get("/api/v1/detect/det_nonexist/status", headers=auth_headers)
+        response = await client.get("/v1/detect/det_nonexist/status", headers=auth_headers)
 
     assert response.status_code == 404
     data = response.json()
@@ -125,7 +125,7 @@ async def test_detect_status_with_error(client, auth_headers):
     with (
         patch("app.routes.detect.get_task_state", new_callable=AsyncMock, return_value=fake_state),
     ):
-        response = await client.get("/api/v1/detect/det_fail/status", headers=auth_headers)
+        response = await client.get("/v1/detect/det_fail/status", headers=auth_headers)
 
     assert response.status_code == 200
     data = response.json()
@@ -168,7 +168,7 @@ async def test_detect_status_with_result_type_mismatch(client, auth_headers):
     with (
         patch("app.routes.detect.get_task_state", new_callable=AsyncMock, return_value=fake_state),
     ):
-        response = await client.get("/api/v1/detect/det_abc123/status", headers=auth_headers)
+        response = await client.get("/v1/detect/det_abc123/status", headers=auth_headers)
 
     assert response.status_code == 500
 
@@ -207,7 +207,7 @@ async def test_detect_result(client, auth_headers):
     with (
         patch("app.routes.detect.get_task_state", new_callable=AsyncMock, return_value=fake_state),
     ):
-        response = await client.get("/api/v1/detect/det_done/result", headers=auth_headers)
+        response = await client.get("/v1/detect/det_done/result", headers=auth_headers)
 
     assert response.status_code == 200
     data = response.json()
@@ -239,7 +239,7 @@ async def test_detect_result_with_auto_click(client, auth_headers):
     with (
         patch("app.routes.detect.get_task_state", new_callable=AsyncMock, return_value=fake_state),
     ):
-        response = await client.get("/api/v1/detect/det_auto/result", headers=auth_headers)
+        response = await client.get("/v1/detect/det_auto/result", headers=auth_headers)
 
     assert response.status_code == 200
     data = response.json()
@@ -252,7 +252,7 @@ async def test_detect_result_not_found(client, auth_headers):
     with (
         patch("app.routes.detect.get_task_state", new_callable=AsyncMock, return_value=None),
     ):
-        response = await client.get("/api/v1/detect/det_ghost/result", headers=auth_headers)
+        response = await client.get("/v1/detect/det_ghost/result", headers=auth_headers)
 
     assert response.status_code == 404
     data = response.json()
@@ -274,7 +274,7 @@ async def test_detect_result_not_completed(client, auth_headers):
     with (
         patch("app.routes.detect.get_task_state", new_callable=AsyncMock, return_value=fake_state),
     ):
-        response = await client.get("/api/v1/detect/det_running/result", headers=auth_headers)
+        response = await client.get("/v1/detect/det_running/result", headers=auth_headers)
 
     assert response.status_code == 400
     data = response.json()
@@ -296,7 +296,7 @@ async def test_detect_result_no_result(client, auth_headers):
     with (
         patch("app.routes.detect.get_task_state", new_callable=AsyncMock, return_value=fake_state),
     ):
-        response = await client.get("/api/v1/detect/det_empty/result", headers=auth_headers)
+        response = await client.get("/v1/detect/det_empty/result", headers=auth_headers)
 
     assert response.status_code == 500
     data = response.json()

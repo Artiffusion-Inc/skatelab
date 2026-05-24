@@ -51,6 +51,29 @@
       "source": "hf",
       "repo_id": "Carve/LaMa-ONNX",
       "filename": "lama_fp32.onnx"
+    },
+    "rf_detr_nano": {
+      "version": "1.0.0",
+      "sha256": null,
+      "local_filename": "rf_detr_nano.onnx",
+      "size_bytes": null,
+      "source": "hf",
+      "repo_id": "PierreMarieCurie/rf-detr-onnx",
+      "filename": "rf-detr-nano.onnx"
+    },
+    "rf_detr_small": {
+      "version": "1.0.0",
+      "sha256": null,
+      "local_filename": "rf_detr_small.onnx",
+      "size_bytes": null,
+      "source": "manual"
+    },
+    "rf_detr_medium": {
+      "version": "1.0.0",
+      "sha256": null,
+      "local_filename": "rf_detr_medium.onnx",
+      "size_bytes": null,
+      "source": "manual"
     }
   }
 }

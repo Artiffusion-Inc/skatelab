@@ -33,6 +33,26 @@ MODELS: dict[str, dict] = {
         "size_mb": "~181MB",
         "description": "MogaNet-B pose estimator (AthletePose3D fine-tuned, ONNX)",
     },
+    "rf_detr_nano": {
+        "source": "hf",
+        "repo_id": "PierreMarieCurie/rf-detr-onnx",
+        "filename": "rf-detr-nano.onnx",
+        "local_filename": "rf_detr_nano.onnx",
+        "size_mb": "~120MB",
+        "description": "RF-DETR-Nano person detector (384x384, Apache 2.0)",
+    },
+    "rf_detr_small": {
+        "source": "manual",
+        "local_filename": "rf_detr_small.onnx",
+        "size_mb": "~128MB",
+        "description": "RF-DETR-Small person detector (512x512, Apache 2.0) — requires export_rf_detr.py",
+    },
+    "rf_detr_medium": {
+        "source": "manual",
+        "local_filename": "rf_detr_medium.onnx",
+        "size_mb": "~135MB",
+        "description": "RF-DETR-Medium person detector (576x576, Apache 2.0) — requires export_rf_detr.py",
+    },
     "depth_anything": {
         "source": "hf",
         "repo_id": "onnx-community/depth-anything-v2-small",

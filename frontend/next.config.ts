@@ -8,9 +8,6 @@ const nextConfig: NextConfig = {
   output: "standalone",
   images: { unoptimized: true },
   turbopack: { root: path.resolve(__dirname) },
-  async rewrites() {
-    return [{ source: "/api/:path*", destination: "http://localhost:8000/api/:path*" }]
-  },
 }
 
 const withNextIntl = createNextIntlPlugin("./src/i18n/request.ts")
