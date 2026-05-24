@@ -1,7 +1,7 @@
-"""Person detection using YOLOv8n ONNX.
+"""Person detection using RF-DETR ONNX.
 
-Replaces Ultralytics-based detection with pure ONNX inference.
-No torch/ultralytics dependency — runs on onnxruntime only.
+Replaces YOLOv8n ONNX with RF-DETR (Apache 2.0).
+Pure onnxruntime — no torch/ultralytics dependency.
 """
 
 from pathlib import Path
@@ -14,34 +14,63 @@ from ..types import BoundingBox
 from ..utils.video import extract_frames
 
 # Default model path (relative to PROJECT_ROOT)
-_DEFAULT_MODEL = Path("data/models/yolov8n.onnx")
+_DEFAULT_MODEL = Path("data/models/rf_detr_nano.onnx")
 
-# YOLOv8 input size
-_INPUT_SIZE = 640
+# Default input size for RF-DETR-Nano; configurable per model variant
+_DEFAULT_INPUT_SIZE = 384
 
 # COCO class 0 = person
 _PERSON_CLASS = 0
 
+# ImageNet normalization constants
+IMAGENET_MEAN = np.array([0.485, 0.456, 0.406], dtype=np.float32)
+IMAGENET_STD = np.array([0.229, 0.224, 0.225], dtype=np.float32)
 
-def _letterbox(
-    frame: np.ndarray, new_shape: int = _INPUT_SIZE
-) -> tuple[np.ndarray, tuple[float, float], tuple[int, int]]:
-    """Resize + pad frame to square, keeping aspect ratio."""
-    h, w = frame.shape[:2]
-    r = min(new_shape / h, new_shape / w)
-    new_unpad = (round(w * r), round(h * r))
-    dw = new_shape - new_unpad[0]
-    dh = new_shape - new_unpad[1]
-    dw /= 2
-    dh /= 2
 
-    resized = cv2.resize(frame, new_unpad, interpolation=cv2.INTER_LINEAR)
-    top, bottom = round(dh - 0.1), round(dh + 0.1)
-    left, right = round(dw - 0.1), round(dw + 0.1)
-    padded = cv2.copyMakeBorder(
-        resized, top, bottom, left, right, cv2.BORDER_CONSTANT, value=(114, 114, 114)
-    )
-    return padded, (r, r), (left, top)
+def _sigmoid(logits: np.ndarray) -> np.ndarray:
+    """Numerically stable sigmoid — NOT softmax.
+
+    RF-DETR outputs raw logits; apply per-element sigmoid.
+    Clipping at ±88 prevents exp overflow (float32 safe).
+    """
+    return 1.0 / (1.0 + np.exp(-logits.clip(-88, 88)))
+
+
+def _drop_no_object_logit(logits: np.ndarray) -> np.ndarray:
+    """Drop last logit column (no-object class).
+
+    COCO: (1, 300, 81) → (1, 300, 80). Last column suppresses
+    all class scores if not removed.
+    """
+    return logits[..., :-1]
+
+
+def _cxcywh_to_xyxy(boxes: np.ndarray, orig_w: int, orig_h: int) -> np.ndarray:
+    """Convert cxcywh normalized → xyxy pixel coordinates.
+
+    RF-DETR outputs boxes as (cx, cy, w, h) in [0, 1] range.
+    Convert to (x1, y1, x2, y2) in original frame pixels.
+    """
+    cx, cy, w, h = boxes[..., 0], boxes[..., 1], boxes[..., 2], boxes[..., 3]
+    x1 = (cx - w / 2) * orig_w
+    y1 = (cy - h / 2) * orig_h
+    x2 = (cx + w / 2) * orig_w
+    y2 = (cy + h / 2) * orig_h
+    return np.stack([x1, y1, x2, y2], axis=-1)
+
+
+def _imagenet_normalize(rgb: np.ndarray) -> np.ndarray:
+    """ImageNet normalize: /255, subtract mean, divide by std, to NCHW.
+
+    Args:
+        rgb: (H, W, 3) uint8 RGB image.
+
+    Returns:
+        (1, 3, H, W) float32 normalized blob.
+    """
+    blob = rgb.astype(np.float32) / 255.0
+    blob = (blob - IMAGENET_MEAN) / IMAGENET_STD
+    return blob.transpose(2, 0, 1)[np.newaxis]
 
 
 def _nms(boxes: np.ndarray, scores: np.ndarray, iou_threshold: float = 0.45) -> list[int]:
@@ -70,17 +99,21 @@ def _nms(boxes: np.ndarray, scores: np.ndarray, iou_threshold: float = 0.45) -> 
 
 
 class PersonDetector:
-    """Person detector using YOLOv8n ONNX.
+    """Person detector using RF-DETR ONNX.
 
-    Detects people in video frames using YOLOv8n (nano) model.
+    Detects people in video frames using RF-DETR (Apache 2.0).
     Pure onnxruntime — no torch/ultralytics dependency.
     """
 
     def __init__(
-        self, model_path: str | Path = str(_DEFAULT_MODEL), confidence: float = 0.5
+        self,
+        model_path: str | Path = str(_DEFAULT_MODEL),
+        confidence: float = 0.5,
+        input_size: int = _DEFAULT_INPUT_SIZE,
     ) -> None:
         self._model_path = Path(model_path)
         self._confidence = confidence
+        self._input_size = input_size
         self._session: ort.InferenceSession | None = None
 
     @property
@@ -93,6 +126,10 @@ class PersonDetector:
                 str(self._model_path),
                 providers=cfg.onnx_providers,
             )
+            # Warmup: one dummy inference to load CUDA kernels
+            input_name = self._session.get_inputs()[0].name
+            dummy = np.zeros((1, 3, self._input_size, self._input_size), dtype=np.float32)
+            self._session.run(None, {input_name: dummy})
         return self._session
 
     def detect_frame(self, frame: np.ndarray) -> BoundingBox | None:
@@ -104,35 +141,42 @@ class PersonDetector:
         Returns:
             BoundingBox of highest confidence person, or None.
         """
-        img, (r, _), (pad_w, pad_h) = _letterbox(frame)
-        blob = img.transpose(2, 0, 1).astype(np.float32) / 255.0
-        blob = blob[np.newaxis, ...]  # (1, 3, 640, 640)
+        h, w = frame.shape[:2]
 
+        # Preprocess: BGR→RGB, resize, ImageNet normalize
+        rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        resized = cv2.resize(rgb, (self._input_size, self._input_size))
+        blob = _imagenet_normalize(resized)
+
+        # Inference
         session = self.model
         input_name = session.get_inputs()[0].name
         outputs = session.run(None, {input_name: blob})
-        pred = outputs[0]  # (1, 84, 8400)
 
-        pred = pred[0].T  # type: ignore[index]  # (8400, 84): [x_center, y_center, w, h, class_0_score, ...]
+        # outputs[0]: (1, 300, 4) cxcywh normalized boxes
+        # outputs[1]: (1, 300, 81) logits (80 classes + 1 no-object)
+        boxes = outputs[0]  # (1, 300, 4)
+        logits = outputs[1]  # (1, 300, 81)
 
-        # Filter person class
-        person_scores = pred[:, 4 + _PERSON_CLASS]
+        # Step 1: Drop no-object logit column
+        logits = _drop_no_object_logit(logits)  # (1, 300, 80)
+
+        # Step 2: Sigmoid (NOT softmax)
+        scores_all = _sigmoid(logits)  # (1, 300, 80)
+
+        # Step 3: Filter person class
+        scores_all = scores_all.squeeze(0)  # (300, 80)
+        boxes = boxes.squeeze(0)  # (300, 4)
+        person_scores = scores_all[:, _PERSON_CLASS]
         mask = person_scores > self._confidence
         if not mask.any():
             return None
 
-        filtered = pred[mask]
+        # Step 4: cxcywh normalized → xyxy pixel
+        xyxy = _cxcywh_to_xyxy(boxes[mask], w, h)
         scores = person_scores[mask]
 
-        # Convert xywh → xyxy
-        xywh = filtered[:, :4]
-        xyxy = np.empty_like(xywh)
-        xyxy[:, 0] = xywh[:, 0] - xywh[:, 2] / 2  # x1
-        xyxy[:, 1] = xywh[:, 1] - xywh[:, 3] / 2  # y1
-        xyxy[:, 2] = xywh[:, 0] + xywh[:, 2] / 2  # x2
-        xyxy[:, 3] = xywh[:, 1] + xywh[:, 3] / 2  # y2
-
-        # NMS
+        # Step 5: NMS
         keep = _nms(xyxy, scores)
         if not keep:
             return None
@@ -142,20 +186,13 @@ class PersonDetector:
         bx = xyxy[best_idx]
         conf = float(scores[best_idx])
 
-        # Undo letterbox: remove padding, scale back
-        x1 = (bx[0] - pad_w) / r
-        y1 = (bx[1] - pad_h) / r
-        x2 = (bx[2] - pad_w) / r
-        y2 = (bx[3] - pad_h) / r
-
         # Clip to frame bounds
-        h, w = frame.shape[:2]
-        x1 = max(0, min(x1, w))
-        y1 = max(0, min(y1, h))
-        x2 = max(0, min(x2, w))
-        y2 = max(0, min(y2, h))
+        x1 = max(0.0, min(float(bx[0]), float(w)))
+        y1 = max(0.0, min(float(bx[1]), float(h)))
+        x2 = max(0.0, min(float(bx[2]), float(w)))
+        y2 = max(0.0, min(float(bx[3]), float(h)))
 
-        return BoundingBox(x1=float(x1), y1=float(y1), x2=float(x2), y2=float(y2), confidence=conf)
+        return BoundingBox(x1=x1, y1=y1, x2=x2, y2=y2, confidence=conf)
 
     def detect_video(self, video_path: Path) -> list[BoundingBox]:
         """Detect person in all frames of a video."""
