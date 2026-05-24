@@ -170,9 +170,15 @@ jobs:
           merge-multiple: true
       - name: Combine coverage
         run: |
-          coverage combine .coverage-artifacts/.coverage*
-          coverage xml -o coverage.xml
-          coverage report --fail-under=0
+          shopt -s nullglob
+          files=(.coverage-artifacts/.coverage*)
+          if [ ${#files[@]} -eq 0 ]; then
+            echo "No coverage artifacts found — tests were skipped"
+            exit 0
+          fi
+          uv run coverage combine "${files[@]}"
+          uv run coverage xml -o coverage.xml
+          uv run coverage report --fail-under=0
       - uses: codecov/codecov-action@v6
         with:
           files: coverage.xml
