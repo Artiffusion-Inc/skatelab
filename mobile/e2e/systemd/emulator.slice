@@ -1,0 +1,10 @@
+[Unit]
+Description=Android Emulator Slice
+DefaultDependencies=no
+Before=slices.target
+
+[Slice]
+CPUQuota=400%
+MemoryMax=16G
+MemoryHigh=12G
+IOWeight=50

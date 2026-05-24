@@ -1,0 +1,54 @@
+name: Mobile Nightly
+
+on:
+  schedule:
+    - cron: "3 4 * * *"
+  push:
+    branches: [master]
+    paths:
+      - 'mobile/gradle/**'
+      - 'mobile/build-logic/**'
+      - 'mobile/gradle.properties'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  gradle-cache-warm:
+    name: Gradle cache warm
+    runs-on: blacksmith-4vcpu-ubuntu-2204
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: mobile
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/setup-java-gradle
+        with:
+          cache-encryption-key: ${{ secrets.GRADLE_CACHE_ENCRYPTION_KEY }}
+      - name: Populate Gradle caches
+        run: ./gradlew :shared:dependencies :androidApp:dependencies --configuration-cache
+
+  konan-cache-warm:
+    name: Kotlin/Native cache warm
+    runs-on: blacksmith-6vcpu-macos-15
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: mobile
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/setup-java-gradle
+        with:
+          cache-encryption-key: ${{ secrets.GRADLE_CACHE_ENCRYPTION_KEY }}
+      - name: Populate Konan caches
+        run: ./gradlew :shared:compileKotlinIosSimulatorArm64 --configuration-cache
+
+  full-ci:
+    name: Full CI
+    needs: [gradle-cache-warm, konan-cache-warm]
+    uses: ./.github/workflows/mobile-ci.yml
+    with:
+      run-all: true
+    secrets: inherit

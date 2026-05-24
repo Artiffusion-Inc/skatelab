@@ -1,0 +1,67 @@
+name: Mobile Build
+
+on:
+  workflow_call:
+    inputs:
+      should-run-android:
+        required: false
+        default: true
+        type: boolean
+      should-run-ios:
+        required: false
+        default: false
+        type: boolean
+    secrets:
+      GRADLE_CACHE_ENCRYPTION_KEY:
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  android-build:
+    name: Android debug build
+    if: inputs.should-run-android
+    runs-on: blacksmith-4vcpu-ubuntu-2204
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: mobile
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/setup-java-gradle
+        with:
+          cache-encryption-key: ${{ secrets.GRADLE_CACHE_ENCRYPTION_KEY }}
+      - name: Mount Android project build cache
+        uses: useblacksmith/stickydisk@v1
+        with:
+          key: ${{ github.repository }}-android-build-cache
+          path: mobile/.gradle
+      - name: Build debug APK
+        run: ./gradlew assembleDebug --no-configuration-cache
+      - uses: actions/upload-artifact@v7
+        with:
+          name: apk-debug
+          path: mobile/androidApp/build/outputs/apk/debug/*.apk
+          retention-days: 7
+
+  ios-build:
+    name: iOS framework build
+    if: inputs.should-run-ios
+    runs-on: blacksmith-6vcpu-macos-15
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: mobile
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/setup-java-gradle
+        with:
+          cache-encryption-key: ${{ secrets.GRADLE_CACHE_ENCRYPTION_KEY }}
+      - name: Link debug framework (simulator)
+        run: ./gradlew :shared:linkDebugFrameworkIosSimulatorArm64
+      - uses: actions/upload-artifact@v7
+        with:
+          name: ios-framework-debug
+          path: mobile/shared/build/bin/iosSimulatorArm64/debugFramework/
+          retention-days: 14

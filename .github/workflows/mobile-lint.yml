@@ -1,0 +1,32 @@
+name: Mobile Lint
+
+on:
+  workflow_call:
+    inputs:
+      should-run:
+        required: false
+        default: true
+        type: boolean
+    secrets:
+      GRADLE_CACHE_ENCRYPTION_KEY:
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  android-lint:
+    name: Android lint
+    if: inputs.should-run
+    runs-on: blacksmith-2vcpu-ubuntu-2204
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: mobile
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/setup-java-gradle
+        with:
+          cache-encryption-key: ${{ secrets.GRADLE_CACHE_ENCRYPTION_KEY }}
+      - name: Run ktlint
+        run: ./gradlew ktlintCheck

@@ -1,0 +1,119 @@
+name: Mobile Test
+
+on:
+  workflow_call:
+    inputs:
+      should-run-shared:
+        required: false
+        default: true
+        type: boolean
+      should-run-android:
+        required: false
+        default: true
+        type: boolean
+      should-run-ios:
+        required: false
+        default: false
+        type: boolean
+    secrets:
+      CODECOV_TOKEN:
+        required: false
+      GRADLE_CACHE_ENCRYPTION_KEY:
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  shared-test:
+    name: Shared tests
+    if: inputs.should-run-shared
+    runs-on: blacksmith-4vcpu-ubuntu-2204
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: mobile
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/setup-java-gradle
+        with:
+          cache-encryption-key: ${{ secrets.GRADLE_CACHE_ENCRYPTION_KEY }}
+      - name: Run shared module tests
+        run: ./gradlew :shared:allTests
+      - name: Generate Kover coverage
+        if: success()
+        run: ./gradlew :shared:koverXmlReport
+      - name: Upload coverage
+        if: success()
+        uses: actions/upload-artifact@v7
+        with:
+          name: shared-coverage-xml
+          path: mobile/shared/build/reports/kover/report.xml
+          retention-days: 14
+      - name: Upload to Codecov
+        if: success()
+        uses: codecov/codecov-action@v6
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: mobile/shared/build/reports/kover/report.xml
+          flags: shared
+          fail_ci_if_error: false
+
+  android-test:
+    name: Android tests
+    if: inputs.should-run-android
+    runs-on: blacksmith-4vcpu-ubuntu-2204
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: mobile
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/setup-java-gradle
+        with:
+          cache-encryption-key: ${{ secrets.GRADLE_CACHE_ENCRYPTION_KEY }}
+      - name: Compile debug Kotlin
+        run: ./gradlew :androidApp:compileDebugKotlin
+      - name: Run Android unit tests
+        run: ./gradlew :androidApp:testDebugUnitTest
+      - name: Generate Kover coverage
+        if: success()
+        run: ./gradlew :androidApp:koverXmlReportDebug
+      - name: Upload coverage
+        if: success()
+        uses: actions/upload-artifact@v7
+        with:
+          name: android-coverage-xml
+          path: mobile/androidApp/build/reports/kover/debug/report.xml
+          retention-days: 14
+      - name: Upload to Codecov
+        if: success()
+        uses: codecov/codecov-action@v6
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: mobile/androidApp/build/reports/kover/debug/report.xml
+          flags: android
+          fail_ci_if_error: false
+
+  ios-test:
+    name: iOS tests
+    if: inputs.should-run-ios
+    runs-on: blacksmith-6vcpu-macos-15
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: mobile
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/setup-java-gradle
+        with:
+          cache-encryption-key: ${{ secrets.GRADLE_CACHE_ENCRYPTION_KEY }}
+      - name: Run iOS simulator tests
+        run: ./gradlew :shared:iosSimulatorArm64Test
+      - name: Upload test reports
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: ios-test-reports
+          path: mobile/shared/build/reports/tests/
+          retention-days: 14

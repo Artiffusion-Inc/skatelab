@@ -84,6 +84,7 @@ dependencies {
 
     // Ktor (for DI-provided SkateLabClient)
     implementation(libs.ktor.client.okhttp)
+    implementation("com.squareup.okhttp3:logging-interceptor:4.12.0")
 
     // Multiplatform-settings (for TokenStorage)
     implementation(libs.multiplatform.settings)

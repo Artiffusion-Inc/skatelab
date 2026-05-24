@@ -5,8 +5,9 @@ import io.ktor.client.call.*
 import io.ktor.client.request.*
 import io.ktor.http.*
 import ru.skatelab.shared.models.UploadInitResponse
-import kotlinx.serialization.Serializable
+import ru.skatelab.shared.models.UploadCompleteRequest
 import ru.skatelab.shared.models.CompletedPart
+import kotlinx.serialization.Serializable
 
 class UploadsApi(private val client: HttpClient) {
     /** Initialize a multipart upload. Backend uses query parameters. */
@@ -21,11 +22,7 @@ class UploadsApi(private val client: HttpClient) {
     suspend fun complete(uploadId: String, key: String, parts: List<CompletedPart>) {
         client.post("/uploads/complete") {
             contentType(ContentType.Application.Json)
-            setBody(mapOf(
-                "upload_id" to uploadId,
-                "key" to key,
-                "parts" to parts.map { mapOf("part_number" to it.partNumber, "etag" to it.etag) },
-            ))
+            setBody(UploadCompleteRequest(uploadId, key, parts))
         }
     }
 

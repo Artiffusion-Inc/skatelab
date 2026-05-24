@@ -1,0 +1,9 @@
+appId: ru.skatelab
+tags:
+  - smokeTest
+  - upload
+---
+- launchApp
+- assertVisible: "Сессии"
+- tapOn: ".*"              # Tap first session card
+- assertVisible: "Результат" # Session detail screen title (or element type name)

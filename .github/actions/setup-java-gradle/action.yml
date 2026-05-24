@@ -1,0 +1,38 @@
+name: 'Setup Java + Gradle'
+description: 'JDK 17 + Gradle cache (setup-gradle@v6) + Sticky Disks (~/.gradle, ~/.konan)'
+
+inputs:
+  java-version:
+    description: 'JDK version'
+    default: '17'
+  cache-encryption-key:
+    description: 'Gradle cache encryption key (pass from secrets)'
+    required: true
+
+runs:
+  using: "composite"
+  steps:
+    - uses: actions/setup-java@v5
+      with:
+        distribution: temurin
+        java-version: ${{ inputs.java-version }}
+
+    - uses: gradle/actions/setup-gradle@v6
+      with:
+        cache-encryption-key: ${{ inputs.cache-encryption-key }}
+
+    - name: Mount Gradle home sticky disk
+      uses: useblacksmith/stickydisk@v1
+      with:
+        key: ${{ github.repository }}-gradle-home
+        path: ~/.gradle
+
+    - name: Mount Kotlin/Native sticky disk
+      uses: useblacksmith/stickydisk@v1
+      with:
+        key: ${{ github.repository }}-konan
+        path: ~/.konan
+
+    - name: Make gradlew executable
+      shell: bash
+      run: chmod +x mobile/gradlew
