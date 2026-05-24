@@ -9,16 +9,15 @@
 
 Current `mobile.yml` is monolithic (5+ jobs, ~200 lines). Critical issues:
 
-1. **No concurrency control** — redundant runs on same PR
+1. **Concurrency control exists** (already on master) — but no merge queue integration
 2. **Configuration cache silently discarded** — `setup-gradle@v4` without `cache-encryption-key` = config-cache state never saved in CI (source: [No3x blog](https://no3x.de/blog/github-gradle-action-saving-configuration-cache-state))
-3. **No Gradle caching** — cold start every run
-4. **No iOS tests** — only `ios-compile` exists
-5. **`android-build-debug` serialized after `android-test`** — no logical dependency, wastes 5-15min on critical path
-6. **`macos-13` runner** — Intel x86_64, 3x slower than M1 (`macos-14`)
-7. **CocoaPods in maintenance mode** — JetBrains KT-53877: EOL Q2 2026, migrate to SPM
-8. **`generateDummyFramework` obsolete** — workaround for Kotlin <1.5.20; use `embedAndSignAppleFrameworkForXcode` instead
-9. **No `timeout-minutes`** — runaway jobs bill indefinitely
-10. **GitHub Actions billing exhausted** — private repo = 2000 min/mo free tier
+3. **No iOS tests** — only `ios-compile` exists on `macos-14`
+4. **`android-build-debug` serialized after `android-test`** — no logical dependency, wastes 5-15min on critical path
+5. **CocoaPods in maintenance mode** — JetBrains KT-53877: EOL Q2 2026, migrate to SPM
+6. **`generateDummyFramework` obsolete** — workaround for Kotlin <1.5.20; use `embedAndSignAppleFrameworkForXcode` instead
+7. **No `timeout-minutes`** — runaway jobs bill indefinitely
+8. **GitHub Actions billing exhausted** — private repo = 2000 min/mo free tier
+9. **All Android jobs on same 2vcpu ARM runner** — heavier jobs (test, build) could use 4vcpu
 
 Best practices from [AKJAW/kotlin-multiplatform-github-actions](https://github.com/AKJAW/kotlin-multiplatform-github-actions):
 - Entry workflow + reusable workflows via `workflow_call`
@@ -149,7 +148,7 @@ Label `run-ios-tests` on PR opts into iOS tests before merge queue.
 `on: workflow_call` with inputs: `shouldRunAndroid`, `shouldRunIos`
 
 **Jobs:**
-- `android-build` (blacksmith-4vcpu-ubuntu-2404): `./gradlew :androidApp:assembleDebug` → upload APK (retention: 7 days)
+- `android-build` (blacksmith-4vcpu-ubuntu-2404-arm): `./gradlew :androidApp:assembleDebug` → upload APK (retention: 7 days)
 - `ios-compile` (macos-14): `setup-java-gradle` → `./gradlew :shared:linkDebugFrameworkIosSimulatorArm64` (simulator only for CI speed)
 
 ### mobile-test.yml (reusable)
@@ -157,8 +156,8 @@ Label `run-ios-tests` on PR opts into iOS tests before merge queue.
 `on: workflow_call` with inputs: `shouldRunShared`, `shouldRunAndroid`, `shouldRunIos`
 
 **Jobs:**
-- `shared-test` (blacksmith-4vcpu-ubuntu-2404): `./gradlew :shared:allTests` → Kover coverage → Codecov
-- `android-test` (blacksmith-4vcpu-ubuntu-2404): `./gradlew :androidApp:testDebugUnitTest` → Kover coverage → Codecov
+- `shared-test` (blacksmith-4vcpu-ubuntu-2404-arm): `./gradlew :shared:allTests` → Kover coverage → Codecov
+- `android-test` (blacksmith-4vcpu-ubuntu-2404-arm): `./gradlew :androidApp:testDebugUnitTest` → Kover coverage → Codecov
 - `ios-test` (macos-14): `./gradlew :shared:iosSimulatorArm64Test` → junit xml upload
 
 All use `setup-java-gradle` composite action.
@@ -168,7 +167,7 @@ All use `setup-java-gradle` composite action.
 `on: workflow_call` with input: `shouldRunAndroid`
 
 **Jobs:**
-- `android-lint` (blacksmith-2vcpu-ubuntu-2404): `./gradlew :androidApp:ktlintCheck`
+- `android-lint` (blacksmith-2vcpu-ubuntu-2404-arm): `./gradlew :androidApp:ktlintCheck`
 
 ### mobile-nightly.yml
 
@@ -183,7 +182,7 @@ on:
 
 jobs:
   gradle-cache-warm:
-    runs-on: blacksmith-4vcpu-ubuntu-2404
+    runs-on: blacksmith-4vcpu-ubuntu-2404-arm
     steps:
       - uses: actions/checkout@v6
       - uses: ./.github/actions/setup-java-gradle
@@ -284,16 +283,16 @@ Private repos: 2 vCPU / 8GB → `workers.max=2`, `Xmx2g`. Public repos: 4 vCPU /
 
 | Job | Runner | Rationale |
 |---|---|---|
-| `changes` | blacksmith-2vcpu-ubuntu-2404 | Lightweight, <30s |
-| `android-lint` | blacksmith-2vcpu-ubuntu-2404 | CPU-light |
-| `shared-test` | blacksmith-4vcpu-ubuntu-2404 | Gradle tests need RAM |
-| `android-test` | blacksmith-4vcpu-ubuntu-2404 | Unit tests need RAM |
-| `android-build` | blacksmith-4vcpu-ubuntu-2404 | APK assembly needs RAM |
-| `ios-test` | macos-14 | M1 ARM64, 3x faster than macos-13 Intel |
+| `changes` | blacksmith-2vcpu-ubuntu-2404-arm | Lightweight, <30s |
+| `android-lint` | blacksmith-2vcpu-ubuntu-2404-arm | CPU-light |
+| `shared-test` | blacksmith-4vcpu-ubuntu-2404-arm | Gradle tests need RAM |
+| `android-test` | blacksmith-4vcpu-ubuntu-2404-arm | Unit tests need RAM |
+| `android-build` | blacksmith-4vcpu-ubuntu-2404-arm | APK assembly needs RAM |
+| `ios-test` | macos-14 | Apple Silicon M1, native ARM64 simulator |
 | `ios-compile` | macos-14 | Same — Apple Silicon for native simulator |
-| `mobile-ci-passed` | blacksmith-2vcpu-ubuntu-2404 | Summary gate, <30s |
+| `mobile-ci-passed` | blacksmith-2vcpu-ubuntu-2404-arm | Summary gate, <30s |
 
-**macos-14 NOT macos-13:** Intel runners are 3x slower. `iosSimulatorArm64Test` requires ARM64 host for native execution.
+**Already on Blacksmith ARM runners** (matching existing `ci-reusable.yml` config). iOS uses `macos-14` (Apple Silicon M1).
 
 **Blacksmith runners:** Already onboarded for main CI. 33% cheaper per minute + faster hardware. Mobile CI should use them too.
 
@@ -309,14 +308,12 @@ Private repos: 2 vCPU / 8GB → `workers.max=2`, `Xmx2g`. Public repos: 4 vCPU /
 
 | Technique | Estimated saving |
 |---|---|
-| Blacksmith runners (vs ubuntu-latest) | ~33% cheaper/min + faster = compound |
-| Concurrency cancel-in-progress | ~30% fewer runs on busy PRs |
+| Concurrency cancel-in-progress (already present) | ~30% fewer runs on busy PRs |
 | Config-cache encryption key | ~30% faster (config phase skipped on cache hit) |
 | Gradle + Konan cache | ~40% faster builds (4-5min → 2-3min) |
 | Label-based skip + tiered CI | Skip iOS builds on Android-only PRs (~50% macOS minutes) |
 | Build parallel to test | -5 to -15min from critical path |
-| Job combining (lint+test on same runner) | Reduce per-minute rounding waste |
-| `macos-14` vs `macos-13` | 3x faster iOS jobs = fewer macOS minutes |
+| 4vcpu runners for heavy jobs (vs 2vcpu) | Faster Gradle builds on test/build |
 | Path filters (already present) | Skip entire mobile CI on backend-only PRs |
 
 **Estimated monthly cost (50 PRs/mo):**
