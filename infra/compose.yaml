@@ -35,7 +35,9 @@ services:
     networks:
       - infra
 
-  # ── PostHog: shared PG (posthog DB), shared Valkey (DB 2), RustFS ──
+  # ── PostHog ──────────────────────────────────────────────────────
+  # Shared infra: Valkey DB 2, RustFS S3, infra_app_network
+  # Service names resolve via Docker DNS on infra_app_network
 
   posthog-db:
     image: docker.io/library/postgres:15.12-alpine
@@ -52,12 +54,16 @@ services:
       start_period: 10s
     volumes:
       - posthog-pg-data:/var/lib/postgresql/data
+    deploy:
+      resources:
+        limits:
+          memory: 1g
     networks:
       - infra
 
   posthog_clickhouse:
     image: docker.io/clickhouse/clickhouse-server:26.3.10.60
-    restart: on-failure
+    restart: unless-stopped
     environment:
       CLICKHOUSE_SKIP_USER_SETUP: 1
     healthcheck:
@@ -68,6 +74,10 @@ services:
     volumes:
       - posthog-clickhouse-data:/var/lib/clickhouse
       - ./clickhouse-custom.xml:/etc/clickhouse-server/config.d/custom.xml:ro
+    deploy:
+      resources:
+        limits:
+          memory: 5g
     networks:
       - infra
 
@@ -107,6 +117,10 @@ services:
       KAFKA_AUTO_CREATE_TOPICS_ENABLE: "false"
     volumes:
       - posthog-kafka-data:/var/lib/redpanda/data
+    deploy:
+      resources:
+        limits:
+          memory: 4g
     networks:
       - infra
 
@@ -135,20 +149,19 @@ services:
   posthog_web:
     image: us-docker.pkg.dev/posthog-prod/posthog-prod-server/posthog:${POSTHOG_APP_TAG:-1.88.0}
     restart: unless-stopped
-    command: /compose/start
     environment:
       SITE_URL: https://ph.${DOMAIN:-skatelab.ru}
       SECRET_KEY: ${POSTHOG_SECRET_KEY:?required}
       DATABASE_URL: postgres://posthog:${POSTHOG_POSTGRES_PASSWORD}@posthog-db:5432/posthog
-      REDIS_URL: redis://valkey:6379/2
+      REDIS_URL: redis://infra-valkey-1:6379/2
       CLICKHOUSE_HOST: http://posthog_clickhouse:8123
       KAFKA_HOSTS: posthog_kafka:9092
       OBJECT_STORAGE_ENABLED: "true"
-      OBJECT_STORAGE_ENDPOINT: http://rustfs:9000
+      OBJECT_STORAGE_ENDPOINT: http://infra-rustfs-1:9000
       OBJECT_STORAGE_ACCESS_KEY_ID: ${RUSTFS_ACCESS_KEY_ID:?required}
       OBJECT_STORAGE_SECRET_ACCESS_KEY: ${RUSTFS_SECRET_ACCESS_KEY:?required}
       OBJECT_STORAGE_BUCKET_URL_TEMPLATE: https://s3.${DOMAIN:-skatelab.ru}/posthog
-      SESSION_RECORDING_V2_S3_ENDPOINT: http://rustfs:9000
+      SESSION_RECORDING_V2_S3_ENDPOINT: http://infra-rustfs-1:9000
       SESSION_RECORDING_V2_S3_ACCESS_KEY_ID: ${RUSTFS_ACCESS_KEY_ID:?required}
       SESSION_RECORDING_V2_S3_SECRET_ACCESS_KEY: ${RUSTFS_SECRET_ACCESS_KEY:?required}
       RECORDING_API_URL: http://posthog_recording-api:6738
@@ -167,6 +180,10 @@ services:
         condition: service_healthy
       posthog_personhog-router:
         condition: service_started
+    deploy:
+      resources:
+        limits:
+          memory: 2g
     networks:
       - infra
 
@@ -178,14 +195,14 @@ services:
       SITE_URL: https://ph.${DOMAIN:-skatelab.ru}
       SECRET_KEY: ${POSTHOG_SECRET_KEY:?required}
       DATABASE_URL: postgres://posthog:${POSTHOG_POSTGRES_PASSWORD}@posthog-db:5432/posthog
-      REDIS_URL: redis://valkey:6379/2
+      REDIS_URL: redis://infra-valkey-1:6379/2
       CLICKHOUSE_HOST: http://posthog_clickhouse:8123
       KAFKA_HOSTS: posthog_kafka:9092
       OBJECT_STORAGE_ENABLED: "true"
-      OBJECT_STORAGE_ENDPOINT: http://rustfs:9000
+      OBJECT_STORAGE_ENDPOINT: http://infra-rustfs-1:9000
       OBJECT_STORAGE_ACCESS_KEY_ID: ${RUSTFS_ACCESS_KEY_ID:?required}
       OBJECT_STORAGE_SECRET_ACCESS_KEY: ${RUSTFS_SECRET_ACCESS_KEY:?required}
-      SESSION_RECORDING_V2_S3_ENDPOINT: http://rustfs:9000
+      SESSION_RECORDING_V2_S3_ENDPOINT: http://infra-rustfs-1:9000
       SESSION_RECORDING_V2_S3_ACCESS_KEY_ID: ${RUSTFS_ACCESS_KEY_ID:?required}
       SESSION_RECORDING_V2_S3_SECRET_ACCESS_KEY: ${RUSTFS_SECRET_ACCESS_KEY:?required}
       RECORDING_API_URL: http://posthog_recording-api:6738
@@ -205,25 +222,29 @@ services:
         condition: service_started
       posthog_personhog-router:
         condition: service_started
+    deploy:
+      resources:
+        limits:
+          memory: 2g
     networks:
       - infra
 
   posthog_plugins:
-    image: us-docker.pkg.dev/posthog-prod/posthog-prod-server/posthog-node:${POSTHOG_NODE_TAG:-latest}
+    image: us-docker.pkg.dev/posthog-prod/posthog-prod-server/posthog-node:${POSTHOG_NODE_TAG:-1.88.0}
     restart: unless-stopped
     environment:
       SITE_URL: https://ph.${DOMAIN:-skatelab.ru}
       SECRET_KEY: ${POSTHOG_SECRET_KEY:?required}
       DATABASE_URL: postgres://posthog:${POSTHOG_POSTGRES_PASSWORD}@posthog-db:5432/posthog
       PERSONS_DATABASE_URL: postgres://posthog:${POSTHOG_POSTGRES_PASSWORD}@posthog-db:5432/posthog
-      REDIS_URL: redis://valkey:6379/2
-      CDP_REDIS_HOST: valkey
+      REDIS_URL: redis://infra-valkey-1:6379/2
+      CDP_REDIS_HOST: infra-valkey-1
       CDP_REDIS_PORT: "6379"
       OBJECT_STORAGE_ENABLED: "true"
-      OBJECT_STORAGE_ENDPOINT: http://rustfs:9000
+      OBJECT_STORAGE_ENDPOINT: http://infra-rustfs-1:9000
       OBJECT_STORAGE_ACCESS_KEY_ID: ${RUSTFS_ACCESS_KEY_ID:?required}
       OBJECT_STORAGE_SECRET_ACCESS_KEY: ${RUSTFS_SECRET_ACCESS_KEY:?required}
-      SESSION_RECORDING_V2_S3_ENDPOINT: http://rustfs:9000
+      SESSION_RECORDING_V2_S3_ENDPOINT: http://infra-rustfs-1:9000
       SESSION_RECORDING_V2_S3_ACCESS_KEY_ID: ${RUSTFS_ACCESS_KEY_ID:?required}
       SESSION_RECORDING_V2_S3_SECRET_ACCESS_KEY: ${RUSTFS_SECRET_ACCESS_KEY:?required}
       ENCRYPTION_SALT_KEYS: ${POSTHOG_ENCRYPTION_SALT_KEYS:-}
@@ -234,41 +255,63 @@ services:
         condition: service_started
       posthog_kafka:
         condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          memory: 1g
     networks:
       - infra
 
   posthog_capture:
-    image: ghcr.io/posthog/posthog/capture:master
+    image: ghcr.io/posthog/posthog/capture:${POSTHOG_RUST_TAG:-1.88.0}
     restart: unless-stopped
     environment:
       ADDRESS: ":3000"
       KAFKA_TOPIC: events_plugin_ingestion
       KAFKA_HOSTS: posthog_kafka:9092
       CAPTURE_MODE: events
-      REDIS_URL: redis://valkey:6379/2
+      REDIS_URL: redis://infra-valkey-1:6379/2
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/_readiness"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          memory: 512m
     networks:
       - infra
 
   posthog_replay-capture:
-    image: ghcr.io/posthog/posthog/capture:master
+    image: ghcr.io/posthog/posthog/capture:${POSTHOG_RUST_TAG:-1.88.0}
     restart: unless-stopped
     environment:
       ADDRESS: ":3000"
       KAFKA_TOPIC: session_recording_snapshot_item_events
       KAFKA_HOSTS: posthog_kafka:9092
       CAPTURE_MODE: recordings
-      REDIS_URL: redis://valkey:6379/2
+      REDIS_URL: redis://infra-valkey-1:6379/2
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/_readiness"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          memory: 512m
     networks:
       - infra
 
   posthog_feature-flags:
-    image: ghcr.io/posthog/posthog/feature-flags:master
+    image: ghcr.io/posthog/posthog/feature-flags:${POSTHOG_RUST_TAG:-1.88.0}
     restart: unless-stopped
     environment:
       ADDRESS: ":3001"
       READ_DATABASE_URL: postgres://posthog:${POSTHOG_POSTGRES_PASSWORD}@posthog-db:5432/posthog
       WRITE_DATABASE_URL: postgres://posthog:${POSTHOG_POSTGRES_PASSWORD}@posthog-db:5432/posthog
-      REDIS_URL: redis://valkey:6379/2
+      REDIS_URL: redis://infra-valkey-1:6379/2
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3001/_readiness"]
       interval: 10s
@@ -277,11 +320,15 @@ services:
     depends_on:
       posthog-db:
         condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          memory: 512m
     networks:
       - infra
 
   posthog_personhog-replica:
-    image: ghcr.io/posthog/posthog/personhog-replica:master
+    image: ghcr.io/posthog/posthog/personhog-replica:${POSTHOG_RUST_TAG:-1.88.0}
     restart: unless-stopped
     environment:
       PRIMARY_DATABASE_URL: postgres://posthog:${POSTHOG_POSTGRES_PASSWORD}@posthog-db:5432/posthog
@@ -289,97 +336,121 @@ services:
     depends_on:
       posthog-db:
         condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          memory: 512m
     networks:
       - infra
 
   posthog_personhog-router:
-    image: ghcr.io/posthog/posthog/personhog-router:master
+    image: ghcr.io/posthog/posthog/personhog-router:${POSTHOG_RUST_TAG:-1.88.0}
     restart: unless-stopped
     environment:
       REPLICA_URL: http://posthog_personhog-replica:50051
       METRICS_PORT: "9101"
     depends_on:
       - posthog_personhog-replica
+    deploy:
+      resources:
+        limits:
+          memory: 256m
     networks:
       - infra
 
   posthog_property-defs-rs:
-    image: ghcr.io/posthog/posthog/property-defs-rs:master
+    image: ghcr.io/posthog/posthog/property-defs-rs:${POSTHOG_RUST_TAG:-1.88.0}
     restart: unless-stopped
     environment:
       DATABASE_URL: postgres://posthog:${POSTHOG_POSTGRES_PASSWORD}@posthog-db:5432/posthog
       KAFKA_HOSTS: posthog_kafka:9092
       FILTER_MODE: opt-out
-      REDIS_URL: redis://valkey:6379/2
+      REDIS_URL: redis://infra-valkey-1:6379/2
     depends_on:
       posthog_kafka-init:
         condition: service_completed_successfully
       posthog-db:
         condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          memory: 512m
     networks:
       - infra
 
   posthog_cyclotron-janitor:
-    image: ghcr.io/posthog/posthog/cyclotron-janitor:master
+    image: ghcr.io/posthog/posthog/cyclotron-janitor:${POSTHOG_RUST_TAG:-1.88.0}
     restart: unless-stopped
     environment:
       DATABASE_URL: postgres://posthog:${POSTHOG_POSTGRES_PASSWORD}@posthog-db:5432/posthog
       KAFKA_HOSTS: posthog_kafka:9092
       KAFKA_TOPIC: clickhouse_app_metrics2
-      REDIS_URL: redis://valkey:6379/2
+      REDIS_URL: redis://infra-valkey-1:6379/2
     depends_on:
       posthog-db:
         condition: service_healthy
       posthog_kafka:
         condition: service_started
+    deploy:
+      resources:
+        limits:
+          memory: 256m
     networks:
       - infra
 
   posthog_hypercache-server:
-    image: ghcr.io/posthog/posthog/hypercache-server:master
+    image: ghcr.io/posthog/posthog/hypercache-server:${POSTHOG_RUST_TAG:-1.88.0}
     restart: unless-stopped
     environment:
       ADDRESS: ":3002"
-      REDIS_URL: redis://valkey:6379/2
+      REDIS_URL: redis://infra-valkey-1:6379/2
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3002/_readiness"]
       interval: 10s
       timeout: 3s
       retries: 5
+    deploy:
+      resources:
+        limits:
+          memory: 256m
     networks:
       - infra
 
   posthog_cymbal:
-    image: ghcr.io/posthog/posthog/cymbal:master
-    restart: on-failure
+    image: ghcr.io/posthog/posthog/cymbal:${POSTHOG_RUST_TAG:-1.88.0}
+    restart: unless-stopped
     environment:
       KAFKA_HOSTS: posthog_kafka:9092
       OBJECT_STORAGE_BUCKET: posthog
       OBJECT_STORAGE_ACCESS_KEY_ID: ${RUSTFS_ACCESS_KEY_ID:?required}
       OBJECT_STORAGE_SECRET_ACCESS_KEY: ${RUSTFS_SECRET_ACCESS_KEY:?required}
-      OBJECT_STORAGE_ENDPOINT: http://rustfs:9000
+      OBJECT_STORAGE_ENDPOINT: http://infra-rustfs-1:9000
       OBJECT_STORAGE_FORCE_PATH_STYLE: "true"
       BIND_HOST: "0.0.0.0"
       BIND_PORT: "3302"
       DATABASE_URL: postgres://posthog:${POSTHOG_POSTGRES_PASSWORD}@posthog-db:5432/posthog
       PERSONS_URL: postgres://posthog:${POSTHOG_POSTGRES_PASSWORD}@posthog-db:5432/posthog
-      REDIS_URL: redis://valkey:6379/2
+      REDIS_URL: redis://infra-valkey-1:6379/2
       RUST_LOG: info
     depends_on:
       posthog_kafka-init:
         condition: service_completed_successfully
       posthog-db:
         condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          memory: 512m
     networks:
       - infra
 
   posthog_ingestion-general:
-    image: us-docker.pkg.dev/posthog-prod/posthog-prod-server/posthog-node:${POSTHOG_NODE_TAG:-latest}
+    image: us-docker.pkg.dev/posthog-prod/posthog-prod-server/posthog-node:${POSTHOG_NODE_TAG:-1.88.0}
     restart: unless-stopped
     environment:
       DATABASE_URL: postgres://posthog:${POSTHOG_POSTGRES_PASSWORD}@posthog-db:5432/posthog
       PERSONS_DATABASE_URL: postgres://posthog:${POSTHOG_POSTGRES_PASSWORD}@posthog-db:5432/posthog
-      REDIS_URL: redis://valkey:6379/2
+      REDIS_URL: redis://infra-valkey-1:6379/2
       KAFKA_HOSTS: posthog_kafka:9092
       ENCRYPTION_SALT_KEYS: ${POSTHOG_ENCRYPTION_SALT_KEYS:-}
     depends_on:
@@ -387,16 +458,20 @@ services:
         condition: service_healthy
       posthog_kafka:
         condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          memory: 512m
     networks:
       - infra
 
   posthog_ingestion-sessionreplay:
-    image: us-docker.pkg.dev/posthog-prod/posthog-prod-server/posthog-node:${POSTHOG_NODE_TAG:-latest}
+    image: us-docker.pkg.dev/posthog-prod/posthog-prod-server/posthog-node:${POSTHOG_NODE_TAG:-1.88.0}
     restart: unless-stopped
     environment:
-      REDIS_URL: redis://valkey:6379/2
+      REDIS_URL: redis://infra-valkey-1:6379/2
       KAFKA_HOSTS: posthog_kafka:9092
-      SESSION_RECORDING_V2_S3_ENDPOINT: http://rustfs:9000
+      SESSION_RECORDING_V2_S3_ENDPOINT: http://infra-rustfs-1:9000
       SESSION_RECORDING_V2_S3_ACCESS_KEY_ID: ${RUSTFS_ACCESS_KEY_ID:?required}
       SESSION_RECORDING_V2_S3_SECRET_ACCESS_KEY: ${RUSTFS_SECRET_ACCESS_KEY:?required}
       SESSION_RECORDING_V2_S3_TIMEOUT_MS: "120000"
@@ -404,59 +479,79 @@ services:
     depends_on:
       posthog_kafka:
         condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          memory: 512m
     networks:
       - infra
 
   posthog_ingestion-error-tracking:
-    image: us-docker.pkg.dev/posthog-prod/posthog-prod-server/posthog-node:${POSTHOG_NODE_TAG:-latest}
+    image: us-docker.pkg.dev/posthog-prod/posthog-prod-server/posthog-node:${POSTHOG_NODE_TAG:-1.88.0}
     restart: unless-stopped
     environment:
-      REDIS_URL: redis://valkey:6379/2
+      REDIS_URL: redis://infra-valkey-1:6379/2
       KAFKA_HOSTS: posthog_kafka:9092
       ENCRYPTION_SALT_KEYS: ${POSTHOG_ENCRYPTION_SALT_KEYS:-}
     depends_on:
       posthog_kafka:
         condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          memory: 256m
     networks:
       - infra
 
   posthog_ingestion-logs:
-    image: us-docker.pkg.dev/posthog-prod/posthog-prod-server/posthog-node:${POSTHOG_NODE_TAG:-latest}
+    image: us-docker.pkg.dev/posthog-prod/posthog-prod-server/posthog-node:${POSTHOG_NODE_TAG:-1.88.0}
     restart: unless-stopped
     environment:
-      REDIS_URL: redis://valkey:6379/2
+      REDIS_URL: redis://infra-valkey-1:6379/2
       KAFKA_HOSTS: posthog_kafka:9092
     depends_on:
       posthog_kafka:
         condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          memory: 256m
     networks:
       - infra
 
   posthog_ingestion-traces:
-    image: us-docker.pkg.dev/posthog-prod/posthog-prod-server/posthog-node:${POSTHOG_NODE_TAG:-latest}
+    image: us-docker.pkg.dev/posthog-prod/posthog-prod-server/posthog-node:${POSTHOG_NODE_TAG:-1.88.0}
     restart: unless-stopped
     environment:
-      REDIS_URL: redis://valkey:6379/2
+      REDIS_URL: redis://infra-valkey-1:6379/2
       KAFKA_HOSTS: posthog_kafka:9092
     depends_on:
       posthog_kafka:
         condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          memory: 256m
     networks:
       - infra
 
   posthog_recording-api:
-    image: us-docker.pkg.dev/posthog-prod/posthog-prod-server/posthog-node:${POSTHOG_NODE_TAG:-latest}
+    image: us-docker.pkg.dev/posthog-prod/posthog-prod-server/posthog-node:${POSTHOG_NODE_TAG:-1.88.0}
     restart: unless-stopped
     environment:
       DATABASE_URL: postgres://posthog:${POSTHOG_POSTGRES_PASSWORD}@posthog-db:5432/posthog
-      REDIS_URL: redis://valkey:6379/2
-      SESSION_RECORDING_V2_S3_ENDPOINT: http://rustfs:9000
+      REDIS_URL: redis://infra-valkey-1:6379/2
+      SESSION_RECORDING_V2_S3_ENDPOINT: http://infra-rustfs-1:9000
       SESSION_RECORDING_V2_S3_ACCESS_KEY_ID: ${RUSTFS_ACCESS_KEY_ID:?required}
       SESSION_RECORDING_V2_S3_SECRET_ACCESS_KEY: ${RUSTFS_SECRET_ACCESS_KEY:?required}
       ENCRYPTION_SALT_KEYS: ${POSTHOG_ENCRYPTION_SALT_KEYS:-}
     depends_on:
       posthog-db:
         condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          memory: 512m
     networks:
       - infra
 
@@ -475,6 +570,10 @@ services:
     depends_on:
       posthog-db:
         condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          memory: 1g
     networks:
       - infra
 
@@ -486,13 +585,13 @@ services:
       SITE_URL: https://ph.${DOMAIN:-skatelab.ru}
       SECRET_KEY: ${POSTHOG_SECRET_KEY:?required}
       DATABASE_URL: postgres://posthog:${POSTHOG_POSTGRES_PASSWORD}@posthog-db:5432/posthog
-      REDIS_URL: redis://valkey:6379/2
+      REDIS_URL: redis://infra-valkey-1:6379/2
       KAFKA_HOSTS: posthog_kafka:9092
       TEMPORAL_HOST: posthog_temporal:7233
-      OBJECT_STORAGE_ENDPOINT: http://rustfs:9000
+      OBJECT_STORAGE_ENDPOINT: http://infra-rustfs-1:9000
       OBJECT_STORAGE_ACCESS_KEY_ID: ${RUSTFS_ACCESS_KEY_ID:?required}
       OBJECT_STORAGE_SECRET_ACCESS_KEY: ${RUSTFS_SECRET_ACCESS_KEY:?required}
-      SESSION_RECORDING_V2_S3_ENDPOINT: http://rustfs:9000
+      SESSION_RECORDING_V2_S3_ENDPOINT: http://infra-rustfs-1:9000
       SESSION_RECORDING_V2_S3_ACCESS_KEY_ID: ${RUSTFS_ACCESS_KEY_ID:?required}
       SESSION_RECORDING_V2_S3_SECRET_ACCESS_KEY: ${RUSTFS_SECRET_ACCESS_KEY:?required}
       ENCRYPTION_SALT_KEYS: ${POSTHOG_ENCRYPTION_SALT_KEYS:-}
@@ -500,17 +599,25 @@ services:
       - posthog-db
       - posthog_temporal
       - posthog_kafka
+    deploy:
+      resources:
+        limits:
+          memory: 1g
     networks:
       - infra
 
   posthog_livestream:
-    image: ghcr.io/posthog/posthog/livestream:master
+    image: ghcr.io/posthog/posthog/livestream:${POSTHOG_RUST_TAG:-1.88.0}
     restart: unless-stopped
     environment:
       LIVESTREAM_JWT_SECRET: ${POSTHOG_SECRET_KEY}
     depends_on:
       posthog_kafka:
         condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          memory: 256m
     networks:
       - infra
 
