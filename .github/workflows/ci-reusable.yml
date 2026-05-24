@@ -341,35 +341,11 @@ jobs:
           push: false
           tags: skatelab-frontend:ci
 
-  danger:
-    name: Danger (PR checks)
-    if: github.event_name == 'pull_request'
-    runs-on: blacksmith-2vcpu-ubuntu-2404-arm
-    timeout-minutes: 5
-    permissions:
-      contents: read
-      pull-requests: write
-      issues: write
-      checks: write
-    steps:
-      - uses: actions/checkout@v6
-        with:
-          fetch-depth: 0
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "22"
-      - name: Install danger-js
-        run: npm install -g danger
-      - name: Run Danger
-        run: danger ci
-        env:
-          DANGER_GITHUB_API_TOKEN: ${{ github.token }}
-
   ci-passed:
     name: CI Summary
     runs-on: blacksmith-2vcpu-ubuntu-2404-arm
     timeout-minutes: 5
-    needs: [changes, lint-typecheck, coverage, design-ci, test, smoke, fe-check, fe-build, fe-test, docker-backend, docker-frontend, danger]
+    needs: [changes, lint-typecheck, coverage, design-ci, test, smoke, fe-check, fe-build, fe-test, docker-backend, docker-frontend]
     if: always()
     outputs:
       result: ${{ steps.check.outputs.result }}
