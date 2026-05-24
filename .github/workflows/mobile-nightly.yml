@@ -25,6 +25,8 @@ jobs:
     steps:
       - uses: actions/checkout@v6
       - uses: ./.github/actions/setup-java-gradle
+        with:
+          cache-encryption-key: ${{ secrets.GRADLE_CACHE_ENCRYPTION_KEY }}
       - name: Populate Gradle caches
         run: ./gradlew :shared:dependencies :androidApp:dependencies --configuration-cache
 
@@ -38,6 +40,8 @@ jobs:
     steps:
       - uses: actions/checkout@v6
       - uses: ./.github/actions/setup-java-gradle
+        with:
+          cache-encryption-key: ${{ secrets.GRADLE_CACHE_ENCRYPTION_KEY }}
       - name: Populate Konan caches
         run: ./gradlew :shared:compileKotlinIosSimulatorArm64 --configuration-cache
 

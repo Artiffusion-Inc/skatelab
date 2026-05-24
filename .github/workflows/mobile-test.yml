@@ -18,6 +18,8 @@ on:
     secrets:
       CODECOV_TOKEN:
         required: false
+      GRADLE_CACHE_ENCRYPTION_KEY:
+        required: true
 
 permissions:
   contents: read
@@ -34,6 +36,8 @@ jobs:
     steps:
       - uses: actions/checkout@v6
       - uses: ./.github/actions/setup-java-gradle
+        with:
+          cache-encryption-key: ${{ secrets.GRADLE_CACHE_ENCRYPTION_KEY }}
       - name: Run shared module tests
         run: ./gradlew :shared:testDebugUnitTest
       - name: Generate Kover coverage
@@ -66,6 +70,8 @@ jobs:
     steps:
       - uses: actions/checkout@v6
       - uses: ./.github/actions/setup-java-gradle
+        with:
+          cache-encryption-key: ${{ secrets.GRADLE_CACHE_ENCRYPTION_KEY }}
       - name: Compile debug Kotlin
         run: ./gradlew :androidApp:compileDebugKotlin
       - name: Run Android unit tests
@@ -100,6 +106,8 @@ jobs:
     steps:
       - uses: actions/checkout@v6
       - uses: ./.github/actions/setup-java-gradle
+        with:
+          cache-encryption-key: ${{ secrets.GRADLE_CACHE_ENCRYPTION_KEY }}
       - name: Run iOS simulator tests
         run: ./gradlew :shared:iosSimulatorArm64Test
       - name: Upload test reports

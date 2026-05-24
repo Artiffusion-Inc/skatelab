@@ -5,6 +5,9 @@ inputs:
   java-version:
     description: 'JDK version'
     default: '17'
+  cache-encryption-key:
+    description: 'Gradle cache encryption key (pass from secrets)'
+    required: true
 
 runs:
   using: "composite"
@@ -19,7 +22,7 @@ runs:
     - uses: gradle/actions/setup-gradle@v6
       with:
         cache-provider: basic
-        cache-encryption-key: ${{ secrets.GRADLE_CACHE_ENCRYPTION_KEY }}
+        cache-encryption-key: ${{ inputs.cache-encryption-key }}
         dependency-graph: generate-and-submit
 
     - name: Mount Gradle home sticky disk
