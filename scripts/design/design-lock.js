@@ -17,7 +17,7 @@ import { fileURLToPath } from "node:url";
 
 // ─── Paths ────────────────────────────────────────────────────────────────
 
-const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
+const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const DESIGN_MD = resolve(ROOT, "DESIGN.md");
 const LOCK_FILE = resolve(ROOT, "lock.json");
 
