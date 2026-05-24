@@ -159,6 +159,14 @@ pre-push:
         fi
         node ../scripts/design/design-lock.js check || exit 1
 
+    actionlint:
+      glob: ".github/workflows/*.{yml,yaml}"
+      run: |
+        if ! command -v actionlint &> /dev/null; then
+          exit 0
+        fi
+        actionlint -config-file .github/actionlint.yaml {staged_files}
+
 post-merge:
   parallel: true
   only:
