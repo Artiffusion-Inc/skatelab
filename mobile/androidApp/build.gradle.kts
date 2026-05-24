@@ -84,6 +84,7 @@ dependencies {
 
     // Ktor (for DI-provided SkateLabClient)
     implementation(libs.ktor.client.okhttp)
+    implementation("io.ktor:ktor-client-logging:${libs.versions.ktor.get()}")
 
     // Multiplatform-settings (for TokenStorage)
     implementation(libs.multiplatform.settings)
