@@ -39,9 +39,12 @@ Deploy on existing Hetzner dedic (62GB RAM, 16 vCPU, 735GB free disk) alongside 
 **Workflow engine:**
 - `temporal`, `elasticsearch`, `temporal-admin-tools`, `temporal-ui`, `temporal-django-worker`
 
-**Object storage (replaced by R2 — see below):**
-- ~~`objectstorage` (MinIO)~~ — replaced by Cloudflare R2
-- ~~`seaweedfs`~~ — replaced by Cloudflare R2
+**Object storage (replaced by RustFS — see Shared Infrastructure section):**
+- ~~`objectstorage` (MinIO)~~ — replaced by existing `infra-rustfs-1`
+- ~~`seaweedfs`~~ — replaced by existing `infra-rustfs-1`
+
+**Redis (replaced by shared Valkey — see Shared Infrastructure section):**
+- ~~`redis7`~~ — replaced by existing `infra-valkey-1` (DB number 2)
 
 ### Resource Allocation (Revised)
 
@@ -50,31 +53,53 @@ Original spec allocated 8GB — **confirmed unstable** (GitHub Issue #27120: 8GB
 | Service | RAM | Notes |
 |---------|-----|-------|
 | ClickHouse | 4GB | Tuned down from 8GB default via `config.d/custom.xml` (sufficient for <1M events/mo) |
-| PostgreSQL | 2GB | **Isolated** — cannot share with SkateLab DB (schema pollution, version mismatch) |
+| PostgreSQL | 1GB | **Separate container** (postgres:15.12-alpine, not shared with SkateLab PG 17). See Shared Infrastructure section. |
 | Redpanda (Kafka) | 3GB | Default from base.yml: `--memory 3G --reserve-memory 500M --smp 2` |
-| Redis | 512MB | **Isolated** — cannot share with Valkey (allkeys-lru eviction risk for arq queue) |
+| Redis/Valkey | 0 | **Shared** with existing Valkey (DB number 2). See Shared Infrastructure section. |
 | Temporal + Elasticsearch | 1GB | ES heap 256MB, Temporal ~700MB |
 | Rust services (~8 containers) | 1.5GB | ~200MB each |
 | Node.js services (~7 containers) | 1.5GB | ~200MB each |
 | Web + Worker (Django) | 2GB | Django app + Celery |
 | Caddy proxy | 0 | Use existing `infra-caddy-1` |
-| **Total PostHog** | **~16GB** | |
-| **Remaining for existing services** | **~46GB** | Out of 62GB total |
+| **Total PostHog** | **~14.5GB** | (saved 1.5GB via shared Valkey + RustFS) |
+| **Remaining for existing services** | **~47.5GB** | Out of 62GB total |
 
-### R2 Integration (Object Storage Replacement)
+### Shared Infrastructure
 
-PostHog hobby stack ships MinIO + SeaweedFS for object storage. **Replace both with Cloudflare R2** (already in our stack):
+**RustFS (Object Storage):** Use existing `infra-rustfs-1` instead of MinIO/SeaweedFS. PostHog needs S3-compatible storage for session recordings and plugin exports. RustFS is already deployed on the dedic and accessible at `rustfs:9000` (internal) / `s3.skatelab.ru` (external).
 
 ```
-OBJECT_STORAGE_ENDPOINT=https://<account>.r2.cloudflarestorage.com
-OBJECT_STORAGE_ACCESS_KEY_ID=<r2-access-key>
-OBJECT_STORAGE_SECRET_ACCESS_KEY=<r2-secret-key>
-SESSION_RECORDING_V2_S3_ENDPOINT=https://<account>.r2.cloudflarestorage.com
-SESSION_RECORDING_V2_S3_ACCESS_KEY_ID=<r2-access-key>
-SESSION_RECORDING_V2_S3_SECRET_ACCESS_KEY=<r2-secret-key>
+OBJECT_STORAGE_ENDPOINT=http://infra-rustfs-1:9000
+OBJECT_STORAGE_ACCESS_KEY_ID=<rustfs-key>
+OBJECT_STORAGE_SECRET_ACCESS_KEY=<rustfs-secret-key>
+SESSION_RECORDING_V2_S3_ENDPOINT=http://infra-rustfs-1:9000
+SESSION_RECORDING_V2_S3_ACCESS_KEY_ID=<rustfs-key>
+SESSION_RECORDING_V2_S3_SECRET_ACCESS_KEY=<rustfs-secret-key>
 ```
 
-This eliminates 2 containers + ~1GB RAM. R2 cost for session recordings at our scale: ~$0.15/month.
+Eliminates 2 containers (MinIO + SeaweedFS) + ~1GB RAM. Session recordings stored on local disk (~5-10GB/mo at our scale, negligible on 735GB free).
+
+**PostgreSQL (Separate Container):** Cannot share with SkateLab PG 17. PostHog pins `postgres:15.12-alpine` — PG 17 is untested and may break Django migrations. Run a separate `postgres:15.12-alpine` container on the same host. PostgreSQL databases within different containers are fully isolated (different processes, different data directories). Memory: ~1GB (tune `shared_buffers=256MB`).
+
+```
+# In PostHog's docker-compose, override:
+db:
+  image: postgres:15.12-alpine
+  # Separate data volume, separate port (5433 vs 5432)
+```
+
+**Valkey/Redis (Shared, DB number 2):** Share existing `infra-valkey-1` using Redis database number isolation. PostHog uses DB 2 (`SELECT 2`). Existing SkateLab services use DB 0 (default). This works because:
+- Valkey supports 16 databases (DB 0-15) by default
+- `FLUSHDB` only affects the selected DB, not others
+- Our Valkey runs `noeviction` policy — no risk of arq queue eviction
+- PostHog wants `maxmemory 200MB + allkeys-lru` — we skip this and let PostHog DB grow under the global `noeviction` policy. At our scale (<10K MAU), PostHog's Redis usage is minimal (~50MB).
+
+Eliminates 1 container (redis7) + ~512MB RAM. Trade-off: no eviction on PostHog's keys, but acceptable at our scale.
+
+```
+# PostHog config:
+REDIS_URL=redis://infra-valkey-1:6379/2
+```
 
 ### ClickHouse Tuning for 1K-10K MAU
 
@@ -116,10 +141,10 @@ Also route capture endpoints: `/e/*`, `/s/*`, `/i/v0/*`, `/batch/*`, `/flags/*` 
 
 | Component | Frequency | Method |
 |-----------|-----------|--------|
-| PostgreSQL | Daily | `pg_dump` both `posthog` + `posthog_persons` DBs, gzip to R2 |
-| ClickHouse | Weekly | Native `BACKUP DATABASE posthog TO S3('r2://...')` (CH 26.3+) |
-| Redis | None | Ephemeral (allkeys-lru) |
-| R2 (recordings) | Cloudflare handles durability | No action needed |
+| PostgreSQL (PostHog) | Daily | `pg_dump` both `posthog` + `posthog_persons` DBs, gzip to RustFS |
+| ClickHouse | Weekly | Native `BACKUP DATABASE posthog TO S3('http://rustfs:9000/...')` (CH 26.3+) |
+| Valkey | None | Ephemeral (noeviction, DB 2 is cache-only) |
+| RustFS (recordings) | Local disk — rely on dedic backups | No separate action needed |
 
 ### Upgrade Strategy
 
