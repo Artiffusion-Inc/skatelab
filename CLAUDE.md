@@ -122,7 +122,7 @@ Choreography Planner:
 
 All development MUST happen in isolated git worktrees via `EnterWorktree`. Never commit on `master` or create branches from the main working tree. Parallel work by 5+ contributors requires isolation — commits on shared branches risk lost work from resets, dropped stashes, or merge chaos.
 
-**Branch naming:** Follow `type/short-name` convention — see `.gitmessage` for valid types/scopes and `dangerfile.ts` for enforced prefixes.
+**Branch naming:** Follow `type/short-name` convention — see `dangerfile.ts` for valid prefixes and `lefthook.yml` for commit-msg pattern.
 
 Use `EnterWorktree` tool → creates `.claude/worktrees/<name>` on a new branch → `ExitWorktree` when done.
 
