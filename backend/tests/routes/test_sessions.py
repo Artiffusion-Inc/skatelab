@@ -85,7 +85,7 @@ async def test_create_session(client, auth_headers, db_session: AsyncSession):
         return_value="https://fake.url",
     ):
         response = await client.post(
-            "/api/v1/sessions",
+            "/v1/sessions",
             json={"element_type": "waltz_jump"},
             headers=auth_headers,
         )
@@ -108,7 +108,7 @@ async def test_create_session_with_video_key(client, auth_headers, db_session: A
         return_value="https://fake.url",
     ):
         response = await client.post(
-            "/api/v1/sessions",
+            "/v1/sessions",
             json={"element_type": "toe_loop", "video_key": "uploads/user123/video.mp4"},
             headers=auth_headers,
         )
@@ -129,7 +129,7 @@ async def test_create_session_without_video_key(client, auth_headers, db_session
         return_value="https://fake.url",
     ):
         response = await client.post(
-            "/api/v1/sessions",
+            "/v1/sessions",
             json={"element_type": "flip"},
             headers=auth_headers,
         )
@@ -158,7 +158,7 @@ async def test_list_sessions(client, auth_headers, authed_user, db_session: Asyn
         new_callable=AsyncMock,
         return_value="https://fake.url",
     ):
-        response = await client.get("/api/v1/sessions", headers=auth_headers)
+        response = await client.get("/v1/sessions", headers=auth_headers)
 
     assert response.status_code == 200
     data = response.json()
@@ -189,7 +189,7 @@ async def test_list_sessions_filter_element_type(
         return_value="https://fake.url",
     ):
         response = await client.get(
-            "/api/v1/sessions",
+            "/v1/sessions",
             params={"element_type": "waltz_jump"},
             headers=auth_headers,
         )
@@ -212,7 +212,7 @@ async def test_list_sessions_coach_access_denied(
         return_value="https://fake.url",
     ):
         response = await client.get(
-            "/api/v1/sessions",
+            "/v1/sessions",
             params={"user_id": other_user.id},
             headers=auth_headers,
         )
@@ -239,7 +239,7 @@ async def test_get_session(client, auth_headers, authed_user, db_session: AsyncS
         new_callable=AsyncMock,
         return_value="https://fake.url",
     ):
-        response = await client.get(f"/api/v1/sessions/{session.id}", headers=auth_headers)
+        response = await client.get(f"/v1/sessions/{session.id}", headers=auth_headers)
 
     assert response.status_code == 200
     data = response.json()
@@ -250,7 +250,7 @@ async def test_get_session(client, auth_headers, authed_user, db_session: AsyncS
 @pytest.mark.asyncio
 async def test_get_session_not_found(client, auth_headers):
     """GET /sessions/{id} with nonexistent id returns 404."""
-    response = await client.get("/api/v1/sessions/nonexistent-id", headers=auth_headers)
+    response = await client.get("/v1/sessions/nonexistent-id", headers=auth_headers)
     assert response.status_code == 404
 
 
@@ -271,7 +271,7 @@ async def test_get_session_forbidden(client, other_headers, authed_user, db_sess
         new_callable=AsyncMock,
         return_value="https://fake.url",
     ):
-        response = await client.get(f"/api/v1/sessions/{session.id}", headers=other_headers)
+        response = await client.get(f"/v1/sessions/{session.id}", headers=other_headers)
 
     assert response.status_code == 403
 
@@ -294,7 +294,7 @@ async def test_patch_session(client, auth_headers, authed_user, db_session: Asyn
         return_value="https://fake.url",
     ):
         response = await client.patch(
-            f"/api/v1/sessions/{session.id}",
+            f"/v1/sessions/{session.id}",
             json={"element_type": "lutz"},
             headers=auth_headers,
         )
@@ -308,7 +308,7 @@ async def test_patch_session(client, auth_headers, authed_user, db_session: Asyn
 async def test_patch_session_not_found(client, auth_headers):
     """PATCH /sessions/{id} with nonexistent id returns 404."""
     response = await client.patch(
-        "/api/v1/sessions/nonexistent-id",
+        "/v1/sessions/nonexistent-id",
         json={"element_type": "lutz"},
         headers=auth_headers,
     )
@@ -328,7 +328,7 @@ async def test_delete_session(client, auth_headers, authed_user, db_session: Asy
     ):
         session = await crud_create(db_session, user_id=authed_user.id, element_type="salchow")
 
-    response = await client.delete(f"/api/v1/sessions/{session.id}", headers=auth_headers)
+    response = await client.delete(f"/v1/sessions/{session.id}", headers=auth_headers)
     assert response.status_code == 204
 
     # Verify soft-deleted (status changed to "deleted")
@@ -339,7 +339,7 @@ async def test_delete_session(client, auth_headers, authed_user, db_session: Asy
 @pytest.mark.asyncio
 async def test_delete_session_not_found(client, auth_headers):
     """DELETE /sessions/{id} with nonexistent id returns 404."""
-    response = await client.delete("/api/v1/sessions/nonexistent-id", headers=auth_headers)
+    response = await client.delete("/v1/sessions/nonexistent-id", headers=auth_headers)
     assert response.status_code == 404
 
 
@@ -357,7 +357,7 @@ async def test_delete_session_forbidden(
     ):
         session = await crud_create(db_session, user_id=authed_user.id, element_type="loop")
 
-    response = await client.delete(f"/api/v1/sessions/{session.id}", headers=other_headers)
+    response = await client.delete(f"/v1/sessions/{session.id}", headers=other_headers)
     assert response.status_code == 403
 
 
@@ -381,7 +381,7 @@ async def test_list_sessions_coach_allowed(
         return_value="https://fake.url",
     ):
         response = await client.get(
-            "/api/v1/sessions",
+            "/v1/sessions",
             params={"user_id": skater_user.id},
             headers=coach_headers,
         )
@@ -412,7 +412,7 @@ async def test_get_session_coach_allowed(
         new_callable=AsyncMock,
         return_value="https://fake.url",
     ):
-        response = await client.get(f"/api/v1/sessions/{session.id}", headers=coach_headers)
+        response = await client.get(f"/v1/sessions/{session.id}", headers=coach_headers)
 
     assert response.status_code == 200
     data = response.json()
@@ -443,7 +443,7 @@ async def test_list_sessions_cursor_pagination(
         return_value="https://fake.url",
     ):
         response = await client.get(
-            "/api/v1/sessions",
+            "/v1/sessions",
             params={"limit": 2},
             headers=auth_headers,
         )
@@ -462,7 +462,7 @@ async def test_list_sessions_cursor_pagination(
         return_value="https://fake.url",
     ):
         response2 = await client.get(
-            "/api/v1/sessions",
+            "/v1/sessions",
             params={"limit": 2, "cursor": data["next_cursor"]},
             headers=auth_headers,
         )
@@ -481,7 +481,7 @@ async def test_list_sessions_invalid_cursor(
 ):
     """Malformed cursor returns 400."""
     response = await client.get(
-        "/api/v1/sessions",
+        "/v1/sessions",
         params={"cursor": "not-a-valid-cursor"},
         headers=auth_headers,
     )

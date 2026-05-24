@@ -14,7 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 async def test_register(client, db_session: AsyncSession):
     """Test successful registration."""
     response = await client.post(
-        "/api/v1/auth/register",
+        "/v1/auth/register",
         json={"email": "new@example.com", "password": "securepass123"},
     )
     assert response.status_code == 201
@@ -39,7 +39,7 @@ async def test_register_duplicate_email(client, db_session: AsyncSession):
     await db_session.flush()
 
     response = await client.post(
-        "/api/v1/auth/register",
+        "/v1/auth/register",
         json={"email": "exists@example.com", "password": "securepass123"},
     )
     assert response.status_code == 409
@@ -48,7 +48,7 @@ async def test_register_duplicate_email(client, db_session: AsyncSession):
 async def test_register_short_password(client):
     """Test registration with short password returns 400 (Litestar validation)."""
     response = await client.post(
-        "/api/v1/auth/register",
+        "/v1/auth/register",
         json={"email": "new@example.com", "password": "short"},
     )
     assert response.status_code == 400
@@ -63,7 +63,7 @@ async def test_login(client, db_session: AsyncSession):
     await db_session.flush()
 
     response = await client.post(
-        "/api/v1/auth/login",
+        "/v1/auth/login",
         json={"email": "login@example.com", "password": "pass123"},
     )
     assert response.status_code == 200
@@ -81,7 +81,7 @@ async def test_login_wrong_password(client, db_session: AsyncSession):
     await db_session.flush()
 
     response = await client.post(
-        "/api/v1/auth/login",
+        "/v1/auth/login",
         json={"email": "login@example.com", "password": "wrong"},
     )
     assert response.status_code == 401
@@ -90,7 +90,7 @@ async def test_login_wrong_password(client, db_session: AsyncSession):
 async def test_login_nonexistent_email(client):
     """Test login with nonexistent email returns 401."""
     response = await client.post(
-        "/api/v1/auth/login",
+        "/v1/auth/login",
         json={"email": "nobody@example.com", "password": "pass123"},
     )
     assert response.status_code == 401
@@ -107,7 +107,7 @@ async def test_refresh_tokens(client, db_session: AsyncSession):
 
     # Login to get tokens
     login_resp = await client.post(
-        "/api/v1/auth/login",
+        "/v1/auth/login",
         json={"email": "refresh@example.com", "password": "pass"},
     )
     tokens = login_resp.json()
@@ -115,7 +115,7 @@ async def test_refresh_tokens(client, db_session: AsyncSession):
 
     # Use refresh token
     refresh_resp = await client.post(
-        "/api/v1/auth/refresh",
+        "/v1/auth/refresh",
         json={"refresh_token": old_refresh},
     )
     assert refresh_resp.status_code == 200
@@ -125,7 +125,7 @@ async def test_refresh_tokens(client, db_session: AsyncSession):
 
     # Old refresh token should be revoked
     second_refresh = await client.post(
-        "/api/v1/auth/refresh",
+        "/v1/auth/refresh",
         json={"refresh_token": old_refresh},
     )
     assert second_refresh.status_code == 401
@@ -134,7 +134,7 @@ async def test_refresh_tokens(client, db_session: AsyncSession):
 async def test_refresh_with_completely_unknown_token(client):
     """Test refresh with a token that was never issued returns 401."""
     response = await client.post(
-        "/api/v1/auth/refresh",
+        "/v1/auth/refresh",
         json={"refresh_token": "a" * 64},
     )
     assert response.status_code == 401
@@ -150,7 +150,7 @@ async def test_logout_with_valid_token(client, db_session: AsyncSession):
 
     # Login to get tokens
     login_resp = await client.post(
-        "/api/v1/auth/login",
+        "/v1/auth/login",
         json={"email": "logout@example.com", "password": "pass"},
     )
     tokens = login_resp.json()
@@ -158,14 +158,14 @@ async def test_logout_with_valid_token(client, db_session: AsyncSession):
 
     # Logout
     logout_resp = await client.post(
-        "/api/v1/auth/logout",
+        "/v1/auth/logout",
         json={"refresh_token": refresh_token},
     )
     assert logout_resp.status_code == 204
 
     # Refresh should now fail (token revoked)
     refresh_resp = await client.post(
-        "/api/v1/auth/refresh",
+        "/v1/auth/refresh",
         json={"refresh_token": refresh_token},
     )
     assert refresh_resp.status_code == 401
@@ -174,7 +174,7 @@ async def test_logout_with_valid_token(client, db_session: AsyncSession):
 async def test_logout_with_nonexistent_token(client):
     """Test logout with a token that was never issued returns 204 (idempotent)."""
     response = await client.post(
-        "/api/v1/auth/logout",
+        "/v1/auth/logout",
         json={"refresh_token": "b" * 64},
     )
     assert response.status_code == 204
@@ -188,7 +188,7 @@ async def test_refresh_token_reuse_revokes_family(client, db_session):
     await db_session.refresh(user)
 
     login_resp = await client.post(
-        "/api/v1/auth/login",
+        "/v1/auth/login",
         json={"email": "reuse@example.com", "password": "pass"},
     )
     print("LOGIN STATUS:", login_resp.status_code)
@@ -197,17 +197,17 @@ async def test_refresh_token_reuse_revokes_family(client, db_session):
     refresh1 = tokens["refresh_token"]
 
     # First refresh succeeds
-    r1 = await client.post("/api/v1/auth/refresh", json={"refresh_token": refresh1})
+    r1 = await client.post("/v1/auth/refresh", json={"refresh_token": refresh1})
     assert r1.status_code == 200
 
     # Second refresh with same token fails and revokes family
-    r2 = await client.post("/api/v1/auth/refresh", json={"refresh_token": refresh1})
+    r2 = await client.post("/v1/auth/refresh", json={"refresh_token": refresh1})
     assert r2.status_code == 401
     assert "reuse" in r2.json()["message"].lower()
 
     # Even the new token from r1 should now be revoked
     new_refresh = r1.json()["refresh_token"]
-    r3 = await client.post("/api/v1/auth/refresh", json={"refresh_token": new_refresh})
+    r3 = await client.post("/v1/auth/refresh", json={"refresh_token": new_refresh})
     assert r3.status_code == 401
 
 
@@ -258,13 +258,13 @@ async def test_register_rate_limit_by_ip(client, mock_valkey):
     try:
         for i in range(5):
             resp = await client.post(
-                "/api/v1/auth/register",
+                "/v1/auth/register",
                 json={"email": f"user{i}@test.com", "password": "password123"},
             )
             assert resp.status_code == 201, f"Request {i + 1} should succeed"
 
         resp = await client.post(
-            "/api/v1/auth/register",
+            "/v1/auth/register",
             json={"email": "overflow@test.com", "password": "password123"},
         )
         assert resp.status_code == 429
@@ -287,13 +287,13 @@ async def test_login_rate_limit_by_email(client, db_session, mock_valkey):
     try:
         for i in range(5):
             resp = await client.post(
-                "/api/v1/auth/login",
+                "/v1/auth/login",
                 json={"email": "rate@example.com", "password": "wrong"},
             )
             assert resp.status_code == 401, f"Request {i + 1} should fail auth"
 
         resp = await client.post(
-            "/api/v1/auth/login",
+            "/v1/auth/login",
             json={"email": "rate@example.com", "password": "wrong"},
         )
         assert resp.status_code == 429
@@ -314,7 +314,7 @@ async def test_forgot_password_existing_email(client, db_session: AsyncSession):
     await db_session.refresh(user)
 
     resp = await client.post(
-        "/api/v1/auth/forgot-password",
+        "/v1/auth/forgot-password",
         json={"email": "forgot@example.com"},
     )
     assert resp.status_code == 200
@@ -334,7 +334,7 @@ async def test_forgot_password_existing_email(client, db_session: AsyncSession):
 async def test_forgot_password_nonexistent_email(client):
     """Forgot-password returns 200 with generic message for unknown email."""
     resp = await client.post(
-        "/api/v1/auth/forgot-password",
+        "/v1/auth/forgot-password",
         json={"email": "nobody@example.com"},
     )
     assert resp.status_code == 200
@@ -349,13 +349,13 @@ async def test_forgot_password_rate_limit(client, mock_valkey):
     try:
         for i in range(3):
             resp = await client.post(
-                "/api/v1/auth/forgot-password",
+                "/v1/auth/forgot-password",
                 json={"email": f"rate{i}@test.com"},
             )
             assert resp.status_code == 200, f"Request {i + 1} should succeed"
 
         resp = await client.post(
-            "/api/v1/auth/forgot-password",
+            "/v1/auth/forgot-password",
             json={"email": "overflow@test.com"},
         )
         assert resp.status_code == 429
@@ -381,7 +381,7 @@ async def test_reset_password_valid_token(client, db_session: AsyncSession):
     await db_session.flush()
 
     resp = await client.post(
-        "/api/v1/auth/reset-password",
+        "/v1/auth/reset-password",
         json={"token": token_raw, "password": "newpass123"},
     )
     assert resp.status_code == 200
@@ -407,7 +407,7 @@ async def test_reset_password_valid_token(client, db_session: AsyncSession):
 async def test_reset_password_invalid_token(client):
     """Reset password with invalid token returns 400."""
     resp = await client.post(
-        "/api/v1/auth/reset-password",
+        "/v1/auth/reset-password",
         json={"token": "invalidtoken", "password": "newpass123"},
     )
     assert resp.status_code == 400
@@ -432,7 +432,7 @@ async def test_reset_password_expired_token(client, db_session: AsyncSession):
     await db_session.flush()
 
     resp = await client.post(
-        "/api/v1/auth/reset-password",
+        "/v1/auth/reset-password",
         json={"token": token_raw, "password": "newpass123"},
     )
     assert resp.status_code == 400
@@ -447,14 +447,14 @@ async def test_reset_password_rate_limit(client, mock_valkey):
     try:
         for i in range(5):
             resp = await client.post(
-                "/api/v1/auth/reset-password",
+                "/v1/auth/reset-password",
                 json={"token": f"{'c' * 64}{i}", "password": "newpass123"},
             )
             # Each fails with 400 (invalid token) but counts toward rate limit
             assert resp.status_code == 400, f"Request {i + 1} should fail auth"
 
         resp = await client.post(
-            "/api/v1/auth/reset-password",
+            "/v1/auth/reset-password",
             json={"token": "d" * 64, "password": "newpass123"},
         )
         assert resp.status_code == 429
@@ -485,7 +485,7 @@ async def test_verify_email_valid_token(client, db_session: AsyncSession):
     await db_session.flush()
 
     resp = await client.post(
-        "/api/v1/auth/verify-email",
+        "/v1/auth/verify-email",
         json={"token": token_raw},
     )
     assert resp.status_code == 200
@@ -507,7 +507,7 @@ async def test_verify_email_valid_token(client, db_session: AsyncSession):
 async def test_verify_email_invalid_token(client):
     """Verify-email with invalid token returns 400."""
     resp = await client.post(
-        "/api/v1/auth/verify-email",
+        "/v1/auth/verify-email",
         json={"token": "invalidtoken"},
     )
     assert resp.status_code == 400
@@ -532,7 +532,7 @@ async def test_verify_email_expired_token(client, db_session: AsyncSession):
     await db_session.flush()
 
     resp = await client.post(
-        "/api/v1/auth/verify-email",
+        "/v1/auth/verify-email",
         json={"token": token_raw},
     )
     assert resp.status_code == 400
@@ -548,7 +548,7 @@ async def test_resend_verification_existing_user(client, db_session: AsyncSessio
     await db_session.refresh(user)
 
     resp = await client.post(
-        "/api/v1/auth/resend-verification",
+        "/v1/auth/resend-verification",
         json={"email": "resend@example.com"},
     )
     assert resp.status_code == 200
@@ -572,7 +572,7 @@ async def test_resend_verification_already_verified(client, db_session: AsyncSes
     await db_session.flush()
 
     resp = await client.post(
-        "/api/v1/auth/resend-verification",
+        "/v1/auth/resend-verification",
         json={"email": "verified@example.com"},
     )
     assert resp.status_code == 200
@@ -582,7 +582,7 @@ async def test_resend_verification_already_verified(client, db_session: AsyncSes
 async def test_resend_verification_nonexistent_email(client):
     """Resend-verification returns generic message for unknown email."""
     resp = await client.post(
-        "/api/v1/auth/resend-verification",
+        "/v1/auth/resend-verification",
         json={"email": "nobody@example.com"},
     )
     assert resp.status_code == 200
@@ -611,7 +611,7 @@ async def test_cookie_middleware_injects_header(client, db_session: AsyncSession
     # Use raw Cookie header because httpx per-request cookies may not
     # propagate through the ASGI transport correctly.
     resp = await client.get(
-        "/api/v1/users/me",
+        "/v1/users/me",
         headers={"Cookie": f"access_token={token}"},
     )
     assert resp.status_code == 200
@@ -633,7 +633,7 @@ async def test_cookie_middleware_does_not_override_header(client, db_session: As
 
     token = create_access_token(user_id="header-test")
     resp = await client.get(
-        "/api/v1/users/me",
+        "/v1/users/me",
         headers={
             "Authorization": f"Bearer {token}",
             "Cookie": "access_token=invalid-token-value",
@@ -666,7 +666,7 @@ async def test_refresh_with_no_body_uses_cookie(client, db_session):
 
     # Login to get tokens
     login_resp = await client.post(
-        "/api/v1/auth/login",
+        "/v1/auth/login",
         json={"email": "cookie-refresh@example.com", "password": "pass"},
     )
     assert login_resp.status_code == 200
@@ -674,7 +674,7 @@ async def test_refresh_with_no_body_uses_cookie(client, db_session):
 
     # Refresh using body (cookies have domain=skatelab.ru, test client is testserver.local)
     resp = await client.post(
-        "/api/v1/auth/refresh",
+        "/v1/auth/refresh",
         json={"refresh_token": refresh_token},
     )
     assert resp.status_code == 200
@@ -700,7 +700,7 @@ async def test_login_sets_cookies(client, db_session):
     await db_session.flush()
 
     resp = await client.post(
-        "/api/v1/auth/login",
+        "/v1/auth/login",
         json={"email": "cookies@example.com", "password": "pass"},
     )
     assert resp.status_code == 200
@@ -738,13 +738,13 @@ async def test_logout_clears_cookies(client, db_session):
     await db_session.flush()
 
     login_resp = await client.post(
-        "/api/v1/auth/login",
+        "/v1/auth/login",
         json={"email": "logout-cookies@example.com", "password": "pass"},
     )
     refresh_token = login_resp.json()["refresh_token"]
 
     resp = await client.post(
-        "/api/v1/auth/logout",
+        "/v1/auth/logout",
         json={"refresh_token": refresh_token},
     )
     assert resp.status_code == 204
@@ -782,7 +782,7 @@ async def test_login_unverified_email(client, db_session):
     await db_session.flush()
 
     resp = await client.post(
-        "/api/v1/auth/login",
+        "/v1/auth/login",
         json={"email": "unverified@example.com", "password": "pass"},
     )
     assert resp.status_code == 403
@@ -811,7 +811,7 @@ async def test_ua_mismatch_revokes_family(client, db_session):
 
     # Login with UA "Original/1.0"
     login_resp = await client.post(
-        "/api/v1/auth/login",
+        "/v1/auth/login",
         json={"email": "ua-test@example.com", "password": "pass"},
         headers={"User-Agent": "Original/1.0"},
     )
@@ -820,7 +820,7 @@ async def test_ua_mismatch_revokes_family(client, db_session):
 
     # Refresh with same UA — should succeed
     resp1 = await client.post(
-        "/api/v1/auth/refresh",
+        "/v1/auth/refresh",
         json={"refresh_token": refresh_token},
         headers={"User-Agent": "Original/1.0"},
     )
@@ -829,7 +829,7 @@ async def test_ua_mismatch_revokes_family(client, db_session):
 
     # Refresh new token with DIFFERENT UA — should fail and revoke family
     resp2 = await client.post(
-        "/api/v1/auth/refresh",
+        "/v1/auth/refresh",
         json={"refresh_token": new_refresh},
         headers={"User-Agent": "Attacker/1.0"},
     )
@@ -869,7 +869,7 @@ async def test_legacy_token_skips_ua_check(client, db_session):
 
     # Refresh with any UA — should succeed (legacy token)
     resp = await client.post(
-        "/api/v1/auth/refresh",
+        "/v1/auth/refresh",
         json={"refresh_token": raw},
         headers={"User-Agent": "AnyBrowser/1.0"},
     )
@@ -896,7 +896,7 @@ async def test_audit_log_records_login(client, db_session):
     await db_session.flush()
 
     resp = await client.post(
-        "/api/v1/auth/login",
+        "/v1/auth/login",
         json={"email": "audit-login@example.com", "password": "pass"},
     )
     assert resp.status_code == 200
@@ -915,7 +915,7 @@ async def test_audit_login_failed(client, db_session):
     from sqlalchemy import select
 
     resp = await client.post(
-        "/api/v1/auth/login",
+        "/v1/auth/login",
         json={"email": "noone@example.com", "password": "wrong"},
     )
     assert resp.status_code == 401
@@ -945,12 +945,12 @@ async def test_audit_logout(client, db_session):
     await db_session.flush()
 
     login_resp = await client.post(
-        "/api/v1/auth/login",
+        "/v1/auth/login",
         json={"email": "audit-logout@example.com", "password": "pass"},
     )
     refresh_token = login_resp.json()["refresh_token"]
 
-    await client.post("/api/v1/auth/logout", json={"refresh_token": refresh_token})
+    await client.post("/v1/auth/logout", json={"refresh_token": refresh_token})
 
     result = await db_session.execute(
         select(AuthAuditLog).where(AuthAuditLog.event_type == "logout")

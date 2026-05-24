@@ -17,7 +17,7 @@ async def test_auth_cookies_have_domain(client, db_session: AsyncSession):
     await db_session.flush()
 
     response = await client.post(
-        "/api/v1/auth/login",
+        "/v1/auth/login",
         json={"email": "cookie@example.com", "password": "pass123"},
     )
     assert response.status_code == 200
@@ -43,7 +43,7 @@ async def test_auth_cookies_have_domain(client, db_session: AsyncSession):
 
 
 async def test_refresh_token_cookie_path_is_root(client, db_session: AsyncSession):
-    """Refresh token cookie path is / (covers both /api/v1/auth and /v1/auth)."""
+    """Refresh token cookie path is / (covers /v1/auth and any future prefixes)."""
     user = User(
         email="cookie2@example.com",
         hashed_password=hash_password("pass123"),
@@ -53,7 +53,7 @@ async def test_refresh_token_cookie_path_is_root(client, db_session: AsyncSessio
     await db_session.flush()
 
     response = await client.post(
-        "/api/v1/auth/login",
+        "/v1/auth/login",
         json={"email": "cookie2@example.com", "password": "pass123"},
     )
     assert response.status_code == 200
@@ -62,9 +62,9 @@ async def test_refresh_token_cookie_path_is_root(client, db_session: AsyncSessio
     refresh_cookies = [h for h in set_cookie_headers if "refresh_token" in h]
     assert len(refresh_cookies) >= 1, f"No refresh_token cookie found: {set_cookie_headers}"
 
-    # refresh_token path should be "/" not "/api/v1/auth"
+    # refresh_token path should be "/" not "/v1/auth"
     for header in refresh_cookies:
-        assert "path=/api/v1/auth" not in header.lower(), (
+        assert "path=/v1/auth" not in header.lower(), (
             f"refresh_token cookie still has narrow path: {header}"
         )
         # Ensure path=/ is present (root path)
@@ -83,14 +83,14 @@ async def test_logout_clears_cookies_with_correct_domain(client, db_session: Asy
 
     # Login first
     login_resp = await client.post(
-        "/api/v1/auth/login",
+        "/v1/auth/login",
         json={"email": "cookie3@example.com", "password": "pass123"},
     )
     assert login_resp.status_code == 200
 
     # Logout
     logout_resp = await client.post(
-        "/api/v1/auth/logout",
+        "/v1/auth/logout",
         json={"refresh_token": "unused"},
     )
     assert logout_resp.status_code == 204

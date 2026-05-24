@@ -44,7 +44,7 @@ if ! /usr/bin/docker exec "$BACKEND" alembic upgrade head; then
 fi
 
 # Health check (2min timeout)
-timeout 120 bash -c "while true; do /usr/bin/docker exec $BACKEND python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/v1/health', timeout=2)\" 2>/dev/null && echo 'Backend healthy' && exit 0; sleep 10; done"
+timeout 120 bash -c "while true; do /usr/bin/docker exec $BACKEND python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/v1/health', timeout=2)\" 2>/dev/null && echo 'Backend healthy' && exit 0; sleep 10; done"
 
 # Cleanup old images
 /usr/bin/docker image prune -f --filter "until=24h" || true

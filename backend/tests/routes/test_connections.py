@@ -57,7 +57,7 @@ def auth_headers_b(user_b):
 async def test_invite_creates_connection(client, user_a: User, user_b: User, auth_headers_a):
     """Inviting an existing user creates a connection with INVITED status."""
     response = await client.post(
-        "/api/v1/connections/invite",
+        "/v1/connections/invite",
         json={"to_user_email": "b@example.com", "connection_type": "coaching"},
         headers=auth_headers_a,
     )
@@ -75,7 +75,7 @@ async def test_invite_creates_connection(client, user_a: User, user_b: User, aut
 async def test_invite_user_not_found(client, auth_headers_a):
     """Inviting a nonexistent email returns 404."""
     response = await client.post(
-        "/api/v1/connections/invite",
+        "/v1/connections/invite",
         json={"to_user_email": "nobody@example.com", "connection_type": "coaching"},
         headers=auth_headers_a,
     )
@@ -88,10 +88,10 @@ async def test_invite_user_not_found(client, auth_headers_a):
 async def test_invite_duplicate(client, user_a: User, user_b: User, auth_headers_a):
     """Inviting the same user twice returns 409."""
     payload = {"to_user_email": "b@example.com", "connection_type": "coaching"}
-    first = await client.post("/api/v1/connections/invite", json=payload, headers=auth_headers_a)
+    first = await client.post("/v1/connections/invite", json=payload, headers=auth_headers_a)
     assert first.status_code == 201
 
-    second = await client.post("/api/v1/connections/invite", json=payload, headers=auth_headers_a)
+    second = await client.post("/v1/connections/invite", json=payload, headers=auth_headers_a)
     assert second.status_code == 409
     data = second.json()
     assert data["message"] == "Connection already exists"
@@ -106,7 +106,7 @@ async def test_invite_duplicate(client, user_a: User, user_b: User, auth_headers
 async def invited_connection(client, user_a, user_b, auth_headers_a):
     """Create an INVITED connection from user_a to user_b and return its ID."""
     resp = await client.post(
-        "/api/v1/connections/invite",
+        "/v1/connections/invite",
         json={"to_user_email": "b@example.com", "connection_type": "coaching"},
         headers=auth_headers_a,
     )
@@ -117,7 +117,7 @@ async def invited_connection(client, user_a, user_b, auth_headers_a):
 async def test_accept_invite(client, invited_connection: str, auth_headers_b):
     """Invitee accepts the connection, status becomes ACTIVE."""
     response = await client.post(
-        f"/api/v1/connections/{invited_connection}/accept",
+        f"/v1/connections/{invited_connection}/accept",
         headers=auth_headers_b,
     )
     assert response.status_code == 200
@@ -129,7 +129,7 @@ async def test_accept_invite(client, invited_connection: str, auth_headers_b):
 async def test_accept_invite_not_found(client, auth_headers_b):
     """Accepting a nonexistent connection returns 404."""
     response = await client.post(
-        "/api/v1/connections/nonexistent-id/accept",
+        "/v1/connections/nonexistent-id/accept",
         headers=auth_headers_b,
     )
     assert response.status_code == 404
@@ -141,7 +141,7 @@ async def test_accept_invite_not_found(client, auth_headers_b):
 async def test_accept_invite_wrong_user(client, invited_connection: str, auth_headers_a):
     """Non-invitee (the sender) accepting returns 403."""
     response = await client.post(
-        f"/api/v1/connections/{invited_connection}/accept",
+        f"/v1/connections/{invited_connection}/accept",
         headers=auth_headers_a,
     )
     assert response.status_code == 403
@@ -154,12 +154,12 @@ async def test_accept_invite_already_active(client, invited_connection: str, aut
     """Accepting a connection that is already ACTIVE returns 400."""
     # First accept succeeds
     await client.post(
-        f"/api/v1/connections/{invited_connection}/accept",
+        f"/v1/connections/{invited_connection}/accept",
         headers=auth_headers_b,
     )
     # Second accept fails
     response = await client.post(
-        f"/api/v1/connections/{invited_connection}/accept",
+        f"/v1/connections/{invited_connection}/accept",
         headers=auth_headers_b,
     )
     assert response.status_code == 400
@@ -176,13 +176,13 @@ async def test_accept_invite_already_active(client, invited_connection: str, aut
 async def active_connection(client, user_a, user_b, auth_headers_a, auth_headers_b):
     """Create an ACTIVE connection from user_a to user_b and return its ID."""
     invite_resp = await client.post(
-        "/api/v1/connections/invite",
+        "/v1/connections/invite",
         json={"to_user_email": "b@example.com", "connection_type": "coaching"},
         headers=auth_headers_a,
     )
     conn_id = invite_resp.json()["id"]
     await client.post(
-        f"/api/v1/connections/{conn_id}/accept",
+        f"/v1/connections/{conn_id}/accept",
         headers=auth_headers_b,
     )
     return conn_id
@@ -192,7 +192,7 @@ async def active_connection(client, user_a, user_b, auth_headers_a, auth_headers
 async def test_end_connection_by_sender(client, active_connection: str, auth_headers_a):
     """The connection initiator can end the connection."""
     response = await client.post(
-        f"/api/v1/connections/{active_connection}/end",
+        f"/v1/connections/{active_connection}/end",
         headers=auth_headers_a,
     )
     assert response.status_code == 200
@@ -205,7 +205,7 @@ async def test_end_connection_by_sender(client, active_connection: str, auth_hea
 async def test_end_connection_by_receiver(client, active_connection: str, auth_headers_b):
     """The connection receiver can also end the connection."""
     response = await client.post(
-        f"/api/v1/connections/{active_connection}/end",
+        f"/v1/connections/{active_connection}/end",
         headers=auth_headers_b,
     )
     assert response.status_code == 200
@@ -216,7 +216,7 @@ async def test_end_connection_by_receiver(client, active_connection: str, auth_h
 async def test_end_connection_not_found(client, auth_headers_a):
     """Ending a nonexistent connection returns 404."""
     response = await client.post(
-        "/api/v1/connections/nonexistent-id/end",
+        "/v1/connections/nonexistent-id/end",
         headers=auth_headers_a,
     )
     assert response.status_code == 404
@@ -235,7 +235,7 @@ async def test_end_connection_not_party(client, active_connection: str, db_sessi
     headers = {"Authorization": f"Bearer {token}"}
 
     response = await client.post(
-        f"/api/v1/connections/{active_connection}/end",
+        f"/v1/connections/{active_connection}/end",
         headers=headers,
     )
     assert response.status_code == 403
@@ -247,11 +247,11 @@ async def test_end_connection_not_party(client, active_connection: str, db_sessi
 async def test_end_connection_already_ended(client, active_connection: str, auth_headers_a):
     """Ending an already-ended connection returns 400."""
     await client.post(
-        f"/api/v1/connections/{active_connection}/end",
+        f"/v1/connections/{active_connection}/end",
         headers=auth_headers_a,
     )
     response = await client.post(
-        f"/api/v1/connections/{active_connection}/end",
+        f"/v1/connections/{active_connection}/end",
         headers=auth_headers_a,
     )
     assert response.status_code == 400
@@ -268,7 +268,7 @@ async def test_end_connection_already_ended(client, active_connection: str, auth
 async def test_list_connections(client, active_connection: str, auth_headers_a):
     """User can list their connections."""
     response = await client.get(
-        "/api/v1/connections",
+        "/v1/connections",
         headers=auth_headers_a,
     )
     assert response.status_code == 200
@@ -288,7 +288,7 @@ async def test_list_connections(client, active_connection: str, auth_headers_a):
 async def test_list_pending(client, invited_connection: str, auth_headers_b):
     """User can list pending invites they received."""
     response = await client.get(
-        "/api/v1/connections/pending",
+        "/v1/connections/pending",
         headers=auth_headers_b,
     )
     assert response.status_code == 200
@@ -303,7 +303,7 @@ async def test_list_pending(client, invited_connection: str, auth_headers_b):
 async def test_list_pending_empty_for_sender(client, invited_connection: str, auth_headers_a):
     """The sender has no pending invites (they are the inviter, not invitee)."""
     response = await client.get(
-        "/api/v1/connections/pending",
+        "/v1/connections/pending",
         headers=auth_headers_a,
     )
     assert response.status_code == 200

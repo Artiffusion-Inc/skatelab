@@ -11,7 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 async def test_get_me(client, auth_headers):
     """Test GET /api/users/me returns current user."""
-    response = await client.get("/api/v1/users/me", headers=auth_headers)
+    response = await client.get("/v1/users/me", headers=auth_headers)
     assert response.status_code == 200
     data = response.json()
     assert data["email"] == "user@example.com"
@@ -23,14 +23,14 @@ async def test_get_me(client, auth_headers):
 
 async def test_get_me_unauthorized(client):
     """Test GET /api/users/me without auth returns 401."""
-    response = await client.get("/api/v1/users/me")
+    response = await client.get("/v1/users/me")
     assert response.status_code == 401
 
 
 async def test_update_profile(client, auth_headers):
     """Test PATCH /api/users/me updates profile fields."""
     response = await client.patch(
-        "/api/v1/users/me",
+        "/v1/users/me",
         json={"display_name": "New Name", "bio": "Updated bio", "height_cm": 180},
         headers=auth_headers,
     )
@@ -44,7 +44,7 @@ async def test_update_profile(client, auth_headers):
 async def test_update_settings(client, auth_headers):
     """Test PATCH /api/users/me/settings updates preferences."""
     response = await client.patch(
-        "/api/v1/users/me/settings",
+        "/v1/users/me/settings",
         json={"language": "en", "theme": "dark"},
         headers=auth_headers,
     )
@@ -57,7 +57,7 @@ async def test_update_settings(client, auth_headers):
 async def test_update_angular_unit(client, auth_headers):
     """Test PATCH /api/users/me/settings updates angular_unit preference."""
     resp = await client.patch(
-        "/api/v1/users/me/settings",
+        "/v1/users/me/settings",
         json={"angular_unit": "rpm"},
         headers=auth_headers,
     )
@@ -66,7 +66,7 @@ async def test_update_angular_unit(client, auth_headers):
     assert data["angular_unit"] == "rpm"
 
     # Verify persists
-    resp2 = await client.get("/api/v1/users/me", headers=auth_headers)
+    resp2 = await client.get("/v1/users/me", headers=auth_headers)
     assert resp2.json()["angular_unit"] == "rpm"
 
 
@@ -81,7 +81,7 @@ async def test_upload_avatar(client, auth_headers):
         ),
     ):
         resp = await client.post(
-            "/api/v1/users/me/avatar",
+            "/v1/users/me/avatar",
             files={"file": ("avatar.png", img, "image/png")},
             headers=auth_headers,
         )
@@ -95,7 +95,7 @@ async def test_upload_avatar_rejects_invalid_type(client, auth_headers):
     """Test POST /me/avatar rejects unsupported content types."""
     fake_gif = io.BytesIO(b"GIF89a" + b"\x00" * 100)
     resp = await client.post(
-        "/api/v1/users/me/avatar",
+        "/v1/users/me/avatar",
         files={"file": ("avatar.gif", fake_gif, "image/gif")},
         headers=auth_headers,
     )
