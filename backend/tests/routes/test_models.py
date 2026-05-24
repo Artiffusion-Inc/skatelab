@@ -33,7 +33,7 @@ def fake_models_dir(tmp_path):
 async def test_list_models_returns_six_entries(client, fake_models_dir: Path):
     """GET /models returns exactly 6 model entries."""
     with patch("app.routes.models._MODELS_DIR", fake_models_dir):
-        response = await client.get("/api/v1/models")
+        response = await client.get("/v1/models")
 
     assert response.status_code == 200
     data = response.json()
@@ -44,7 +44,7 @@ async def test_list_models_returns_six_entries(client, fake_models_dir: Path):
 async def test_list_models_available_flags(client, fake_models_dir: Path):
     """GET /models correctly reports available=True/False based on file existence."""
     with patch("app.routes.models._MODELS_DIR", fake_models_dir):
-        response = await client.get("/api/v1/models")
+        response = await client.get("/v1/models")
 
     data = response.json()
     by_id = {m["id"]: m for m in data}
@@ -64,7 +64,7 @@ async def test_list_models_available_flags(client, fake_models_dir: Path):
 async def test_list_models_size_mb_when_available(client, fake_models_dir: Path):
     """GET /models returns size_mb for available models, None for missing ones."""
     with patch("app.routes.models._MODELS_DIR", fake_models_dir):
-        response = await client.get("/api/v1/models")
+        response = await client.get("/v1/models")
 
     data = response.json()
     by_id = {m["id"]: m for m in data}
@@ -87,7 +87,7 @@ async def test_list_models_all_missing(client, tmp_path: Path):
     empty_dir.mkdir()
 
     with patch("app.routes.models._MODELS_DIR", empty_dir):
-        response = await client.get("/api/v1/models")
+        response = await client.get("/v1/models")
 
     data = response.json()
     assert len(data) == 6
@@ -100,7 +100,7 @@ async def test_list_models_all_missing(client, tmp_path: Path):
 async def test_list_models_response_schema(client, fake_models_dir: Path):
     """GET /models response matches ModelStatus schema (id, available, size_mb)."""
     with patch("app.routes.models._MODELS_DIR", fake_models_dir):
-        response = await client.get("/api/v1/models")
+        response = await client.get("/v1/models")
 
     data = response.json()
     for model in data:

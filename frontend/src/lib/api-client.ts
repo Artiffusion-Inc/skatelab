@@ -8,7 +8,7 @@
 
 import { z } from "zod"
 
-export const API_BASE = "/api/v1"
+export const API_BASE = process.env.NEXT_PUBLIC_API_URL || "https://api.skatelab.ru/v1"
 
 // ---------------------------------------------------------------------------
 // Token storage (stubs — cookies set by backend, kept for rollback compat)
@@ -29,12 +29,12 @@ export function setTokens(_access: string, _refresh: string): void {
   // No-op: backend sets httpOnly cookies via Set-Cookie headers.
   // Keep sb_auth sentinel for SSR gating
   // biome-ignore lint/suspicious/noDocumentCookie: intentional sentinel cookie for SSR gating
-  document.cookie = "sb_auth=1; path=/; max-age=31536000; SameSite=Lax"
+  document.cookie = "sb_auth=1; path=/; max-age=31536000; SameSite=Lax; Domain=skatelab.ru"
 }
 
 export function clearTokens(): void {
   // biome-ignore lint/suspicious/noDocumentCookie: intentional sentinel cookie for SSR gating
-  document.cookie = "sb_auth=; path=/; max-age=0"
+  document.cookie = "sb_auth=; path=/; max-age=0; Domain=skatelab.ru"
 }
 
 // ---------------------------------------------------------------------------
@@ -68,7 +68,7 @@ async function silentRefresh(): Promise<boolean> {
     // Backend sets new httpOnly cookies via Set-Cookie headers automatically.
     // Refresh the sb_auth sentinel so SSR gating stays in sync.
     // biome-ignore lint/suspicious/noDocumentCookie: intentional sentinel cookie for SSR gating
-    document.cookie = "sb_auth=1; path=/; max-age=31536000; SameSite=Lax"
+    document.cookie = "sb_auth=1; path=/; max-age=31536000; SameSite=Lax; Domain=skatelab.ru"
     return true
   } catch {
     return false

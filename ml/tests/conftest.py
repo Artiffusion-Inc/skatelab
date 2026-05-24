@@ -5,8 +5,8 @@ import types
 from importlib.machinery import ModuleSpec
 from pathlib import Path
 
-# Fix tqdm.__spec__ missing in CI pytest collection (ultralytics import).
-# Must run BEFORE any import that transitively imports ultralytics.
+# Fix tqdm.__spec__ missing in CI pytest collection.
+# Must run BEFORE any import that transitively imports tqdm.
 try:
     import tqdm
 
@@ -15,7 +15,7 @@ try:
         tqdm.__spec__.origin = None
         tqdm.__spec__.submodule_search_locations = None
 except (ImportError, ValueError):
-    # Create a mock tqdm module with __spec__ so ultralytics can import it.
+    # Create a mock tqdm module with __spec__ so downstream imports work.
     _fake_tqdm = types.ModuleType("tqdm")
     _fake_tqdm.__spec__ = ModuleSpec("tqdm", None)
     _fake_tqdm.__spec__.origin = None

@@ -1,7 +1,7 @@
 """Pose estimation module for figure skating analysis.
 
 Provides H3.6M 17-keypoint pose extraction as the primary format.
-Uses PersonDetector (YOLOv11n) + MogaNetBatch (ONNX) top-down pipeline.
+Uses PersonDetector (RF-DETR) + MogaNetBatch (ONNX) top-down pipeline.
 
 Architecture:
     Video -> PersonDetector -> MogaNetBatch -> COCO 17kp -> H3.6M 17kp

@@ -1,0 +1,10 @@
+# Commit & branch conventions — single source of truth
+# Used by: lefthook.yml (commit-msg), dangerfile.ts (CI)
+#
+# Format: type(scope): summary
+# Branch: type/short-name
+
+types:feat|fix|refactor|chore|docs|test|ci
+scope_required:false
+scopes:pose|viz|tracking|analysis|pipeline|cli|models|repo|frontend|backend|dev|ci|vastai|infra
+branches:feature/|fix/|hotfix/|refactor/|chore/|ci/|docs/|test/

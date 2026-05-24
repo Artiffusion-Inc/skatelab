@@ -94,18 +94,8 @@ abstract class AppModule {
         @Singleton
         fun provideSkateLabClient(tokenStorage: TokenStorage): SkateLabClient =
             SkateLabClient(
-                baseUrl = "https://skatelab.ru/api/v1",
-                engine =
-                    OkHttp.create {
-                        val loggingInterceptor =
-                            HttpLoggingInterceptor(
-                                HttpLoggingInterceptor.Logger { message ->
-                                    android.util.Log.d("OkHttp", message)
-                                },
-                            )
-                        loggingInterceptor.level = HttpLoggingInterceptor.Level.BODY
-                        addInterceptor(loggingInterceptor)
-                    },
+                baseUrl = "https://api.skatelab.ru/v1",
+                engine = OkHttp.create(),
                 tokenStorage = tokenStorage,
             )
 

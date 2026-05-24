@@ -30,7 +30,7 @@ async def test_enqueue_process(client, auth_headers):
     with (
         patch("app.routes.process.create_task_state", new_callable=AsyncMock),
     ):
-        response = await client.post("/api/v1/process/queue", json=req_body, headers=auth_headers)
+        response = await client.post("/v1/process/queue", json=req_body, headers=auth_headers)
 
     assert response.status_code == 200
     data = response.json()
@@ -72,7 +72,7 @@ async def test_enqueue_process_with_ml_flags(client, auth_headers):
     with (
         patch("app.routes.process.create_task_state", new_callable=AsyncMock),
     ):
-        response = await client.post("/api/v1/process/queue", json=req_body, headers=auth_headers)
+        response = await client.post("/v1/process/queue", json=req_body, headers=auth_headers)
 
     assert response.status_code == 200
 
@@ -97,7 +97,7 @@ async def test_enqueue_process_defaults(client, auth_headers):
     with (
         patch("app.routes.process.create_task_state", new_callable=AsyncMock),
     ):
-        response = await client.post("/api/v1/process/queue", json=req_body, headers=auth_headers)
+        response = await client.post("/v1/process/queue", json=req_body, headers=auth_headers)
 
     assert response.status_code == 200
 
@@ -127,7 +127,7 @@ async def test_process_status(client, auth_headers):
     with (
         patch("app.routes.process.get_task_state", new_callable=AsyncMock, return_value=fake_state),
     ):
-        response = await client.get("/api/v1/process/proc_abc/status", headers=auth_headers)
+        response = await client.get("/v1/process/proc_abc/status", headers=auth_headers)
 
     assert response.status_code == 200
     data = response.json()
@@ -144,7 +144,7 @@ async def test_process_status_not_found(client, auth_headers):
     with (
         patch("app.routes.process.get_task_state", new_callable=AsyncMock, return_value=None),
     ):
-        response = await client.get("/api/v1/process/proc_nonexist/status", headers=auth_headers)
+        response = await client.get("/v1/process/proc_nonexist/status", headers=auth_headers)
 
     assert response.status_code == 404
     data = response.json()
@@ -178,7 +178,7 @@ async def test_process_status_with_result(client, auth_headers):
     with (
         patch("app.routes.process.get_task_state", new_callable=AsyncMock, return_value=fake_state),
     ):
-        response = await client.get("/api/v1/process/proc_done/status", headers=auth_headers)
+        response = await client.get("/v1/process/proc_done/status", headers=auth_headers)
 
     assert response.status_code == 200
     data = response.json()
@@ -203,7 +203,7 @@ async def test_process_status_with_error(client, auth_headers):
     with (
         patch("app.routes.process.get_task_state", new_callable=AsyncMock, return_value=fake_state),
     ):
-        response = await client.get("/api/v1/process/proc_fail/status", headers=auth_headers)
+        response = await client.get("/v1/process/proc_fail/status", headers=auth_headers)
 
     assert response.status_code == 200
     data = response.json()
@@ -218,7 +218,7 @@ async def test_process_status_with_error(client, auth_headers):
 async def test_cancel_process(client, auth_headers):
     """POST /process/{task_id}/cancel sets cancel signal and returns confirmation."""
     with patch("app.routes.process.set_cancel_signal", new_callable=AsyncMock):
-        response = await client.post("/api/v1/process/proc_running/cancel", headers=auth_headers)
+        response = await client.post("/v1/process/proc_running/cancel", headers=auth_headers)
 
     assert response.status_code == 200
     data = response.json()

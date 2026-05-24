@@ -2,6 +2,7 @@
 
 import { useRef, useState } from "react"
 import { useMountEffect } from "@/lib/useMountEffect"
+import { API_BASE } from "@/lib/api-client"
 
 interface ProcessState {
   status: string
@@ -20,7 +21,9 @@ export function useProcessStream(taskId: string | null) {
   useMountEffect(() => {
     if (!taskId) return
 
-    const es = new EventSource(`/api/v1/process/${taskId}/stream`)
+    const es = new EventSource(`${API_BASE}/process/${taskId}/stream`, {
+      withCredentials: true,
+    })
     esRef.current = es
 
     es.onopen = () => setIsConnected(true)

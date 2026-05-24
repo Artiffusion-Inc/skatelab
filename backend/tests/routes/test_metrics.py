@@ -96,7 +96,7 @@ async def _insert_metric(
 @pytest.mark.asyncio
 async def test_registry_returns_metric_definitions(client):
     """GET /metrics/registry returns all registered metrics with correct structure."""
-    response = await client.get("/api/v1/metrics/registry")
+    response = await client.get("/v1/metrics/registry")
     assert response.status_code == 200
     data = response.json()
 
@@ -124,7 +124,7 @@ async def test_registry_returns_metric_definitions(client):
 async def test_trend_empty(client, auth_headers_a, user_a):
     """GET /metrics/trend with no data returns empty data_points and trend='stable'."""
     response = await client.get(
-        "/api/v1/metrics/trend",
+        "/v1/metrics/trend",
         params={"element_type": "waltz_jump", "metric_name": "airtime"},
         headers=auth_headers_a,
     )
@@ -146,7 +146,7 @@ async def test_trend_with_data(client, auth_headers_a, user_a, db_session: Async
     await _insert_metric(db_session, session.id, "airtime", 0.45, is_pr=True)
 
     response = await client.get(
-        "/api/v1/metrics/trend",
+        "/v1/metrics/trend",
         params={"element_type": "waltz_jump", "metric_name": "airtime"},
         headers=auth_headers_a,
     )
@@ -174,7 +174,7 @@ async def test_trend_with_linear_regression(
     await _insert_metric(db_session, s3.id, "airtime", 0.50, is_pr=True)
 
     response = await client.get(
-        "/api/v1/metrics/trend",
+        "/v1/metrics/trend",
         params={"element_type": "waltz_jump", "metric_name": "airtime"},
         headers=auth_headers_a,
     )
@@ -189,7 +189,7 @@ async def test_trend_with_linear_regression(
 async def test_trend_unknown_metric(client, auth_headers_a):
     """GET /metrics/trend with invalid metric_name returns 400."""
     response = await client.get(
-        "/api/v1/metrics/trend",
+        "/v1/metrics/trend",
         params={"element_type": "waltz_jump", "metric_name": "nonexistent_metric"},
         headers=auth_headers_a,
     )
@@ -202,7 +202,7 @@ async def test_trend_unknown_metric(client, auth_headers_a):
 async def test_trend_coach_access_denied(client, auth_headers_a, user_b):
     """GET /metrics/trend with user_id param but no coaching connection returns 403."""
     response = await client.get(
-        "/api/v1/metrics/trend",
+        "/v1/metrics/trend",
         params={
             "element_type": "waltz_jump",
             "metric_name": "airtime",
@@ -232,7 +232,7 @@ async def test_trend_coach_access_allowed(
     await db_session.flush()
 
     response = await client.get(
-        "/api/v1/metrics/trend",
+        "/v1/metrics/trend",
         params={
             "element_type": "waltz_jump",
             "metric_name": "airtime",
@@ -273,7 +273,7 @@ async def test_trend_period_filter(client, auth_headers_a, user_a, db_session: A
     await _insert_metric(db_session, recent_session.id, "airtime", 0.50)
 
     response = await client.get(
-        "/api/v1/metrics/trend",
+        "/v1/metrics/trend",
         params={"element_type": "waltz_jump", "metric_name": "airtime", "period": "7d"},
         headers=auth_headers_a,
     )
@@ -304,7 +304,7 @@ async def test_trend_improving_with_3_points(
         await _insert_metric(db_session, session.id, "airtime", val)
 
     response = await client.get(
-        "/api/v1/metrics/trend",
+        "/v1/metrics/trend",
         params={"element_type": "waltz_jump", "metric_name": "airtime"},
         headers=auth_headers_a,
     )
@@ -333,7 +333,7 @@ async def test_trend_declining_with_3_points(
         await _insert_metric(db_session, session.id, "airtime", val)
 
     response = await client.get(
-        "/api/v1/metrics/trend",
+        "/v1/metrics/trend",
         params={"element_type": "waltz_jump", "metric_name": "airtime"},
         headers=auth_headers_a,
     )
@@ -362,7 +362,7 @@ async def test_trend_lower_metric_improving(
         await _insert_metric(db_session, session.id, "knee_angle", val)
 
     response = await client.get(
-        "/api/v1/metrics/trend",
+        "/v1/metrics/trend",
         params={"element_type": "three_turn", "metric_name": "knee_angle"},
         headers=auth_headers_a,
     )
@@ -391,7 +391,7 @@ async def test_trend_lower_metric_declining(
         await _insert_metric(db_session, session.id, "knee_angle", val)
 
     response = await client.get(
-        "/api/v1/metrics/trend",
+        "/v1/metrics/trend",
         params={"element_type": "three_turn", "metric_name": "knee_angle"},
         headers=auth_headers_a,
     )
@@ -408,7 +408,7 @@ async def test_trend_lower_metric_declining(
 @pytest.mark.asyncio
 async def test_prs_empty(client, auth_headers_a):
     """GET /metrics/prs with no data returns empty list."""
-    response = await client.get("/api/v1/metrics/prs", headers=auth_headers_a)
+    response = await client.get("/v1/metrics/prs", headers=auth_headers_a)
     assert response.status_code == 200
     data = response.json()
     assert data["prs"] == []
@@ -421,7 +421,7 @@ async def test_prs_with_data(client, auth_headers_a, user_a, db_session: AsyncSe
     await _insert_metric(db_session, session.id, "airtime", 0.55, is_pr=True)
     await _insert_metric(db_session, session.id, "symmetry", 0.85, is_pr=True)
 
-    response = await client.get("/api/v1/metrics/prs", headers=auth_headers_a)
+    response = await client.get("/v1/metrics/prs", headers=auth_headers_a)
     assert response.status_code == 200
     data = response.json()
     assert len(data["prs"]) == 2
@@ -465,7 +465,7 @@ async def test_prs_deduplication(client, auth_headers_a, user_a, db_session: Asy
     await db_session.flush()
     await _insert_metric(db_session, session2.id, "airtime", 0.55, is_pr=True)
 
-    response = await client.get("/api/v1/metrics/prs", headers=auth_headers_a)
+    response = await client.get("/v1/metrics/prs", headers=auth_headers_a)
     assert response.status_code == 200
     data = response.json()
 
@@ -489,7 +489,7 @@ async def test_prs_filter_by_element_type(client, auth_headers_a, user_a, db_ses
     await _insert_metric(db_session, session_tt.id, "knee_angle", 120.0, is_pr=True)
 
     response = await client.get(
-        "/api/v1/metrics/prs",
+        "/v1/metrics/prs",
         params={"element_type": "waltz_jump"},
         headers=auth_headers_a,
     )
@@ -503,7 +503,7 @@ async def test_prs_filter_by_element_type(client, auth_headers_a, user_a, db_ses
 async def test_prs_coach_access_denied(client, auth_headers_a, user_b):
     """GET /metrics/prs with user_id param but no coaching connection returns 403."""
     response = await client.get(
-        "/api/v1/metrics/prs",
+        "/v1/metrics/prs",
         params={"user_id": user_b.id},
         headers=auth_headers_a,
     )
@@ -528,7 +528,7 @@ async def test_prs_coach_access_allowed(
     await db_session.flush()
 
     response = await client.get(
-        "/api/v1/metrics/prs",
+        "/v1/metrics/prs",
         params={"user_id": user_b.id},
         headers=auth_headers_a,
     )
@@ -543,7 +543,7 @@ async def test_prs_coach_access_allowed(
 @pytest.mark.asyncio
 async def test_diagnostics_empty(client, auth_headers_a):
     """GET /metrics/diagnostics with no sessions returns empty findings."""
-    response = await client.get("/api/v1/metrics/diagnostics", headers=auth_headers_a)
+    response = await client.get("/v1/metrics/diagnostics", headers=auth_headers_a)
     assert response.status_code == 200
     data = response.json()
     assert data["findings"] == []
@@ -556,7 +556,7 @@ async def test_diagnostics_with_new_pr(client, auth_headers_a, user_a, db_sessio
     session = await _insert_session(db_session, user_a.id, "waltz_jump")
     await _insert_metric(db_session, session.id, "airtime", 0.55, is_pr=True, prev_best=0.45)
 
-    response = await client.get("/api/v1/metrics/diagnostics", headers=auth_headers_a)
+    response = await client.get("/v1/metrics/diagnostics", headers=auth_headers_a)
     assert response.status_code == 200
     data = response.json()
     assert len(data["findings"]) >= 1
@@ -592,7 +592,7 @@ async def test_diagnostics_consistently_below_range(
             is_in_range=False,
         )
 
-    response = await client.get("/api/v1/metrics/diagnostics", headers=auth_headers_a)
+    response = await client.get("/v1/metrics/diagnostics", headers=auth_headers_a)
     assert response.status_code == 200
     data = response.json()
     below_findings = [f for f in data["findings"] if "ниже нормы" in f["message"]]
@@ -604,7 +604,7 @@ async def test_diagnostics_consistently_below_range(
 async def test_diagnostics_coach_access_denied(client, auth_headers_a, user_b):
     """GET /metrics/diagnostics with user_id param but no coaching connection returns 403."""
     response = await client.get(
-        "/api/v1/metrics/diagnostics",
+        "/v1/metrics/diagnostics",
         params={"user_id": user_b.id},
         headers=auth_headers_a,
     )
@@ -629,7 +629,7 @@ async def test_diagnostics_coach_access_allowed(
     await db_session.flush()
 
     response = await client.get(
-        "/api/v1/metrics/diagnostics",
+        "/v1/metrics/diagnostics",
         params={"user_id": user_b.id},
         headers=auth_headers_a,
     )
@@ -651,7 +651,7 @@ async def test_diagnostics_ignores_uploading_sessions(
     await db_session.flush()
     await _insert_metric(db_session, session.id, "airtime", 0.50, is_pr=True)
 
-    response = await client.get("/api/v1/metrics/diagnostics", headers=auth_headers_a)
+    response = await client.get("/v1/metrics/diagnostics", headers=auth_headers_a)
     assert response.status_code == 200
     data = response.json()
     assert data["findings"] == []
@@ -685,7 +685,7 @@ async def test_diagnostics_sorts_warnings_first(
             prev_best=0.20,
         )
 
-    response = await client.get("/api/v1/metrics/diagnostics", headers=auth_headers_a)
+    response = await client.get("/v1/metrics/diagnostics", headers=auth_headers_a)
     assert response.status_code == 200
     data = response.json()
     assert len(data["findings"]) >= 2
@@ -722,7 +722,7 @@ async def test_diagnostics_declining_trend(
             is_in_range=True,
         )
 
-    response = await client.get("/api/v1/metrics/diagnostics", headers=auth_headers_a)
+    response = await client.get("/v1/metrics/diagnostics", headers=auth_headers_a)
     assert response.status_code == 200
     data = response.json()
     decline_findings = [f for f in data["findings"] if "ухудшается" in f.get("message", "")]
@@ -753,7 +753,7 @@ async def test_diagnostics_stagnation(client, auth_headers_a, user_a, db_session
             is_in_range=True,
         )
 
-    response = await client.get("/api/v1/metrics/diagnostics", headers=auth_headers_a)
+    response = await client.get("/v1/metrics/diagnostics", headers=auth_headers_a)
     assert response.status_code == 200
     data = response.json()
     stag_findings = [f for f in data["findings"] if "нет улучшений" in f.get("message", "")]
@@ -786,7 +786,7 @@ async def test_diagnostics_high_variability(
             is_in_range=True,
         )
 
-    response = await client.get("/api/v1/metrics/diagnostics", headers=auth_headers_a)
+    response = await client.get("/v1/metrics/diagnostics", headers=auth_headers_a)
     assert response.status_code == 200
     data = response.json()
     var_findings = [f for f in data["findings"] if "колеблется" in f.get("message", "")]
@@ -809,7 +809,7 @@ async def test_diagnostics_ignores_unknown_metrics(
     db_session.add(metric)
     await db_session.flush()
 
-    response = await client.get("/api/v1/metrics/diagnostics", headers=auth_headers_a)
+    response = await client.get("/v1/metrics/diagnostics", headers=auth_headers_a)
     assert response.status_code == 200
     data = response.json()
     # Should not crash, should return empty findings (unknown metric skipped)
@@ -834,7 +834,7 @@ async def test_trend_period_all(client, auth_headers_a, user_a, db_session: Asyn
     await _insert_metric(db_session, old_session.id, "airtime", 0.30)
 
     response = await client.get(
-        "/api/v1/metrics/trend",
+        "/v1/metrics/trend",
         params={"element_type": "waltz_jump", "metric_name": "airtime", "period": "all"},
         headers=auth_headers_a,
     )
@@ -866,7 +866,7 @@ async def test_prs_coach_access_allowed_with_data(
     await _insert_metric(db_session, session.id, "airtime", 0.60, is_pr=True)
 
     response = await client.get(
-        "/api/v1/metrics/prs",
+        "/v1/metrics/prs",
         params={"user_id": user_b.id},
         headers=auth_headers_a,
     )
@@ -898,7 +898,7 @@ async def test_diagnostics_coach_access_allowed_with_data(
     await _insert_metric(db_session, session.id, "airtime", 0.55, is_pr=True, prev_best=0.45)
 
     response = await client.get(
-        "/api/v1/metrics/diagnostics",
+        "/v1/metrics/diagnostics",
         params={"user_id": user_b.id},
         headers=auth_headers_a,
     )
