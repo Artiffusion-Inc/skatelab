@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation"
 import { OnboardingFlow } from "@/components/onboarding"
 import type { OnboardingData } from "@/components/onboarding"
 import { updateOnboardingRole } from "@/lib/auth"
+import { captureEvent } from "@/lib/posthog"
 
 export default function OnboardingPage() {
   const router = useRouter()
@@ -13,6 +14,10 @@ export default function OnboardingPage() {
     localStorage.setItem("onboarding_completed", "true")
     localStorage.setItem("onboarding_role", data.role)
     localStorage.setItem("onboarding_source", data.source)
+    captureEvent("onboarding_step", {
+      step: data.skipped ? "skipped" : "completed",
+      role: data.role,
+    })
     if (data.skipped) {
       localStorage.setItem("onboarding_skipped", "true")
     }
