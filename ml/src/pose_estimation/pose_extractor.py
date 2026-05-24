@@ -1,7 +1,7 @@
 """Top-down pose extractor using PersonDetector + MogaNetBatch.
 
 Architecture:
-    Video → PersonDetector (YOLOv11n) → crop → MogaNetBatch (ONNX)
+    Video → PersonDetector (RF-DETR) → crop → MogaNetBatch (ONNX)
     → COCO 17kp → H3.6M 17kp
 
 Key advantages:
