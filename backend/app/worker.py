@@ -228,14 +228,20 @@ async def startup(ctx: dict[str, Any]) -> None:
     else:
         raise RuntimeError("Failed to initialize Valkey pool after 5 attempts")
 
+    from app.analytics import get_posthog
+
+    get_posthog()
+
 
 async def shutdown(ctx: dict[str, Any]) -> None:
     """Close shared pools. arq's own Redis pool is closed by Worker.close() automatically."""
-    from app.storage import close_r2_clients
+    from app.analytics import shutdown_posthog
+    from app.storage import close_s3_clients
 
+    shutdown_posthog()
     logger.info("Worker shutting down")
     await close_valkey_pool()
-    await close_r2_clients()
+    await close_s3_clients()
 
 
 async def process_video_task(
@@ -296,6 +302,16 @@ async def process_video_task(
         if await is_cancelled(task_id):
             await mark_cancelled(task_id)
             return {"status": "cancelled"}
+
+        # TODO: propagate user_id from session for proper distinct_id
+        from app.analytics_events import vastai_dispatched
+
+        vastai_dispatched(
+            distinct_id=session_id or task_id,
+            session_id=session_id or "",
+            instance_type="vastai-serverless",
+            estimated_cost_usd=0.0,  # No estimate available at dispatch time
+        )
 
         async with _VASTAI_SEMAPHORE:
             vast_result = await process_video_remote_async(
@@ -425,6 +441,19 @@ async def process_video_task(
 
         # Write Valkey status LAST, after DB commit (if any)
         await store_result(task_id, response_data)
+
+        # TODO: propagate user_id from session for proper distinct_id
+        from app.analytics_events import analysis_completed
+
+        analysis_completed(
+            distinct_id=session_id or task_id,
+            session_id=session_id or "",
+            duration_s=0,  # TODO: compute from started_at timestamp stored in valkey
+            model="moganet-b",
+            elements_count=len(vast_result.segments) if vast_result.segments else 0,
+            gpu="vastai",
+        )
+
         await update_progress(task_id, 1.0, "Done")
         await publish_task_event(
             task_id, {"status": "completed", "progress": 1.0, "message": "Done"}
@@ -435,6 +464,17 @@ async def process_video_task(
     except (OSError, ValueError, RuntimeError, ConnectionError, TimeoutError) as e:
         logger.exception("Pipeline task %s failed", task_id)
         await store_error(task_id, str(e))
+
+        # TODO: propagate user_id from session for proper distinct_id
+        from app.analytics_events import analysis_failed
+
+        analysis_failed(
+            distinct_id=session_id or task_id,
+            session_id=session_id or "",
+            error_type=type(e).__name__,
+            retry_count=ctx.get("job_try", 1),
+        )
+
         try:
             await publish_task_event(
                 task_id, {"status": "failed", "progress": 0.0, "message": str(e)}
@@ -541,13 +581,13 @@ async def analyze_music_task(
     ctx: dict[str, Any],
     *,
     music_id: str,
-    r2_key: str,
+    s3_key: str,
 ) -> dict[str, Any]:
     """arq task: analyze music file for BPM, structure, and energy peaks.
 
     Args:
         music_id: Database ID of the music record
-        r2_key: R2 storage key for the audio file
+        s3_key: S3 storage key for the audio file
 
     Returns:
         dict with status and analysis results
@@ -564,16 +604,16 @@ async def analyze_music_task(
         from app.services.choreography.fingerprint import compute_fingerprint
         from app.services.choreography.music_analyzer import analyze_music_sync
 
-        logger.info("Starting music analysis for music_id=%s, r2_key=%s", music_id, r2_key)
+        logger.info("Starting music analysis for music_id=%s, s3_key=%s", music_id, s3_key)
 
-        # Download from R2 to temp file
+        # Download from S3 to temp file
         import tempfile
         from pathlib import Path
 
         with tempfile.TemporaryDirectory() as tmpdir:
             audio_path = Path(tmpdir) / f"music_{music_id}.mp3"
-            logger.info("Downloading music from R2: %s -> %s", r2_key, audio_path)
-            await asyncio.to_thread(download_file, r2_key, str(audio_path))
+            logger.info("Downloading music from S3: %s -> %s", s3_key, audio_path)
+            await asyncio.to_thread(download_file, s3_key, str(audio_path))
 
             # Compute fingerprint
             logger.info("Computing fingerprint for %s", audio_path)
@@ -630,7 +670,7 @@ async def analyze_music_task(
                 await update_music_analysis(
                     db,
                     music,
-                    audio_url=f"/files/{r2_key}",
+                    audio_url=f"/files/{s3_key}",
                     duration_sec=result["duration_sec"],
                     bpm=result["bpm"],
                     peaks=result["peaks"],

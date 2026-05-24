@@ -32,7 +32,7 @@ backend/
 │   ├── services/        # Business logic (diagnostics, music analysis, choreography)
 │   ├── auth/            # JWT auth (deps, security)
 │   ├── config.py        # Pydantic settings
-│   ├── storage.py       # R2/S3 client
+│   ├── storage.py       # S3 client
 │   ├── task_manager.py  # Valkey task queue helpers
 │   ├── metrics_registry.py # 12+ biomechanical metric definitions
 │   ├── worker.py        # arq worker (video processing, detection, music)
@@ -47,7 +47,7 @@ backend/
 - **Auth**: JWT access (15min) + refresh (7d) tokens, cookie sync `sb_auth=1`
 - **Rate Limiting**: slowapi — 3/min register, 5/min login (via `get_remote_address`)
 - **Response Caching**: fastapi-cache2 with Redis backend — `/sessions` (60s), `/metrics/trend` (300s)
-- **Storage**: Cloudflare R2 via S3-compatible API, presigned URLs for direct upload
+- **Storage**: S3-compatible (RustFS) via boto3, presigned URLs for direct upload
 - **Async Queue**: arq + Valkey (Redis) for video processing, person detection, music analysis
 - **Metrics**: 12+ biomechanical metrics with Russian labels, ideal ranges, trend analysis, diagnostics engine
 - **Coach Access**: coach-student relationships via `Connection` model, permission checks via `is_connected_as`
@@ -64,7 +64,7 @@ See `app/config.py` for full list. Key variables:
 |----------|-------------|
 | `DATABASE_URL` | Postgres connection string |
 | `VALKEY_HOST` / `VALKEY_PORT` | Redis/Valkey for cache + task queue |
-| `R2_BUCKET_NAME` / `R2_ENDPOINT_URL` | Cloudflare R2 storage |
+| `S3_BUCKET` / `S3_ENDPOINT_URL` | S3-compatible storage (RustFS) |
 | `JWT_SECRET_KEY` | HS256 secret for access tokens |
 | `VASTAI_API_KEY` | Optional: dispatch GPU tasks to Vast.ai |
 

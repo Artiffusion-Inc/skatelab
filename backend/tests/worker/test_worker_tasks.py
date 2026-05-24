@@ -78,7 +78,7 @@ class TestProcessVideoTask:
 
     @pytest.mark.asyncio
     async def test_success_basic(self, mock_valkey):
-        """Successful processing returns 'Analysis complete!' with R2 keys."""
+        """Successful processing returns 'Analysis complete!' with S3 keys."""
         from app.worker import process_video_task
 
         with (
@@ -643,7 +643,7 @@ class TestDetectVideoTask:
             patch("app.worker.get_settings"),
             patch("app.worker.store_error", new_callable=AsyncMock) as mock_store_err,
         ):
-            with patch("asyncio.to_thread", side_effect=RuntimeError("R2 connection refused")):
+            with patch("asyncio.to_thread", side_effect=RuntimeError("S3 connection refused")):
                 with pytest.raises(RuntimeError, match="R2 connection refused"):
                     await detect_video_task(
                         ctx={},
@@ -811,7 +811,7 @@ class TestDetectVideoTask:
             # First 2 calls succeed (0.0, 0.1), 3rd call (error handler) raises
             mock_publish.side_effect = [None, None, ConnectionError("event bus down")]
 
-            with patch("asyncio.to_thread", side_effect=RuntimeError("R2 connection refused")):
+            with patch("asyncio.to_thread", side_effect=RuntimeError("S3 connection refused")):
                 with pytest.raises(RuntimeError, match="R2 connection refused"):
                     await detect_video_task(
                         ctx={},
@@ -946,7 +946,7 @@ class TestAnalyzeMusicTaskExtended:
                 await analyze_music_task(
                     ctx={},
                     music_id="nonexistent",
-                    r2_key="music/test.mp3",
+                    s3_key="music/test.mp3",
                 )
 
     @pytest.mark.asyncio
@@ -973,7 +973,7 @@ class TestAnalyzeMusicTaskExtended:
                 await analyze_music_task(
                     ctx={},
                     music_id="music_fp_fail",
-                    r2_key="music/test.mp3",
+                    s3_key="music/test.mp3",
                 )
 
             mock_update.assert_called_with(mock_db, mock_music, status="failed")
@@ -1014,7 +1014,7 @@ class TestAnalyzeMusicTaskExtended:
                 await analyze_music_task(
                     ctx={},
                     music_id="music_analysis_fail",
-                    r2_key="music/test.mp3",
+                    s3_key="music/test.mp3",
                 )
 
             mock_update.assert_called_with(mock_db, mock_music, status="failed")
@@ -1041,7 +1041,7 @@ class TestAnalyzeMusicTaskExtended:
                 await analyze_music_task(
                     ctx={},
                     music_id="music_close_err",
-                    r2_key="music/test.mp3",
+                    s3_key="music/test.mp3",
                 )
 
     @pytest.mark.asyncio
@@ -1086,7 +1086,7 @@ class TestAnalyzeMusicTaskExtended:
                     await analyze_music_task(
                         ctx={},
                         music_id="music_status_fail",
-                        r2_key="music/test.mp3",
+                        s3_key="music/test.mp3",
                     )
 
     @pytest.mark.asyncio
@@ -1121,7 +1121,7 @@ class TestAnalyzeMusicTaskExtended:
             result = await analyze_music_task(
                 ctx={},
                 music_id="music_dup",
-                r2_key="music/test.mp3",
+                s3_key="music/test.mp3",
             )
 
         assert result["status"] == "completed"
@@ -1172,7 +1172,7 @@ class TestAnalyzeMusicTaskExtended:
             result = await analyze_music_task(
                 ctx={},
                 music_id="music_full",
-                r2_key="music/test.mp3",
+                s3_key="music/test.mp3",
             )
 
         assert result["status"] == "completed"
@@ -1220,16 +1220,16 @@ class TestWorkerLifecycle:
 
     @pytest.mark.asyncio
     async def test_shutdown_closes_pool(self):
-        """shutdown() closes the valkey pool and R2 clients."""
+        """shutdown() closes the valkey pool and S3 clients."""
         from app.worker import shutdown
 
         with (
             patch("app.worker.close_valkey_pool", new_callable=AsyncMock) as mock_close_valkey,
-            patch("app.storage.close_r2_clients", new_callable=AsyncMock) as mock_close_r2,
+            patch("app.storage.close_s3_clients", new_callable=AsyncMock) as mock_close_s3,
         ):
             await shutdown(ctx={})
             mock_close_valkey.assert_awaited_once()
-            mock_close_r2.assert_awaited_once()
+            mock_close_s3.assert_awaited_once()
 
     @pytest.mark.asyncio
     async def test_shutdown_without_pool(self):
@@ -1238,8 +1238,8 @@ class TestWorkerLifecycle:
 
         with (
             patch("app.worker.close_valkey_pool", new_callable=AsyncMock) as mock_close_valkey,
-            patch("app.storage.close_r2_clients", new_callable=AsyncMock) as mock_close_r2,
+            patch("app.storage.close_s3_clients", new_callable=AsyncMock) as mock_close_s3,
         ):
             await shutdown(ctx={})
             mock_close_valkey.assert_awaited_once()
-            mock_close_r2.assert_awaited_once()
+            mock_close_s3.assert_awaited_once()

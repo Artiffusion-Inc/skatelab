@@ -27,6 +27,7 @@ dependencies = [
     "pychromaprint>=0.8",
     "resend>=2.0.0",
     "sentry-sdk[litestar]>=2.58.0",
+    "posthog>=3.0.0",
 
 ]
 

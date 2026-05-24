@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate pre-signed R2 URLs for ONNX models.
+"""Generate pre-signed S3 URLs for ONNX models.
 
 Used at Docker build time to embed models into the image.
 URLs expire after 1 hour — generate immediately before build.
@@ -7,7 +7,7 @@ URLs expire after 1 hour — generate immediately before build.
 Usage:
     uv run python scripts/generate_model_presigned_urls.py --output /tmp/model_urls.json
 
-Requires env vars: R2_ENDPOINT_URL, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_BUCKET
+Requires env vars: S3_ENDPOINT_URL, S3_ACCESS_KEY_ID, S3_SECRET_ACCESS_KEY, S3_BUCKET
 """
 
 from __future__ import annotations
@@ -29,25 +29,26 @@ DEFAULT_EXPIRES = 3600  # 1 hour
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Generate pre-signed R2 URLs for model download")
+    parser = argparse.ArgumentParser(description="Generate pre-signed S3 URLs for model download")
     parser.add_argument("--output", required=True, help="Output JSON file path")
     parser.add_argument(
         "--expires", type=int, default=DEFAULT_EXPIRES, help="URL expiry in seconds"
     )
     args = parser.parse_args()
 
-    endpoint = os.environ.get("R2_ENDPOINT_URL", "")
-    access_key = os.environ.get("R2_ACCESS_KEY_ID", "")
-    secret = os.environ.get("R2_SECRET_ACCESS_KEY", "")
-    bucket = os.environ.get("R2_BUCKET", "")
+    endpoint = os.environ.get("S3_ENDPOINT_URL", "")
+    access_key = os.environ.get("S3_ACCESS_KEY_ID", "")
+    secret = os.environ.get("S3_SECRET_ACCESS_KEY", "")
+    bucket = os.environ.get("S3_BUCKET", "")
+    region = os.environ.get("S3_REGION", "us-east-1")
 
     missing = [
         k
         for k, v in {
-            "R2_ENDPOINT_URL": endpoint,
-            "R2_ACCESS_KEY_ID": access_key,
-            "R2_SECRET_ACCESS_KEY": secret,
-            "R2_BUCKET": bucket,
+            "S3_ENDPOINT_URL": endpoint,
+            "S3_ACCESS_KEY_ID": access_key,
+            "S3_SECRET_ACCESS_KEY": secret,
+            "S3_BUCKET": bucket,
         }.items()
         if not v
     ]
@@ -61,7 +62,8 @@ def main() -> None:
         endpoint_url=endpoint,
         aws_access_key_id=access_key,
         aws_secret_access_key=secret,
-        region_name="auto",
+        region_name=region,
+        config={"s3": {"addressing_style": "path"}},
     )
 
     urls: dict[str, str] = {}

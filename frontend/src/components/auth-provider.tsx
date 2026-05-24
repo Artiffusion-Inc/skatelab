@@ -7,6 +7,8 @@ import type { UserResponse } from "@/lib/auth"
 import * as auth from "@/lib/auth"
 import { clearTokens } from "@/lib/api-client"
 import { useMountEffect } from "@/lib/useMountEffect"
+import { useConsent } from "@/components/consent-provider"
+import { identifyUser, resetIdentity } from "@/lib/posthog"
 
 interface AuthContextValue {
   user: UserResponse | null
@@ -23,6 +25,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const router = useRouter()
   const [user, setUser] = useState<UserResponse | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const { hasConsented } = useConsent()
 
   useMountEffect(() => {
     if (devMockAuth && isDevelopment) {
@@ -70,6 +73,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     document.cookie = "sb_auth=1; path=/; max-age=31536000; SameSite=Lax"
     const u = await auth.fetchMe()
     setUser(u)
+    if (hasConsented("analytics")) {
+      identifyUser(u.id, {
+        email: u.email,
+        role: u.onboarding_role,
+        language: u.language,
+        onboarding_completed: u.is_verified,
+      })
+    }
   }
 
   async function register(email: string, password: string, displayName?: string) {
@@ -79,12 +90,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     document.cookie = "sb_auth=1; path=/; max-age=31536000; SameSite=Lax"
     const u = await auth.fetchMe()
     setUser(u)
+    if (hasConsented("analytics")) {
+      identifyUser(u.id, {
+        email: u.email,
+        role: u.onboarding_role,
+        language: u.language,
+        onboarding_completed: false,
+      })
+    }
     router.push("/feed")
   }
 
   async function logout() {
     await auth.logout()
     setUser(null)
+    resetIdentity()
   }
 
   return (

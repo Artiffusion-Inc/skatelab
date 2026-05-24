@@ -1,4 +1,4 @@
-"""Tests for misc routes (health check, R2 output streaming)."""
+"""Tests for misc routes (health check, S3 output streaming)."""
 
 from __future__ import annotations
 
@@ -23,7 +23,7 @@ async def test_health_returns_ok(client: AsyncTestClient):
 
 @pytest.mark.asyncio
 async def test_serve_output_not_found(client: AsyncTestClient):
-    """GET /outputs/{key} returns 404 when object does not exist in R2."""
+    """GET /outputs/{key} returns 404 when object does not exist in S3."""
     with patch("app.routes.misc.object_exists_async", new_callable=AsyncMock, return_value=False):
         response = await client.get("/v1/outputs/nonexistent/video.mp4")
     assert response.status_code == 404
@@ -33,7 +33,7 @@ async def test_serve_output_not_found(client: AsyncTestClient):
 
 @pytest.mark.asyncio
 async def test_serve_output_streams_file(client: AsyncTestClient):
-    """GET /outputs/{key} streams the file from R2 with correct content-type."""
+    """GET /outputs/{key} streams the file from S3 with correct content-type."""
     fake_chunks = [b"chunk1", b"chunk2", b"chunk3"]
 
     async def fake_iter_chunks(*, chunk_size):

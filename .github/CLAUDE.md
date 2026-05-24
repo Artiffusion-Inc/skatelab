@@ -62,7 +62,7 @@ Path-filtered: `shared` vs `android` changes.
 
 ## GPU Worker (container.yml)
 
-Triggered by `ml/gpu_server/**` changes. Generates R2 pre-signed URLs for model weights, builds multi-stage container, pushes `ghcr.io/.../skatelab-worker:latest` + SHA tag.
+Triggered by `ml/gpu_server/**` changes. Generates S3 pre-signed URLs for model weights, builds multi-stage container, pushes `ghcr.io/.../skatelab-worker:latest` + SHA tag.
 
 ## Runners
 
@@ -78,7 +78,7 @@ Blacksmith (useblacksmith) for CPU-heavy jobs. ubuntu-latest for lightweight (ac
 | `GHCR_PAT` | deploy.sh on VPS | GHCR login |
 | `JWT_SECRET_KEY` | deploy.yml env | JWT signing |
 | `SKATELAB_DB_PASSWORD` | deploy.yml env | Postgres |
-| `CF_R2_*` | container.yml, deploy.yml | Cloudflare R2 |
+| `S3_*` | container.yml, deploy.yml | S3-compatible storage (RustFS) |
 | `VASTAI_API_KEY` | deploy.yml env | Remote GPU |
 | `RESEND_API_KEY` | deploy.yml env | Email service |
 | `CODECOV_TOKEN` | ci-reusable, mobile.yml | Coverage upload |

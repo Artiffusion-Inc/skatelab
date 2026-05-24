@@ -16,6 +16,7 @@ import { DropZone } from "@/components/upload/drop-zone"
 import { FilePreview } from "@/components/upload/file-preview"
 import { useVideoCompression } from "@/lib/use-video-compression"
 import { shouldCompress, COMPRESSION_TIMEOUT_MS } from "@/lib/video-compression"
+import { captureEvent } from "@/lib/posthog"
 
 type Step = "idle" | "parsing" | "picked" | "compressing" | "uploading" | "done"
 
@@ -81,7 +82,7 @@ export default function UploadPage() {
     setStep("idle")
   }
 
-  async function uploadToR2(
+  async function uploadToS3(
     data: Blob | ArrayBuffer,
     fileName: string,
     contentType: string,
@@ -130,19 +131,19 @@ export default function UploadPage() {
       let imuRightKey: string | null = null
       let manifestKey: string | null = null
 
-      // Phase 1: Upload IMU/manifest to R2 via presigned URLs (if ZIP)
+      // Phase 1: Upload IMU/manifest to S3 via presigned URLs (if ZIP)
       if (zipContents) {
         setUploadPhase(t("uploadingImu"))
 
         if (zipContents.imuLeft) {
-          imuLeftKey = await uploadToR2(
+          imuLeftKey = await uploadToS3(
             new Blob([new Uint8Array(zipContents.imuLeft)]),
             "imu_left.pb",
             "application/x-protobuf",
           )
         }
         if (zipContents.imuRight) {
-          imuRightKey = await uploadToR2(
+          imuRightKey = await uploadToS3(
             new Blob([new Uint8Array(zipContents.imuRight)]),
             "imu_right.pb",
             "application/x-protobuf",
@@ -150,7 +151,7 @@ export default function UploadPage() {
         }
         if (zipContents.manifest) {
           const manifestData = new TextEncoder().encode(JSON.stringify(zipContents.manifest))
-          manifestKey = await uploadToR2(
+          manifestKey = await uploadToS3(
             new Blob([manifestData]),
             "manifest.json",
             "application/json",
@@ -176,6 +177,7 @@ export default function UploadPage() {
         ...(imuRightKey ? { imu_right_key: imuRightKey } : {}),
         ...(manifestKey ? { manifest_key: manifestKey } : {}),
       })
+      captureEvent("session_created", { session_id: session.id })
 
       // Phase 4: Enqueue processing
       const processRes = await enqueueProcess({
@@ -190,6 +192,10 @@ export default function UploadPage() {
 
       setStep("done")
       toast.success(t("videoUploaded"))
+      captureEvent("upload_completed", {
+        file_size_mb: Math.round(file.size / 1048576),
+        method: zipContents ? "zip" : "file",
+      })
 
       if (session?.id) {
         router.push(`/sessions/${session.id}`)

@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation"
 import { Share2, Trash2 } from "lucide-react"
 import { useTranslations } from "@/i18n"
 import { useDeleteSession } from "@/lib/api/sessions"
+import { captureEvent } from "@/lib/posthog"
 
 interface Props {
   sessionId: string
@@ -17,7 +18,10 @@ export function SessionActions({ sessionId }: Props) {
   const handleShare = async () => {
     const url = typeof document !== "undefined" ? document.URL : ""
     await navigator.clipboard.writeText(url)
-    // Toast could be added here; for now rely on browser UI
+    captureEvent("social_share_clicked", {
+      platform: "clipboard",
+      content_type: "session_result",
+    })
   }
 
   const handleDelete = () => {
