@@ -38,15 +38,23 @@ Add iOS compilation to CI. No Xcode project yet. Catches iOS-specific Kotlin/Nat
 
 **Changes required:**
 
-1. Add `binaries.framework` to `shared/build.gradle.kts`:
+1. Add `binaries.framework` to `kmp-library-convention.gradle.kts` (not `shared/build.gradle.kts` — convention plugin is the right place):
+
+   > **Important:** In precompiled script plugins, top-level `binaries.framework {}` causes `Unresolved reference: binaries`. The framework block must be nested inside each iOS target declaration.
+
 ```kotlin
 kotlin {
-    iosArm64()
-    iosSimulatorArm64()
-
-    binaries.framework {
-        baseName = "shared"
-        isStatic = true  // required for App Store distribution
+    iosArm64 {
+        binaries.framework {
+            baseName = "shared"
+            isStatic = true  // required for App Store distribution
+        }
+    }
+    iosSimulatorArm64 {
+        binaries.framework {
+            baseName = "shared"
+            isStatic = true
+        }
     }
 }
 ```
