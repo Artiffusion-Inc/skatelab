@@ -78,7 +78,9 @@ commit-msg:
           exit 0
         fi
 
-        PATTERN='^(feat|fix|refactor|chore|docs|test|ci)\(([a-z0-9_-]+)\): .{3,}$'
+        TYPES=$(grep '^types:' .commit-conventions | cut -d: -f2)
+        SCOPES=$(grep '^scopes:' .commit-conventions | cut -d: -f2)
+        PATTERN="^(${TYPES})\(([a-z0-9_-]+)\): .{3,}$"
 
         if ! echo "$COMMIT_MSG" | grep -Eq "$PATTERN"; then
           echo "❌ Bad commit message:"
