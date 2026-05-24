@@ -1,0 +1,289 @@
+# PostHog self-hosted overlay — applied on top of official docker-compose.hobby.yml
+# Download: curl -sL https://raw.githubusercontent.com/PostHog/posthog/master/docker-compose.hobby.yml -o docker-compose.yml
+# Then: docker compose -f docker-compose.yml -f docker-compose.override.yml up -d
+#
+# What this override does:
+# 1. Removes services replaced by shared infra (objectstorage, seaweedfs, redis7, proxy)
+# 2. Points all services to shared Valkey (DB 2) and RustFS (S3-compatible)
+# 3. Pins Postgres to PG 15 (NOT 17 — incompatible with PostHog)
+# 4. Adds ClickHouse custom config mount (4GB RAM limit)
+# 5. Connects all services to infra_app_network
+# 6. Sets Redpanda KRaft mode (no Zookeeper)
+
+services:
+  # ── REMOVED: replaced by shared infrastructure ──
+  objectstorage:
+    image: busybox:1.37
+    command: ["echo", "disabled — using shared RustFS"]
+    profiles: ["disabled"]
+
+  seaweedfs:
+    image: busybox:1.37
+    command: ["echo", "disabled — using shared RustFS"]
+    profiles: ["disabled"]
+
+  redis7:
+    image: busybox:1.37
+    command: ["echo", "disabled — using shared Valkey"]
+    profiles: ["disabled"]
+
+  proxy:
+    image: busybox:1.37
+    command: ["echo", "disabled — using infra Caddy"]
+    profiles: ["disabled"]
+
+  zookeeper:
+    image: busybox:1.37
+    command: ["echo", "disabled — Redpanda KRaft mode"]
+    profiles: ["disabled"]
+
+  # ── DATABASE: PG 15 + external network ──
+  db:
+    image: postgres:15.12-alpine
+    environment:
+      POSTGRES_DB: ${POSTHOG_POSTGRES_DB:-posthog}
+      POSTGRES_USER: ${POSTHOG_POSTGRES_USER:-posthog}
+      POSTGRES_PASSWORD: ${POSTHOG_POSTGRES_PASSWORD:?required}
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    networks:
+      - infra
+
+  # ── REDPANDA: KRaft mode (no Zookeeper) ──
+  kafka:
+    command:
+      - redpanda
+      - start
+      - --mode
+      - developer
+      - --smp
+      - "2"
+      - --memory
+      - 3G
+      - --reserve-memory
+      - 500M
+      - --overprovisioned
+      - --node-id
+      - "0"
+      - --kafka-addr
+      - "PLAINTEXT://0.0.0.0:9092"
+      - --advertise-kafka-addr
+      - "PLAINTEXT://kafka:9092"
+      - --schema-registry-addr
+      - "http://0.0.0.0:8081"
+      - --rpc-addr
+      - "0.0.0.0:33145"
+      - --advertise-rpc-addr
+      - "kafka:33145"
+      - --set
+      - "redpanda.enable_idempotency=true"
+    environment:
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "false"
+    networks:
+      - infra
+
+  # ── CLICKHOUSE: custom config (4GB RAM) + network ──
+  clickhouse:
+    volumes:
+      - clickhouse-data:/var/lib/clickhouse
+      - ./clickhouse/config.d/custom.xml:/etc/clickhouse-server/config.d/custom.xml:ro
+    networks:
+      - infra
+
+  # ── APPLICATION SERVICES: shared infra env + network ──
+  web:
+    environment:
+      REDIS_URL: redis://infra-valkey-1:6379/2
+      OBJECT_STORAGE_ENDPOINT: http://infra-rustfs-1:9000
+      OBJECT_STORAGE_ACCESS_KEY_ID: ${RUSTFS_ACCESS_KEY_ID:?required}
+      OBJECT_STORAGE_SECRET_ACCESS_KEY: ${RUSTFS_SECRET_ACCESS_KEY:?required}
+      OBJECT_STORAGE_BUCKET_URL_TEMPLATE: https://s3.${DOMAIN}/posthog
+      SESSION_RECORDING_V2_S3_ENDPOINT: http://infra-rustfs-1:9000
+      SESSION_RECORDING_V2_S3_ACCESS_KEY_ID: ${RUSTFS_ACCESS_KEY_ID:?required}
+      SESSION_RECORDING_V2_S3_SECRET_ACCESS_KEY: ${RUSTFS_SECRET_ACCESS_KEY:?required}
+    networks:
+      - infra
+    depends_on:
+      db:
+        condition: service_healthy
+      kafka:
+        condition: service_started
+
+  worker:
+    environment:
+      REDIS_URL: redis://infra-valkey-1:6379/2
+      OBJECT_STORAGE_ENDPOINT: http://infra-rustfs-1:9000
+      OBJECT_STORAGE_ACCESS_KEY_ID: ${RUSTFS_ACCESS_KEY_ID:?required}
+      OBJECT_STORAGE_SECRET_ACCESS_KEY: ${RUSTFS_SECRET_ACCESS_KEY:?required}
+      OBJECT_STORAGE_BUCKET_URL_TEMPLATE: https://s3.${DOMAIN}/posthog
+      SESSION_RECORDING_V2_S3_ENDPOINT: http://infra-rustfs-1:9000
+      SESSION_RECORDING_V2_S3_ACCESS_KEY_ID: ${RUSTFS_ACCESS_KEY_ID:?required}
+      SESSION_RECORDING_V2_S3_SECRET_ACCESS_KEY: ${RUSTFS_SECRET_ACCESS_KEY:?required}
+    networks:
+      - infra
+    depends_on:
+      db:
+        condition: service_healthy
+      kafka:
+        condition: service_started
+
+  plugins:
+    environment:
+      REDIS_URL: redis://infra-valkey-1:6379/2
+      CDP_REDIS_HOST: infra-valkey-1
+      CDP_REDIS_PORT: "6379"
+      OBJECT_STORAGE_ENDPOINT: http://infra-rustfs-1:9000
+      OBJECT_STORAGE_ACCESS_KEY_ID: ${RUSTFS_ACCESS_KEY_ID:?required}
+      OBJECT_STORAGE_SECRET_ACCESS_KEY: ${RUSTFS_SECRET_ACCESS_KEY:?required}
+      SESSION_RECORDING_V2_S3_ENDPOINT: http://infra-rustfs-1:9000
+      SESSION_RECORDING_V2_S3_ACCESS_KEY_ID: ${RUSTFS_ACCESS_KEY_ID:?required}
+      SESSION_RECORDING_V2_S3_SECRET_ACCESS_KEY: ${RUSTFS_SECRET_ACCESS_KEY:?required}
+    networks:
+      - infra
+    depends_on:
+      db:
+        condition: service_healthy
+      kafka:
+        condition: service_started
+
+  # ── RUST SERVICES ──
+  capture:
+    environment:
+      REDIS_URL: redis://infra-valkey-1:6379/2
+    networks:
+      - infra
+
+  replay-capture:
+    environment:
+      REDIS_URL: redis://infra-valkey-1:6379/2
+    networks:
+      - infra
+
+  feature-flags:
+    environment:
+      REDIS_URL: redis://infra-valkey-1:6379/2
+    networks:
+      - infra
+
+  property-defs-rs:
+    environment:
+      REDIS_URL: redis://infra-valkey-1:6379/2
+    networks:
+      - infra
+
+  cyclotron-janitor:
+    environment:
+      REDIS_URL: redis://infra-valkey-1:6379/2
+      OBJECT_STORAGE_ENDPOINT: http://infra-rustfs-1:9000
+      OBJECT_STORAGE_ACCESS_KEY_ID: ${RUSTFS_ACCESS_KEY_ID:?required}
+      OBJECT_STORAGE_SECRET_ACCESS_KEY: ${RUSTFS_SECRET_ACCESS_KEY:?required}
+    networks:
+      - infra
+
+  cymbal:
+    environment:
+      REDIS_URL: redis://infra-valkey-1:6379/2
+      OBJECT_STORAGE_ENDPOINT: http://infra-rustfs-1:9000
+      OBJECT_STORAGE_ACCESS_KEY_ID: ${RUSTFS_ACCESS_KEY_ID:?required}
+      OBJECT_STORAGE_SECRET_ACCESS_KEY: ${RUSTFS_SECRET_ACCESS_KEY:?required}
+    networks:
+      - infra
+
+  personhog-router:
+    environment:
+      REDIS_URL: redis://infra-valkey-1:6379/2
+    networks:
+      - infra
+
+  personhog-replica:
+    networks:
+      - infra
+
+  hypercache-server:
+    environment:
+      REDIS_URL: redis://infra-valkey-1:6379/2
+    networks:
+      - infra
+
+  # ── NODE.JS INGESTION SERVICES ──
+  ingestion-general:
+    environment:
+      REDIS_URL: redis://infra-valkey-1:6379/2
+    networks:
+      - infra
+
+  ingestion-sessionreplay:
+    environment:
+      REDIS_URL: redis://infra-valkey-1:6379/2
+    networks:
+      - infra
+
+  ingestion-error-tracking:
+    environment:
+      REDIS_URL: redis://infra-valkey-1:6379/2
+    networks:
+      - infra
+
+  ingestion-logs:
+    environment:
+      REDIS_URL: redis://infra-valkey-1:6379/2
+    networks:
+      - infra
+
+  ingestion-traces:
+    environment:
+      REDIS_URL: redis://infra-valkey-1:6379/2
+    networks:
+      - infra
+
+  recording-api:
+    environment:
+      REDIS_URL: redis://infra-valkey-1:6379/2
+      SESSION_RECORDING_V2_S3_ENDPOINT: http://infra-rustfs-1:9000
+      SESSION_RECORDING_V2_S3_ACCESS_KEY_ID: ${RUSTFS_ACCESS_KEY_ID:?required}
+      SESSION_RECORDING_V2_S3_SECRET_ACCESS_KEY: ${RUSTFS_SECRET_ACCESS_KEY:?required}
+    networks:
+      - infra
+
+  # ── TEMPORAL ──
+  temporal:
+    networks:
+      - infra
+
+  temporal-django-worker:
+    environment:
+      REDIS_URL: redis://infra-valkey-1:6379/2
+      OBJECT_STORAGE_ENDPOINT: http://infra-rustfs-1:9000
+      OBJECT_STORAGE_ACCESS_KEY_ID: ${RUSTFS_ACCESS_KEY_ID:?required}
+      OBJECT_STORAGE_SECRET_ACCESS_KEY: ${RUSTFS_SECRET_ACCESS_KEY:?required}
+      SESSION_RECORDING_V2_S3_ENDPOINT: http://infra-rustfs-1:9000
+      SESSION_RECORDING_V2_S3_ACCESS_KEY_ID: ${RUSTFS_ACCESS_KEY_ID:?required}
+      SESSION_RECORDING_V2_S3_SECRET_ACCESS_KEY: ${RUSTFS_SECRET_ACCESS_KEY:?required}
+    networks:
+      - infra
+
+  # ── ONE-SHOT JOBS ──
+  asyncmigrationscheck:
+    networks:
+      - infra
+
+  kafka-init:
+    networks:
+      - infra
+
+  # ── LIVESTREAM ──
+  livestream:
+    networks:
+      - infra
+
+networks:
+  infra:
+    name: infra_app_network
+    external: true
+
+volumes:
+  postgres-data:
+  clickhouse-data:
+  redpanda-data:
