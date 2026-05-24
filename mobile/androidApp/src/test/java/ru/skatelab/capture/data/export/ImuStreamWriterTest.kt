@@ -64,4 +64,49 @@ class ImuStreamWriterTest {
         assertEquals(0.99f, proto2.quatW, 0.001f)
         assertEquals(0.03f, proto2.quatZ, 0.001f)
     }
+
+    @Test
+    fun `empty file produces no records`() {
+        val tempFile = File.createTempFile("imu_empty", ".binpb")
+        tempFile.deleteOnExit()
+
+        val writer = ImuStreamWriter()
+        writer.open(tempFile)
+        writer.close()
+
+        val bytes = tempFile.readBytes()
+        assertEquals(0, bytes.size)
+    }
+
+    @Test
+    fun `write many samples and verify count`() {
+        val tempFile = File.createTempFile("imu_many", ".binpb")
+        tempFile.deleteOnExit()
+
+        val writer = ImuStreamWriter()
+        writer.open(tempFile)
+
+        val sample =
+            ImuSample(
+                timestampNs = 0L,
+                accX = 0f, accY = 0f, accZ = 9.81f,
+                gyroX = 0f, gyroY = 0f, gyroZ = 0f,
+                quatW = 1f, quatX = 0f, quatY = 0f, quatZ = 0f,
+            )
+
+        repeat(100) { i ->
+            writer.write(sample.copy(timestampNs = i * 10_000_000L))
+        }
+        writer.close()
+
+        val fis = FileInputStream(tempFile)
+        var count = 0
+        while (true) {
+            val record = IMURecord.parseDelimitedFrom(fis) ?: break
+            if (!record.hasSample()) break
+            count++
+        }
+        fis.close()
+        assertEquals(100, count)
+    }
 }
