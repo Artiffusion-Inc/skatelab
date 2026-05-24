@@ -19,8 +19,9 @@ _DEFAULT_MODEL = Path("data/models/rf_detr_nano.onnx")
 # Default input size for RF-DETR-Nano; configurable per model variant
 _DEFAULT_INPUT_SIZE = 384
 
-# COCO class 0 = person
-_PERSON_CLASS = 0
+# COCO 91-class: index 0 = background/N/A, index 1 = person
+# After _drop_no_object_logit (91→90), person is at index 1
+_PERSON_CLASS = 1
 
 # ImageNet normalization constants
 IMAGENET_MEAN = np.array([0.485, 0.456, 0.406], dtype=np.float32)
