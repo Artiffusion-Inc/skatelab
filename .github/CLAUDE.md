@@ -44,9 +44,8 @@ All jobs gated by `needs` — lint/typecheck must pass before test/build.
 ## Deploy Pipeline (deploy.yml)
 
 1. Full CI (ci-reusable, `run-all: true`, `skip-docker: true`)
-2. Build + push frontend/backend images to GHCR (parallel)
-3. SCP deploy files + .env → VPS (SSH port 43210)
-4. Run `deploy.sh` on VPS (zero-downtime rollout, alembic, health check)
+2. Build + push frontend/backend images to GHCR **+ SCP deploy files to VPS** (all parallel)
+3. Write .env + run `deploy.sh` on VPS via SSH (zero-downtime rollout, alembic, health check)
 
 `concurrency: deploy-production` — no cancel-in-progress (never kill a deploy mid-way).
 

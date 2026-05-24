@@ -1,0 +1,29 @@
+# syntax=docker/dockerfile:1.7
+# Containerfile.ci — CI-only build using pre-built artifacts from fe-build job
+FROM docker.io/library/node:22-alpine3.21
+
+RUN apk add --no-cache libc6-compat
+
+WORKDIR /app
+
+ENV NODE_ENV=production \
+    NEXT_TELEMETRY_DISABLED=1 \
+    PORT=3000 \
+    HOSTNAME="0.0.0.0"
+
+RUN addgroup --system --gid 1001 nextjs \
+    && adduser --system --uid 1001 --ingroup nextjs --shell /usr/sbin/nologin nextjs
+
+# Pre-built artifacts from fe-build job (downloaded via artifact)
+COPY --chown=nextjs:nextjs public ./public
+COPY --chown=nextjs:nextjs .next/standalone ./
+COPY --chown=nextjs:nextjs .next/static ./.next/static
+
+USER nextjs
+
+EXPOSE 3000
+
+HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
+    CMD wget --no-verbose --tries=1 --spider http://localhost:3000/ || exit 1
+
+CMD ["node", "server.js"]

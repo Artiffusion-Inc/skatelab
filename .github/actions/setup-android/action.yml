@@ -1,17 +1,14 @@
-name: Setup Android SDK
-description: JDK 17 + Gradle cache (run after actions/checkout)
+name: 'Setup Android SDK + Gradle'
+description: 'JDK 17 + Android SDK + Gradle cache'
+
 runs:
-  using: composite
+  using: "composite"
   steps:
     - uses: actions/setup-java@v5
       with:
         distribution: temurin
         java-version: 17
 
-    - uses: actions/cache@v4
+    - uses: gradle/actions/setup-gradle@v4
       with:
-        path: |
-          ~/.gradle/caches
-          ~/.gradle/wrapper
-        key: gradle-${{ runner.os }}-${{ hashFiles('mobile/**/*.gradle.kts', 'mobile/gradle/wrapper/gradle-wrapper.properties') }}
-        restore-keys: gradle-${{ runner.os }}-
+        cache-read-only: false
