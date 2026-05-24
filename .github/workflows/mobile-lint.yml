@@ -1,0 +1,27 @@
+name: Mobile Lint
+
+on:
+  workflow_call:
+    inputs:
+      should-run:
+        required: false
+        default: true
+        type: boolean
+
+permissions:
+  contents: read
+
+jobs:
+  android-lint:
+    name: Android lint
+    if: inputs.should-run
+    runs-on: blacksmith-2vcpu-ubuntu-2404-arm
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: mobile
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/setup-java-gradle
+      - name: Run ktlint
+        run: ./gradlew ktlintCheck
