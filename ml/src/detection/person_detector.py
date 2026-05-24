@@ -39,7 +39,7 @@ def _sigmoid(logits: np.ndarray) -> np.ndarray:
 def _drop_no_object_logit(logits: np.ndarray) -> np.ndarray:
     """Drop last logit column (no-object class).
 
-    COCO: (1, 300, 81) → (1, 300, 80). Last column suppresses
+    COCO: (1, 300, 91) → (1, 300, 90). Last column suppresses
     all class scores if not removed.
     """
     return logits[..., :-1]
@@ -154,12 +154,12 @@ class PersonDetector:
         outputs = session.run(None, {input_name: blob})
 
         # outputs[0]: (1, 300, 4) cxcywh normalized boxes
-        # outputs[1]: (1, 300, 81) logits (80 classes + 1 no-object)
+        # outputs[1]: (1, 300, 91) logits (90 classes + 1 no-object)
         boxes = outputs[0]  # (1, 300, 4)
-        logits = outputs[1]  # (1, 300, 81)
+        logits = outputs[1]  # (1, 300, 91)
 
         # Step 1: Drop no-object logit column
-        logits = _drop_no_object_logit(logits)  # (1, 300, 80)
+        logits = _drop_no_object_logit(logits)  # (1, 300, 90)
 
         # Step 2: Sigmoid (NOT softmax)
         scores_all = _sigmoid(logits)  # (1, 300, 80)

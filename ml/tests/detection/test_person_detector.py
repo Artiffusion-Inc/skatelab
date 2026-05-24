@@ -97,10 +97,10 @@ class TestRFDetrPostprocessing:
         assert scores[0, 1] < 0.01
 
     def test_drop_last_logit_column(self):
-        """COCO outputs (1, 300, 81) — last column is no-object class, must drop."""
-        logits = np.random.randn(1, 300, 81).astype(np.float32)
+        """COCO outputs (1, 300, 91) — last column is no-object class, must drop."""
+        logits = np.random.randn(1, 300, 91).astype(np.float32)
         result = _drop_no_object_logit(logits)
-        assert result.shape == (1, 300, 80)
+        assert result.shape == (1, 300, 90)
         np.testing.assert_array_equal(result[0, 0, :], logits[0, 0, :-1])
 
     def test_cxcywh_normalized_to_xyxy_pixel(self):
