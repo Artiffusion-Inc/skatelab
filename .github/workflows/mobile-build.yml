@@ -22,7 +22,7 @@ jobs:
   android-build:
     name: Android debug build
     if: inputs.should-run-android
-    runs-on: blacksmith-4vcpu-ubuntu-2404-arm
+    runs-on: blacksmith-4vcpu-ubuntu-2204
     timeout-minutes: 15
     defaults:
       run:

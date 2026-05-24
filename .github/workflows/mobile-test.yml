@@ -28,7 +28,7 @@ jobs:
   shared-test:
     name: Shared tests
     if: inputs.should-run-shared
-    runs-on: blacksmith-4vcpu-ubuntu-2404-arm
+    runs-on: blacksmith-4vcpu-ubuntu-2204
     timeout-minutes: 15
     defaults:
       run:
@@ -62,7 +62,7 @@ jobs:
   android-test:
     name: Android tests
     if: inputs.should-run-android
-    runs-on: blacksmith-4vcpu-ubuntu-2404-arm
+    runs-on: blacksmith-4vcpu-ubuntu-2204
     timeout-minutes: 15
     defaults:
       run:

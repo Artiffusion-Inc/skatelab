@@ -32,7 +32,7 @@ concurrency:
 jobs:
   changes:
     name: Detect changes
-    runs-on: blacksmith-2vcpu-ubuntu-2404-arm
+    runs-on: blacksmith-2vcpu-ubuntu-2204
     timeout-minutes: 2
     outputs:
       shared: ${{ steps.filter.outputs.shared }}
@@ -102,7 +102,7 @@ jobs:
     name: Mobile CI Passed
     needs: [changes, lint, test, build]
     if: always()
-    runs-on: blacksmith-2vcpu-ubuntu-2404-arm
+    runs-on: blacksmith-2vcpu-ubuntu-2204
     timeout-minutes: 2
     steps:
       - name: Evaluate results
