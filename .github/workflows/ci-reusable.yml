@@ -170,9 +170,9 @@ jobs:
           merge-multiple: true
       - name: Combine coverage
         run: |
-          coverage combine .coverage-artifacts/.coverage*
-          coverage xml -o coverage.xml
-          coverage report --fail-under=0
+          uv run coverage combine .coverage-artifacts/.coverage*
+          uv run coverage xml -o coverage.xml
+          uv run coverage report --fail-under=0
       - uses: codecov/codecov-action@v6
         with:
           files: coverage.xml
