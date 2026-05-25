@@ -111,7 +111,7 @@ jobs:
         run: node scripts/design/design-lock.js check
 
   test:
-    name: Tests (${{ matrix.group }}/${{ strategy.job-total }})
+    name: Tests (${{ matrix.group }}/2)
     needs: [changes]
     if: ${{ inputs.run-all || needs.changes.outputs.python == 'true' }}
     runs-on: blacksmith-4vcpu-ubuntu-2404
@@ -145,12 +145,14 @@ jobs:
         with:
           name: coverage-group-${{ matrix.group }}
           path: .coverage
+          retention-days: 3
       - name: Upload test results
         if: ${{ !cancelled() }}
         uses: actions/upload-artifact@v7
         with:
           name: test-results-group-${{ matrix.group }}
           path: junit.xml
+          retention-days: 3
 
   coverage:
     name: Coverage combine
