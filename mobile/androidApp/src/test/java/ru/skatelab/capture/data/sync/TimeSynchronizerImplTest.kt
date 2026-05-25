@@ -90,4 +90,33 @@ class TimeSynchronizerImplTest {
         synchronizer.getOffset(SensorId.LEFT)
         verify(exactly = 1) { timeSyncManager.getOffset(SensorId.LEFT) }
     }
+
+    @Test
+    fun `sync proceeds after configureSensorTime failure`() =
+        runTest {
+            coEvery { timeSyncManager.getOffset(SensorId.LEFT) } returns 0L
+            coEvery { timeSyncManager.getOffset(SensorId.RIGHT) } returns 0L
+            coEvery { configureSensorTimeUseCase(any()) } returns
+                Result.failure(IllegalStateException("GATT write failed"))
+
+            synchronizer.sync(this)
+            advanceUntilIdle()
+
+            // Still delegates to periodicTimeSync even after failure
+            verify(exactly = 1) { periodicTimeSync.sync(any()) }
+        }
+
+    @Test
+    fun `sync calls configureSensorTime for negative offset exceeding threshold`() =
+        runTest {
+            coEvery { timeSyncManager.getOffset(SensorId.LEFT) } returns -1_500_000_000L
+            coEvery { timeSyncManager.getOffset(SensorId.RIGHT) } returns 300_000_000L
+            coEvery { configureSensorTimeUseCase(SensorId.LEFT) } returns Result.success(Unit)
+
+            synchronizer.sync(this)
+            advanceUntilIdle()
+
+            coVerify(exactly = 1) { configureSensorTimeUseCase(SensorId.LEFT) }
+            coVerify(exactly = 0) { configureSensorTimeUseCase(SensorId.RIGHT) }
+        }
 }
