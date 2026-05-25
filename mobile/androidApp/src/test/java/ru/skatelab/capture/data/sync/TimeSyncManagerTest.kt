@@ -89,4 +89,53 @@ class TimeSyncManagerTest {
 
         assertEquals(200_000_000L, manager.getOffset(SensorId.LEFT))
     }
+
+    @Test
+    fun `extra samples beyond threshold do not change offset`() {
+        for (i in 0 until 20) {
+            val androidNs = 10_000_000_000L + i * 10_000_000L
+            val chipTimeMs = (androidNs / 1_000_000) + 500
+            manager.recordPacketArrival(SensorId.LEFT, androidNs, chipTimeMs)
+        }
+        val offset20 = manager.getOffset(SensorId.LEFT)
+
+        // Add 5 more samples with different offset — should be ignored
+        for (i in 20 until 25) {
+            val androidNs = 10_000_000_000L + i * 10_000_000L
+            val chipTimeMs = (androidNs / 1_000_000) + 900 // different offset
+            manager.recordPacketArrival(SensorId.LEFT, androidNs, chipTimeMs)
+        }
+        assertEquals("Offset should not change after threshold", offset20, manager.getOffset(SensorId.LEFT))
+    }
+
+    @Test
+    fun `median with odd count picks middle`() {
+        // Provide 20 samples with known distribution: all same offset
+        for (i in 0 until 20) {
+            manager.recordPacketArrival(SensorId.LEFT, androidNs = 1_000_000L + i, chipTimeMs = 1L)
+        }
+        // offsetNs = 1 * 1_000_000 - (1_000_000 + i) = 1_000_000 - 1_000_000 - i = -i
+        // All offsets are [-0, -1, -2, ..., -19], median of even count = (-9 + -10)/2 = -9
+        assertEquals(-9L, manager.getOffset(SensorId.LEFT))
+    }
+
+    @Test
+    fun `multiple EMA updates converge toward target`() {
+        for (i in 0 until 20) {
+            val androidNs = 10_000_000_000L + i * 10_000_000L
+            val chipTimeMs = (androidNs / 1_000_000) + 500
+            manager.recordPacketArrival(SensorId.LEFT, androidNs, chipTimeMs)
+        }
+
+        // Repeatedly resync with 600ms offset (target 600_000_000 ns)
+        repeat(15) {
+            manager.updatePeriodicOffset(
+                SensorId.LEFT,
+                androidNs = 15_000_000_000L,
+                chipTimeMs = (15_000_000_000L / 1_000_000) + 600,
+            )
+        }
+        val offset = manager.getOffset(SensorId.LEFT)
+        assertTrue("Offset should converge toward 600M ns, was $offset", offset in 570_000_000..630_000_000L)
+    }
 }

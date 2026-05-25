@@ -246,6 +246,87 @@ class ImuParserTest {
         assertEquals(0f, data.accMagRight[1], 0.001f) // no second right sample → 0
     }
 
+    // --- Accumulated rotation tests ---
+
+    @Test
+    fun rotation_firstSampleIsZero() {
+        writeRecords(leftFile, listOf(buildSample(timestampNs = 1_000_000_000L, quatW = 1f)))
+        writeRecords(rightFile, listOf(buildSample(timestampNs = 1_000_000_000L, quatW = 1f)))
+
+        val data = ImuParser.parse(leftFile, rightFile)
+        assertEquals(0f, data.rotLeft[0], 0.001f)
+    }
+
+    @Test
+    fun rotation_identicalQuaternion_noAccumulation() {
+        // Same quaternion on every sample → dot=1 → angle=0 → accumulated stays 0
+        writeRecords(
+            leftFile,
+            listOf(
+                buildSample(timestampNs = 1_000_000_000L, quatW = 1f),
+                buildSample(timestampNs = 2_000_000_000L, quatW = 1f),
+                buildSample(timestampNs = 3_000_000_000L, quatW = 1f),
+            ),
+        )
+        writeRecords(
+            rightFile,
+            listOf(buildSample(timestampNs = 1_000_000_000L, quatW = 1f)),
+        )
+
+        val data = ImuParser.parse(leftFile, rightFile)
+        assertEquals(0f, data.rotLeft[0], 0.001f)
+        assertEquals(0f, data.rotLeft[1], 0.001f)
+        assertEquals(0f, data.rotLeft[2], 0.001f)
+    }
+
+    @Test
+    fun rotation_90degreeYawStep_accumulatesCorrectly() {
+        // Sample 1: identity quaternion (w=1, x=0, y=0, z=0)
+        // Sample 2: 90° yaw = (w=cos45, x=0, y=0, z=sin45)
+        val cos45 = kotlin.math.cos(Math.toRadians(45.0)).toFloat()
+        val sin45 = kotlin.math.sin(Math.toRadians(45.0)).toFloat()
+        writeRecords(
+            leftFile,
+            listOf(
+                buildSample(timestampNs = 1_000_000_000L, quatW = 1f),
+                buildSample(timestampNs = 2_000_000_000L, quatW = cos45, quatZ = sin45),
+            ),
+        )
+        writeRecords(
+            rightFile,
+            listOf(buildSample(timestampNs = 1_000_000_000L, quatW = 1f)),
+        )
+
+        val data = ImuParser.parse(leftFile, rightFile)
+        // dot = 1*cos45 + 0 + 0 + 0*sin45 = cos45 ≈ 0.707
+        // stepAngle = 2 * acos(|cos45|) = 2 * acos(0.707) ≈ 2 * 0.785 = 1.57 rad ≈ 90°
+        assertEquals(0f, data.rotLeft[0], 0.001f) // first sample is 0
+        assertEquals(1.57f, data.rotLeft[1], 0.05f) // ~90° in radians
+    }
+
+    // --- roundTo4 precision test ---
+
+    @Test
+    fun timeSeconds_roundedTo4DecimalPlaces() {
+        // 333ms offset → 0.333333... should be rounded to 0.3333
+        val t0 = 1_000_000_000L
+        val t1 = 1_333_000_000L // 333ms later
+        writeRecords(
+            leftFile,
+            listOf(
+                buildSample(timestampNs = t0),
+                buildSample(timestampNs = t1),
+            ),
+        )
+        writeRecords(
+            rightFile,
+            listOf(buildSample(timestampNs = t0)),
+        )
+
+        val data = ImuParser.parse(leftFile, rightFile)
+        assertEquals(0.3333f, data.timeSeconds[1], 0.0001f)
+    }
+
     // --- Helpers ---
 
     private fun buildSample(
