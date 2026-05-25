@@ -420,4 +420,152 @@ class Wt901ParserTest {
 
         assertEquals("Two combined frames should produce 2 samples", 2, result.size)
     }
+
+    // --- Test 10: 0x61 implausible ACC raw values rejected ---
+
+    @Test
+    fun combinedFrameImplausibleAccRejected() {
+        val t0 = 1_000_000_000L
+
+        fun buildCombinedFrame(
+            accX: Short,
+            gyroX: Short,
+            roll: Short,
+        ): ByteArray {
+            val frame = ByteArray(20)
+            frame[0] = 0x55.toByte()
+            frame[1] = 0x61.toByte()
+            writeInt16LE(frame, 2, accX)
+            writeInt16LE(frame, 4, 0)
+            writeInt16LE(frame, 6, 0)
+            writeInt16LE(frame, 8, gyroX)
+            writeInt16LE(frame, 10, 0)
+            writeInt16LE(frame, 12, 0)
+            writeInt16LE(frame, 14, roll)
+            writeInt16LE(frame, 16, 0)
+            writeInt16LE(frame, 18, 0)
+            return frame
+        }
+
+        // ACC raw = 32000 exceeds ACC_RAW_LIMIT (31000) → implausible
+        val badFrame = buildCombinedFrame(32000.toShort(), 1000, 0)
+        val result = parser.feed(badFrame, t0)
+        assertTrue("Implausible ACC frame should not produce sample", result.isEmpty())
+    }
+
+    // --- Test 11: 0x61 implausible GYRO raw values rejected ---
+
+    @Test
+    fun combinedFrameImplausibleGyroRejected() {
+        val t0 = 1_000_000_000L
+
+        fun buildCombinedFrame(
+            accX: Short,
+            gyroX: Short,
+            roll: Short,
+        ): ByteArray {
+            val frame = ByteArray(20)
+            frame[0] = 0x55.toByte()
+            frame[1] = 0x61.toByte()
+            writeInt16LE(frame, 2, accX)
+            writeInt16LE(frame, 4, 0)
+            writeInt16LE(frame, 6, 0)
+            writeInt16LE(frame, 8, gyroX)
+            writeInt16LE(frame, 10, 0)
+            writeInt16LE(frame, 12, 0)
+            writeInt16LE(frame, 14, roll)
+            writeInt16LE(frame, 16, 0)
+            writeInt16LE(frame, 18, 0)
+            return frame
+        }
+
+        // GYRO raw = 33000 exceeds GYRO_RAW_LIMIT (32000) → implausible
+        val badFrame = buildCombinedFrame(2048, 33000.toShort(), 0)
+        val result = parser.feed(badFrame, t0)
+        assertTrue("Implausible GYRO frame should not produce sample", result.isEmpty())
+    }
+
+    // --- Test 12: reset() clears all parser state ---
+
+    @Test
+    fun resetClearsAllState() {
+        val t0 = 1_000_000_000L
+
+        // Feed partial individual frames
+        val accData = ByteArray(8)
+        writeInt16LE(accData, 0, 2048)
+        parser.feed(buildFrame(0x51, accData), t0)
+
+        // Reset
+        parser.reset()
+        assertEquals(0, parser.droppedPartialCount)
+
+        // After reset, a fresh cycle should work
+        val gyroData = ByteArray(8)
+        writeInt16LE(gyroData, 0, 1000)
+        val gyroFrame = buildFrame(0x52, gyroData)
+
+        val quatData = ByteArray(8)
+        writeInt16LE(quatData, 0, 16384)
+        val quatFrame = buildFrame(0x59, quatData)
+
+        // No ACC frame in this cycle, so ACC+GYRO+QUAT bitmask won't complete
+        // But this verifies reset clears the bitmask
+        val result = parser.feed(gyroFrame + quatFrame, t0)
+        assertTrue("After reset, incomplete cycle (no ACC) should not produce sample", result.isEmpty())
+        assertEquals(0, parser.droppedPartialCount)
+    }
+
+    // --- Test 13: Euler-to-quaternion identity (0° roll, 0° pitch, 0° yaw) ---
+
+    @Test
+    fun eulerToQuaternionIdentity() {
+        val t0 = 1_000_000_000L
+
+        val frame = ByteArray(20)
+        frame[0] = 0x55.toByte()
+        frame[1] = 0x61.toByte()
+        // All zeros: ACC=0, GYRO=0, Euler=0°
+        // This is a physically plausible zero-motion frame
+        // ACC zeros are fine (sensor in free-fall or just 0 raw)
+        // But raw=0 is plausible (< 31000 limit)
+
+        val result = parser.feed(frame, t0)
+        // With all zeros: ACC raw=0 (plausible), GYRO raw=0 (plausible)
+        // So this frame should parse
+        assertEquals("Zero-values combined frame should produce sample", 1, result.size)
+        val sample = result.first()
+        // Identity quaternion: w≈1, x≈0, y≈0, z≈0
+        assertEquals(1.0f, sample.quatW, 0.01f)
+        assertEquals(0f, sample.quatX, 0.01f)
+        assertEquals(0f, sample.quatY, 0.01f)
+        assertEquals(0f, sample.quatZ, 0.01f)
+    }
+
+    // --- Test 14: Euler-to-quaternion 90° yaw ---
+
+    @Test
+    fun eulerToQuaternion90Yaw() {
+        val t0 = 1_000_000_000L
+
+        val frame = ByteArray(20)
+        frame[0] = 0x55.toByte()
+        frame[1] = 0x61.toByte()
+        // ACC small plausible value, GYRO=0, Yaw=90°
+        // Yaw is bytes 18-19, Pitch bytes 16-17, Roll bytes 14-15
+        writeInt16LE(frame, 2, 2048) // accX ≈ 1g
+        writeInt16LE(frame, 18, 90f.toRawScaleAngle()) // yaw = 90°
+
+        val result = parser.feed(frame, t0)
+        assertEquals(1, result.size)
+        val sample = result.first()
+        // For 90° yaw: w ≈ cos(45°) ≈ 0.707, z ≈ sin(45°) ≈ 0.707
+        assertEquals(0.707f, sample.quatW, 0.02f)
+        assertEquals(0f, sample.quatX, 0.02f)
+        assertEquals(0f, sample.quatY, 0.02f)
+        assertEquals(0.707f, sample.quatZ, 0.02f)
+    }
+
+    /** Convert degrees to WT901 raw angle scale (180/32768). */
+    private fun Float.toRawScaleAngle(): Short = (this / 180f * 32768f).toInt().toShort()
 }
