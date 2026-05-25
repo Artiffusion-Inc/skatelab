@@ -89,7 +89,7 @@ class ChunkedUploader(
             init.key
         }
 
-    private fun readFileChunk(
+    internal fun readFileChunk(
         file: File,
         start: Long,
         end: Long,

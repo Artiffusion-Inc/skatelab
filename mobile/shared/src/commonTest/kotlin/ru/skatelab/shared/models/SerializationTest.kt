@@ -167,4 +167,128 @@ class SerializationTest {
         assertEquals(1, decoded.findings.size)
         assertEquals("warning", decoded.findings[0].severity)
     }
+
+    // --- ProcessEvent parsedStatus edge cases ---
+
+    @Test
+    fun processEventStatusFailed() {
+        val payload = """{"progress":1.0,"message":"GPU OOM","status":"failed"}"""
+        val decoded = json.decodeFromString<ProcessEvent>(payload)
+        assertEquals(ProcessStatus.FAILED, decoded.parsedStatus)
+    }
+
+    @Test
+    fun processEventStatusCancelled() {
+        val payload = """{"progress":0.3,"message":"User cancelled","status":"cancelled"}"""
+        val decoded = json.decodeFromString<ProcessEvent>(payload)
+        assertEquals(ProcessStatus.CANCELLED, decoded.parsedStatus)
+    }
+
+    @Test
+    fun processEventStatusCompleted() {
+        val payload = """{"progress":1.0,"message":"Done","status":"completed"}"""
+        val decoded = json.decodeFromString<ProcessEvent>(payload)
+        assertEquals(ProcessStatus.COMPLETED, decoded.parsedStatus)
+    }
+
+    @Test
+    fun processEventStatusUnknown() {
+        val payload = """{"progress":0.0,"message":"","status":"pending"}"""
+        val decoded = json.decodeFromString<ProcessEvent>(payload)
+        assertEquals(ProcessStatus.UNKNOWN, decoded.parsedStatus)
+    }
+
+    @Test
+    fun processEventWithSessionId() {
+        val payload = """{"progress":0.5,"message":"Processing","status":"running","session_id":"sess-42"}"""
+        val decoded = json.decodeFromString<ProcessEvent>(payload)
+        assertEquals("sess-42", decoded.sessionId)
+    }
+
+    @Test
+    fun processEventDefaultValues() {
+        val payload = """{}"""
+        val decoded = json.decodeFromString<ProcessEvent>(payload)
+        assertEquals(0f, decoded.progress)
+        assertEquals("", decoded.message)
+        assertEquals("running", decoded.status)
+        assertEquals(null, decoded.sessionId)
+    }
+
+    // --- UserResponse default values ---
+
+    @Test
+    fun userResponseDefaultValues() {
+        val payload = """{"id":"u1","email":"test@test.com"}"""
+        val decoded = json.decodeFromString<UserResponse>(payload)
+        assertEquals(null, decoded.displayName)
+        assertEquals(null, decoded.avatarUrl)
+        assertEquals(null, decoded.bio)
+        assertEquals(null, decoded.heightCm)
+        assertEquals(null, decoded.weightKg)
+        assertEquals("ru", decoded.language)
+        assertEquals("UTC", decoded.timezone)
+        assertEquals("dark", decoded.theme)
+        assertEquals(null, decoded.onboardingRole)
+        assertEquals("deg_per_sec", decoded.angularUnit)
+    }
+
+    // --- MetricDefinition with optional fields ---
+
+    @Test
+    fun metricDefinitionMinimalFields() {
+        val payload = """{"name":"jump_height","unit":"cm"}"""
+        val decoded = json.decodeFromString<MetricDefinition>(payload)
+        assertEquals("jump_height", decoded.name)
+        assertEquals("cm", decoded.unit)
+        assertEquals(null, decoded.labelRu)
+        assertEquals(null, decoded.format)
+        assertEquals(null, decoded.direction)
+        assertEquals(null, decoded.elementTypes)
+        assertEquals(null, decoded.idealRange)
+    }
+
+    // --- TrendDataPoint ---
+
+    @Test
+    fun trendDataPointRoundtrip() {
+        val original = TrendDataPoint(sessionId = "s1", value = 42.5, isPr = true, date = "2026-05-01")
+        val encoded = json.encodeToString(original)
+        val decoded = json.decodeFromString<TrendDataPoint>(encoded)
+        assertEquals(original, decoded)
+    }
+
+    // --- PersonalRecord ---
+
+    @Test
+    fun personalRecordRoundtrip() {
+        val original = PersonalRecord(elementType = "axel", metricName = "jump_height", value = 45.2, sessionId = "s1")
+        val encoded = json.encodeToString(original)
+        val decoded = json.decodeFromString<PersonalRecord>(encoded)
+        assertEquals(original, decoded)
+    }
+
+    // --- SummaryResponse ---
+
+    @Test
+    fun summaryResponseDeserialize() {
+        val payload = """{"element":"axel","period":"last_30d","trend":"improving","findings":[],"metric_defs":{},"personal_records":[]}"""
+        val decoded = json.decodeFromString<SummaryResponse>(payload)
+        assertEquals("axel", decoded.element)
+        assertEquals("last_30d", decoded.period)
+        assertEquals("improving", decoded.trend)
+    }
+
+    // --- DiagnosticsFinding optional fields ---
+
+    @Test
+    fun diagnosticsFindingMinimalFields() {
+        val payload = """{"severity":"info","message":"All metrics OK"}"""
+        val decoded = json.decodeFromString<DiagnosticsFinding>(payload)
+        assertEquals("info", decoded.severity)
+        assertEquals("All metrics OK", decoded.message)
+        assertEquals(null, decoded.element)
+        assertEquals(null, decoded.metric)
+        assertEquals(null, decoded.detail)
+    }
 }

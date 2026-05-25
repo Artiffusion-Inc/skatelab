@@ -109,4 +109,86 @@ class ImuStreamWriterTest {
         fis.close()
         assertEquals(100, count)
     }
+
+    @Test
+    fun `writeGap writes IMUGap record`() {
+        val tempFile = File.createTempFile("imu_gap", ".binpb")
+        tempFile.deleteOnExit()
+
+        val writer = ImuStreamWriter()
+        writer.open(tempFile)
+
+        writer.writeGap(lastSampleNs = 1_000_000_000L, firstSampleNs = 1_500_000_000L, reconnectSeq = 1)
+        writer.close()
+
+        val fis = FileInputStream(tempFile)
+        val record = IMURecord.parseDelimitedFrom(fis)
+        fis.close()
+
+        assertTrue("Record should have gap", record!!.hasGap())
+        assertEquals(1_000_000_000L, record.gap.lastSampleNs)
+        assertEquals(1_500_000_000L, record.gap.firstSampleNs)
+        assertEquals(1, record.gap.reconnectSeq)
+    }
+
+    @Test
+    fun `writeGap followed by sample preserves both`() {
+        val tempFile = File.createTempFile("imu_gap_sample", ".binpb")
+        tempFile.deleteOnExit()
+
+        val writer = ImuStreamWriter()
+        writer.open(tempFile)
+
+        writer.writeGap(lastSampleNs = 900_000_000L, firstSampleNs = 950_000_000L, reconnectSeq = 2)
+        writer.write(
+            ImuSample(
+                timestampNs = 1_000_000_000L,
+                accX = 0f, accY = 0f, accZ = 9.8f,
+                gyroX = 0f, gyroY = 0f, gyroZ = 0f,
+                quatW = 1f, quatX = 0f, quatY = 0f, quatZ = 0f,
+            ),
+        )
+        writer.close()
+
+        val fis = FileInputStream(tempFile)
+        val record1 = IMURecord.parseDelimitedFrom(fis)
+        val record2 = IMURecord.parseDelimitedFrom(fis)
+        fis.close()
+
+        assertTrue("First record should be gap", record1!!.hasGap())
+        assertTrue("Second record should be sample", record2!!.hasSample())
+        assertEquals(2, record1.gap.reconnectSeq)
+        assertEquals(1_000_000_000L, record2.sample.timestampNs)
+    }
+
+    @Test(expected = IllegalStateException::class)
+    fun `write without open throws`() {
+        val writer = ImuStreamWriter()
+        writer.write(
+            ImuSample(
+                timestampNs = 0L,
+                accX = 0f, accY = 0f, accZ = 0f,
+                gyroX = 0f, gyroY = 0f, gyroZ = 0f,
+                quatW = 1f, quatX = 0f, quatY = 0f, quatZ = 0f,
+            ),
+        )
+    }
+
+    @Test(expected = IllegalStateException::class)
+    fun `writeGap without open throws`() {
+        val writer = ImuStreamWriter()
+        writer.writeGap(0L, 0L, 0)
+    }
+
+    @Test
+    fun `flush without open is no-op`() {
+        val writer = ImuStreamWriter()
+        writer.flush() // should not throw
+    }
+
+    @Test
+    fun `close without open is no-op`() {
+        val writer = ImuStreamWriter()
+        writer.close() // should not throw
+    }
 }
