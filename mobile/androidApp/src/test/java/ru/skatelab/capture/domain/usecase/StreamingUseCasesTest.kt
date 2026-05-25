@@ -63,6 +63,18 @@ class StopStreamingUseCaseTest {
             assertTrue(result.isSuccess)
             coVerify { bleRepository.stopStreaming(SensorId.LEFT) }
         }
+
+    @Test
+    fun stopStreamingFailure() =
+        runTest {
+            coEvery { bleRepository.stopStreaming(SensorId.RIGHT) } returns
+                Result.failure(IllegalStateException("Not connected"))
+
+            val result = useCase(SensorId.RIGHT)
+
+            assertTrue(result.isFailure)
+            coVerify { bleRepository.stopStreaming(SensorId.RIGHT) }
+        }
 }
 
 class FactoryResetSensorUseCaseTest {
