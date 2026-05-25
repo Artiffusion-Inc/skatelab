@@ -77,4 +77,32 @@ class FrameTimestampTrackerTest {
 
         tracker.close()
     }
+
+    @Test
+    fun `computeFps returns 0 for single frame`() {
+        val tracker = FrameTimestampTracker()
+        tracker.onFrame(1_000_000_000L)
+
+        assertEquals(0, tracker.computeFps())
+    }
+
+    @Test
+    fun `computeFps returns 0 for zero-duration frames`() {
+        val tracker = FrameTimestampTracker()
+        tracker.onFrame(1_000_000_000L)
+        tracker.onFrame(1_000_000_000L)
+
+        assertEquals(0, tracker.computeFps())
+    }
+
+    @Test
+    fun `computeFps returns 30 for 30fps data`() {
+        val tracker = FrameTimestampTracker()
+
+        for (i in 0 until 10) {
+            tracker.onFrame(1_000_000_000L + i * 33_333_333L)
+        }
+
+        assertEquals(30, tracker.computeFps())
+    }
 }
