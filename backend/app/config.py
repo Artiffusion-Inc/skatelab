@@ -157,7 +157,7 @@ class PostHogConfig(BaseSettings):
     """PostHog analytics settings."""
 
     api_key: SecretStr = SecretStr("")
-    host: str = "https://ph.skatelab.ru"
+    host: str = "https://us.i.posthog.com"
 
     class Config:
         env_prefix = "POSTHOG_"
