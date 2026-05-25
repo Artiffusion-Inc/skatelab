@@ -31,7 +31,7 @@ class UploadsApiTest {
             install(ContentNegotiation) { json(json) }
         }
         val api = UploadsApi(client)
-        val response = api.init("test.mp4", "video/mp4", 10_000_000)
+        val response = api.init("test.mp4", "video/mp4", 10_000_000L)
         assertEquals("up-1", response.uploadId)
         assertEquals("videos/test.mp4", response.key)
         assertEquals(5242880, response.chunkSize)
@@ -56,7 +56,7 @@ class UploadsApiTest {
             install(ContentNegotiation) { json(json) }
         }
         val api = UploadsApi(client)
-        api.init("file.bin", "application/octet-stream", 500)
+        api.init("file.bin", "application/octet-stream", 500L)
         val url = capturedUrl!!
         assertTrue(url.contains("file_name=file.bin"))
         assertTrue(url.contains("content_type=application%2Foctet-stream"))
@@ -120,5 +120,26 @@ class UploadsApiTest {
         val url = capturedUrl!!
         assertTrue(url.contains("file_name=photo.jpg"))
         assertTrue(url.contains("content_type=image%2Fjpeg"))
+    }
+
+    @Test
+    fun init_largeFileSize_noOverflow() = kotlinx.coroutines.test.runTest {
+        var capturedUrl: String? = null
+        val engine = MockEngine { request ->
+            capturedUrl = request.url.toString()
+            respond(
+                """{"upload_id":"up-big","key":"videos/large.mp4","chunk_size":5242880,"part_count":400,"parts":[]}""",
+                status = HttpStatusCode.OK,
+                headers = headersOf(HttpHeaders.ContentType, ContentType.Application.Json.toString()),
+            )
+        }
+        val client = HttpClient(engine) {
+            install(ContentNegotiation) { json(json) }
+        }
+        val api = UploadsApi(client)
+        val largeSize = 3_000_000_000L // >2GB, would overflow Int
+        api.init("large.mp4", "video/mp4", largeSize)
+        val url = capturedUrl!!
+        assertTrue(url.contains("total_size=3000000000"))
     }
 }
