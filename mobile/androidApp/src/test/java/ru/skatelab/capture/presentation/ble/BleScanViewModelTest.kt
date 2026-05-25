@@ -137,4 +137,54 @@ class BleScanViewModelTest {
 
             collectJob.cancel()
         }
+
+    @Test
+    fun factoryResetSensor_success_updatesStatus() =
+        testScope.runTest {
+            coEvery { factoryResetSensorUseCase.invoke(SensorId.LEFT) } returns Result.success(Unit)
+
+            viewModel.factoryResetSensor(SensorId.LEFT)
+            advanceUntilIdle()
+
+            val status = viewModel.factoryResetStatus.value
+            assertTrue("Status should contain OK", status!!.contains("OK"))
+        }
+
+    @Test
+    fun factoryResetSensor_failure_updatesStatusWithError() =
+        testScope.runTest {
+            coEvery { factoryResetSensorUseCase.invoke(SensorId.RIGHT) } returns
+                Result.failure(IllegalStateException("GATT error"))
+
+            viewModel.factoryResetSensor(SensorId.RIGHT)
+            advanceUntilIdle()
+
+            val status = viewModel.factoryResetStatus.value
+            assertTrue("Status should contain error", status!!.contains("Ошибка"))
+        }
+
+    @Test
+    fun accCalibrateSensor_success_updatesStatus() =
+        testScope.runTest {
+            coEvery { accCalibrateSensorUseCase.invoke(SensorId.LEFT) } returns Result.success(Unit)
+
+            viewModel.accCalibrateSensor(SensorId.LEFT)
+            advanceUntilIdle()
+
+            val status = viewModel.factoryResetStatus.value
+            assertTrue("Status should contain OK", status!!.contains("OK"))
+        }
+
+    @Test
+    fun accCalibrateSensor_failure_updatesStatusWithError() =
+        testScope.runTest {
+            coEvery { accCalibrateSensorUseCase.invoke(SensorId.RIGHT) } returns
+                Result.failure(IllegalStateException("Not horizontal"))
+
+            viewModel.accCalibrateSensor(SensorId.RIGHT)
+            advanceUntilIdle()
+
+            val status = viewModel.factoryResetStatus.value
+            assertTrue("Status should contain error", status!!.contains("Ошибка"))
+        }
 }
