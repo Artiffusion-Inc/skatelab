@@ -301,7 +301,7 @@ class KableBleRepository
 
         override suspend fun readBattery(sensorId: SensorId): Result<Int> {
             val result = readRegisterResponse(sensorId, 0x64)
-            return result.map { data -> rawToPercent(data[0].toInt()) }
+            return result.map { data -> BleRepository.rawBatteryToPercent(data[0].toInt()) }
         }
 
         override suspend fun readChipTime(sensorId: SensorId): Result<Long> {
@@ -502,23 +502,4 @@ class KableBleRepository
                 current.toMutableMap().apply { put(sensorId, state) }
             }
         }
-
-        /**
-         * Convert raw battery register value to percentage.
-         * Register 0x64 returns centivolts (0.01V). WT901BLECL uses a single-cell
-         * Li-ion battery (3.0-4.2V = 300-420 raw).
-         */
-        private fun rawToPercent(raw: Int): Int =
-            when {
-                raw >= 415 -> 100
-                raw >= 405 -> 90
-                raw >= 395 -> 75
-                raw >= 385 -> 60
-                raw >= 375 -> 45
-                raw >= 365 -> 30
-                raw >= 355 -> 20
-                raw >= 345 -> 10
-                raw >= 335 -> 5
-                else -> 0
-            }
     }

@@ -58,4 +58,25 @@ interface BleRepository {
     fun getAddressForSensor(sensorId: SensorId): String?
 
     enum class ConnectionState { DISCONNECTED, CONNECTING, CONNECTED, RECONNECTING }
+
+    companion object {
+        /**
+         * Convert raw battery register value (centivolts) to percentage.
+         * WT901BLECL uses a single-cell Li-ion battery (3.0–4.2V = 300–420 raw).
+         * Based on standard Li-ion discharge curve.
+         */
+        fun rawBatteryToPercent(raw: Int): Int =
+            when {
+                raw >= 415 -> 100
+                raw >= 405 -> 90
+                raw >= 395 -> 75
+                raw >= 385 -> 60
+                raw >= 375 -> 45
+                raw >= 365 -> 30
+                raw >= 355 -> 20
+                raw >= 345 -> 10
+                raw >= 335 -> 5
+                else -> 0
+            }
+    }
 }
