@@ -1,5 +1,6 @@
 package ru.skatelab.capture.data.ble
 
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
@@ -19,7 +20,9 @@ class NoOpBleRepositoryTest {
     @Test
     fun scanResults_isEmpty() =
         runTest {
-            assertTrue(repo.scanResults.collect {} || true)
+            // Collect first emission (empty list) and verify
+            val first = repo.scanResults.first()
+            assertTrue(first.isEmpty())
         }
 
     @Test
