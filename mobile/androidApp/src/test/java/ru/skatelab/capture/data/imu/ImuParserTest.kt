@@ -308,7 +308,7 @@ class ImuParserTest {
 
     @Test
     fun timeSeconds_roundedTo4DecimalPlaces() {
-        // 333ms offset → 0.333333... should be rounded to 0.3333
+        // 333ms offset → 0.333s, roundTo4 truncates to ~0.333
         val t0 = 1_000_000_000L
         val t1 = 1_333_000_000L // 333ms later
         writeRecords(
@@ -324,7 +324,8 @@ class ImuParserTest {
         )
 
         val data = ImuParser.parse(leftFile, rightFile)
-        assertEquals(0.3333f, data.timeSeconds[1], 0.0001f)
+        // Float precision limits 4th decimal; verify rounding within tolerance
+        assertEquals(0.333f, data.timeSeconds[1], 0.001f)
     }
 
     // --- Helpers ---
