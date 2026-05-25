@@ -11,7 +11,7 @@ import kotlinx.serialization.Serializable
 
 class UploadsApi(private val client: HttpClient) {
     /** Initialize a multipart upload. Backend uses query parameters. */
-    suspend fun init(fileName: String, contentType: String, totalSize: Int): UploadInitResponse =
+    suspend fun init(fileName: String, contentType: String, totalSize: Long): UploadInitResponse =
         client.post("/uploads/init") {
             parameter("file_name", fileName)
             parameter("content_type", contentType)

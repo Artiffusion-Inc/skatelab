@@ -7,6 +7,7 @@ import io.ktor.http.*
 import java.io.File
 import java.io.RandomAccessFile
 import java.util.concurrent.ConcurrentLinkedQueue
+import java.util.concurrent.atomic.AtomicLong
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
@@ -50,7 +51,7 @@ class ChunkedUploader(
         onProgress: ((uploaded: Long, total: Long) -> Unit)? = null,
     ): String =
         withContext(Dispatchers.IO) {
-            val totalSize = file.length().toInt()
+            val totalSize = file.length()
 
             // Step 1: init multipart upload
             val init: UploadInitResponse = uploadsApi.init(fileName, contentType, totalSize)
@@ -59,23 +60,21 @@ class ChunkedUploader(
             // Step 2: upload parts with bounded concurrency
             val semaphore = Semaphore(CONCURRENCY)
             val results = ConcurrentLinkedQueue<CompletedPart>()
-            var uploaded = 0L
+            val uploaded = AtomicLong(0L)
 
             coroutineScope {
                 for (part in init.parts) {
                     launch {
                         semaphore.withPermit {
-                            val start = (part.partNumber - 1) * chunkSize
+                            val start = (part.partNumber - 1L) * chunkSize
                             val end = minOf(start + chunkSize, totalSize)
                             val chunkBytes = readFileChunk(file, start, end)
 
                             val etag = uploadPart(part.url, chunkBytes)
                             results.add(CompletedPart(part.partNumber, etag))
 
-                            synchronized(this@withContext) {
-                                uploaded += (end - start)
-                                onProgress?.invoke(uploaded, totalSize.toLong())
-                            }
+                            val bytesUploaded = uploaded.addAndGet(end - start)
+                            onProgress?.invoke(bytesUploaded, totalSize)
                         }
                     }
                 }
@@ -92,12 +91,12 @@ class ChunkedUploader(
 
     private fun readFileChunk(
         file: File,
-        start: Int,
-        end: Int,
+        start: Long,
+        end: Long,
     ): ByteArray {
         return RandomAccessFile(file, "r").use { raf ->
-            raf.seek(start.toLong())
-            val size = end - start
+            raf.seek(start)
+            val size = (end - start).toInt()
             val buffer = ByteArray(size)
             raf.readFully(buffer, 0, size)
             buffer
