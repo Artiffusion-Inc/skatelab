@@ -23,7 +23,7 @@ services:
       VASTAI_API_KEY: ${VASTAI_API_KEY:-}
       RESEND_API_KEY: ${RESEND_API_KEY:-}
       POSTHOG_API_KEY: ${POSTHOG_API_KEY:-}
-      POSTHOG_HOST: ${POSTHOG_HOST:-https://ph.skatelab.ru}
+      POSTHOG_HOST: ${POSTHOG_HOST:-https://us.i.posthog.com}
     healthcheck:
       test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/v1/health', timeout=2)\""]
       interval: 30s
@@ -45,7 +45,7 @@ services:
         condition: service_healthy
     environment:
       NEXT_PUBLIC_POSTHOG_KEY: ${NEXT_PUBLIC_POSTHOG_KEY:-}
-      NEXT_PUBLIC_POSTHOG_HOST: ${NEXT_PUBLIC_POSTHOG_HOST:-https://ph.skatelab.ru}
+      NEXT_PUBLIC_POSTHOG_HOST: ${NEXT_PUBLIC_POSTHOG_HOST:-https://us.i.posthog.com}
       POSTHOG_PERSONAL_API_KEY: ${POSTHOG_PERSONAL_API_KEY:-}
     healthcheck:
       test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1:3000/"]
