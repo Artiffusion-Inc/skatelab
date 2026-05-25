@@ -29,7 +29,7 @@ class TimeSyncManager
             chipTimeMs: Long,
         ) {
             val samples =
-                initialSamples.getOrPut(sensorId) {
+                initialSamples.computeIfAbsent(sensorId) {
                     Collections.synchronizedList(mutableListOf())
                 }
             synchronized(samples) {
