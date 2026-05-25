@@ -60,9 +60,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
               bootstrapFlags
             >
               <PostHogPageView />
-              <Providers nonce={nonce}>
-                {children}
-              </Providers>
+              <Providers nonce={nonce}>{children}</Providers>
               <ConsentBanner />
               <Toaster richColors position="bottom-center" toastOptions={{ duration: 3000 }} />
             </PostHogProvider>

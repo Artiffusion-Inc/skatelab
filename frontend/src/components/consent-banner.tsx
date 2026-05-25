@@ -87,7 +87,7 @@ export default function ConsentBanner() {
                   <input
                     type="checkbox"
                     checked={analytics}
-                    onChange={(e) => setAnalytics(e.target.checked)}
+                    onChange={e => setAnalytics(e.target.checked)}
                     className="accent-primary"
                   />
                   <span className="sh-body-md text-ink">Analytics (pageviews, events)</span>
@@ -96,10 +96,12 @@ export default function ConsentBanner() {
                   <input
                     type="checkbox"
                     checked={recordings}
-                    onChange={(e) => setRecordings(e.target.checked)}
+                    onChange={e => setRecordings(e.target.checked)}
                     className="accent-primary"
                   />
-                  <span className="sh-body-md text-ink">Session Recordings (heatmaps, replays)</span>
+                  <span className="sh-body-md text-ink">
+                    Session Recordings (heatmaps, replays)
+                  </span>
                 </label>
               </div>
               <div className="flex items-center gap-3">

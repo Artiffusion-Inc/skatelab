@@ -1,12 +1,6 @@
 "use client"
 
-import {
-  createContext,
-  useCallback,
-  useContext,
-  useState,
-  type ReactNode,
-} from "react"
+import { createContext, useCallback, useContext, useState, type ReactNode } from "react"
 import { posthog } from "posthog-js"
 import { posthogKey } from "@/lib/env"
 import { useMountEffect } from "@/lib/useMountEffect"
