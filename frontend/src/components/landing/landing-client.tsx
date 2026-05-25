@@ -261,7 +261,6 @@ export function LandingClient() {
     return () => window.removeEventListener("pageshow", onPageShow)
   })
 
-
   return (
     <>
       <div className="landing-page overflow-x-hidden" ref={containerRef}>
@@ -283,7 +282,7 @@ export function LandingClient() {
           <CTASection />
         </main>
         <FooterSection />
-        <MobileCTABar />
+        <MobileCTABar hidden={false} />
       </div>
     </>
   )

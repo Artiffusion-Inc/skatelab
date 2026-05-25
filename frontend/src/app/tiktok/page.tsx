@@ -1,7 +1,10 @@
 import Link from "next/link"
 
 const LINKS = [
-  { href: "/register?utm_source=tiktok&utm_medium=organic&utm_campaign=bio_link", label: "Start free analysis" },
+  {
+    href: "/register?utm_source=tiktok&utm_medium=organic&utm_campaign=bio_link",
+    label: "Start free analysis",
+  },
   { href: "/login?utm_source=tiktok&utm_medium=organic&utm_campaign=bio_link", label: "Login" },
   { href: "/?utm_source=tiktok&utm_medium=organic&utm_campaign=bio_link", label: "Learn more" },
 ]
@@ -12,7 +15,7 @@ export default function TikTokPage() {
       <h1 className="sh-display-lg text-ink mb-2">SkateLab</h1>
       <p className="sh-body-md text-ink-mute mb-8">AI coach for figure skating</p>
       <div className="w-full max-w-sm space-y-3">
-        {LINKS.map((link) => (
+        {LINKS.map(link => (
           <Link
             key={link.href}
             href={link.href}

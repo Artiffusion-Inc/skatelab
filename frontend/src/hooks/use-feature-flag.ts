@@ -14,7 +14,7 @@ export function useFeatureFlagSafe(key: FlagKey): FlagResult {
   if (!flag) return { enabled: false }
   if (typeof flag === "boolean") return { enabled: flag }
   if (typeof flag === "string") {
-    if (flag.startsWith("holdout-")) return { enabled: false }
+    if ((flag as string).startsWith("holdout-")) return { enabled: false }
     return { enabled: true, variant: flag }
   }
   return { enabled: flag.enabled ?? false, variant: flag.variant }
