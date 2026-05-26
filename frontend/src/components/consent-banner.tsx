@@ -6,7 +6,7 @@ import { useConsent } from "@/components/consent-provider"
 import { Button } from "@/components/ui/button"
 import FocusLock from "react-focus-lock"
 
-export default function ConsentBanner() {
+export function ConsentBanner() {
   const t = useTranslations("landing")
   const { setConsent, showBanner } = useConsent()
   const [showCustomize, setShowCustomize] = useState(false)

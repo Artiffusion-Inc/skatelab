@@ -1,0 +1,38 @@
+name: Artifact Cleanup
+
+on:
+  schedule:
+    - cron: "17 3 * * *" # daily at 03:17 UTC
+  workflow_dispatch:
+
+permissions:
+  actions: write
+
+jobs:
+  cleanup:
+    name: Delete old artifacts
+    runs-on: blacksmith-2vcpu-ubuntu-2404-arm
+    timeout-minutes: 10
+    steps:
+      - name: Cleanup via GitHub CLI
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          CUTOFF=$(date -d "-7 days" +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || date -v-7d +%Y-%m-%dT%H:%M:%SZ)
+          DELETED=0
+
+          while IFS=' ' read -r id name created; do
+            if [[ "$created" < "$CUTOFF" ]]; then
+              if gh api "repos/{owner}/{repo}/actions/artifacts/$id" -X DELETE 2>/dev/null; then
+                echo "Deleted: $name ($id) created $created"
+                DELETED=$((DELETED + 1))
+              else
+                echo "Failed: $name ($id)"
+              fi
+            fi
+          done < <(gh api "repos/{owner}/{repo}/actions/artifacts?per_page=100" --paginate \
+            --jq '.artifacts[] | select(.expired == false) | "\(.id) \(.name) \(.created_at)"')
+
+          echo "### Artifact Cleanup" >> "$GITHUB_STEP_SUMMARY"
+          echo "Cutoff: $CUTOFF" >> "$GITHUB_STEP_SUMMARY"
+          echo "Deleted: $DELETED artifacts" >> "$GITHUB_STEP_SUMMARY"

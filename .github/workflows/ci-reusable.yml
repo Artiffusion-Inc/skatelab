@@ -141,16 +141,20 @@ jobs:
           --durations-path=.test_durations
       - name: Upload coverage data
         if: always()
+        continue-on-error: true
         uses: actions/upload-artifact@v7
         with:
           name: coverage-group-${{ matrix.group }}
           path: .coverage
+          retention-days: 3
       - name: Upload test results
         if: ${{ !cancelled() }}
+        continue-on-error: true
         uses: actions/upload-artifact@v7
         with:
           name: test-results-group-${{ matrix.group }}
           path: junit.xml
+          retention-days: 3
 
   coverage:
     name: Coverage combine
@@ -253,6 +257,7 @@ jobs:
           echo '```' >> "$GITHUB_STEP_SUMMARY"
       - name: Upload bundle analyzer
         if: always()
+        continue-on-error: true
         uses: actions/upload-artifact@v7
         with:
           name: bundle-analyzer
@@ -260,6 +265,7 @@ jobs:
           retention-days: 14
       - name: Upload build output for Docker
         if: always()
+        continue-on-error: true
         uses: actions/upload-artifact@v7
         with:
           name: frontend-build-output
