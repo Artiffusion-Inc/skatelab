@@ -27,7 +27,10 @@ def upgrade() -> None:
         result = conn.execute(
             sa.text(
                 "UPDATE refresh_tokens SET user_agent_hash = 'legacy' "
-                "WHERE user_agent_hash IS NULL LIMIT 1000"
+                "WHERE ctid IN ("
+                "  SELECT ctid FROM refresh_tokens "
+                "  WHERE user_agent_hash IS NULL LIMIT 1000"
+                ")"
             )
         )
         if result.rowcount == 0:
