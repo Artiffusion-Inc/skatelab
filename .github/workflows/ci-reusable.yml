@@ -331,21 +331,31 @@ jobs:
     steps:
       - uses: actions/checkout@v6
       - name: Download build output
+        id: download-artifact
         uses: actions/download-artifact@v5
+        continue-on-error: true
         with:
           name: frontend-build-output
           path: frontend
       - name: Setup Blacksmith Builder
+        if: steps.download-artifact.outcome == 'success'
         uses: useblacksmith/setup-docker-builder@v1
         with:
           max-cache-size-mb: "10240"
       - name: Build frontend image
+        if: steps.download-artifact.outcome == 'success'
         uses: useblacksmith/build-push-action@v2
         with:
           context: frontend
           file: frontend/Containerfile.ci
           push: false
           tags: skatelab-frontend:ci
+      - name: Warn on missing artifact
+        if: steps.download-artifact.outcome != 'success'
+        run: |
+          echo "::warning::frontend-build-output artifact not found (quota exceeded?). Skipping Docker build."
+          echo "### :warning: Docker Build (Frontend) skipped" >> "$GITHUB_STEP_SUMMARY"
+          echo "Artifact not available — Docker build skipped. Deploy will build from source." >> "$GITHUB_STEP_SUMMARY"
 
   ci-passed:
     name: CI Summary
