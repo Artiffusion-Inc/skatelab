@@ -140,17 +140,21 @@ jobs:
 
       - name: SCP deploy files to VPS
         run: |
-          DST="${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}:/opt/skatelab"
-          scp -i ~/.ssh/deploy_key -P 43210 \
+          SSH="${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}"
+          SSH_OPTS="-i ~/.ssh/deploy_key -P 43210"
+          ssh $SSH_OPTS $SSH "mkdir -p /opt/skatelab/prometheus/rules /opt/infra/services/caddy"
+          scp $SSH_OPTS \
             infra/deploy.sh \
             infra/compose.prod.yaml \
             infra/caddy/Caddyfile \
+            $SSH:/opt/skatelab/
+          scp $SSH_OPTS \
             infra/prometheus/prometheus.yml \
-            $DST/
-          scp -i ~/.ssh/deploy_key -P 43210 \
+            $SSH:/opt/skatelab/prometheus/
+          scp $SSH_OPTS \
             infra/prometheus/rules/alerts.yml \
             infra/prometheus/rules/recording.yml \
-            $DST/prometheus/rules/
+            $SSH:/opt/skatelab/prometheus/rules/
 
   deploy:
     name: Deploy to VPS
