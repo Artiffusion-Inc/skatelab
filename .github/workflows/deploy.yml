@@ -142,7 +142,7 @@ jobs:
         run: |
           SSH="${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}"
           SSH_KEY="-i ~/.ssh/deploy_key -o StrictHostKeyChecking=no"
-          ssh $SSH_KEY -p 43210 $SSH "mkdir -p /opt/skatelab/prometheus/rules /opt/infra/services/caddy"
+          ssh $SSH_KEY -p 43210 $SSH "mkdir -p /opt/skatelab/prometheus/rules /opt/infra/services/caddy && rm -rf /opt/skatelab/prometheus/prometheus.yml"
           scp $SSH_KEY -P 43210 \
             infra/deploy.sh \
             infra/compose.prod.yaml \
