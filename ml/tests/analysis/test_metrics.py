@@ -883,3 +883,40 @@ def test_compute_hard_landing():
     hard_score = analyzer.compute_hard_landing(poses, phases, fps=30.0)
 
     assert 0.0 <= hard_score <= 1.0
+
+
+def test_analyze_accepts_3d_poses():
+    """BiomechanicsAnalyzer.analyze() accepts (N, 17, 3) input."""
+    from src.analysis.element_defs import get_element_def
+    from src.analysis.metrics import BiomechanicsAnalyzer
+    from src.types import ElementPhase
+
+    element_def = get_element_def("waltz_jump")
+    if element_def is None:
+        pytest.skip("waltz_jump element def not available")
+
+    analyzer = BiomechanicsAnalyzer(element_def)
+    rng = np.random.default_rng(42)
+    poses_3d = rng.random((50, 17, 3)).astype(np.float32)
+    phases = ElementPhase(name="waltz_jump", start=5, takeoff=10, peak=20, landing=30, end=40)
+    metrics = analyzer.analyze(poses_3d, phases, fps=30.0)
+    assert isinstance(metrics, list)
+    assert len(metrics) > 0
+
+
+def test_analyze_2d_backward_compat():
+    """BiomechanicsAnalyzer.analyze() still works with (N, 17, 2) input."""
+    from src.analysis.element_defs import get_element_def
+    from src.analysis.metrics import BiomechanicsAnalyzer
+    from src.types import ElementPhase
+
+    element_def = get_element_def("waltz_jump")
+    if element_def is None:
+        pytest.skip("waltz_jump element def not available")
+
+    analyzer = BiomechanicsAnalyzer(element_def)
+    rng = np.random.default_rng(42)
+    poses_2d = rng.random((50, 17, 2)).astype(np.float32)
+    phases = ElementPhase(name="waltz_jump", start=5, takeoff=10, peak=20, landing=30, end=40)
+    metrics = analyzer.analyze(poses_2d, phases, fps=30.0)
+    assert isinstance(metrics, list)
