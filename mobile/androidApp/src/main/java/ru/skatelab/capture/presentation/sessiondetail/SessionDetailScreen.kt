@@ -90,7 +90,7 @@ fun SessionDetailScreen(
             title = { Text(stringResource(R.string.session_detail_title)) },
             navigationIcon = {
                 IconButton(onClick = onBack) {
-                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.nav_back))
                 }
             },
         )
@@ -273,7 +273,7 @@ private fun ImuChartSection(
                         )
                     }
                     Spacer(modifier = Modifier.width(4.dp))
-                    Text("Левый", style = MaterialTheme.typography.labelSmall, color = LeftColor)
+                    Text(stringResource(R.string.session_detail_left_sensor), style = MaterialTheme.typography.labelSmall, color = LeftColor)
                 }
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Canvas(modifier = Modifier.width(12.dp).height(3.dp)) {
@@ -285,7 +285,7 @@ private fun ImuChartSection(
                         )
                     }
                     Spacer(modifier = Modifier.width(4.dp))
-                    Text("Правый", style = MaterialTheme.typography.labelSmall, color = RightColor)
+                    Text(stringResource(R.string.session_detail_right_sensor), style = MaterialTheme.typography.labelSmall, color = RightColor)
                 }
             }
         }
@@ -295,12 +295,12 @@ private fun ImuChartSection(
             horizontalArrangement = Arrangement.SpaceBetween,
         ) {
             Text(
-                "Л: пик ${leftPeak}$unit, средн ${leftAvg}$unit",
+                stringResource(R.string.session_detail_left_summary, "$leftPeak$unit", "$leftAvg$unit"),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Text(
-                "П: пик ${rightPeak}$unit, средн ${rightAvg}$unit",
+                stringResource(R.string.session_detail_right_summary, "$rightPeak$unit", "$rightAvg$unit"),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -397,7 +397,7 @@ private fun DetailsTab(
         )
 
         Spacer(modifier = Modifier.height(8.dp))
-        Text("Файлы", style = MaterialTheme.typography.titleMedium)
+        Text(stringResource(R.string.session_detail_files), style = MaterialTheme.typography.titleMedium)
         HorizontalDivider()
         Text(stringResource(R.string.detail_video_size, fileSizeLabel(session.videoFile)), style = MaterialTheme.typography.bodyMedium)
         Text(stringResource(R.string.detail_imu_left, fileSizeLabel(session.imuLeftFile)), style = MaterialTheme.typography.bodyMedium)
