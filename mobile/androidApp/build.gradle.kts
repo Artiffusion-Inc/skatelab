@@ -141,6 +141,7 @@ dependencies {
     androidTestImplementation(libs.test.ext.junit)
     androidTestImplementation(libs.espresso.core)
     androidTestImplementation("androidx.compose.ui:ui-test-junit4")
+    androidTestImplementation("androidx.compose.ui:ui-test-junit4-accessibility:1.8.2")
     androidTestImplementation(libs.test.runner)
     androidTestImplementation(libs.test.rules)
 }
