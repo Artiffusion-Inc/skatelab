@@ -160,10 +160,10 @@ pre-push:
         - lint
       run: |
         cd frontend
-        if [ -f node_modules/.bin/impeccable ] || command -v impeccable &> /dev/null; then
+        if [ -f node_modules/.bin/impeccable ] || command -v impeccable > /dev/null 2>&1; then
           impeccable detect --json src/ 2>&1 | node ../scripts/design/impeccable-report.js || true
         fi
-        if command -v sg &> /dev/null; then
+        if command -v sg > /dev/null 2>&1; then
           sg scan -c ../sgconfig.yml frontend/ || true
         fi
         node ../scripts/design/design-lock.js check || exit 1
@@ -171,7 +171,7 @@ pre-push:
     actionlint:
       glob: ".github/workflows/*.{yml,yaml}"
       run: |
-        if ! command -v actionlint &> /dev/null; then
+        if ! command -v actionlint > /dev/null 2>&1; then
           exit 0
         fi
         actionlint -config-file .github/actionlint.yaml {staged_files}

@@ -258,13 +258,16 @@ async def process_video_task(
     """arq task: dispatch video processing to Vast.ai Serverless GPU."""
     if ml_flags is None:
         ml_flags = {
-            "depth": False,
+            "lift_3d": True,
             "optical_flow": False,
             "segment": False,
             "foot_track": False,
             "matting": False,
             "inpainting": False,
         }
+    # Backward compat: migrate legacy "depth" key to "lift_3d"
+    if "depth" in ml_flags and "lift_3d" not in ml_flags:
+        ml_flags["lift_3d"] = ml_flags.pop("depth")
     settings = get_settings()
     valkey = get_valkey()
 

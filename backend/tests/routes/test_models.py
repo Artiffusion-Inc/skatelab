@@ -50,7 +50,7 @@ async def test_list_models_available_flags(client, fake_models_dir: Path):
     by_id = {m["id"]: m for m in data}
 
     # These files were created
-    assert by_id["depth"]["available"] is True
+    assert by_id["lift_3d"]["available"] is True
     assert by_id["optical_flow"]["available"] is True
     assert by_id["segment"]["available"] is True
 
@@ -70,7 +70,7 @@ async def test_list_models_size_mb_when_available(client, fake_models_dir: Path)
     by_id = {m["id"]: m for m in data}
 
     # Available models have size_mb set
-    assert by_id["depth"]["size_mb"] == 5.0
+    assert by_id["lift_3d"]["size_mb"] == 5.0
     assert by_id["optical_flow"]["size_mb"] == 12.5
     assert by_id["segment"]["size_mb"] == 45.0
 

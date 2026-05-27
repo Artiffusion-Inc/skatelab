@@ -55,7 +55,7 @@ class ProcessController(Controller):
         await create_task_state(task_id, video_key=data.video_key, user_id=str(user.id))
 
         ml_flags = MLModelFlags(
-            depth=data.depth,
+            lift_3d=data.lift_3d,
             optical_flow=data.optical_flow,
             segment=data.segment,
             foot_track=data.foot_track,
