@@ -39,6 +39,20 @@ jobs:
           path: mobile/.gradle
       - name: Build debug APK
         run: ./gradlew assembleDebug --no-configuration-cache
+      - name: Check APK size
+        run: |
+          APK_PATH=$(find androidApp/build/outputs/apk/debug -name '*.apk' | head -1)
+          if [ -z "$APK_PATH" ]; then
+            echo "::error::No APK found"
+            exit 1
+          fi
+          APK_SIZE=$(stat -c%s "$APK_PATH")
+          APK_MB=$(( APK_SIZE / 1048576 ))
+          echo "APK: $APK_PATH"
+          echo "APK size: $APK_SIZE bytes ($APK_MB MB)"
+          if [ $APK_SIZE -gt 52428800 ]; then
+            echo "::warning::APK exceeds 50 MB (current: $APK_MB MB)"
+          fi
       - uses: actions/upload-artifact@v7
         with:
           name: apk-debug
