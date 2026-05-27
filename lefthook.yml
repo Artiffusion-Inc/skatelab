@@ -65,7 +65,7 @@ pre-commit:
       tags:
         - lint
       run: |
-        if ! command -v sg &> /dev/null; then
+        if ! command -v sg >/dev/null 2>&1; then
           exit 0
         fi
         sg scan -c sgconfig.yml backend/ ml/ frontend/ mobile/ || true

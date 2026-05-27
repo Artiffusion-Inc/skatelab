@@ -57,12 +57,14 @@ _PROJECT_ROOT = Path(os.environ.get("PROJECT_ROOT", "/app"))
 MOGANET_MODEL_PATH = _PROJECT_ROOT / "data/models/moganet/moganet_b_ap2d_384x288.onnx"
 RF_DETR_MODEL_PATH = _PROJECT_ROOT / "data/models/rf_detr_nano.onnx"
 TAS_MODEL_PATH = _PROJECT_ROOT / "data/models/tas/bigr_refiner_best.onnx"
+TCPFORMER_MODEL_PATH = _PROJECT_ROOT / "data/models/tcpformer/TCPFormer_ap3d_81.onnx"
 
 # S3 keys for each model
 _S3_MODELS: list[tuple[Path, str]] = [
     (MOGANET_MODEL_PATH, "models/moganet/moganet_b_ap2d_384x288.onnx"),
     (RF_DETR_MODEL_PATH, "models/rf_detr_nano.onnx"),
     (TAS_MODEL_PATH, "models/tas/bigr_refiner_best.onnx"),
+    (TCPFORMER_MODEL_PATH, "models/tcpformer/TCPFormer_ap3d_81.onnx"),
 ]
 
 # TAS segmenter (loaded at startup, None if model unavailable)
@@ -76,7 +78,7 @@ _models_ready = False
 
 async def _background_init():
     """Download models + warmup CUDA — runs after server is accepting requests."""
-    global _models_ready, _tas_segmenter  # noqa: PLW0603
+    global _models_ready, _tas_segmenter, _tcpformer_extractor  # noqa: PLW0603
     try:
         if not MOGANET_MODEL_PATH.exists():
             raise OSError(f"Model not found: {MOGANET_MODEL_PATH}")
@@ -105,6 +107,25 @@ async def _background_init():
                 logger.warning("TAS model not found at %s — timeline unavailable", TAS_MODEL_PATH)
         except (ValueError, RuntimeError, OSError):
             logger.warning("TAS segmenter not loaded — timeline unavailable", exc_info=True)
+
+        # Load TCPFormer 3D lifter if model exists
+        _tcpformer_extractor = None
+        try:
+            if TCPFORMER_MODEL_PATH.exists():
+                from src.pose_3d.onnx_extractor import ONNXPoseExtractor
+
+                _tcpformer_extractor = ONNXPoseExtractor(
+                    model_path=str(TCPFORMER_MODEL_PATH),
+                    device=cfg.device,
+                    temporal_window=81,
+                )
+                logger.info("TCPFormer 3D lifter loaded at startup (ONNX)")
+            else:
+                logger.warning(
+                    "TCPFormer model not found at %s — 3D lift disabled", TCPFORMER_MODEL_PATH
+                )
+        except (ValueError, RuntimeError, OSError):
+            logger.warning("TCPFormer not loaded — 3D lift disabled", exc_info=True)
 
         _models_ready = True
         logger.info("Background init complete — models ready")
@@ -187,6 +208,7 @@ class ProcessRequest(BaseModel):
 
 class ProcessResponse(BaseModel):
     poses_s3_key: str | None = None
+    poses_3d_s3_key: str | None = None
     metrics_s3_key: str | None = None
     stats: dict
     metrics: list | None = None
@@ -427,6 +449,9 @@ async def process(req: ProcessRequest):
                     progress_cb=None,
                 )
 
+                poses_3d_norm = None
+                poses_3d_key = ""
+
                 # --- TAS element segmentation (concurrent with biomechanics) ---
                 def _run_tas_sync():
                     """Blocking TAS ONNX inference — runs in thread pool for true parallelism."""
@@ -471,6 +496,18 @@ async def process(req: ProcessRequest):
                         recommender = Recommender()
                         recommendations = recommender.recommend(metrics, req.element_type)
 
+                # --- 3D Lift (TCPFormer) ---
+                if _tcpformer_extractor is not None:
+                    try:
+                        from src.pose_estimation.normalizer import PoseNormalizer
+
+                        poses_3d_raw = _tcpformer_extractor.estimate_3d(prepared.poses_norm)
+                        normalizer_3d = PoseNormalizer(target_spine_length=0.4)
+                        poses_3d_norm = normalizer_3d.normalize_3d(poses_3d_raw)
+                        logger.info("3D lift complete: %d frames", len(poses_3d_norm))
+                    except Exception:
+                        logger.warning("3D lift failed — continuing with 2D", exc_info=True)
+
                 # Wait for TAS to finish
                 segments_result = await segments_coro
                 # --- Upload results to S3 ---
@@ -483,6 +520,15 @@ async def process(req: ProcessRequest):
                 poses_local = Path(tmpdir) / "poses.npy"
                 np.save(str(poses_local), prepared.poses_norm)
                 upload_tasks.append(_s3_upload(s3, req.s3_bucket, poses_key, str(poses_local)))
+
+                # Save 3D poses if available
+                if poses_3d_norm is not None:
+                    poses_3d_local = Path(tmpdir) / "poses_3d.npy"
+                    np.save(str(poses_3d_local), poses_3d_norm)
+                    poses_3d_key = poses_key.replace("_poses.npy", "_poses_3d.npy")
+                    upload_tasks.append(
+                        _s3_upload(s3, req.s3_bucket, poses_3d_key, str(poses_3d_local))
+                    )
 
                 # Save metrics + phases + recommendations as JSON
                 import json as _json
@@ -511,6 +557,7 @@ async def process(req: ProcessRequest):
                 INFERENCE_REQUESTS.labels(status="success").inc()
                 return ProcessResponse(
                     poses_s3_key=poses_key,
+                    poses_3d_s3_key=poses_3d_key if poses_3d_norm is not None else None,
                     metrics_s3_key=metrics_key,
                     stats=metrics_data["stats"],
                     metrics=metrics_data["metrics"],
