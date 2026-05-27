@@ -152,6 +152,7 @@
     <string name="processing_check_network">Check your internet connection and try again.</string>
     <string name="processing_retry">Retry</string>
     <string name="processing_go_back">Go back</string>
+    <string name="processing_error">Processing error</string>
 
     <!-- Session detail (presentation layer) -->
     <string name="session_detail_left_sensor">Left</string>

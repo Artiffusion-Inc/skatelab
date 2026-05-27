@@ -69,7 +69,7 @@ fun ProcessingScreen(
             is ProcessingUiState.Idle -> {
                 CircularProgressIndicator(modifier = Modifier.size(48.dp))
                 Spacer(Modifier.height(16.dp))
-                Text("Preparing...", style = MaterialTheme.typography.bodyLarge)
+                Text(stringResource(R.string.processing_preparing), style = MaterialTheme.typography.bodyLarge)
             }
 
             is ProcessingUiState.Progress -> {
@@ -94,7 +94,7 @@ fun ProcessingScreen(
                 // Handled by LaunchedEffect — show spinner while navigating
                 CircularProgressIndicator(modifier = Modifier.size(48.dp))
                 Spacer(Modifier.height(16.dp))
-                Text("Done!", style = MaterialTheme.typography.bodyLarge)
+                Text(stringResource(R.string.processing_done), style = MaterialTheme.typography.bodyLarge)
             }
 
             is ProcessingUiState.Failed -> {
@@ -107,13 +107,13 @@ fun ProcessingScreen(
                 )
                 Spacer(Modifier.height(12.dp))
                 Text(
-                    text = if (isNetworkError) "Нет подключения" else "Ошибка обработки",
+                    text = if (isNetworkError) stringResource(R.string.processing_no_connection) else stringResource(R.string.processing_error),
                     style = MaterialTheme.typography.headlineSmall,
                     color = MaterialTheme.colorScheme.error,
                 )
                 Spacer(Modifier.height(8.dp))
                 Text(
-                    text = if (isNetworkError) "Проверьте подключение к интернету и повторите." else "Ошибка обработки",
+                    text = if (isNetworkError) stringResource(R.string.processing_check_network) else stringResource(R.string.processing_error),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -122,14 +122,14 @@ fun ProcessingScreen(
                     onClick = { viewModel.retry(videoKey, sessionId) },
                     modifier = Modifier.fillMaxWidth(),
                 ) {
-                    Text("Retry")
+                    Text(stringResource(R.string.processing_retry))
                 }
                 Spacer(Modifier.height(8.dp))
                 OutlinedButton(
                     onClick = onBack,
                     modifier = Modifier.fillMaxWidth(),
                 ) {
-                    Text("Go back")
+                    Text(stringResource(R.string.processing_go_back))
                 }
             }
         }
