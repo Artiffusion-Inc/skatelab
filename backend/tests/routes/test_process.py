@@ -23,7 +23,7 @@ async def test_enqueue_process(client, auth_headers):
         "frame_skip": 4,
         "tracking": "auto",
         "session_id": "sess_123",
-        "depth": False,
+        "lift_3d": False,
         "optical_flow": False,
     }
 
@@ -49,7 +49,7 @@ async def test_enqueue_process(client, auth_headers):
 
     # Verify MLModelFlags are passed correctly
     ml_flags = call_kwargs["ml_flags"]
-    assert ml_flags.depth is False
+    assert ml_flags.lift_3d is False
     assert ml_flags.optical_flow is False
     assert ml_flags.segment is False
     assert ml_flags.foot_track is False
@@ -63,7 +63,7 @@ async def test_enqueue_process_with_ml_flags(client, auth_headers):
     req_body = {
         "video_key": "input/flags.mp4",
         "person_click": {"x": 50, "y": 50},
-        "depth": True,
+        "lift_3d": True,
         "optical_flow": True,
         "segment": True,
         "foot_track": True,
@@ -78,7 +78,7 @@ async def test_enqueue_process_with_ml_flags(client, auth_headers):
 
     call_kwargs = client.app.state.arq_pool.enqueue_job.call_args.kwargs
     ml_flags = call_kwargs["ml_flags"]
-    assert ml_flags.depth is True
+    assert ml_flags.lift_3d is True
     assert ml_flags.optical_flow is True
     assert ml_flags.segment is True
     assert ml_flags.foot_track is True

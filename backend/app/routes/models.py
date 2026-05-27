@@ -12,7 +12,7 @@ from pydantic import BaseModel
 _MODELS_DIR = Path(__file__).resolve().parent.parent.parent.parent / "data" / "models"
 
 _MODEL_FILES: dict[str, str] = {
-    "depth": "depth_anything_v2_small.onnx",
+    "lift_3d": "depth_anything_v2_small.onnx",
     "optical_flow": "neuflowv2_mixed.onnx",
     "segment": "sam2/vision_encoder.onnx",
     "foot_track": "foot_tracker.onnx",

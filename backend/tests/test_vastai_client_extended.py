@@ -130,7 +130,7 @@ async def test_process_video_remote_async_happy_path():
             person_click={"x": 100, "y": 200},
             frame_skip=8,
             tracking="centroid",
-            ml_flags={"depth": True},
+            ml_flags={"lift_3d": True},
             element_type="waltz_jump",
         )
 
@@ -151,7 +151,7 @@ async def test_process_video_remote_async_happy_path():
     assert body["payload"]["person_click"] == {"x": 100, "y": 200}
     assert body["payload"]["frame_skip"] == 8
     assert body["payload"]["tracking"] == "centroid"
-    assert body["payload"]["ml_flags"] == {"depth": True}
+    assert body["payload"]["ml_flags"] == {"lift_3d": True}
     assert body["payload"]["element_type"] == "waltz_jump"
     # No export/layer in payload
     assert "export" not in body["payload"]

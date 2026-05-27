@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Any
 
-from pydantic import BaseModel, EmailStr, Field, field_validator
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 
 
 class ValidationErrorDetail(BaseModel):
@@ -223,7 +223,7 @@ class DetectResponse(BaseModel):
 class MLModelFlags:
     """ML model feature flags for video processing."""
 
-    depth: bool = False
+    lift_3d: bool = True
     optical_flow: bool = False
     segment: bool = False
     foot_track: bool = False
@@ -251,12 +251,14 @@ class ProcessRequest(BaseModel):
     frame_skip: int = 1
     tracking: str = "auto"
     session_id: str | None = None
-    depth: bool = False
+    lift_3d: bool = Field(default=True, validation_alias="depth")
     optical_flow: bool = False
     segment: bool = False
     foot_track: bool = False
     matting: bool = False
     inpainting: bool = False
+
+    model_config = ConfigDict(populate_by_name=True)
 
 
 class ProcessStats(BaseModel):
