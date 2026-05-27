@@ -139,6 +139,40 @@ class DeviceConfig:
             return ["CUDAExecutionProvider", "CPUExecutionProvider"]
         return ["CPUExecutionProvider"]
 
+    @property
+    def onnx_providers_with_options(
+        self,
+    ) -> list[str | tuple[str, dict[str, int]]]:
+        """ONNX Runtime providers with CUDA options for memory-constrained GPUs.
+
+        Returns tuple form (provider_name, options_dict) for CUDA when GPU has
+        <8GB VRAM. Otherwise returns simple string list (same as onnx_providers).
+
+        Returns:
+            List of provider strings or (provider, options) tuples.
+        """
+        if not self.is_cuda:
+            return ["CPUExecutionProvider"]
+
+        total_mb = _get_gpu_memory_mb(0)
+
+        if total_mb > 0 and total_mb < 8192:
+            gpu_mem_limit = (total_mb - 512) * 1024 * 1024
+            return [
+                (
+                    "CUDAExecutionProvider",
+                    {
+                        "arena_extend_strategy": 1,  # kSameAsRequested
+                        "gpu_mem_limit": gpu_mem_limit,
+                        "cudnn_conv_algo_search": 1,  # HEURISTIC
+                        "do_copy_in_default_stream": False,
+                    },
+                ),
+                "CPUExecutionProvider",
+            ]
+
+        return ["CUDAExecutionProvider", "CPUExecutionProvider"]
+
     def __repr__(self) -> str:
         return f"DeviceConfig(device={self.device!r})"
 

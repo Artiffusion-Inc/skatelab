@@ -12,11 +12,13 @@ pre-commit:
     - name: protect-branches
       run: |
         BRANCH=$(git symbolic-ref --short HEAD 2>/dev/null)
-        if [[ $BRANCH =~ ^(main|master|develop)$ ]]; then
-          echo "❌ Direct commits to '$BRANCH' are not allowed."
-          echo "Please use a feature/hotfix/release branch."
-          exit 1
-        fi
+        case "$BRANCH" in
+          main|master|develop)
+            echo "❌ Direct commits to '$BRANCH' are not allowed."
+            echo "Please use a feature/hotfix/release branch."
+            exit 1
+            ;;
+        esac
         GIT_DIR=$(git rev-parse --git-dir)
         GIT_COMMON_DIR=$(git rev-parse --git-common-dir)
         if [ "$GIT_DIR" = "$GIT_COMMON_DIR" ]; then
