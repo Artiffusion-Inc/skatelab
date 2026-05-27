@@ -16,6 +16,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.mergeDescendants
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import ru.skatelab.capture.R
@@ -63,7 +65,7 @@ fun MetricCard(
     val unit = metricUnits[metric.metricName] ?: ""
 
     Card(
-        modifier = modifier.padding(4.dp),
+        modifier = modifier.semantics(mergeDescendants = true) {}.padding(4.dp),
         colors =
             CardDefaults.cardColors(
                 containerColor =
@@ -91,7 +93,7 @@ fun MetricCard(
                     Icon(
                         imageVector = Icons.Default.EmojiEvents,
                         contentDescription = "PR",
-                        modifier = Modifier.size(16.dp),
+                        modifier = Modifier.size(24.dp),
                         tint = MaterialTheme.colorScheme.primary,
                     )
                 }

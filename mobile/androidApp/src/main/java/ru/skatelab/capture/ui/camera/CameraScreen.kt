@@ -118,7 +118,7 @@ fun CameraScreen(
                     Icons.Default.Bluetooth,
                     contentDescription = "BLE connected",
                     tint = Color.White,
-                    modifier = Modifier.size(16.dp),
+                    modifier = Modifier.size(24.dp),
                 )
                 val parts = mutableListOf<String>()
                 sensorInfo[SensorId.LEFT]?.let { parts.add("L:${it.batteryPercent}%") }

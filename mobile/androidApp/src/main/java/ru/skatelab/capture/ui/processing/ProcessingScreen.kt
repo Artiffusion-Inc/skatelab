@@ -25,6 +25,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.LiveRegion
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import ru.skatelab.capture.R
@@ -110,6 +113,7 @@ fun ProcessingScreen(
                     text = if (isNetworkError) stringResource(R.string.processing_no_connection) else stringResource(R.string.processing_error),
                     style = MaterialTheme.typography.headlineSmall,
                     color = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.semantics { liveRegion = LiveRegion.Polite },
                 )
                 Spacer(Modifier.height(8.dp))
                 Text(

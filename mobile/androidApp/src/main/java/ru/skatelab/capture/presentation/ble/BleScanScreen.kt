@@ -16,6 +16,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.LiveRegion
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import ru.skatelab.capture.R
 import ru.skatelab.capture.domain.model.BleScanStatus
@@ -89,6 +92,7 @@ fun BleScanScreen(
                 status.asString(),
                 style = MaterialTheme.typography.bodySmall,
                 color = if (status.isError) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
+                modifier = Modifier.semantics { liveRegion = LiveRegion.Polite },
             )
         }
     }
