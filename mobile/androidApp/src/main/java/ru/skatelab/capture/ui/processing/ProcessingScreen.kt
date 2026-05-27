@@ -27,11 +27,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.semantics.LiveRegion
+import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.liveRegion
-import androidx.compose.ui.semantics.mergeDescendants
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
@@ -82,7 +81,7 @@ fun ProcessingScreen(
                         Modifier
                             .semantics(mergeDescendants = true) {
                                 contentDescription = context.getString(R.string.cd_loading)
-                                role = Role.ProgressIndicator
+                                role = Role.ValuePicker
                             },
                 ) {
                     CircularProgressIndicator(modifier = Modifier.size(48.dp))
@@ -116,7 +115,7 @@ fun ProcessingScreen(
                         Modifier
                             .semantics(mergeDescendants = true) {
                                 contentDescription = context.getString(R.string.cd_loading)
-                                role = Role.ProgressIndicator
+                                role = Role.ValuePicker
                             },
                 ) {
                     CircularProgressIndicator(modifier = Modifier.size(48.dp))
@@ -143,7 +142,7 @@ fun ProcessingScreen(
                         },
                     style = MaterialTheme.typography.headlineSmall,
                     color = MaterialTheme.colorScheme.error,
-                    modifier = Modifier.semantics { liveRegion = LiveRegion.Polite },
+                    modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
                 )
                 Spacer(Modifier.height(8.dp))
                 Text(

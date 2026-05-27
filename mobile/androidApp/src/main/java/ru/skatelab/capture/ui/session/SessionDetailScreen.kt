@@ -129,7 +129,7 @@ fun SessionDetailScreen(
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        (uiState as SessionsUiState.Error).message,
+                        (uiState as SessionsUiState.Error).error.messageKey,
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )

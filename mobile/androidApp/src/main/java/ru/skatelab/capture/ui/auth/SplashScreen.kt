@@ -74,7 +74,7 @@ fun SplashScreen(
             }
             if (uiState is AuthUiState.Error) {
                 Text(
-                    text = uiState.message,
+                    text = uiState.error.messageKey,
                     color = MaterialTheme.colorScheme.error,
                     fontSize = 12.sp,
                 )

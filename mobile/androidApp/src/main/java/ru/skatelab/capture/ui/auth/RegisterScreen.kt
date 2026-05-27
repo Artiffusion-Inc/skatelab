@@ -30,7 +30,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.mergeDescendants
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.KeyboardType
@@ -126,7 +125,7 @@ fun RegisterScreen(
         Spacer(Modifier.height(8.dp))
 
         if (uiState is AuthUiState.Error) {
-            val msg = uiState.message
+            val msg = uiState.error.messageKey
             val displayMsg =
                 if (isNetworkError(msg)) {
                     stringResource(R.string.auth_no_network)
@@ -157,7 +156,7 @@ fun RegisterScreen(
                     Modifier
                         .semantics(mergeDescendants = true) {
                             contentDescription = context.getString(R.string.cd_loading)
-                            role = Role.ProgressIndicator
+                            role = Role.ValuePicker
                         },
             ) {
                 CircularProgressIndicator(modifier = Modifier.size(24.dp))

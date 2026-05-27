@@ -40,7 +40,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.mergeDescendants
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
@@ -98,7 +97,7 @@ fun SessionListScreen(
                             Modifier
                                 .semantics(mergeDescendants = true) {
                                     contentDescription = context.getString(R.string.cd_loading)
-                                    role = Role.ProgressIndicator
+                                    role = Role.ValuePicker
                                 },
                     ) {
                         CircularProgressIndicator(modifier = Modifier.size(48.dp))
@@ -110,7 +109,7 @@ fun SessionListScreen(
             is SessionsUiState.Error -> {
                 val errorLabel = stringResource(R.string.session_list_error)
                 val retryLabel = stringResource(R.string.session_list_retry)
-                val message = (uiState as SessionsUiState.Error).message
+                val message = (uiState as SessionsUiState.Error).error.messageKey
                 Column(
                     modifier = Modifier.fillMaxSize().padding(padding),
                     verticalArrangement = Arrangement.Center,

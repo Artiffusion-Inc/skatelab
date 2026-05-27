@@ -44,7 +44,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.mergeDescendants
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
@@ -169,7 +168,7 @@ private fun ChartsTab(
                         .fillMaxSize()
                         .semantics(mergeDescendants = true) {
                             contentDescription = context.getString(R.string.cd_loading)
-                            role = Role.ProgressIndicator
+                            role = Role.ValuePicker
                         },
                 contentAlignment = Alignment.Center,
             ) {
@@ -393,7 +392,7 @@ private fun DetailsTab(
                     .fillMaxSize()
                     .semantics(mergeDescendants = true) {
                         contentDescription = context.getString(R.string.cd_loading)
-                        role = Role.ProgressIndicator
+                        role = Role.ValuePicker
                     },
             contentAlignment = Alignment.Center,
         ) {
