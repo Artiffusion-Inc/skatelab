@@ -22,19 +22,19 @@
   --color-card: oklch(1 0 0);
   --color-card-foreground: oklch(0.233 0.037 247);
   --color-accent: oklch(0.964 0.013 229);
-  --color-link: oklch(0.557 0.100 226);
+  --color-link: oklch(0.557 0.1 226);
   --color-ink: oklch(0.233 0.037 247);
   --color-ink-mute: oklch(0.519 0.052 233);
-  --color-ink-faint: oklch(0.719 0.040 227);
+  --color-ink-faint: oklch(0.719 0.04 227);
   --color-canvas-soft: oklch(0.964 0.013 229);
   --color-surface-ice-soft: oklch(0.935 0.029 225);
   --color-surface-teal-deep: oklch(0.401 0.087 240);
   --color-surface-teal-mid: oklch(0.734 0.145 235);
   --color-on-dark-mute: oklch(0.916 0.029 225);
   --color-on-dark-dim: oklch(0.827 0.062 223);
-  --color-on-dark-faint: oklch(0.740 0.086 219);
+  --color-on-dark-faint: oklch(0.74 0.086 219);
   --color-hairline: oklch(0.885 0.027 230);
-  --color-hairline-dark: oklch(0.560 0.092 230);
+  --color-hairline-dark: oklch(0.56 0.092 230);
   --color-on-primary: oklch(0.227 0.041 245);
 }
 
