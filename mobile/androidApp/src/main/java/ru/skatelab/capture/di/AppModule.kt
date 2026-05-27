@@ -2,6 +2,7 @@ package ru.skatelab.capture.di
 
 import android.content.Context
 import android.os.SystemClock
+import ru.skatelab.capture.BuildConfig
 import dagger.Binds
 import dagger.Module
 import dagger.Provides
@@ -93,7 +94,7 @@ abstract class AppModule {
         @Singleton
         fun provideSkateLabClient(tokenStorage: TokenStorage): SkateLabClient =
             SkateLabClient(
-                baseUrl = "https://api.skatelab.ru/v1",
+                baseUrl = BuildConfig.API_BASE_URL,
                 engine = OkHttp.create(),
                 tokenStorage = tokenStorage,
             )

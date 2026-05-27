@@ -8,6 +8,7 @@ plugins {
 android {
     namespace = "ru.skatelab.capture"
     defaultConfig {
+        buildConfigField("String", "API_BASE_URL", "\"${System.getenv("API_BASE_URL") ?: "https://api.skatelab.ru/v1"}\"")
         applicationId = "ru.skatelab.capture"
         versionCode = 1
         versionName = "1.0.0"
