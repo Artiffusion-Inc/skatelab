@@ -5,12 +5,14 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import ru.skatelab.shared.api.UsersApi
 import ru.skatelab.shared.auth.AuthRepository
+import ru.skatelab.shared.models.AppError
+import ru.skatelab.shared.utils.toAppError
 
 sealed interface AuthUiState {
     data object Loading : AuthUiState
     data object LoggedOut : AuthUiState
     data class LoggedIn(val userId: String, val displayName: String?) : AuthUiState
-    data class Error(val message: String) : AuthUiState
+    data class Error(val error: AppError) : AuthUiState
 }
 
 class AuthViewModel(
@@ -37,7 +39,7 @@ class AuthViewModel(
                 val user = runCatching { usersApi.getMe() }.getOrNull()
                 _uiState.value = AuthUiState.LoggedIn(user?.id ?: "new", user?.displayName)
             }
-            .onFailure { _uiState.value = AuthUiState.Error(it.message ?: "Login failed") }
+            .onFailure { _uiState.value = AuthUiState.Error(it.toAppError()) }
     }
 
     suspend fun register(email: String, password: String, displayName: String) {
@@ -47,7 +49,7 @@ class AuthViewModel(
                 val user = runCatching { usersApi.getMe() }.getOrNull()
                 _uiState.value = AuthUiState.LoggedIn(user?.id ?: "new", user?.displayName ?: displayName)
             }
-            .onFailure { _uiState.value = AuthUiState.Error(it.message ?: "Registration failed") }
+            .onFailure { _uiState.value = AuthUiState.Error(it.toAppError()) }
     }
 
     suspend fun logout() {
