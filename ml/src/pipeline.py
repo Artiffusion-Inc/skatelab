@@ -20,6 +20,8 @@ import asyncio
 import time
 from typing import TYPE_CHECKING
 
+import numpy as np
+
 from .device import DeviceConfig
 from .types import AnalysisReport, ElementPhase, PersonClick, SegmentationResult
 from .utils.geometry import calculate_com_trajectory
@@ -28,8 +30,6 @@ from .utils.video import VideoMeta, get_video_meta
 
 if TYPE_CHECKING:
     from pathlib import Path
-
-    import numpy as np
 
     from .alignment import MotionAligner, MotionDTWAligner
     from .analysis.element_defs import ElementDef
@@ -88,6 +88,7 @@ class AnalysisPipeline:
         self._analyzer_factory: type | None = None
         self._aligner: MotionAligner | MotionDTWAligner | None = None  # type: ignore[valid-type]
         self._recommender: Recommender | None = None  # type: ignore[valid-type]
+        self._3d_lifter = None  # type: ignore[valid-type]
 
     def _extract_and_track(self, video_path: Path, meta: VideoMeta) -> tuple[np.ndarray, int]:
         """Extract poses with tracking, gap filling, and spatial compensation.
@@ -220,14 +221,35 @@ class AnalysisPipeline:
         normalized = self._get_normalizer().normalize(compensated_h36m)
         self._profiler.record("normalize", time.perf_counter() - t0)
 
+        # Stage 3.1: 3D lift (TCPFormer on normalized 2D)
+        t0 = time.perf_counter()
+        lifter = self._get_3d_lifter()
+        if lifter is not None:
+            poses_3d_raw = lifter.estimate_3d(normalized)
+            from .pose_3d.normalizer_3d import Pose3DNormalizer
+
+            poses_3d = Pose3DNormalizer().normalize(poses_3d_raw)
+        else:
+            poses_3d = None
+        self._profiler.record("3d_lift", time.perf_counter() - t0)
+
         # Stage 3.5: Smooth poses (temporal filtering)
+        # Use 3D poses for smoothing if available, else 2D
         t0 = time.perf_counter()
         pre_phases: ElementPhase | None = None
+
         if self._enable_smoothing:
             if manual_phases is not None:
                 boundaries = [manual_phases.takeoff, manual_phases.peak, manual_phases.landing]
                 boundaries = [b for b in boundaries if b > 0]
-                smoothed = self._get_smoother(meta.fps).smooth_phase_aware(normalized, boundaries)
+                if poses_3d is not None:
+                    smoothed = self._get_smoother(meta.fps).smooth_phase_aware_3d(
+                        poses_3d, boundaries
+                    )
+                else:
+                    smoothed = self._get_smoother(meta.fps).smooth_phase_aware(
+                        normalized, boundaries
+                    )
             # Pre-detect phases for phase-aware smoothing on jumps
             # (preserves snapshot angles by resetting filter at boundaries)
             elif element_type is not None and element_defs.is_jump(element_type):
@@ -237,11 +259,20 @@ class AnalysisPipeline:
                 pre_phases = pre_result.phases
                 boundaries = [pre_phases.takeoff, pre_phases.peak, pre_phases.landing]
                 boundaries = [b for b in boundaries if b > 0]
-                smoothed = self._get_smoother(meta.fps).smooth_phase_aware(normalized, boundaries)
+                if poses_3d is not None:
+                    smoothed = self._get_smoother(meta.fps).smooth_phase_aware_3d(
+                        poses_3d, boundaries
+                    )
+                else:
+                    smoothed = self._get_smoother(meta.fps).smooth_phase_aware(
+                        normalized, boundaries
+                    )
+            elif poses_3d is not None:
+                smoothed = self._get_smoother(meta.fps).smooth_3d(poses_3d)
             else:
                 smoothed = self._get_smoother(meta.fps).smooth(normalized)
         else:
-            smoothed = normalized
+            smoothed = poses_3d if poses_3d is not None else normalized
         self._profiler.record("smooth", time.perf_counter() - t0)
 
         # Stage 4-7: Element-specific analysis (only when element_type provided)
@@ -288,12 +319,27 @@ class AnalysisPipeline:
                 # Use takeoff/landing only if they are non-zero (0 = unknown for steps/turns)
                 _t_off = phases.takeoff if phases.takeoff > 0 else None
                 _l_off = phases.landing if phases.landing > 0 else None
-                physics_dict = engine.analyze_2d(
-                    smoothed,
-                    takeoff_idx=_t_off,
-                    landing_idx=_l_off,
-                    fps=meta.fps,
-                )
+
+                if poses_3d is not None:
+                    physics_result = engine.analyze(
+                        smoothed,
+                        takeoff_idx=_t_off,
+                        landing_idx=_l_off,
+                    )
+                    physics_dict = {
+                        "jump_height": physics_result.jump_height,
+                        "flight_time": physics_result.flight_time,
+                        "takeoff_velocity": None,
+                        "fit_quality": None,
+                        "avg_inertia": float(np.mean(physics_result.moment_of_inertia)),
+                    }
+                else:
+                    physics_dict = engine.analyze_2d(
+                        smoothed,
+                        takeoff_idx=_t_off,
+                        landing_idx=_l_off,
+                        fps=meta.fps,
+                    )
             except Exception:
                 physics_dict = {}
             self._profiler.record("physics", time.perf_counter() - t0)
@@ -452,6 +498,38 @@ class AnalysisPipeline:
 
             self._recommender = Recommender()
         return self._recommender
+
+    def _get_3d_lifter(self):
+        """Lazy-load TCPFormer 3D lifter (ONNX).
+
+        Returns ONNXPoseExtractor for TCPFormer model.
+        Returns None if model file not found (graceful degradation).
+        """
+        if self._3d_lifter is None:
+            from pathlib import Path
+
+            model_path = Path("data/models/TCPFormer_ap3d_81.onnx")
+            if not model_path.exists():
+                model_path = Path("/app/data/models/TCPFormer_ap3d_81.onnx")
+
+            if model_path.exists():
+                from .pose_3d.onnx_extractor import ONNXPoseExtractor
+
+                self._3d_lifter = ONNXPoseExtractor(
+                    model_path=model_path,
+                    device=self._device_config.device,
+                    temporal_window=81,
+                )
+            else:
+                import logging
+
+                logging.getLogger(__name__).warning(
+                    "TCPFormer model not found — 3D lift disabled. "
+                    "Run: uv run python scripts/download_ml_models.py --model tcpformer"
+                )
+                self._3d_lifter = None  # type: ignore[assignment]
+
+        return self._3d_lifter
 
     def _compute_overall_score(self, metrics: list) -> float:  # type: ignore[valid-type]
         """Compute overall quality score 0-10 from metrics.
