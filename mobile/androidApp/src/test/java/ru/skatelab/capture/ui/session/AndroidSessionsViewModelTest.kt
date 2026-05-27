@@ -67,7 +67,7 @@ class AndroidSessionsViewModelTest {
 
             val state = viewModel.uiState.value
             assertTrue(state is SessionsUiState.Error)
-            assertTrue((state as SessionsUiState.Error).message.contains("Network error"))
+            assertTrue((state as SessionsUiState.Error).error.messageKey.isNotEmpty())
         }
 
     @Test
