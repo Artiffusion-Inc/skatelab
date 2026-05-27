@@ -2,7 +2,6 @@ package ru.skatelab.capture.di
 
 import android.content.Context
 import android.os.SystemClock
-import ru.skatelab.capture.BuildConfig
 import dagger.Binds
 import dagger.Module
 import dagger.Provides
@@ -16,6 +15,7 @@ import javax.inject.Singleton
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import ru.skatelab.capture.AppLogger
+import ru.skatelab.capture.BuildConfig
 import ru.skatelab.capture.data.ble.KableBleRepository
 import ru.skatelab.capture.data.ble.NoOpBleRepository
 import ru.skatelab.capture.data.export.ManifestBuilder

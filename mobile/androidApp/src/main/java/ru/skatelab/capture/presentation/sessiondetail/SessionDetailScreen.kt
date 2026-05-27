@@ -290,7 +290,11 @@ private fun ImuChartSection(
                         )
                     }
                     Spacer(modifier = Modifier.width(4.dp))
-                    Text(stringResource(R.string.session_detail_left_sensor), style = MaterialTheme.typography.labelSmall, color = LeftColor)
+                    Text(
+                        stringResource(R.string.session_detail_left_sensor),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = LeftColor,
+                    )
                 }
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Canvas(modifier = Modifier.width(12.dp).height(3.dp)) {
@@ -302,7 +306,11 @@ private fun ImuChartSection(
                         )
                     }
                     Spacer(modifier = Modifier.width(4.dp))
-                    Text(stringResource(R.string.session_detail_right_sensor), style = MaterialTheme.typography.labelSmall, color = RightColor)
+                    Text(
+                        stringResource(R.string.session_detail_right_sensor),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = RightColor,
+                    )
                 }
             }
         }
@@ -398,8 +406,14 @@ private fun DetailsTab(
         modifier = Modifier.fillMaxSize().padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        Text(stringResource(R.string.detail_duration, session.durationMs / 1000), style = MaterialTheme.typography.bodyLarge)
-        Text(stringResource(R.string.detail_fps, session.actualFps), style = MaterialTheme.typography.bodyLarge)
+        Text(
+            stringResource(R.string.detail_duration, session.durationMs / 1000),
+            style = MaterialTheme.typography.bodyLarge,
+        )
+        Text(
+            stringResource(R.string.detail_fps, session.actualFps),
+            style = MaterialTheme.typography.bodyLarge,
+        )
         if (session.videoWidth > 0 && session.videoHeight > 0) {
             Text(
                 stringResource(R.string.detail_resolution, session.videoWidth, session.videoHeight),
@@ -433,11 +447,23 @@ private fun DetailsTab(
         )
 
         Spacer(modifier = Modifier.height(8.dp))
-        Text(stringResource(R.string.session_detail_files), style = MaterialTheme.typography.titleMedium)
+        Text(
+            stringResource(R.string.session_detail_files),
+            style = MaterialTheme.typography.titleMedium,
+        )
         HorizontalDivider()
-        Text(stringResource(R.string.detail_video_size, fileSizeLabel(session.videoFile)), style = MaterialTheme.typography.bodyMedium)
-        Text(stringResource(R.string.detail_imu_left, fileSizeLabel(session.imuLeftFile)), style = MaterialTheme.typography.bodyMedium)
-        Text(stringResource(R.string.detail_imu_right, fileSizeLabel(session.imuRightFile)), style = MaterialTheme.typography.bodyMedium)
+        Text(
+            stringResource(R.string.detail_video_size, fileSizeLabel(session.videoFile)),
+            style = MaterialTheme.typography.bodyMedium,
+        )
+        Text(
+            stringResource(R.string.detail_imu_left, fileSizeLabel(session.imuLeftFile)),
+            style = MaterialTheme.typography.bodyMedium,
+        )
+        Text(
+            stringResource(R.string.detail_imu_right, fileSizeLabel(session.imuRightFile)),
+            style = MaterialTheme.typography.bodyMedium,
+        )
 
         Spacer(modifier = Modifier.height(16.dp))
         Row(

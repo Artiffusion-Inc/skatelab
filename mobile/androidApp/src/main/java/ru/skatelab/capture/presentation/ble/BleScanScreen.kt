@@ -21,8 +21,9 @@ import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import ru.skatelab.capture.R
-import ru.skatelab.capture.domain.model.BleScanStatus
 import ru.skatelab.capture.domain.model.SensorId
+import ru.skatelab.capture.domain.model.asString
+import ru.skatelab.capture.domain.model.isError
 import ru.skatelab.capture.domain.repository.BleRepository.ConnectionState
 import ru.skatelab.capture.domain.repository.ScanDevice
 
@@ -127,7 +128,11 @@ private fun ScanDeviceRow(
                     Text(device.name, style = MaterialTheme.typography.bodyLarge)
                     Text(device.address, style = MaterialTheme.typography.bodySmall)
                     if (device.isConnected) {
-                        Text(stringResource(R.string.ble_connected), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
+                        Text(
+                            stringResource(R.string.ble_connected),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.primary,
+                        )
                     } else {
                         Text(stringResource(R.string.ble_rssi, device.rssi), style = MaterialTheme.typography.bodySmall)
                     }
@@ -144,18 +149,34 @@ private fun ScanDeviceRow(
             ) {
                 if (isLeftDevice) {
                     TextButton(onClick = onFactoryResetLeft) {
-                        Text(stringResource(R.string.ble_reset_left), color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.labelSmall)
+                        Text(
+                            stringResource(R.string.ble_reset_left),
+                            color = MaterialTheme.colorScheme.error,
+                            style = MaterialTheme.typography.labelSmall,
+                        )
                     }
                     TextButton(onClick = onAccCalibrateLeft) {
-                        Text(stringResource(R.string.ble_acc_left), color = MaterialTheme.colorScheme.tertiary, style = MaterialTheme.typography.labelSmall)
+                        Text(
+                            stringResource(R.string.ble_acc_left),
+                            color = MaterialTheme.colorScheme.tertiary,
+                            style = MaterialTheme.typography.labelSmall,
+                        )
                     }
                 }
                 if (isRightDevice) {
                     TextButton(onClick = onFactoryResetRight) {
-                        Text(stringResource(R.string.ble_reset_right), color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.labelSmall)
+                        Text(
+                            stringResource(R.string.ble_reset_right),
+                            color = MaterialTheme.colorScheme.error,
+                            style = MaterialTheme.typography.labelSmall,
+                        )
                     }
                     TextButton(onClick = onAccCalibrateRight) {
-                        Text(stringResource(R.string.ble_acc_right), color = MaterialTheme.colorScheme.tertiary, style = MaterialTheme.typography.labelSmall)
+                        Text(
+                            stringResource(R.string.ble_acc_right),
+                            color = MaterialTheme.colorScheme.tertiary,
+                            style = MaterialTheme.typography.labelSmall,
+                        )
                     }
                 }
             }

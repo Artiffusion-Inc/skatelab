@@ -14,7 +14,6 @@ import ru.skatelab.shared.state.AuthUiState
 
 @RunWith(AndroidJUnit4::class)
 class AccessibilityTest {
-
     @get:Rule
     val composeTestRule = createComposeRule()
 

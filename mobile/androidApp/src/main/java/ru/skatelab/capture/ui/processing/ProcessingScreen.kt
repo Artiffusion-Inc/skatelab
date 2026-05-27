@@ -1,7 +1,7 @@
 package ru.skatelab.capture.ui.processing
 
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -135,14 +135,24 @@ fun ProcessingScreen(
                 )
                 Spacer(Modifier.height(12.dp))
                 Text(
-                    text = if (isNetworkError) stringResource(R.string.processing_no_connection) else stringResource(R.string.processing_error),
+                    text =
+                        if (isNetworkError) {
+                            stringResource(R.string.processing_no_connection)
+                        } else {
+                            stringResource(R.string.processing_error)
+                        },
                     style = MaterialTheme.typography.headlineSmall,
                     color = MaterialTheme.colorScheme.error,
                     modifier = Modifier.semantics { liveRegion = LiveRegion.Polite },
                 )
                 Spacer(Modifier.height(8.dp))
                 Text(
-                    text = if (isNetworkError) stringResource(R.string.processing_check_network) else stringResource(R.string.processing_error),
+                    text =
+                        if (isNetworkError) {
+                            stringResource(R.string.processing_check_network)
+                        } else {
+                            stringResource(R.string.processing_error)
+                        },
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )

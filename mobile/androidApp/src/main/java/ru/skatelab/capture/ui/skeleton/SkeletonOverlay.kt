@@ -127,10 +127,11 @@ fun SkeletonOverlay(
     val comOutlinePx = with(density) { COM_OUTLINE_DP.toPx() }
 
     Canvas(
-        modifier = modifier.clearAndSetSemantics {
-            contentDescription = context.getString(R.string.cd_skeleton_overlay)
-            role = Role.Image
-        }
+        modifier =
+            modifier.clearAndSetSemantics {
+                contentDescription = context.getString(R.string.cd_skeleton_overlay)
+                role = Role.Image
+            },
     ) {
         if (keypoints == null) return@Canvas
         if (keypoints.size < 17) return@Canvas

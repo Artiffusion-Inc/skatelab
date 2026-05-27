@@ -56,17 +56,18 @@ import ru.skatelab.shared.models.SessionResponse
 import ru.skatelab.shared.state.SessionsUiState
 
 @Composable
-fun formatElementType(type: String): String = when (type.lowercase()) {
-    "axel" -> stringResource(R.string.element_axel)
-    "lutz" -> stringResource(R.string.element_lutz)
-    "flip" -> stringResource(R.string.element_flip)
-    "loop" -> stringResource(R.string.element_loop)
-    "salchow" -> stringResource(R.string.element_salchow)
-    "toe_loop" -> stringResource(R.string.element_toe_loop)
-    "toe_loop_flip" -> stringResource(R.string.element_toe_loop_flip)
-    "cascade" -> stringResource(R.string.element_cascade)
-    else -> type
-}
+fun formatElementType(type: String): String =
+    when (type.lowercase()) {
+        "axel" -> stringResource(R.string.element_axel)
+        "lutz" -> stringResource(R.string.element_lutz)
+        "flip" -> stringResource(R.string.element_flip)
+        "loop" -> stringResource(R.string.element_loop)
+        "salchow" -> stringResource(R.string.element_salchow)
+        "toe_loop" -> stringResource(R.string.element_toe_loop)
+        "toe_loop_flip" -> stringResource(R.string.element_toe_loop_flip)
+        "cascade" -> stringResource(R.string.element_cascade)
+        else -> type
+    }
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
