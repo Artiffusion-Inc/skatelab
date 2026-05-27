@@ -32,8 +32,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import ru.skatelab.capture.R
 import ru.skatelab.capture.domain.model.SensorId
 
 @Composable
@@ -92,7 +94,7 @@ fun CameraScreen(
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        "Preparing camera…",
+                        stringResource(R.string.camera_preparing),
                         color = Color.White,
                         style = MaterialTheme.typography.bodyMedium,
                     )
@@ -261,7 +263,7 @@ private fun CameraPreviewLayer(
                             .padding(horizontal = 8.dp, vertical = 4.dp),
                 ) {
                     Text(
-                        "Reconnecting: ${reconnectingSensor?.name?.lowercase()}",
+                        stringResource(R.string.camera_reconnecting, reconnectingSensor?.name?.lowercase() ?: ""),
                         color = MaterialTheme.colorScheme.onErrorContainer,
                         style = MaterialTheme.typography.labelMedium,
                     )

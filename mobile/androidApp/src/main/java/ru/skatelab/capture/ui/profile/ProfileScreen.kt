@@ -87,9 +87,10 @@ fun ProfileScreen(
         }
     }
 
+    val savedMessage = stringResource(R.string.profile_saved)
     LaunchedEffect(uiState.saveSuccess) {
         if (uiState.saveSuccess) {
-            snackbarHostState.showSnackbar("Saved")
+            snackbarHostState.showSnackbar(savedMessage)
             viewModel.clearSaveSuccess()
         }
     }
@@ -252,7 +253,7 @@ fun ProfileScreen(
                     ) {
                         Icon(Icons.Default.Save, contentDescription = stringResource(R.string.cd_save_profile))
                         Spacer(Modifier.width(8.dp))
-                        Text("Save profile")
+                        Text(stringResource(R.string.profile_save))
                     }
                 }
 
@@ -267,7 +268,7 @@ fun ProfileScreen(
                             contentColor = MaterialTheme.colorScheme.error,
                         ),
                 ) {
-                    Text("Log out")
+                    Text(stringResource(R.string.profile_log_out))
                 }
 
                 Spacer(Modifier.height(16.dp))
