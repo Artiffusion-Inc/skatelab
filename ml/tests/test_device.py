@@ -154,18 +154,31 @@ class TestDeviceConfig:
             assert cfg.device == "cpu"
 
     def test_cuda_provider_options_returns_tuple(self):
-        """cuda_provider_options returns (provider, options) tuples for CUDA."""
+        """cuda_provider_options returns (provider, options) tuples for CUDA <8GB."""
         from src.device import DeviceConfig
 
         with mock.patch("src.device._cuda_available", return_value=True):
             cfg = DeviceConfig(device="cuda")
-        providers = cfg.onnx_providers_with_options
+        with mock.patch("src.device._get_gpu_memory_mb", return_value=4096):
+            providers = cfg.onnx_providers_with_options
         assert isinstance(providers, list)
         assert len(providers) >= 1
         first = providers[0]
         assert isinstance(first, tuple)
         assert first[0] == "CUDAExecutionProvider"
         assert isinstance(first[1], dict)
+
+    def test_cuda_provider_options_no_options_above_8gb(self):
+        """onnx_providers_with_options returns plain strings for GPU >=8GB."""
+        from src.device import DeviceConfig
+
+        with mock.patch("src.device._cuda_available", return_value=True):
+            cfg = DeviceConfig(device="cuda")
+        with mock.patch("src.device._get_gpu_memory_mb", return_value=11264):
+            providers = cfg.onnx_providers_with_options
+        assert isinstance(providers, list)
+        assert providers[0] == "CUDAExecutionProvider"
+        assert isinstance(providers[0], str)
 
     def test_cpu_provider_options_returns_list(self):
         """onnx_providers_with_options returns simple list for CPU."""
