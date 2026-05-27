@@ -1,5 +1,6 @@
 package ru.skatelab.capture.ui.processing
 
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -24,9 +25,14 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.LiveRegion
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.mergeDescendants
+import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -70,7 +76,17 @@ fun ProcessingScreen(
     ) {
         when (val state = uiState) {
             is ProcessingUiState.Idle -> {
-                CircularProgressIndicator(modifier = Modifier.size(48.dp))
+                val context = LocalContext.current
+                Box(
+                    modifier =
+                        Modifier
+                            .semantics(mergeDescendants = true) {
+                                contentDescription = context.getString(R.string.cd_loading)
+                                role = Role.ProgressIndicator
+                            },
+                ) {
+                    CircularProgressIndicator(modifier = Modifier.size(48.dp))
+                }
                 Spacer(Modifier.height(16.dp))
                 Text(stringResource(R.string.processing_preparing), style = MaterialTheme.typography.bodyLarge)
             }
@@ -94,8 +110,17 @@ fun ProcessingScreen(
             }
 
             is ProcessingUiState.Completed -> {
-                // Handled by LaunchedEffect — show spinner while navigating
-                CircularProgressIndicator(modifier = Modifier.size(48.dp))
+                val context = LocalContext.current
+                Box(
+                    modifier =
+                        Modifier
+                            .semantics(mergeDescendants = true) {
+                                contentDescription = context.getString(R.string.cd_loading)
+                                role = Role.ProgressIndicator
+                            },
+                ) {
+                    CircularProgressIndicator(modifier = Modifier.size(48.dp))
+                }
                 Spacer(Modifier.height(16.dp))
                 Text(stringResource(R.string.processing_done), style = MaterialTheme.typography.bodyLarge)
             }

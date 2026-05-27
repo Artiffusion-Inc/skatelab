@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -41,6 +42,11 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.mergeDescendants
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.media3.ui.PlayerView
@@ -156,8 +162,18 @@ private fun ChartsTab(
 
     when {
         isLoading -> {
-            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator()
+            val context = LocalContext.current
+            Box(
+                modifier =
+                    Modifier
+                        .fillMaxSize()
+                        .semantics(mergeDescendants = true) {
+                            contentDescription = context.getString(R.string.cd_loading)
+                            role = Role.ProgressIndicator
+                        },
+                contentAlignment = Alignment.Center,
+            ) {
+                CircularProgressIndicator(modifier = Modifier.size(48.dp))
             }
         }
         imuData == null || imuData.timeSeconds.isEmpty() -> {
@@ -234,6 +250,7 @@ private fun ImuChartSection(
     rightValues: FloatArray,
     playheadTime: Float? = null,
 ) {
+    val context = LocalContext.current
     val modelProducer = remember { CartesianChartModelProducer() }
     val leftPeak = remember(leftValues.contentHashCode()) { leftValues.maxOrNull()?.let { (it * 10).roundToInt() / 10f } ?: 0f }
     val rightPeak = remember(rightValues.contentHashCode()) { rightValues.maxOrNull()?.let { (it * 10).roundToInt() / 10f } ?: 0f }
@@ -306,7 +323,16 @@ private fun ImuChartSection(
             )
         }
         Spacer(modifier = Modifier.height(4.dp))
-        Box(modifier = Modifier.fillMaxWidth().height(180.dp)) {
+        Box(
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .height(180.dp)
+                    .semantics(mergeDescendants = true) {
+                        contentDescription = context.getString(R.string.cd_imu_chart, "$leftPeak", "$rightPeak")
+                        role = Role.Image
+                    },
+        ) {
             CartesianChartHost(
                 chart =
                     rememberCartesianChart(
@@ -352,8 +378,18 @@ private fun DetailsTab(
     onExport: () -> Unit,
 ) {
     if (session == null) {
-        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            CircularProgressIndicator()
+        val context = LocalContext.current
+        Box(
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .semantics(mergeDescendants = true) {
+                        contentDescription = context.getString(R.string.cd_loading)
+                        role = Role.ProgressIndicator
+                    },
+            contentAlignment = Alignment.Center,
+        ) {
+            CircularProgressIndicator(modifier = Modifier.size(48.dp))
         }
         return
     }

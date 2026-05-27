@@ -1,6 +1,7 @@
 package ru.skatelab.capture.ui.auth
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -25,7 +26,13 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.mergeDescendants
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
@@ -132,7 +139,17 @@ fun LoginScreen(
         Spacer(Modifier.height(16.dp))
 
         if (uiState is AuthUiState.Loading) {
-            CircularProgressIndicator(modifier = Modifier.size(24.dp))
+            val context = LocalContext.current
+            Box(
+                modifier =
+                    Modifier
+                        .semantics(mergeDescendants = true) {
+                            contentDescription = context.getString(R.string.cd_loading)
+                            role = Role.ProgressIndicator
+                        },
+            ) {
+                CircularProgressIndicator(modifier = Modifier.size(24.dp))
+            }
         } else {
             Button(
                 onClick = { onLogin(email.trim(), password) },
