@@ -622,8 +622,9 @@ class AnalysisPipeline:
         """Async version of analyze with parallel stage execution.
 
         Parallelizes independent operations:
-        - Wave 1: Phase detection + reference loading (parallel)
-        - Wave 2: Metrics + DTW alignment + physics 2D (parallel)
+        - Wave 0: 3D lift + reference loading (parallel)
+        - Wave 1: Phase detection (if not pre-detected for smoothing)
+        - Wave 2: Metrics + DTW alignment + physics (3D if available) (parallel)
         NumPy/Numba release GIL so ThreadPoolExecutor achieves real parallelism.
 
         Args:
@@ -653,30 +654,76 @@ class AnalysisPipeline:
         # Stage 3: Normalize poses (fast, run in main)
         normalized = self._get_normalizer().normalize(compensated_h36m)
 
-        # Stage 3.5: Smooth poses (fast, run in main)
+        # === Wave 0: 3D Lift || Ref Load ===
+        wave0_tasks: list[asyncio.Task] = []
+
+        lifter = self._get_3d_lifter()
+        if lifter is not None:
+            wave0_tasks.append(asyncio.create_task(self._lift_3d_async(normalized)))
+
+        if self._reference_store is not None and element_type is not None:
+            wave0_tasks.append(asyncio.create_task(self._load_reference_async(element_type)))
+
+        wave0_results = await asyncio.gather(*wave0_tasks) if wave0_tasks else []
+
+        poses_3d = None
+        reference: np.ndarray | None = None
+        result_idx = 0
+        if lifter is not None and len(wave0_results) > result_idx:
+            poses_3d = wave0_results[result_idx]
+            result_idx += 1
+        if (
+            self._reference_store is not None
+            and element_type is not None
+            and len(wave0_results) > result_idx
+        ):
+            reference = wave0_results[result_idx]
+            result_idx += 1
+
+        # Stage 3.5: Smooth poses (uses 3D if available)
+        pre_phases_async: ElementPhase | None = None
         if self._enable_smoothing:
             if manual_phases is not None:
                 boundaries = [manual_phases.takeoff, manual_phases.peak, manual_phases.landing]
                 boundaries = [b for b in boundaries if b > 0]
-                smoothed = self._get_smoother(meta.fps).smooth_phase_aware(normalized, boundaries)
+                if poses_3d is not None:
+                    smoothed = self._get_smoother(meta.fps).smooth_phase_aware_3d(
+                        poses_3d, boundaries
+                    )
+                else:
+                    smoothed = self._get_smoother(meta.fps).smooth_phase_aware(
+                        normalized, boundaries
+                    )
             # Pre-detect phases for phase-aware smoothing on jumps
             # (preserves snapshot angles by resetting filter at boundaries)
             elif element_type is not None and element_defs.is_jump(element_type):
                 pre_result = self._get_phase_detector().detect_phases(
                     normalized, meta.fps, element_type
                 )
-                pre_phases = pre_result.phases
-                boundaries = [pre_phases.takeoff, pre_phases.peak, pre_phases.landing]
+                pre_phases_async = pre_result.phases
+                boundaries = [
+                    pre_phases_async.takeoff,
+                    pre_phases_async.peak,
+                    pre_phases_async.landing,
+                ]
                 boundaries = [b for b in boundaries if b > 0]
-                smoothed = self._get_smoother(meta.fps).smooth_phase_aware(normalized, boundaries)
+                if poses_3d is not None:
+                    smoothed = self._get_smoother(meta.fps).smooth_phase_aware_3d(
+                        poses_3d, boundaries
+                    )
+                else:
+                    smoothed = self._get_smoother(meta.fps).smooth_phase_aware(
+                        normalized, boundaries
+                    )
+            elif poses_3d is not None:
+                smoothed = self._get_smoother(meta.fps).smooth_3d(poses_3d)
             else:
                 smoothed = self._get_smoother(meta.fps).smooth(normalized)
         else:
-            smoothed = normalized
+            smoothed = poses_3d if poses_3d is not None else normalized
 
         # Default phases for non-element analysis
         phases = ElementPhase(name="unknown", start=0, takeoff=0, peak=0, landing=0, end=0)
-        reference: np.ndarray | None = None
 
         # Element-specific analysis with wave-based parallelism
         physics_dict: dict = {}
@@ -685,23 +732,15 @@ class AnalysisPipeline:
             # Pre-compute CoM once (shared by metrics)
             com_trajectory = calculate_com_trajectory(smoothed)
 
-            # === Wave 1: phase detection, reference load in parallel ===
-            wave1_tasks: list[asyncio.Task] = []
-
-            wave1_tasks.append(
-                asyncio.create_task(
-                    self._detect_phases_async(smoothed, meta.fps, element_type, manual_phases)
-                )
-            )
-
-            if self._reference_store is not None:
-                wave1_tasks.append(asyncio.create_task(self._load_reference_async(element_type)))
-
-            wave1_results = await asyncio.gather(*wave1_tasks)
-
-            # Unpack wave 1 results
-            phases = wave1_results[0]
-            reference = wave1_results[1] if len(wave1_results) > 1 else None
+            # === Wave 1: phase detection ===
+            # Reference already loaded in Wave 0
+            if manual_phases is not None:
+                phases = manual_phases
+            elif pre_phases_async is not None:
+                # Use pre-detected phases from normalized (smoothed can distort CoM)
+                phases = pre_phases_async
+            else:
+                phases = await self._detect_phases_async(smoothed, meta.fps, element_type, None)
 
             # === Wave 2: metrics + DTW + physics in parallel ===
             # All three depend only on Wave 1 outputs (phases, reference, smoothed/normalized).
@@ -727,9 +766,11 @@ class AnalysisPipeline:
                     asyncio.create_task(self._compute_dtw_async(normalized, phases, reference))
                 )
 
-            # Task 2c: Physics 2D (needs smoothed poses + phases)
+            # Task 2c: Physics (3D if available, else 2D)
             wave2_tasks.append(
-                asyncio.create_task(self._compute_physics_2d_async(smoothed, phases, meta.fps))
+                asyncio.create_task(
+                    self._compute_physics_async(smoothed, phases, meta.fps, poses_3d=poses_3d)
+                )
             )
 
             wave2_results = await asyncio.gather(*wave2_tasks)
@@ -862,21 +903,23 @@ class AnalysisPipeline:
             reference.poses[reference.phases.start : reference.phases.end],
         )
 
-    async def _compute_physics_2d_async(
+    async def _compute_physics_async(
         self,
         smoothed: np.ndarray,
         phases: ElementPhase,
         fps: float,
+        poses_3d: np.ndarray | None = None,
     ) -> dict:
-        """Compute 2D physics in thread pool (GIL released by NumPy).
+        """Compute physics in thread pool (3D if available, else 2D).
 
         Args:
-            smoothed: (N, 17, 2) smoothed normalized poses.
+            smoothed: Smoothed poses (N, 17, 2) or (N, 17, 3).
             phases: Element phases.
             fps: Video frame rate.
+            poses_3d: 3D poses if available.
 
         Returns:
-            Physics result dict (empty on error).
+            Physics result dict.
         """
         loop = asyncio.get_event_loop()
         from .analysis.physics_engine import PhysicsEngine
@@ -884,12 +927,45 @@ class AnalysisPipeline:
         engine = PhysicsEngine(body_mass=70.0)
         _t_off = phases.takeoff if phases.takeoff > 0 else None
         _l_off = phases.landing if phases.landing > 0 else None
+
         try:
-            return await loop.run_in_executor(
-                None,
-                lambda: engine.analyze_2d(
-                    smoothed, takeoff_idx=_t_off, landing_idx=_l_off, fps=fps
-                ),
-            )
+            if poses_3d is not None:
+                result = await loop.run_in_executor(
+                    None,
+                    lambda: engine.analyze(smoothed, takeoff_idx=_t_off, landing_idx=_l_off),
+                )
+                return {
+                    "jump_height": result.jump_height,
+                    "flight_time": result.flight_time,
+                    "takeoff_velocity": None,
+                    "fit_quality": None,
+                    "avg_inertia": float(np.mean(result.moment_of_inertia)),
+                }
+            else:
+                return await loop.run_in_executor(
+                    None,
+                    lambda: engine.analyze_2d(
+                        smoothed, takeoff_idx=_t_off, landing_idx=_l_off, fps=fps
+                    ),
+                )
         except Exception:
             return {}
+
+    async def _lift_3d_async(self, normalized: np.ndarray) -> np.ndarray:
+        """Async 3D lift — runs TCPFormer in thread pool (GIL released by ORT CUDA).
+
+        Args:
+            normalized: (N, 17, 2) normalized 2D poses.
+
+        Returns:
+            (N, 17, 3) 3D normalized poses.
+        """
+        loop = asyncio.get_event_loop()
+        lifter = self._get_3d_lifter()
+        if lifter is None:
+            raise RuntimeError("3D lifter not available")
+
+        poses_3d_raw = await loop.run_in_executor(None, lifter.estimate_3d, normalized)
+        normalizer = self._get_normalizer()
+        poses_3d = await loop.run_in_executor(None, normalizer.normalize_3d, poses_3d_raw)
+        return poses_3d
