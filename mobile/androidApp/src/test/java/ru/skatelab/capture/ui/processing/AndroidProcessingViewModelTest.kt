@@ -43,7 +43,7 @@ class AndroidProcessingViewModelTest {
 
             val state = viewModel.uiState.value
             assertTrue(state is ProcessingUiState.Failed)
-            assertTrue((state as ProcessingUiState.Failed).message.contains("Queue error"))
+            assertTrue((state as ProcessingUiState.Failed).error is ru.skatelab.shared.models.AppError.Unknown)
         }
 
     @Test

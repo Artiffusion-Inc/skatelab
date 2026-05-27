@@ -26,6 +26,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import ru.skatelab.shared.models.AppError
 import ru.skatelab.shared.state.ProcessingUiState
 
 @Composable
@@ -95,12 +96,7 @@ fun ProcessingScreen(
             }
 
             is ProcessingUiState.Failed -> {
-                val isNetworkError =
-                    state.message.lowercase().let { msg ->
-                        msg.contains("network") || msg.contains("connection") ||
-                            msg.contains("timeout") || msg.contains("socket") ||
-                            msg.contains("unreachable") || msg.contains("resolve")
-                    }
+                val isNetworkError = state.error is AppError.Network || state.error is AppError.Timeout
                 Icon(
                     imageVector = if (isNetworkError) Icons.Default.CloudOff else Icons.Default.ErrorOutline,
                     contentDescription = null,
@@ -115,7 +111,7 @@ fun ProcessingScreen(
                 )
                 Spacer(Modifier.height(8.dp))
                 Text(
-                    text = if (isNetworkError) "Проверьте подключение к интернету и повторите." else state.message,
+                    text = if (isNetworkError) "Проверьте подключение к интернету и повторите." else "Ошибка обработки",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
