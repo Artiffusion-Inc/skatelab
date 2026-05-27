@@ -400,7 +400,7 @@ private fun AngularVelocityChart(metrics: List<SessionMetricResponse>) {
                 Column {
                     Text(angVelAvg, style = MaterialTheme.typography.labelSmall)
                     Text(
-                        "%.1f °/с".format(avgAngVel),
+                        stringResource(R.string.ang_vel_format, avgAngVel),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
                     )
@@ -408,7 +408,7 @@ private fun AngularVelocityChart(metrics: List<SessionMetricResponse>) {
                 Column {
                     Text(angVelMax, style = MaterialTheme.typography.labelSmall)
                     Text(
-                        "%.1f °/с".format(maxAngVel),
+                        stringResource(R.string.ang_vel_format, maxAngVel),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
                     )

@@ -23,20 +23,20 @@ import androidx.compose.ui.unit.dp
 import ru.skatelab.capture.R
 import ru.skatelab.shared.models.SessionMetricResponse
 
-/** Units for known metric names. */
-private val metricUnits: Map<String, String> =
+/** Metric name → string resource ID for unit suffix. */
+private val metricUnitResIds: Map<String, Int> =
     mapOf(
-        "jump_height" to "м",
-        "airtime" to "с",
-        "angular_velocity" to "°/с",
-        "knee_angle_min" to "°",
-        "landing_quality" to "",
-        "rotation_count" to "",
-        "torso_lean" to "°",
-        "approach_arc" to "",
-        "pre_rotation" to "°",
-        "total_rotation" to "°",
-        "speed_at_takeoff" to "м/с",
+        "jump_height" to R.string.unit_m,
+        "airtime" to R.string.unit_s,
+        "angular_velocity" to R.string.unit_dps,
+        "knee_angle_min" to R.string.unit_deg,
+        "landing_quality" to 0,
+        "rotation_count" to 0,
+        "torso_lean" to R.string.unit_deg,
+        "approach_arc" to 0,
+        "pre_rotation" to R.string.unit_deg,
+        "total_rotation" to R.string.unit_deg,
+        "speed_at_takeoff" to R.string.unit_mps,
     )
 
 @Composable
@@ -62,7 +62,8 @@ fun MetricCard(
     modifier: Modifier = Modifier,
 ) {
     val label = metricDisplayName(metric.metricName)
-    val unit = metricUnits[metric.metricName] ?: ""
+    val unitResId = metricUnitResIds[metric.metricName] ?: 0
+    val unit = if (unitResId != 0) stringResource(unitResId) else ""
 
     Card(
         modifier = modifier.semantics(mergeDescendants = true) {}.padding(4.dp),

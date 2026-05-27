@@ -76,9 +76,14 @@
     <string name="label_acc_mag">|a| m/s²</string>
     <string name="label_ang_vel">|ω| °/s</string>
     <string name="label_rotation">Cumulative rotation</string>
+    <string name="unit_m">m</string>
+    <string name="unit_s">s</string>
+    <string name="unit_deg">°</string>
     <string name="unit_mps2">m/s²</string>
     <string name="unit_dps">°/s</string>
+    <string name="unit_mps">m/s</string>
     <string name="unit_rad">rad</string>
+    <string name="ang_vel_format">%1$.1f °/s</string>
     <string name="charts_summary_title">Sensor data</string>
     <string name="charts_summary_hint">Scroll and zoom charts. Red line — video position.</string>
     <string name="detail_duration">Duration: %d s</string>
