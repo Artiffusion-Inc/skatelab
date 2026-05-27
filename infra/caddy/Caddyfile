@@ -6,11 +6,6 @@ feeds.{$DOMAIN} {
   reverse_proxy rsshub:1200
 }
 
-wm.{$DOMAIN} {
-  reverse_proxy /ws/* windmill_lsp:3001
-  reverse_proxy /* windmill_server:8000
-}
-
 search.{$DOMAIN} {
   reverse_proxy searxng:8080 {
     header_up X-Real-IP {remote_host}
@@ -39,16 +34,6 @@ ntfy.{$DOMAIN} {
   reverse_proxy 9router:20128
 }
 
-sub.skatelab.ru {
-  tls {
-    dns cloudflare {env.CLOUDFLARE_API_TOKEN} {
-      propagation_timeout -1
-    }
-  }
-
-  reverse_proxy vless-sub:8080
-}
-
 ov.{$DOMAIN} {
   @console path /console /console/*
   handle @console {
@@ -60,9 +45,6 @@ ov.{$DOMAIN} {
   }
 }
 
-sync.{$DOMAIN} {
-  reverse_proxy syncthing:8384
-}
 
 qbit.{$DOMAIN} {
   reverse_proxy qbittorrent:8080
@@ -95,14 +77,8 @@ s3c.{$DOMAIN} {
   reverse_proxy rustfs:9001
 }
 
-headscale.skatelab.ru {
-  reverse_proxy headscale:8080 {
-    flush_interval -1
-    header_up Upgrade {http_upgrade}
-    header_up Connection "upgrade"
-    header_up X-Real-IP {remote_host}
-    header_up X-Forwarded-Proto https
-  }
+sub.{$DOMAIN} {
+  reverse_proxy vless-sub:8080
 }
 
 api.skatelab.ru {
