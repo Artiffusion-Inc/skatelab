@@ -10,32 +10,32 @@
   --radius-md: 0.75rem;
   --radius-lg: 1rem;
   --color-background: oklch(1 0 0);
-  --color-foreground: oklch(0.295 0.005 220);
-  --color-muted: oklch(0.975 0.003 229);
-  --color-muted-foreground: oklch(0.547 0.01 225);
-  --color-border: oklch(0.892 0.01 222);
-  --color-primary: oklch(0.452 0.075 221);
-  --color-primary-foreground: oklch(1 0 0);
-  --color-primary-deep: oklch(0.301 0.047 225);
-  --color-destructive: oklch(0.543 0.174 30);
+  --color-foreground: oklch(0.233 0.037 247);
+  --color-muted: oklch(0.964 0.013 229);
+  --color-muted-foreground: oklch(0.519 0.052 233);
+  --color-border: oklch(0.885 0.027 230);
+  --color-primary: oklch(0.734 0.145 235);
+  --color-primary-foreground: oklch(0.227 0.041 245);
+  --color-primary-deep: oklch(0.401 0.087 240);
+  --color-destructive: oklch(0.592 0.181 25);
   --color-destructive-foreground: oklch(1 0 0);
   --color-card: oklch(1 0 0);
-  --color-card-foreground: oklch(0.295 0.005 220);
-  --color-accent: oklch(0.975 0.003 229);
-  --color-link: oklch(0.452 0.075 221);
-  --color-ink: oklch(0.295 0.005 220);
-  --color-ink-mute: oklch(0.547 0.01 225);
-  --color-ink-faint: oklch(0.703 0.007 234);
-  --color-canvas-soft: oklch(0.975 0.003 229);
-  --color-surface-ice-soft: oklch(0.906 0.034 220);
-  --color-surface-teal-deep: oklch(0.301 0.047 225);
-  --color-surface-teal-mid: oklch(0.452 0.075 221);
-  --color-on-dark-mute: oklch(0.863 0.019 222);
-  --color-on-dark-dim: oklch(0.721 0.041 224);
-  --color-on-dark-faint: oklch(0.559 0.04 221);
-  --color-hairline: oklch(0.892 0.01 222);
-  --color-hairline-dark: oklch(0.388 0.04 216);
-  --color-on-primary: oklch(1 0 0);
+  --color-card-foreground: oklch(0.233 0.037 247);
+  --color-accent: oklch(0.964 0.013 229);
+  --color-link: oklch(0.557 0.1 226);
+  --color-ink: oklch(0.233 0.037 247);
+  --color-ink-mute: oklch(0.519 0.052 233);
+  --color-ink-faint: oklch(0.719 0.04 227);
+  --color-canvas-soft: oklch(0.964 0.013 229);
+  --color-surface-ice-soft: oklch(0.935 0.029 225);
+  --color-surface-teal-deep: oklch(0.401 0.087 240);
+  --color-surface-teal-mid: oklch(0.734 0.145 235);
+  --color-on-dark-mute: oklch(0.916 0.029 225);
+  --color-on-dark-dim: oklch(0.827 0.062 223);
+  --color-on-dark-faint: oklch(0.74 0.086 219);
+  --color-hairline: oklch(0.885 0.027 230);
+  --color-hairline-dark: oklch(0.56 0.092 230);
+  --color-on-primary: oklch(0.227 0.041 245);
 }
 
 body {
@@ -97,7 +97,7 @@ body {
   font-variant-numeric: tabular-nums;
   line-height: 1;
   letter-spacing: 0.06em;
-  color: oklch(0.547 0.01 225 / 0.55);
+  color: oklch(0.519 0.052 233 / 0.55);
   position: absolute;
   top: 1.25rem;
   right: 1.25rem;
@@ -340,7 +340,7 @@ body {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    background-color: oklch(0.543 0.174 30 / 0.1);
+    background-color: oklch(0.592 0.181 25 / 0.1);
     color: var(--color-destructive);
     border-radius: var(--radius-md);
     padding: 12px 20px;
@@ -352,7 +352,7 @@ body {
   }
 
   .sh-button-destructive:hover {
-    background-color: oklch(0.543 0.174 30 / 0.2);
+    background-color: oklch(0.592 0.181 25 / 0.2);
   }
 
   .sh-text-input {
@@ -396,9 +396,9 @@ body {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    background-color: oklch(0.301 0.047 225 / 0.85);
+    background-color: oklch(0.401 0.087 240 / 0.85);
     color: var(--color-primary-foreground);
-    border: 1px solid oklch(0.906 0.034 220 / 0.4);
+    border: 1px solid oklch(0.935 0.029 225 / 0.4);
     border-radius: var(--radius-md);
     padding: 12px 16px;
     font-family: var(--font-sans);
