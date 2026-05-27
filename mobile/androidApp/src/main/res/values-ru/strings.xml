@@ -1,0 +1,221 @@
+<!-- mobile/androidApp/src/main/res/values-ru/strings.xml -->
+<resources>
+    <string name="app_name">SkateLab Capture</string>
+
+    <string name="recording_notification_channel">Запись датчиков</string>
+    <string name="recording_notification_title">Идёт запись</string>
+
+    <string name="ble_scan_title">Поиск датчиков</string>
+    <string name="ble_scan_button">Сканировать</string>
+    <string name="ble_scan_stop">Стоп</string>
+    <string name="ble_proceed_calibration">Далее: Калибровка</string>
+    <string name="ble_left">Левый</string>
+    <string name="ble_right">Правый</string>
+    <string name="ble_status_idle">Готов</string>
+    <string name="ble_status_resetting_left">Сброс левого датчика…</string>
+    <string name="ble_status_resetting_right">Сброс правого датчика…</string>
+    <string name="ble_status_reset_ok_left">Сброс левого OK</string>
+    <string name="ble_status_reset_ok_right">Сброс правого OK</string>
+    <string name="ble_status_reset_failed">Ошибка сброса</string>
+    <string name="ble_status_calibrating_left">Калибровка ACC левого… Датчик горизонтально!</string>
+    <string name="ble_status_calibrating_right">Калибровка ACC правого… Датчик горизонтально!</string>
+    <string name="ble_status_calibration_ok_left">ACC калибровка левого OK</string>
+    <string name="ble_status_calibration_ok_right">ACC калибровка правого OK</string>
+    <string name="ble_status_calibration_failed">Ошибка калибровки</string>
+    <string name="ble_connected">Подключен</string>
+    <string name="ble_rssi">RSSI: %1$d</string>
+    <string name="ble_reset_left">Сброс лев.</string>
+    <string name="ble_reset_right">Сброс прав.</string>
+    <string name="ble_acc_left">ACC лев.</string>
+    <string name="ble_acc_right">ACC прав.</string>
+
+    <string name="calibration_title">Калибровка датчиков</string>
+    <string name="calibration_instruction">Положите датчики на ровную поверхность и не двигайте.</string>
+    <string name="calibration_left">Левый датчик</string>
+    <string name="calibration_right">Правый датчик</string>
+    <string name="calibration_calibrate">Калибровать</string>
+    <string name="calibration_calibrate_both">Калибровка</string>
+    <string name="calibration_done">Откалиброван</string>
+    <string name="calibration_proceed">Далее: Камера</string>
+    <string name="calibration_skip">Пропустить</string>
+    <string name="calibration_cancel">Отменить</string>
+
+    <string name="recording_preparing">Подготовка камеры…</string>
+    <string name="recording_camera_ready">Камера готова</string>
+    <string name="recording_active">Запись…</string>
+    <string name="recording_start">Начать запись</string>
+    <string name="recording_stop">Остановить запись</string>
+
+    <string name="export_title">Экспорт сессии</string>
+    <string name="export_session">Сессия: %s</string>
+    <string name="exporting">Экспорт…</string>
+    <string name="export_done">Экспорт завершён!</string>
+    <string name="export_share">Поделиться</string>
+    <string name="export_share_title">Отправить сессию</string>
+
+    <string name="permissions_required">Разрешения необходимы для работы</string>
+
+    <string name="session_list_title">Сессии</string>
+    <string name="session_date_format">dd.MM.yyyy HH:mm</string>
+    <string name="session_duration">Длительность: %d сек</string>
+    <string name="session_complete">Завершена</string>
+    <string name="session_incomplete">Незавершена</string>
+    <string name="session_no_sessions">Нет сохранённых сессий</string>
+    <string name="session_detail_title">Сессия</string>
+    <string name="tab_video">Видео</string>
+    <string name="tab_charts">Графики</string>
+    <string name="tab_details">Информация</string>
+    <string name="imu_loading">Загрузка данных…</string>
+    <string name="imu_no_data">Нет данных IMU</string>
+    <string name="label_acc_mag">|a| м/с²</string>
+    <string name="label_ang_vel">|ω| °/с</string>
+    <string name="label_rotation">Накопленный поворот</string>
+    <string name="unit_mps2">м/с²</string>
+    <string name="unit_dps">°/с</string>
+    <string name="unit_rad">рад</string>
+    <string name="charts_summary_title">Данные датчиков</string>
+    <string name="charts_summary_hint">Листайте и масштабируйте графики. Красная линия — позиция видео.</string>
+    <string name="detail_duration">Длительность: %d с</string>
+    <string name="detail_fps">FPS: %d</string>
+    <string name="detail_resolution">Разрешение: %dx%d</string>
+    <string name="detail_status_complete">Завершена</string>
+    <string name="detail_status_incomplete">Незавершена</string>
+    <string name="detail_video_size">Видео: %s</string>
+    <string name="detail_imu_left">Левый датчик: %s</string>
+    <string name="detail_imu_right">Правый датчик: %s</string>
+    <string name="detail_timestamp_source">Таймстемпы: %s</string>
+    <string name="detail_fps_verified">FPS верифицирован: %s</string>
+    <string name="detail_file_absent">отсутствует</string>
+    <string name="detail_file_present">%s (%.1f КБ)</string>
+    <string name="detail_yes">да</string>
+    <string name="detail_no">нет</string>
+    <string name="session_export">Экспорт</string>
+    <string name="session_delete">Удалить</string>
+    <string name="session_delete_title">Удалить сессию?</string>
+    <string name="session_delete_confirm">Сессия и все файлы будут удалены.</string>
+    <string name="session_delete_confirm_button">Удалить</string>
+    <string name="session_delete_cancel">Отмена</string>
+    <string name="session_new_recording">Новая запись</string>
+
+    <string name="results_title">Результаты</string>
+    <string name="results_empty">Нет результатов анализа</string>
+    <string name="results_loading">Загрузка…</string>
+    <string name="results_error_prefix">Ошибка: </string>
+    <string name="results_pull_refresh">Потяните вниз, чтобы обновить</string>
+    <string name="result_detail_title">Результат</string>
+    <string name="metric_pr">PR</string>
+    <string name="metric_reference">Референс:</string>
+    <string name="metric_section_title">Метрики</string>
+    <string name="recommendations_title">Рекомендации</string>
+    <string name="status_completed">Готово</string>
+    <string name="status_processing">Обработка…</string>
+    <string name="status_failed">Ошибка</string>
+    <string name="status_queued">В очереди</string>
+    <string name="score_label">оценка</string>
+    <string name="ang_vel_avg">Средняя</string>
+    <string name="ang_vel_max">Максимальная</string>
+    <string name="ang_vel_title">Угловая скорость</string>
+
+    <string name="error_network">Ошибка сети. Проверьте подключение.</string>
+    <string name="error_auth">Ошибка авторизации. Войдите заново.</string>
+    <string name="error_not_found">Не найдено.</string>
+    <string name="error_server">Ошибка сервера. Попробуйте позже.</string>
+    <string name="error_timeout">Время запроса истекло. Попробуйте снова.</string>
+    <string name="error_unknown">Произошла непредвиденная ошибка.</string>
+
+    <string name="auth_login_title">Войдите в аккаунт</string>
+    <string name="auth_register_title">Создать аккаунт</string>
+    <string name="auth_register_subtitle">Зарегистрируйтесь, чтобы начать</string>
+    <string name="auth_email">Email</string>
+    <string name="auth_password">Пароль</string>
+    <string name="auth_display_name">Имя</string>
+    <string name="auth_login_button">Войти</string>
+    <string name="auth_register_button">Зарегистрироваться</string>
+    <string name="auth_no_account">Нет аккаунта? Зарегистрируйтесь</string>
+    <string name="auth_has_account">Уже есть аккаунт? Войдите</string>
+    <string name="auth_no_network">Нет подключения к интернету. Проверьте сеть и повторите.</string>
+    <string name="auth_retry">Повторить</string>
+
+    <string name="processing_preparing">Подготовка…</string>
+    <string name="processing_done">Готово!</string>
+    <string name="processing_no_connection">Нет подключения</string>
+    <string name="processing_check_network">Проверьте подключение к интернету и повторите.</string>
+    <string name="processing_retry">Повторить</string>
+    <string name="processing_go_back">Назад</string>
+
+    <string name="session_detail_left_sensor">Левый</string>
+    <string name="session_detail_right_sensor">Правый</string>
+    <string name="session_detail_left_summary">Л: пик %1$s, средн %2$s</string>
+    <string name="session_detail_right_summary">П: пик %1$s, средн %2$s</string>
+    <string name="session_detail_files">Файлы</string>
+    <string name="session_detail_result_fallback">Результат</string>
+
+    <string name="session_list_results">Результаты</string>
+    <string name="session_list_nav_back">Назад</string>
+    <string name="session_list_loading">Загрузка…</string>
+    <string name="session_list_error">Ошибка загрузки</string>
+    <string name="session_list_retry">Повторить</string>
+    <string name="session_list_empty">Нет результатов анализа</string>
+
+    <string name="session_ui_nav_back">Назад</string>
+    <string name="session_ui_error_loading">Ошибка загрузки</string>
+    <string name="session_ui_retry">Повторить</string>
+    <string name="session_ui_hide_skeleton">Скрыть скелет</string>
+    <string name="session_ui_show_skeleton">Показать скелет</string>
+    <string name="session_ui_score_label">оценка</string>
+    <string name="session_ui_metrics_title">Метрики</string>
+    <string name="session_ui_recommendations_title">Рекомендации</string>
+
+    <string name="metric_jump_height">Высота прыжка</string>
+    <string name="metric_airtime">Время в воздухе</string>
+    <string name="metric_angular_velocity">Угловая скорость</string>
+    <string name="metric_knee_angle_min">Мин. угол колена</string>
+    <string name="metric_landing_quality">Качество приземления</string>
+    <string name="metric_rotation_count">Количество вращений</string>
+    <string name="metric_torso_lean">Наклон корпуса</string>
+    <string name="metric_approach_arc">Дуга разбега</string>
+    <string name="metric_pre_rotation">Предварит. вращение</string>
+    <string name="metric_total_rotation">Общее вращение</string>
+    <string name="metric_speed_at_takeoff">Скорость на отрыве</string>
+
+    <string name="element_axel">Аксель</string>
+    <string name="element_lutz">Лутц</string>
+    <string name="element_flip">Флип</string>
+    <string name="element_loop">Риттбергер</string>
+    <string name="element_salchow">Сальхов</string>
+    <string name="element_toe_loop">Тулуп</string>
+    <string name="element_toe_loop_flip">Тулуп (флип)</string>
+    <string name="element_cascade">Каскад</string>
+
+    <string name="recording_left_battery">Л: %1$d%%</string>
+    <string name="recording_right_battery">П: %1$d%%</string>
+    <string name="recording_reconnecting">Переподключение: %1$s</string>
+
+    <string name="profile_save">Сохранить профиль</string>
+    <string name="profile_saved">Сохранено</string>
+    <string name="profile_log_out">Выйти</string>
+
+    <string name="more_title">Ещё</string>
+    <string name="more_sensors">Датчики</string>
+    <string name="more_ble_scan">BLE Сканирование</string>
+    <string name="more_about">О приложении</string>
+    <string name="more_app_version">Версия приложения</string>
+    <string name="more_log_out">Выйти</string>
+
+    <string name="camera_preparing">Подготовка камеры…</string>
+    <string name="camera_reconnecting">Переподключение: %1$s</string>
+
+    <string name="calibration_countdown">%1$d с</string>
+
+    <string name="nav_back">Назад</string>
+
+    <string name="cd_ble_sensor">Подключить BLE датчик</string>
+    <string name="cd_app_info">Информация о версии</string>
+    <string name="cd_logout">Выйти</string>
+    <string name="cd_save_profile">Сохранить профиль</string>
+    <string name="cd_export_session">Экспорт сессии</string>
+    <string name="cd_skeleton_overlay">Визуализация скелета</string>
+    <string name="cd_imu_chart">График IMU: угловая скорость. Левый пик %1$s, правый пик %2$s</string>
+    <string name="cd_loading">Загрузка</string>
+    <string name="cd_error_icon">Ошибка</string>
+</resources>
