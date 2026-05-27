@@ -24,8 +24,10 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import ru.skatelab.capture.R
 import ru.skatelab.shared.models.AppError
 import ru.skatelab.shared.state.ProcessingUiState
 
@@ -99,7 +101,7 @@ fun ProcessingScreen(
                 val isNetworkError = state.error is AppError.Network || state.error is AppError.Timeout
                 Icon(
                     imageVector = if (isNetworkError) Icons.Default.CloudOff else Icons.Default.ErrorOutline,
-                    contentDescription = null,
+                    contentDescription = stringResource(R.string.cd_error_icon),
                     modifier = Modifier.size(48.dp),
                     tint = MaterialTheme.colorScheme.error,
                 )

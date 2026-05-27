@@ -33,7 +33,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import ru.skatelab.capture.R
 import androidx.hilt.navigation.compose.hiltViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -96,7 +98,7 @@ fun MoreScreen(
                     leadingContent = {
                         Icon(
                             Icons.Default.Bluetooth,
-                            contentDescription = null,
+                            contentDescription = stringResource(R.string.cd_ble_sensor),
                             tint = MaterialTheme.colorScheme.primary,
                         )
                     },
@@ -128,7 +130,7 @@ fun MoreScreen(
                     leadingContent = {
                         Icon(
                             Icons.Default.Info,
-                            contentDescription = null,
+                            contentDescription = stringResource(R.string.cd_app_info),
                             tint = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     },
@@ -153,7 +155,7 @@ fun MoreScreen(
                                 contentColor = MaterialTheme.colorScheme.error,
                             ),
                     ) {
-                        Icon(Icons.AutoMirrored.Filled.Logout, contentDescription = null)
+                        Icon(Icons.AutoMirrored.Filled.Logout, contentDescription = stringResource(R.string.cd_logout))
                         Spacer(modifier = Modifier.size(8.dp))
                         Text("Log out")
                     }

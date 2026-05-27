@@ -412,7 +412,7 @@ private fun DetailsTab(
                 onClick = onExport,
                 modifier = Modifier.weight(1f),
             ) {
-                Icon(Icons.Default.IosShare, contentDescription = null)
+                Icon(Icons.Default.IosShare, contentDescription = stringResource(R.string.cd_export_session))
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(stringResource(R.string.export_title))
             }

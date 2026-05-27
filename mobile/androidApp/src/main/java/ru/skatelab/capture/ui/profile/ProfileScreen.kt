@@ -48,7 +48,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import ru.skatelab.capture.R
 import androidx.hilt.navigation.compose.hiltViewModel
 
 private data class AngularUnitOption(
@@ -248,7 +250,7 @@ fun ProfileScreen(
                         },
                         modifier = Modifier.fillMaxWidth(),
                     ) {
-                        Icon(Icons.Default.Save, contentDescription = null)
+                        Icon(Icons.Default.Save, contentDescription = stringResource(R.string.cd_save_profile))
                         Spacer(Modifier.width(8.dp))
                         Text("Save profile")
                     }

@@ -133,4 +133,10 @@
 
     <!-- Accessibility -->
     <string name="cd_skeleton_overlay">Скелетная накладка</string>
+    <string name="cd_error_icon">Ошибка</string>
+    <string name="cd_ble_sensor">Датчик BLE</string>
+    <string name="cd_app_info">Информация о приложении</string>
+    <string name="cd_logout">Выход</string>
+    <string name="cd_save_profile">Сохранить профиль</string>
+    <string name="cd_export_session">Экспорт сессии</string>
 </resources>
