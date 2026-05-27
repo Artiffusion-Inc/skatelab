@@ -15,34 +15,52 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import ru.skatelab.capture.R
 import ru.skatelab.shared.models.SessionMetricResponse
 
-/** Human-readable labels and units for known metric names. */
-private val metricMeta: Map<String, Pair<String, String>> =
+/** Units for known metric names. */
+private val metricUnits: Map<String, String> =
     mapOf(
-        "jump_height" to ("Высота прыжка" to "м"),
-        "airtime" to ("Время в воздухе" to "с"),
-        "angular_velocity" to ("Угловая скорость" to "°/с"),
-        "knee_angle_min" to ("Мин. угол колена" to "°"),
-        "landing_quality" to ("Качество приземления" to ""),
-        "rotation_count" to ("Количество вращений" to ""),
-        "torso_lean" to ("Наклон корпуса" to "°"),
-        "approach_arc" to ("Дуга разбега" to ""),
-        "pre_rotation" to ("Предварит. вращение" to "°"),
-        "total_rotation" to ("Общее вращение" to "°"),
-        "speed_at_takeoff" to ("Скорость на отрыве" to "м/с"),
+        "jump_height" to "м",
+        "airtime" to "с",
+        "angular_velocity" to "°/с",
+        "knee_angle_min" to "°",
+        "landing_quality" to "",
+        "rotation_count" to "",
+        "torso_lean" to "°",
+        "approach_arc" to "",
+        "pre_rotation" to "°",
+        "total_rotation" to "°",
+        "speed_at_takeoff" to "м/с",
     )
+
+@Composable
+fun metricDisplayName(key: String): String =
+    when (key) {
+        "jump_height" -> stringResource(R.string.metric_jump_height)
+        "airtime" -> stringResource(R.string.metric_airtime)
+        "angular_velocity" -> stringResource(R.string.metric_angular_velocity)
+        "knee_angle_min" -> stringResource(R.string.metric_knee_angle_min)
+        "landing_quality" -> stringResource(R.string.metric_landing_quality)
+        "rotation_count" -> stringResource(R.string.metric_rotation_count)
+        "torso_lean" -> stringResource(R.string.metric_torso_lean)
+        "approach_arc" -> stringResource(R.string.metric_approach_arc)
+        "pre_rotation" -> stringResource(R.string.metric_pre_rotation)
+        "total_rotation" -> stringResource(R.string.metric_total_rotation)
+        "speed_at_takeoff" -> stringResource(R.string.metric_speed_at_takeoff)
+        else -> key
+    }
 
 @Composable
 fun MetricCard(
     metric: SessionMetricResponse,
     modifier: Modifier = Modifier,
 ) {
-    val meta = metricMeta[metric.metricName]
-    val label = meta?.first ?: metric.metricName.replace('_', ' ').replaceFirstChar { it.uppercase() }
-    val unit = meta?.second ?: ""
+    val label = metricDisplayName(metric.metricName)
+    val unit = metricUnits[metric.metricName] ?: ""
 
     Card(
         modifier = modifier.padding(4.dp),
@@ -118,7 +136,7 @@ private fun ReferenceRange(metric: SessionMetricResponse) {
         horizontalArrangement = Arrangement.spacedBy(4.dp),
     ) {
         Text(
-            text = "Референс:",
+            text = stringResource(R.string.metric_reference),
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
