@@ -8,6 +8,7 @@ import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import javax.inject.Singleton
+import ru.skatelab.capture.BuildConfig
 import ru.skatelab.capture.data.db.AppDatabase
 import ru.skatelab.capture.data.db.CachedSessionDao
 import ru.skatelab.capture.data.db.PendingUploadDao
@@ -20,10 +21,13 @@ object DatabaseModule {
     @Singleton
     fun provideDatabase(
         @ApplicationContext context: Context,
-    ): AppDatabase =
-        Room.databaseBuilder(context, AppDatabase::class.java, "skatelab.db")
-            .fallbackToDestructiveMigration(true)
-            .build()
+    ): AppDatabase {
+        val builder = Room.databaseBuilder(context, AppDatabase::class.java, "skatelab.db")
+        if (BuildConfig.DEBUG) {
+            builder.fallbackToDestructiveMigration(true)
+        }
+        return builder.build()
+    }
 
     @Provides
     fun providePendingUploadDao(db: AppDatabase): PendingUploadDao = db.pendingUploadDao()
