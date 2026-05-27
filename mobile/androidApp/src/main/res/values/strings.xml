@@ -103,4 +103,12 @@
     <string name="ang_vel_avg">Средняя</string>
     <string name="ang_vel_max">Максимальная</string>
     <string name="ang_vel_title">Угловая скорость</string>
+
+    <!-- Error messages (AppError) -->
+    <string name="error_network">Network error. Check your connection.</string>
+    <string name="error_auth">Authentication error. Please log in again.</string>
+    <string name="error_not_found">Not found.</string>
+    <string name="error_server">Server error. Please try again later.</string>
+    <string name="error_timeout">Request timed out. Please try again.</string>
+    <string name="error_unknown">An unexpected error occurred.</string>
 </resources>
