@@ -375,17 +375,21 @@ class PoseSmoother:
     def smooth(self, poses: NormalizedPose) -> NormalizedPose:
         """Smooth pose sequence using One-Euro Filter (Numba batch path).
 
+        Auto-detects 2D (N, J, 2) vs 3D (N, J, 3) input and delegates accordingly.
+
         Args:
-            poses: NormalizedPose (num_frames, num_joints, 2).
-                   Supports H3.6M (17 joints) or BlazePose (33 joints).
+            poses: NormalizedPose (num_frames, num_joints, 2 or 3).
 
         Returns:
-            Smoothed poses (num_frames, num_joints, 2).
+            Smoothed poses with same shape as input.
         """
         _num_frames, num_joints, num_coords = poses.shape
 
+        if num_coords == 3:
+            return self.smooth_3d(poses)
+
         if num_coords != 2:
-            msg = f"Expected shape (N, J, 2), got {poses.shape}"
+            msg = f"Expected shape (N, J, 2) or (N, J, 3), got {poses.shape}"
             raise ValueError(msg)
 
         if num_joints not in (17, 33):
@@ -482,6 +486,40 @@ class PoseSmoother:
             smoothed_phase = self.smooth(phase_poses)
 
             # Copy to output
+            smoothed[start:end] = smoothed_phase
+
+        return smoothed
+
+    def smooth_phase_aware_3d(
+        self,
+        poses_3d: NDArray[np.float32],
+        phase_boundaries: list[int],
+    ) -> NDArray[np.float32]:
+        """Smooth 3D poses with phase-aware processing.
+
+        Resets filter at each phase boundary to avoid smoothing across
+        rapid transitions (e.g., takeoff, landing).
+
+        Args:
+            poses_3d: (num_frames, 17, 3) 3D poses.
+            phase_boundaries: List of frame indices where phases change.
+
+        Returns:
+            Smoothed 3D poses (num_frames, 17, 3).
+        """
+        if not phase_boundaries:
+            return self.smooth_3d(poses_3d)
+
+        boundaries = sorted([0, *phase_boundaries, len(poses_3d)])
+        smoothed = np.zeros_like(poses_3d)
+
+        for i in range(len(boundaries) - 1):
+            start = boundaries[i]
+            end = boundaries[i + 1]
+            if end <= start:
+                continue
+            phase_poses = poses_3d[start:end]
+            smoothed_phase = self.smooth_3d(phase_poses)
             smoothed[start:end] = smoothed_phase
 
         return smoothed

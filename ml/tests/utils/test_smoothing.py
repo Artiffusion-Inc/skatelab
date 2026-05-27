@@ -306,8 +306,8 @@ class TestPoseSmoother:
         """Test that invalid shape raises error."""
         smoother = PoseSmoother(freq=30.0)
 
-        # Wrong shape - 3D instead of 2D (smooth() expects 2D)
-        poses = np.zeros((30, 17, 3), dtype=np.float32)
+        # Wrong shape - 4D instead of 2D/3D (smooth() auto-detects 2D/3D)
+        poses = np.zeros((30, 17, 4), dtype=np.float32)
 
         with pytest.raises(ValueError, match="Expected shape"):
             smoother.smooth(poses)
