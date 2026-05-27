@@ -153,6 +153,28 @@ class TestDeviceConfig:
             cfg = DeviceConfig()
             assert cfg.device == "cpu"
 
+    def test_cuda_provider_options_returns_tuple(self):
+        """cuda_provider_options returns (provider, options) tuples for CUDA."""
+        from src.device import DeviceConfig
+
+        with mock.patch("src.device._cuda_available", return_value=True):
+            cfg = DeviceConfig(device="cuda")
+        providers = cfg.onnx_providers_with_options
+        assert isinstance(providers, list)
+        assert len(providers) >= 1
+        first = providers[0]
+        assert isinstance(first, tuple)
+        assert first[0] == "CUDAExecutionProvider"
+        assert isinstance(first[1], dict)
+
+    def test_cpu_provider_options_returns_list(self):
+        """onnx_providers_with_options returns simple list for CPU."""
+        from src.device import DeviceConfig
+
+        cfg = DeviceConfig(device="cpu")
+        providers = cfg.onnx_providers_with_options
+        assert providers == ["CPUExecutionProvider"]
+
 
 class TestResolveDevice:
     """Tests for resolve_device convenience function."""
