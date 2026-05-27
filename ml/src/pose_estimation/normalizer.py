@@ -10,7 +10,7 @@ Updated for H3.6M 17-keypoint format (3D-only pipeline).
 
 import numpy as np
 
-from ..types import H36Key, NormalizedPose, Pose3D
+from ..types import H36Key, NormalizedPose, NormalizedPose3D, Pose3D
 
 
 class PoseNormalizer:
@@ -73,6 +73,47 @@ class PoseNormalizer:
 
             # 3. Project to 2D (x, y) - drop z coordinate
             normalized[frame_idx] = centered[:, :2] * scale
+
+        return normalized
+
+    def normalize_3d(self, poses: Pose3D) -> "NormalizedPose3D":
+        """Normalize 3D poses via root-centering and scale, preserving Z.
+
+        Same logic as normalize() but keeps the Z coordinate instead of
+        projecting to 2D. Used for TCPFormer 3D output normalization.
+
+        Args:
+            poses: 3D poses (num_frames, 17, 3) with x, y, z.
+
+        Returns:
+            (num_frames, 17, 3) centered, scaled, with Z intact.
+
+        Raises:
+            ValueError: If poses shape is invalid.
+        """
+        if poses.ndim != 3 or poses.shape[1] != 17 or poses.shape[2] != 3:
+            raise ValueError(f"Expected poses shape (N, 17, 3), got {poses.shape}")
+
+        num_frames = poses.shape[0]
+        normalized = np.zeros((num_frames, 17, 3), dtype=np.float32)
+
+        for frame_idx in range(num_frames):
+            frame = poses[frame_idx]
+
+            hip_center = frame[H36Key.HIP_CENTER]
+
+            # 1. Root-centering
+            centered = frame - hip_center
+
+            # 2. Scale normalization
+            thorax = frame[H36Key.THORAX]
+            spine_vector = thorax - hip_center
+            spine_length = np.linalg.norm(spine_vector)
+
+            scale = 1.0 if spine_length < 1e-6 else self._target_spine_length / spine_length
+
+            # 3. Preserve Z — no [:, :2] projection
+            normalized[frame_idx] = centered * scale
 
         return normalized
 
