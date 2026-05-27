@@ -118,7 +118,7 @@ class BiomechanicsAnalyzer:
 
     def analyze(
         self,
-        poses: NormalizedPose,
+        poses: NormalizedPose | NDArray[np.float32],
         phases: ElementPhase,
         fps: float,
         com_trajectory: NDArray[np.float32] | None = None,
@@ -126,7 +126,7 @@ class BiomechanicsAnalyzer:
         """Compute all relevant metrics for the element.
 
         Args:
-            poses: Normalized pose sequence (num_frames, 17, 2).
+            poses: Normalized pose sequence (num_frames, 17, 2) or (num_frames, 17, 3).
             phases: Element phase boundaries.
             fps: Video frame rate.
             com_trajectory: Pre-computed CoM trajectory (optional, for caching).
@@ -135,27 +135,30 @@ class BiomechanicsAnalyzer:
             List of MetricResult with computed values and goodness assessment.
         """
         results: list[MetricResult] = []
+        is_3d = poses.shape[2] == 3
+
+        # For Numba-jitted functions that expect 2D, use xy projection
+        poses_2d = poses[:, :, :2] if is_3d else poses
 
         # Compute metrics based on element type
         if self._element_def.rotations > 0:
             # Jump metrics
-            results.extend(self._analyze_jump(poses, phases, fps, com_trajectory=com_trajectory))
+            results.extend(self._analyze_jump(poses_2d, phases, fps, com_trajectory=com_trajectory))
         elif is_spin(self._element_def.name):
             # Spin metrics
-            results.extend(self._analyze_spin(poses, phases, fps))
+            results.extend(self._analyze_spin(poses_2d, phases, fps))
         else:
             # Step/edge metrics
-            results.extend(self._analyze_step(poses, phases, fps))
+            results.extend(self._analyze_step(poses_2d, phases, fps))
 
         # Common metrics for all elements
-        results.extend(self._analyze_common(poses, phases, fps))
+        results.extend(self._analyze_common(poses_2d, phases, fps))
 
         # Mark goodness based on ideal ranges
         for result in results:
             if result.name in self._element_def.ideal_metrics:
                 min_good, max_good = self._element_def.ideal_metrics[result.name]
                 result.is_good = min_good <= result.value <= max_good
-                # Store reference range
                 object.__setattr__(result, "reference_range", (min_good, max_good))
 
         return results
