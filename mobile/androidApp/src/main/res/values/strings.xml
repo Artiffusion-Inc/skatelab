@@ -130,4 +130,7 @@
     <string name="ble_reset_right">Reset right</string>
     <string name="ble_acc_left">ACC left</string>
     <string name="ble_acc_right">ACC right</string>
+
+    <!-- Accessibility -->
+    <string name="cd_skeleton_overlay">Скелетная накладка</string>
 </resources>
