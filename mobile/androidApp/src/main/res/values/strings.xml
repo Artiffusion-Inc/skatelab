@@ -111,4 +111,23 @@
     <string name="error_server">Server error. Please try again later.</string>
     <string name="error_timeout">Request timed out. Please try again.</string>
     <string name="error_unknown">An unexpected error occurred.</string>
+
+    <!-- BLE status -->
+    <string name="ble_status_idle">Ready</string>
+    <string name="ble_status_resetting_left">Resetting left sensor…</string>
+    <string name="ble_status_resetting_right">Resetting right sensor…</string>
+    <string name="ble_status_reset_ok_left">Left sensor reset OK</string>
+    <string name="ble_status_reset_ok_right">Right sensor reset OK</string>
+    <string name="ble_status_reset_failed">Reset failed</string>
+    <string name="ble_status_calibrating_left">Calibrating left sensor… Place horizontally!</string>
+    <string name="ble_status_calibrating_right">Calibrating right sensor… Place horizontally!</string>
+    <string name="ble_status_calibration_ok_left">Left sensor calibrated OK</string>
+    <string name="ble_status_calibration_ok_right">Right sensor calibrated OK</string>
+    <string name="ble_status_calibration_failed">Calibration failed</string>
+    <string name="ble_connected">Connected</string>
+    <string name="ble_rssi">RSSI: %1$d</string>
+    <string name="ble_reset_left">Reset left</string>
+    <string name="ble_reset_right">Reset right</string>
+    <string name="ble_acc_left">ACC left</string>
+    <string name="ble_acc_right">ACC right</string>
 </resources>
