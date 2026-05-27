@@ -1,0 +1,250 @@
+# PostHog self-hosted — uses shared PG 17 + Valkey on infra network
+name: posthog
+
+x-posthog-env: &posthog-env
+  SECRET_KEY: ${POSTHOG_SECRET_KEY}
+  DATABASE_URL: postgres://posthog:${POSTHOG_DB_PASSWORD}@infra-postgres-1:5432/posthog
+  CLICKHOUSE_HOST: clickhouse
+  CLICKHOUSE_DATABASE: posthog
+  CLICKHOUSE_USER: posthog_ch
+  CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD}
+  CLICKHOUSE_SECURE: "false"
+  CLICKHOUSE_VERIFY: "false"
+  KAFKA_HOSTS: kafka:9092
+  REDIS_URL: redis://infra-valkey-1:6379/2
+  SITE_URL: https://ph.${DOMAIN}
+  ENCRYPTION_SALT_KEYS: ${POSTHOG_ENCRYPTION_SALT_KEYS}
+
+services:
+  zookeeper:
+    image: docker.io/zookeeper:3.9
+    restart: unless-stopped
+    volumes:
+      - ./services/zookeeper/data:/data
+      - ./services/zookeeper/datalog:/datalog
+    healthcheck:
+      test: ["CMD-SHELL", "echo srvr | nc localhost 2181 | grep Mode"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          memory: 512m
+    networks:
+      - app_network
+
+  clickhouse:
+    image: docker.io/clickhouse/clickhouse-server:24.3-alpine
+    restart: unless-stopped
+    depends_on:
+      zookeeper:
+        condition: service_healthy
+    environment:
+      CLICKHOUSE_DB: posthog
+      CLICKHOUSE_USER: posthog_ch
+      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD}
+    volumes:
+      - ./services/clickhouse/data:/var/lib/clickhouse
+      - ./services/clickhouse/logs:/var/log/clickhouse-server
+      - ./services/clickhouse/config/custom.xml:/etc/clickhouse-server/config.d/custom.xml:ro
+      - ./services/clickhouse/config/macros.xml:/etc/clickhouse-server/config.d/macros.xml:ro
+      - ./services/clickhouse/config/zookeeper.xml:/etc/clickhouse-server/config.d/zookeeper.xml:ro
+      - ./services/clickhouse/config/users.xml:/etc/clickhouse-server/users.d/users.xml:ro
+    healthcheck:
+      test: ["CMD", "clickhouse-client", "--password", "${CLICKHOUSE_PASSWORD}", "-q", "SELECT 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          memory: 4g
+    networks:
+      - app_network
+
+  kafka:
+    image: docker.io/confluentinc/cp-kafka:7.7.0
+    restart: unless-stopped
+    environment:
+      CLUSTER_ID: "posthog-kafka-cluster"
+      KAFKA_NODE_ID: "1"
+      KAFKA_PROCESS_ROLES: "broker,controller"
+      KAFKA_LISTENERS: "PLAINTEXT://:9092,CONTROLLER://:9093"
+      KAFKA_ADVERTISED_LISTENERS: "PLAINTEXT://kafka:9092"
+      KAFKA_CONTROLLER_QUORUM_VOTERS: "1@kafka:9093"
+      KAFKA_CONTROLLER_LISTENER_NAMES: "CONTROLLER"
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: "CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT"
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: "1"
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: "1"
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: "1"
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: "0"
+      KAFKA_LOG_DIRS: /var/lib/kafka/data
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+    volumes:
+      - ./services/kafka/data:/var/lib/kafka/data
+    healthcheck:
+      test: ["CMD-SHELL", "kafka-topics --bootstrap-server localhost:9092 --list"]
+      interval: 15s
+      timeout: 10s
+      retries: 6
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          memory: 2g
+    networks:
+      - app_network
+
+  capture:
+    image: ghcr.io/posthog/posthog/capture:master
+    restart: unless-stopped
+    depends_on:
+      kafka:
+        condition: service_healthy
+    environment:
+      ADDRESS: "0.0.0.0:3000"
+      KAFKA_TOPIC: events_plugin_ingestion
+      KAFKA_HOSTS: kafka:9092
+      REDIS_URL: redis://infra-valkey-1:6379/2
+      CAPTURE_MODE: events
+      RUST_LOG: "info,rdkafka=warn"
+    deploy:
+      resources:
+        limits:
+          memory: 512m
+    networks:
+      - app_network
+
+  replay-capture:
+    image: ghcr.io/posthog/posthog/capture:master
+    restart: unless-stopped
+    depends_on:
+      kafka:
+        condition: service_healthy
+    environment:
+      ADDRESS: "0.0.0.0:3000"
+      KAFKA_TOPIC: session_recording_snapshot_item_events
+      KAFKA_HOSTS: kafka:9092
+      REDIS_URL: redis://infra-valkey-1:6379/2
+      CAPTURE_MODE: recordings
+    deploy:
+      resources:
+        limits:
+          memory: 512m
+    networks:
+      - app_network
+
+  feature-flags:
+    image: ghcr.io/posthog/posthog/feature-flags:master
+    restart: unless-stopped
+    depends_on:
+      kafka:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgres://posthog:${POSTHOG_DB_PASSWORD}@infra-postgres-1:5432/posthog
+      REDIS_URL: redis://infra-valkey-1:6379/2
+      COOKIELESS_REDIS_HOST: infra-valkey-1
+      COOKIELESS_REDIS_PORT: 6379
+      ADDRESS: "0.0.0.0:3001"
+      GEOIP_DB_PATH: /share/GeoLite2-City.mmdb
+    volumes:
+      - ./services/geoip/GeoLite2-City.mmdb:/share/GeoLite2-City.mmdb:ro
+    deploy:
+      resources:
+        limits:
+          memory: 512m
+    networks:
+      - app_network
+
+  plugins:
+    image: ghcr.io/posthog/posthog-node:latest
+    restart: unless-stopped
+    depends_on:
+      kafka:
+        condition: service_healthy
+    environment:
+      <<: *posthog-env
+      CDP_REDIS_HOST: infra-valkey-1
+      CDP_REDIS_PORT: 6379
+      CDP_REDIS_TLS: "false"
+      LOGS_REDIS_TLS: "false"
+      CDP_API_URL: "http://plugins:6738"
+      CYCLOTRON_NODE_DATABASE_URL: postgres://posthog:${POSTHOG_DB_PASSWORD}@infra-postgres-1:5432/posthog
+    deploy:
+      resources:
+        limits:
+          memory: 1g
+    networks:
+      - app_network
+
+  web:
+    image: ghcr.io/posthog/posthog:latest
+    restart: unless-stopped
+    command:
+      - bash
+      - -c
+      - |
+        set -e
+        ./bin/migrate --scope=postgres --scope=persons || true
+        POSTHOG_SKIP_MIGRATION_CHECKS=1 exec ./bin/docker-server
+    depends_on:
+      clickhouse:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    environment:
+      <<: *posthog-env
+      ALLOWED_HOSTS: "ph.${DOMAIN}"
+      DISABLE_SECURE_SSL_REDIRECT: "true"
+      SECURE_COOKIES: "false"
+      PGBOUNCER_URL: postgres://posthog:${POSTHOG_DB_PASSWORD}@infra-postgres-1:5432/posthog
+      OUTBOUND_EMAIL_DISABLED: "true"
+      SKIP_ASYNC_MIGRATIONS_IN_BOOT: "1"
+      DEPLOYMENT: "hobby"
+      POSTHOG_SKIP_MIGRATION_CHECKS: "1"
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; req = urllib.request.Request('http://127.0.0.1:8000/_health/', headers={'Host': 'ph.skatelab.ru'}); urllib.request.urlopen(req)\""]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 120s
+    deploy:
+      resources:
+        limits:
+          memory: 2g
+    networks:
+      - app_network
+
+  worker:
+    image: ghcr.io/posthog/posthog:latest
+    restart: unless-stopped
+    command:
+      - bash
+      - -c
+      - |
+        set -e
+        POSTHOG_SKIP_MIGRATION_CHECKS=1 ./bin/docker-worker-celery --with-scheduler &
+        wait -n
+        exit $?
+    depends_on:
+      clickhouse:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    environment:
+      <<: *posthog-env
+      SKIP_ASYNC_MIGRATIONS_IN_BOOT: "1"
+      DEPLOYMENT: "hobby"
+      POSTHOG_SKIP_MIGRATION_CHECKS: "1"
+    deploy:
+      resources:
+        limits:
+          memory: 2g
+    networks:
+      - app_network
+
+networks:
+  app_network:
+    external: true
+    name: infra_app_network

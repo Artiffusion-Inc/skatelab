@@ -4,10 +4,10 @@ import { Inter } from "next/font/google"
 import { NextIntlClientProvider } from "next-intl"
 import { getLocale, getMessages, getTranslations } from "next-intl/server"
 import { PostHogProvider, PostHogPageView } from "@posthog/next"
+import { ConsentProvider } from "@/components/consent-provider"
 import { ConsentBanner } from "@/components/consent-banner"
 import { Toaster } from "@/components/ui/sonner"
 import { Providers } from "./providers"
-import { ConsentProvider } from "@/components/consent-provider"
 import "./globals.css"
 
 const inter = Inter({

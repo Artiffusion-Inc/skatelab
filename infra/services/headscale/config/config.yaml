@@ -1,0 +1,51 @@
+---
+log_level: info
+logtail: false
+
+server_url: https://headscale.skatelab.ru
+listen_addr: 0.0.0.0:8080
+metrics_listen_addr: 127.0.0.1:9090
+
+noise:
+  private_key_path: /etc/headscale/noise_private_key
+
+prefixes:
+  v4: 100.64.0.0/10
+
+database:
+  type: sqlite
+  sqlite:
+    path: /var/lib/headscale/db.sqlite
+
+dns:
+  magic_dns: true
+  base_domain: tail.skatelab.ru
+  override_local_dns: true
+  nameservers:
+    global:
+      - 1.1.1.1
+      - 8.8.8.8
+
+derp:
+  server:
+    enabled: false
+    region_id: 999
+    region_code: "dedic"
+    region_name: "Dedic DERP"
+    stun_listen_addr: "0.0.0.0:3478"
+    private_key_path: /etc/headscale/derp_private_key
+    ipv4: 176.9.0.156
+    auto_update_ip: true
+  urls:
+    - https://controlplane.tailscale.com/derpmap/default
+  paths: []
+  auto_update: false
+
+acme_url: https://acme-v02.api.letsencrypt.org/directory
+acme_email: ""
+
+tls_cert_path: ""
+tls_key_path: ""
+
+policy:
+  mode: database

@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "skills": {
+    "color-expert": {
+      "source": "nexu-io/open-design",
+      "sourceType": "github",
+      "skillPath": "skills/color-expert/SKILL.md",
+      "computedHash": "cb54d52ad8e920ac86a9d63516c85a42ebe51f7ef540f6e6120e1b407819e237"
+    },
+    "copywriting": {
+      "source": "nexu-io/open-design",
+      "sourceType": "github",
+      "skillPath": "skills/copywriting/SKILL.md",
+      "computedHash": "0c80ef86794636c2d9c7661bf1a29b38dd5cd987209fa51a6a387ffa302dea28"
+    },
+    "design-review": {
+      "source": "nexu-io/open-design",
+      "sourceType": "github",
+      "skillPath": "skills/design-review/SKILL.md",
+      "computedHash": "9642d1c5de6c1aa7556b012e66d2850f8c6472c090766e59e6024676322f07b5"
+    },
+    "platform-design": {
+      "source": "nexu-io/open-design",
+      "sourceType": "github",
+      "skillPath": "skills/platform-design/SKILL.md",
+      "computedHash": "f647561840d6120a060e2f319ed2d93c345b6b03d3c6ffd0b36888d37c68f8e4"
+    }
+  }
+}

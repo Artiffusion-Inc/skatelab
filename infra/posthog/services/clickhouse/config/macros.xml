@@ -1,0 +1,7 @@
+<clickhouse>
+    <macros>
+        <shard>1</shard>
+        <replica>1</replica>
+        <cluster>posthog_migrations</cluster>
+    </macros>
+</clickhouse>
