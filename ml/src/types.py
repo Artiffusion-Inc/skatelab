@@ -223,6 +223,7 @@ H36MPose3D = NDArray[np.float32]  # (num_frames, 17, 3) with x, y, z in meters
 # Type aliases for convenience
 FrameKeypoints = Pose3D  # (num_frames, 17, 3) with x, y, z
 NormalizedPose = H36MPose2D  # (num_frames, 17, 2) with x, y in [0,1]
+NormalizedPose3D = NDArray[np.float32]  # (num_frames, 17, 3) normalized 3D (x, y, z)
 PixelPose = NDArray[np.float32]  # (num_frames, 17, 2) with x, y in pixels
 TimeSeries = NDArray[np.float32]  # (num_frames,) time series data
 
@@ -240,6 +241,7 @@ __all__ = [
     "H36MPose3D",
     "MetricResult",
     "NormalizedPose",
+    "NormalizedPose3D",
     "PersonClick",
     "PixelPose",
     "Pose3D",
