@@ -75,8 +75,9 @@ class ONNXPoseExtractor:
         if n_frames <= w:
             return self._infer_window(poses_2d)[:n_frames]
 
-        # Sliding window with stride = w // 2
-        stride = w // 2
+        # Sliding window with stride = w * 2 // 3 (triangular weighting
+        # allows larger stride than uniform average, ~27% fewer windows)
+        stride = max(1, w * 2 // 3)
 
         # Collect all windows for batched inference
         windows = []
@@ -95,18 +96,24 @@ class ONNXPoseExtractor:
         # Batch inference (process all windows at once)
         batch_results = self._infer_batch(windows)
 
-        # Scatter results back to frame array
+        # Scatter results back to frame array with triangular window weighting
         results = np.zeros((n_frames, 17, 3), dtype=np.float32)
-        counts = np.zeros(n_frames, dtype=np.float32)
+        weights = np.zeros(n_frames, dtype=np.float32)
 
         for (start, end), out in zip(window_starts, batch_results, strict=True):
             frame_count = end - start
-            results[start:end] += out[:frame_count]
-            counts[start:end] += 1
+            # Triangular window: peak at center, tapers at edges
+            window_weights = np.ones(frame_count, dtype=np.float32)
+            ramp_len = min(frame_count, w // 4)
+            if ramp_len > 0:
+                window_weights[:ramp_len] = np.linspace(0.5, 1.0, ramp_len)
+                window_weights[-ramp_len:] = np.linspace(1.0, 0.5, ramp_len)
+            results[start:end] += out[:frame_count] * window_weights[:, np.newaxis, np.newaxis]
+            weights[start:end] += window_weights
 
-        # Average overlapping regions
-        counts = np.maximum(counts, 1)[:, np.newaxis, np.newaxis]
-        results /= counts
+        # Normalize by accumulated weights
+        weights = np.maximum(weights, 1e-6)[:, np.newaxis, np.newaxis]
+        results /= weights
         return results
 
     def _infer_batch(self, windows: list[NDArray[np.float32]]) -> list[NDArray[np.float32]]:
