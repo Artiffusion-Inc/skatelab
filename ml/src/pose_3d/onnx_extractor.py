@@ -158,6 +158,20 @@ class ONNXPoseExtractor:
 
         return results
 
+    def release(self) -> None:
+        """Release ONNX session and free GPU memory.
+
+        Call after 3D inference to return VRAM to the CUDA driver pool.
+        The lifter must be re-created before next use.
+        """
+        if self.session is not None:
+            del self.session
+            self.session = None
+            import gc
+
+            gc.collect()
+            logger.info("3D pose ONNX session released, VRAM returned to driver pool")
+
     def _infer_window(self, poses_2d: NDArray[np.float32]) -> NDArray[np.float32]:
         """Run inference on a single window (pad if needed). (N, 17, 2) → (N, 17, 3)."""
         n = len(poses_2d)

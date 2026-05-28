@@ -89,3 +89,23 @@ def test_center_weighted_scatter_triangle_weights():
     assert window_weights[0] == pytest.approx(0.5)
     assert window_weights[-1] == pytest.approx(0.5)
     assert window_weights[ramp_len - 1] == pytest.approx(1.0)
+
+
+def test_onnx_extractor_release_clears_session(onnx_model_path):
+    """release() deletes the ONNX session and sets it to None."""
+    from src.pose_3d.onnx_extractor import ONNXPoseExtractor
+
+    ext = ONNXPoseExtractor(onnx_model_path, device="cpu")
+    assert ext.session is not None
+    ext.release()
+    assert ext.session is None
+
+
+def test_onnx_extractor_release_idempotent(onnx_model_path):
+    """Calling release() twice does not error."""
+    from src.pose_3d.onnx_extractor import ONNXPoseExtractor
+
+    ext = ONNXPoseExtractor(onnx_model_path, device="cpu")
+    ext.release()
+    ext.release()  # Should not raise
+    assert ext.session is None
