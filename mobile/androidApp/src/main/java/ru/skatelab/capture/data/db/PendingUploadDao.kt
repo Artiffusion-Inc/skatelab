@@ -4,6 +4,7 @@ import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface PendingUploadDao {
@@ -15,6 +16,9 @@ interface PendingUploadDao {
 
     @Query("SELECT * FROM pending_uploads WHERE id = :id")
     suspend fun getById(id: String): PendingUploadEntity?
+
+    @Query("SELECT * FROM pending_uploads WHERE id = :id LIMIT 1")
+    fun getByIdFlow(id: String): Flow<PendingUploadEntity?>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(entity: PendingUploadEntity)
@@ -28,4 +32,16 @@ interface PendingUploadDao {
 
     @Query("UPDATE pending_uploads SET retryCount = retryCount + 1 WHERE id = :id")
     suspend fun incrementRetry(id: String)
+
+    @Query("SELECT * FROM pending_uploads ORDER BY createdAt DESC")
+    fun getAll(): Flow<List<PendingUploadEntity>>
+
+    @Query("SELECT COUNT(*) FROM pending_uploads WHERE status IN ('READY', 'UPLOADING', 'PROCESSING')")
+    fun countPending(): Flow<Int>
+
+    @Query("UPDATE pending_uploads SET status = 'READY', retryCount = 0 WHERE id = :id")
+    suspend fun resetForRetry(id: String)
+
+    @Query("DELETE FROM pending_uploads WHERE id = :id")
+    suspend fun delete(id: String)
 }
