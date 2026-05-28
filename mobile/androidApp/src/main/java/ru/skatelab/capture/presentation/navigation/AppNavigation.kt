@@ -27,6 +27,7 @@ import ru.skatelab.capture.navigation.ResultDetailRoute
 import ru.skatelab.capture.navigation.SessionDetailRoute
 import ru.skatelab.capture.navigation.SessionsRoute
 import ru.skatelab.capture.navigation.SplashRoute
+import ru.skatelab.capture.navigation.UploadQueueRoute
 import ru.skatelab.capture.presentation.SessionState
 import ru.skatelab.capture.presentation.ble.BleScanScreen
 import ru.skatelab.capture.presentation.ble.BleScanViewModel
@@ -49,6 +50,8 @@ import ru.skatelab.capture.ui.metrics.MetricTrendScreen
 import ru.skatelab.capture.ui.processing.ProcessingScreen
 import ru.skatelab.capture.ui.session.AndroidSessionDetailViewModel
 import ru.skatelab.capture.ui.session.SessionDetailScreen as ResultDetailScreen
+import ru.skatelab.capture.ui.upload.UploadQueueScreen
+import ru.skatelab.capture.ui.upload.UploadQueueViewModel
 
 @InstallIn(SingletonComponent::class)
 @EntryPoint
@@ -165,6 +168,15 @@ fun AppNavigation() {
                 onNavigateToMetricTrend = { metricName, elementType ->
                     navController.navigate(MetricTrendRoute(metricName, elementType))
                 },
+            )
+        }
+
+        // --- Upload queue ---
+        composable<UploadQueueRoute> {
+            val viewModel: UploadQueueViewModel = hiltViewModel()
+            UploadQueueScreen(
+                viewModel = viewModel,
+                onBack = { navController.popBackStack() },
             )
         }
 

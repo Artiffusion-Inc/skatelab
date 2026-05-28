@@ -22,6 +22,8 @@ import kotlinx.serialization.Serializable
 
 @Serializable data class ProcessingRoute(val uploadId: String? = null, val sessionId: String? = null)
 
+@Serializable object UploadQueueRoute
+
 @Serializable object ProfileRoute
 
 @Serializable object MoreRoute
