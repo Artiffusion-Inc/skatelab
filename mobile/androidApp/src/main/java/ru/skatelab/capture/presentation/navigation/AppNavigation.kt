@@ -48,6 +48,7 @@ import ru.skatelab.capture.ui.metrics.AndroidMetricTrendViewModel
 import ru.skatelab.capture.ui.metrics.MetricTrendScreen
 import ru.skatelab.capture.ui.processing.ProcessingScreen
 import ru.skatelab.capture.ui.session.AndroidSessionDetailViewModel
+import ru.skatelab.capture.ui.session.SessionDetailScreen as ResultDetailScreen
 
 @InstallIn(SingletonComponent::class)
 @EntryPoint
