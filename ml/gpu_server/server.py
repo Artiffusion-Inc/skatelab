@@ -111,19 +111,20 @@ async def _background_init():
         # Load TCPFormer 3D lifter if model exists
         _tcpformer_extractor = None
         try:
-            if TCPFORMER_MODEL_PATH.exists():
+            from src.pose_3d.model_downloader import resolve_model
+
+            tcpformer_path = resolve_model("tcpformer", device=cfg.device)
+            if tcpformer_path is not None:
                 from src.pose_3d.onnx_extractor import ONNXPoseExtractor
 
                 _tcpformer_extractor = ONNXPoseExtractor(
-                    model_path=str(TCPFORMER_MODEL_PATH),
+                    model_path=tcpformer_path,
                     device=cfg.device,
                     temporal_window=81,
                 )
                 logger.info("TCPFormer 3D lifter loaded at startup (ONNX)")
             else:
-                logger.warning(
-                    "TCPFormer model not found at %s — 3D lift disabled", TCPFORMER_MODEL_PATH
-                )
+                logger.warning("TCPFormer model unavailable — 3D lift disabled")
         except (ValueError, RuntimeError, OSError):
             logger.warning("TCPFormer not loaded — 3D lift disabled", exc_info=True)
 
