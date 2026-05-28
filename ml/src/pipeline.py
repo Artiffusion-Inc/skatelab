@@ -520,22 +520,19 @@ class AnalysisPipeline:
     def _get_3d_lifter(self):
         """Lazy-load TCPFormer 3D lifter (ONNX).
 
-        Returns ONNXPoseExtractor for TCPFormer model.
-        Returns None if model file not found (graceful degradation).
+        Uses model_downloader to resolve model path (local search → S3 download).
+        Returns None if model unavailable (graceful degradation).
         After release(), calling again re-creates the ONNX session.
         """
-        # _3d_lifter_unavailable = True means model file doesn't exist (don't retry)
         if getattr(self, "_3d_lifter_unavailable", False):
             return None
 
         if self._3d_lifter is None:
-            from pathlib import Path
+            from .pose_3d.model_downloader import resolve_model
 
-            model_path = Path("data/models/tcpformer/TCPFormer_ap3d_81_fp16.onnx")
-            if not model_path.exists():
-                model_path = Path("/app/data/models/tcpformer/TCPFormer_ap3d_81_fp16.onnx")
+            model_path = resolve_model("tcpformer", device=self._device_config.device)
 
-            if model_path.exists():
+            if model_path is not None:
                 from .pose_3d.onnx_extractor import ONNXPoseExtractor
 
                 self._3d_lifter = ONNXPoseExtractor(
@@ -544,12 +541,6 @@ class AnalysisPipeline:
                     temporal_window=81,
                 )
             else:
-                import logging
-
-                logging.getLogger(__name__).warning(
-                    "TCPFormer model not found — 3D lift disabled. "
-                    "Upload FP16 model to S3 and rebuild the GPU worker image."
-                )
                 self._3d_lifter_unavailable = True
 
         return self._3d_lifter

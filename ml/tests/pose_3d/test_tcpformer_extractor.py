@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import sys
 from pathlib import Path
+from unittest.mock import MagicMock, patch
 
 import numpy as np
 import pytest
@@ -18,7 +19,7 @@ def mock_onnx_extractor(monkeypatch):
     """Mock ONNXPoseExtractor to avoid loading heavy ONNX models."""
 
     class FakeONNXPoseExtractor:
-        def __init__(self, model_path, device="auto"):
+        def __init__(self, model_path, device="auto", temporal_window=81):
             self.model_path = Path(model_path)
             self.device = device
 
@@ -26,10 +27,9 @@ def mock_onnx_extractor(monkeypatch):
             """Return synthetic 3D poses: (N, 17, 3)."""
             n_frames = poses_2d.shape[0]
             poses_3d = np.zeros((n_frames, 17, 3), dtype=np.float32)
-            # Put some structure in so it's not all zeros
             poses_3d[:, :, 0] = poses_2d[:, :, 0]
             poses_3d[:, :, 1] = poses_2d[:, :, 1]
-            poses_3d[:, :, 2] = 0.5  # constant depth
+            poses_3d[:, :, 2] = 0.5
             return poses_3d
 
     monkeypatch.setattr(
@@ -39,11 +39,20 @@ def mock_onnx_extractor(monkeypatch):
     return FakeONNXPoseExtractor
 
 
+@pytest.fixture
+def mock_resolve_model(monkeypatch):
+    """Mock resolve_model to return a fake path."""
+    monkeypatch.setattr(
+        "src.pose_3d.tcpformer_extractor.resolve_model",
+        lambda name, device="auto": Path("data/models/tcpformer/TCPFormer_ap3d_81_fp16.onnx"),
+    )
+
+
 class TestTCPFormerExtractorInit:
-    def test_default_init(self, mock_onnx_extractor):
-        """Should initialize with default model path and device."""
+    def test_default_init_with_resolve(self, mock_onnx_extractor, mock_resolve_model):
+        """Should initialize with auto-resolved model path."""
         extractor = TCPFormerExtractor()
-        assert extractor.model_path == Path("data/models/TCPFormer_ap3d_81_fp16.onnx")
+        assert extractor.model_path == Path("data/models/tcpformer/TCPFormer_ap3d_81_fp16.onnx")
         assert extractor._onnx.device == "auto"
 
     def test_custom_init(self, mock_onnx_extractor):
@@ -60,9 +69,18 @@ class TestTCPFormerExtractorInit:
         extractor = TCPFormerExtractor(model_path="/some/path.onnx")
         assert isinstance(extractor.model_path, Path)
 
+    def test_missing_model_raises(self, monkeypatch):
+        """Should raise FileNotFoundError when model unavailable."""
+        monkeypatch.setattr(
+            "src.pose_3d.tcpformer_extractor.resolve_model",
+            lambda name, device="auto": None,
+        )
+        with pytest.raises(FileNotFoundError, match="TCPFormer model not found"):
+            TCPFormerExtractor()
+
 
 class TestTCPFormerExtractorExtractSequence:
-    def test_extract_sequence_2d_input(self, mock_onnx_extractor):
+    def test_extract_sequence_2d_input(self, mock_onnx_extractor, mock_resolve_model):
         """Should accept (N, 17, 2) input and return (N, 17, 3)."""
         extractor = TCPFormerExtractor()
         poses_2d = np.random.rand(50, 17, 2).astype(np.float32)
@@ -71,7 +89,7 @@ class TestTCPFormerExtractorExtractSequence:
         assert result.shape == (50, 17, 3)
         assert result.dtype == np.float32
 
-    def test_extract_sequence_3d_input(self, mock_onnx_extractor):
+    def test_extract_sequence_3d_input(self, mock_onnx_extractor, mock_resolve_model):
         """Should slice (N, 17, 3) input to 2D before passing to ONNX."""
         extractor = TCPFormerExtractor()
         poses_3d_input = np.random.rand(30, 17, 3).astype(np.float32)
@@ -79,7 +97,7 @@ class TestTCPFormerExtractorExtractSequence:
 
         assert result.shape == (30, 17, 3)
 
-    def test_extract_sequence_single_frame(self, mock_onnx_extractor):
+    def test_extract_sequence_single_frame(self, mock_onnx_extractor, mock_resolve_model):
         """Should handle single-frame input."""
         extractor = TCPFormerExtractor()
         poses_2d = np.random.rand(1, 17, 2).astype(np.float32)
@@ -87,7 +105,7 @@ class TestTCPFormerExtractorExtractSequence:
 
         assert result.shape == (1, 17, 3)
 
-    def test_extract_sequence_preserves_xy(self, mock_onnx_extractor):
+    def test_extract_sequence_preserves_xy(self, mock_onnx_extractor, mock_resolve_model):
         """Synthetic mock should preserve x/y from input."""
         extractor = TCPFormerExtractor()
         poses_2d = np.random.rand(20, 17, 2).astype(np.float32)
@@ -102,7 +120,7 @@ class TestTCPFormerExtractorExtractSequence:
 
 
 class TestTCPFormerExtractorReset:
-    def test_reset_is_noop(self, mock_onnx_extractor):
+    def test_reset_is_noop(self, mock_onnx_extractor, mock_resolve_model):
         """reset should not raise and should be a no-op."""
         extractor = TCPFormerExtractor()
         extractor.reset()  # Should not raise
