@@ -19,11 +19,11 @@ import ru.skatelab.capture.navigation.CalibrationRoute
 import ru.skatelab.capture.navigation.CameraRoute
 import ru.skatelab.capture.navigation.ExportRoute
 import ru.skatelab.capture.navigation.LoginRoute
+import ru.skatelab.capture.navigation.MetricTrendRoute
 import ru.skatelab.capture.navigation.ProcessingRoute
 import ru.skatelab.capture.navigation.RecordingRoute
 import ru.skatelab.capture.navigation.RegisterRoute
 import ru.skatelab.capture.navigation.ResultDetailRoute
-import ru.skatelab.capture.navigation.ResultsRoute
 import ru.skatelab.capture.navigation.SessionDetailRoute
 import ru.skatelab.capture.navigation.SessionsRoute
 import ru.skatelab.capture.navigation.SplashRoute
@@ -44,6 +44,8 @@ import ru.skatelab.capture.ui.auth.AuthViewModel
 import ru.skatelab.capture.ui.auth.LoginScreen
 import ru.skatelab.capture.ui.auth.RegisterScreen
 import ru.skatelab.capture.ui.auth.SplashScreen
+import ru.skatelab.capture.ui.metrics.AndroidMetricTrendViewModel
+import ru.skatelab.capture.ui.metrics.MetricTrendScreen
 import ru.skatelab.capture.ui.processing.ProcessingScreen
 import ru.skatelab.capture.ui.session.AndroidSessionDetailViewModel
 import ru.skatelab.capture.ui.session.AndroidSessionsViewModel
@@ -127,6 +129,12 @@ fun AppNavigation() {
                         popUpTo<SplashRoute> { inclusive = true }
                     }
                 },
+                onNavigateToSessionDetail = { sessionId ->
+                    navController.navigate(ResultDetailRoute(sessionId))
+                },
+                onNavigateToMetricTrend = { metricName, elementType ->
+                    navController.navigate(MetricTrendRoute(metricName, elementType))
+                },
             )
         }
 
@@ -146,17 +154,6 @@ fun AppNavigation() {
         }
 
         // --- Results (server sessions) ---
-        composable<ResultsRoute> {
-            val viewModel: AndroidSessionsViewModel = hiltViewModel()
-            ResultListScreen(
-                viewModel = viewModel,
-                onSessionClick = { sessionId ->
-                    navController.navigate(ResultDetailRoute(sessionId))
-                },
-                onBack = { navController.popBackStack() },
-            )
-        }
-
         composable<ResultDetailRoute> { backStackEntry ->
             val route = backStackEntry.toRoute<ResultDetailRoute>()
             val viewModel: AndroidSessionDetailViewModel = hiltViewModel()
@@ -164,7 +161,21 @@ fun AppNavigation() {
                 viewModel = viewModel,
                 sessionId = route.sessionId,
                 onBack = { navController.popBackStack() },
-                onNavigateToMetricTrend = { _, _ -> /* TODO: navigate to metric trend */ },
+                onNavigateToMetricTrend = { metricName, elementType ->
+                    navController.navigate(MetricTrendRoute(metricName, elementType))
+                },
+            )
+        }
+
+        // --- Metric trend chart ---
+        composable<MetricTrendRoute> { backStackEntry ->
+            val route = backStackEntry.toRoute<MetricTrendRoute>()
+            val viewModel: AndroidMetricTrendViewModel = hiltViewModel()
+            MetricTrendScreen(
+                viewModel = viewModel,
+                metricName = route.metricName,
+                elementType = route.elementType,
+                onBack = { navController.popBackStack() },
             )
         }
 
