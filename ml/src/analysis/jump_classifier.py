@@ -4,7 +4,7 @@ Classifies observed biomechanical features into ISU jump types based on
 rotation count, toe pick usage, and takeoff direction.
 """
 
-from ml.src.analysis.element_defs import ELEMENT_DEFS
+from .element_defs import ELEMENT_DEFS
 
 
 def classify_jump(
