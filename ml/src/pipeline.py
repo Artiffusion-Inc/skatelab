@@ -508,9 +508,9 @@ class AnalysisPipeline:
         if self._3d_lifter is None:
             from pathlib import Path
 
-            model_path = Path("data/models/TCPFormer_ap3d_81.onnx")
+            model_path = Path("data/models/tcpformer/TCPFormer_ap3d_81_fp16.onnx")
             if not model_path.exists():
-                model_path = Path("/app/data/models/TCPFormer_ap3d_81.onnx")
+                model_path = Path("/app/data/models/tcpformer/TCPFormer_ap3d_81_fp16.onnx")
 
             if model_path.exists():
                 from .pose_3d.onnx_extractor import ONNXPoseExtractor
@@ -525,7 +525,7 @@ class AnalysisPipeline:
 
                 logging.getLogger(__name__).warning(
                     "TCPFormer model not found — 3D lift disabled. "
-                    "Run: uv run python scripts/download_ml_models.py --model tcpformer"
+                    "Upload FP16 model to S3 and rebuild the GPU worker image."
                 )
                 self._3d_lifter = None  # type: ignore[assignment]
 

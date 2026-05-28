@@ -24,7 +24,7 @@ class TCPFormerExtractor:
 
     def __init__(
         self,
-        model_path: Path | str = "data/models/TCPFormer_ap3d_81.onnx",
+        model_path: Path | str = "data/models/TCPFormer_ap3d_81_fp16.onnx",
         device: str = "auto",
     ) -> None:
         """Initialize TCPFormer 3D pose lifter.

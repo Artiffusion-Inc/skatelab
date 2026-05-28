@@ -14,7 +14,7 @@ from ..types import BoundingBox
 from ..utils.video import extract_frames
 
 # Default model path (relative to PROJECT_ROOT)
-_DEFAULT_MODEL = Path("data/models/rf_detr_nano.onnx")
+_DEFAULT_MODEL = Path("data/models/rf_detr_nano_fp16.onnx")
 
 # Default input size for RF-DETR-Nano; configurable per model variant
 _DEFAULT_INPUT_SIZE = 384

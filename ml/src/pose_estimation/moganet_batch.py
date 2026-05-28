@@ -169,7 +169,7 @@ class MogaNetBatch:
 
     def __init__(
         self,
-        model_path: str = "data/models/moganet/moganet_b_ap2d_384x288.onnx",
+        model_path: str = "data/models/moganet/moganet_b_ap2d_384x288_fp16.onnx",
         device: str = "auto",
         score_thr: float = 0.3,
     ) -> None:
@@ -204,7 +204,7 @@ class MogaNetBatch:
         if not model_path_obj.exists():
             raise FileNotFoundError(
                 f"MogaNet-B model not found: {model_path_obj}\n"
-                f"Download models with: uv run python ml/scripts/download_ml_models.py"
+                "Upload FP16 model to S3 and rebuild the GPU worker image."
             )
 
         # Load ONNX model

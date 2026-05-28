@@ -54,17 +54,17 @@ ACTIVE_REQUESTS = Gauge(
 os.environ.setdefault("PROJECT_ROOT", "/app")
 
 _PROJECT_ROOT = Path(os.environ.get("PROJECT_ROOT", "/app"))
-MOGANET_MODEL_PATH = _PROJECT_ROOT / "data/models/moganet/moganet_b_ap2d_384x288.onnx"
-RF_DETR_MODEL_PATH = _PROJECT_ROOT / "data/models/rf_detr_nano.onnx"
+MOGANET_MODEL_PATH = _PROJECT_ROOT / "data/models/moganet/moganet_b_ap2d_384x288_fp16.onnx"
+RF_DETR_MODEL_PATH = _PROJECT_ROOT / "data/models/rf_detr_nano_fp16.onnx"
 TAS_MODEL_PATH = _PROJECT_ROOT / "data/models/tas/bigr_refiner_best.onnx"
-TCPFORMER_MODEL_PATH = _PROJECT_ROOT / "data/models/tcpformer/TCPFormer_ap3d_81.onnx"
+TCPFORMER_MODEL_PATH = _PROJECT_ROOT / "data/models/tcpformer/TCPFormer_ap3d_81_fp16.onnx"
 
 # S3 keys for each model
 _S3_MODELS: list[tuple[Path, str]] = [
-    (MOGANET_MODEL_PATH, "models/moganet/moganet_b_ap2d_384x288.onnx"),
-    (RF_DETR_MODEL_PATH, "models/rf_detr_nano.onnx"),
+    (MOGANET_MODEL_PATH, "models/moganet/moganet_b_ap2d_384x288_fp16.onnx"),
+    (RF_DETR_MODEL_PATH, "models/rf_detr_nano_fp16.onnx"),
     (TAS_MODEL_PATH, "models/tas/bigr_refiner_best.onnx"),
-    (TCPFORMER_MODEL_PATH, "models/tcpformer/TCPFormer_ap3d_81.onnx"),
+    (TCPFORMER_MODEL_PATH, "models/tcpformer/TCPFormer_ap3d_81_fp16.onnx"),
 ]
 
 # TAS segmenter (loaded at startup, None if model unavailable)

@@ -122,7 +122,7 @@ class PoseExtractor:
 
     def __init__(
         self,
-        model_path: str = "data/models/moganet/moganet_b_ap2d_384x288.onnx",
+        model_path: str = "data/models/moganet/moganet_b_ap2d_384x288_fp16.onnx",
         tracking_backend: str = "custom",
         tracking_mode: str = "auto",
         conf_threshold: float = 0.3,
@@ -1045,7 +1045,7 @@ class PoseExtractor:
 
 def extract_poses(
     video_path: Path | str,
-    model_path: str = "data/models/moganet/moganet_b_ap2d_384x288.onnx",
+    model_path: str = "data/models/moganet/moganet_b_ap2d_384x288_fp16.onnx",
     output_format: str = "normalized",
     person_click: PersonClick | None = None,
 ) -> TrackedExtraction:

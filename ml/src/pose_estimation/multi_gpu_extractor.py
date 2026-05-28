@@ -45,7 +45,7 @@ class MultiGPUPoseExtractor:
         config: MultiGPUConfig | None = None,
         output_format: str = "normalized",
         conf_threshold: float = 0.5,
-        model_path: str = "data/models/moganet/moganet_b_ap2d_384x288.onnx",
+        model_path: str = "data/models/moganet/moganet_b_ap2d_384x288_fp16.onnx",
     ) -> None:
         """Initialize multi-GPU pose extractor.
 

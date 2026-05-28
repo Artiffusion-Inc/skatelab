@@ -85,7 +85,7 @@ class BatchPoseExtractor:
     def __init__(
         self,
         batch_size: int = 8,
-        model_path: str = "data/models/moganet/moganet_b_ap2d_384x288.onnx",
+        model_path: str = "data/models/moganet/moganet_b_ap2d_384x288_fp16.onnx",
         conf_threshold: float = 0.3,
         output_format: str = "normalized",
         detection_stride: int = 1,
@@ -291,7 +291,7 @@ class BatchPoseExtractor:
 def extract_poses_batched(
     video_path: Path | str,
     batch_size: int = 8,
-    model_path: str = "data/models/moganet/moganet_b_ap2d_384x288.onnx",
+    model_path: str = "data/models/moganet/moganet_b_ap2d_384x288_fp16.onnx",
     output_format: str = "normalized",
     person_click: PersonClick | None = None,
 ) -> TrackedExtraction:

@@ -36,6 +36,6 @@ See `DATASETS.md` for full registry, download links, and inter-dataset relations
 
 ## Notes
 
-- `models/` contains ONNX model weights (not in git — use `ml/scripts/download_ml_models.py`)
+- `models/` contains ONNX model weights (not in git — upload via `ml/scripts/convert_and_upload_models.py`)
 - Large files (videos, model weights) are in `.gitignore`
 - Use `data/data_tools/` converters to create unified format from raw data

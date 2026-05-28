@@ -84,7 +84,7 @@ ml/
 │   ├── cli.py                        # Backend API CLI — upload, enqueue, poll, JSON stdout
 │   ├── visualize_with_skeleton.py    # Main viz script (--layer, --3d, --select-person)
 │   ├── setup_cuda_compat.sh          # CUDA 12 compat libs for CUDA 13.x
-│   ├── download_ml_models.py         # Download model weights
+│   ├── convert_and_upload_models.py # Convert ONNX to FP16, upload to S3
 │   ├── normalize_video.py            # H.264, 1280px, 30fps
 │   ├── compare_videos.py             # Side-by-side analysis comparison
 │   ├── build_references.py           # Build reference database
