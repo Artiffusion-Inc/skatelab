@@ -2,6 +2,7 @@ package ru.skatelab.capture.ui.camera
 
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.camera.compose.CameraXViewfinder
 import androidx.compose.foundation.background
@@ -98,7 +99,7 @@ fun CameraScreen(
                     galleryVideoPath = destFile.absolutePath
                     showGalleryElementType = true
                 } catch (e: Exception) {
-                    viewModel.galleryUploadError.value = context.getString(R.string.camera_gallery_copy_error)
+                    viewModel.setGalleryUploadError(context.getString(R.string.camera_gallery_copy_error))
                 }
             }
         }
@@ -208,7 +209,7 @@ fun CameraScreen(
                 OutlinedButton(
                     onClick = {
                         videoPickerLauncher.launch(
-                            ActivityResultContracts.PickVisualMedia.MediaType.VideoOnly,
+                            PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.MediaType.VideoOnly),
                         )
                     },
                     modifier = Modifier.padding(bottom = 16.dp),

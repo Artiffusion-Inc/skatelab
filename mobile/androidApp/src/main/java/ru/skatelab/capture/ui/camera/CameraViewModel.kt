@@ -79,6 +79,10 @@ class CameraViewModel
         private val _galleryUploadError = MutableStateFlow<String?>(null)
         val galleryUploadError: StateFlow<String?> = _galleryUploadError
 
+        fun setGalleryUploadError(message: String) {
+            _galleryUploadError.value = message
+        }
+
         val surfaceRequest: StateFlow<SurfaceRequest?> = cameraRepository.surfaceRequest
 
         private var currentStartInfo: RecordingStartInfo? = null
