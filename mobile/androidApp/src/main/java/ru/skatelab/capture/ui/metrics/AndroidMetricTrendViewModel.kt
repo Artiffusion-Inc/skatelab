@@ -9,13 +9,13 @@ import ru.skatelab.shared.viewmodel.MetricTrendViewModel
 
 @HiltViewModel
 class AndroidMetricTrendViewModel
-@Inject
-constructor(
-    client: SkateLabClient,
-) : ViewModel() {
-    val shared =
-        MetricTrendViewModel(
-            metricsApi = client.metrics,
-            scope = viewModelScope,
-        )
-}
+    @Inject
+    constructor(
+        client: SkateLabClient,
+    ) : ViewModel() {
+        val shared =
+            MetricTrendViewModel(
+                metricsApi = client.metrics,
+                scope = viewModelScope,
+            )
+    }

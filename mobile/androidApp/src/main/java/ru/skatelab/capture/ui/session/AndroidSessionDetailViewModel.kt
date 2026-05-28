@@ -9,14 +9,14 @@ import ru.skatelab.shared.viewmodel.SessionDetailViewModel
 
 @HiltViewModel
 class AndroidSessionDetailViewModel
-@Inject
-constructor(
-    client: SkateLabClient,
-) : ViewModel() {
-    val shared =
-        SessionDetailViewModel(
-            sessionsApi = client.sessions,
-            metricsApi = client.metrics,
-            scope = viewModelScope,
-        )
-}
+    @Inject
+    constructor(
+        client: SkateLabClient,
+    ) : ViewModel() {
+        val shared =
+            SessionDetailViewModel(
+                sessionsApi = client.sessions,
+                metricsApi = client.metrics,
+                scope = viewModelScope,
+            )
+    }

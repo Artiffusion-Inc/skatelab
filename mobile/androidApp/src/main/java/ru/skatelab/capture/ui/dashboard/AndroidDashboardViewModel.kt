@@ -9,17 +9,17 @@ import ru.skatelab.shared.viewmodel.DashboardViewModel
 
 @HiltViewModel
 class AndroidDashboardViewModel
-@Inject
-constructor(
-    client: SkateLabClient,
-) : ViewModel() {
-    val shared =
-        DashboardViewModel(
-            sessionsApi = client.sessions,
-            metricsApi = client.metrics,
-            usersApi = client.users,
-            scope = viewModelScope,
-        )
+    @Inject
+    constructor(
+        client: SkateLabClient,
+    ) : ViewModel() {
+        val shared =
+            DashboardViewModel(
+                sessionsApi = client.sessions,
+                metricsApi = client.metrics,
+                usersApi = client.users,
+                scope = viewModelScope,
+            )
 
-    init { shared.load() }
-}
+        init { shared.load() }
+    }

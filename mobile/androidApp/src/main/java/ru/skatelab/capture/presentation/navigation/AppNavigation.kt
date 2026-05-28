@@ -45,7 +45,6 @@ import ru.skatelab.capture.ui.auth.LoginScreen
 import ru.skatelab.capture.ui.auth.RegisterScreen
 import ru.skatelab.capture.ui.auth.SplashScreen
 import ru.skatelab.capture.ui.metrics.AndroidMetricTrendViewModel
-import ru.skatelab.capture.ui.metrics.AndroidMetricTrendViewModel
 import ru.skatelab.capture.ui.metrics.MetricTrendScreen
 import ru.skatelab.capture.ui.processing.ProcessingScreen
 import ru.skatelab.capture.ui.session.AndroidSessionDetailViewModel
