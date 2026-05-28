@@ -43,7 +43,7 @@ class TestTCPFormerExtractorInit:
     def test_default_init(self, mock_onnx_extractor):
         """Should initialize with default model path and device."""
         extractor = TCPFormerExtractor()
-        assert extractor.model_path == Path("data/models/TCPFormer_ap3d_81.onnx")
+        assert extractor.model_path == Path("data/models/TCPFormer_ap3d_81_fp16.onnx")
         assert extractor._onnx.device == "auto"
 
     def test_custom_init(self, mock_onnx_extractor):

@@ -21,8 +21,9 @@ import boto3
 
 
 MODELS = {
-    "moganet": "models/moganet/moganet_b_ap2d_384x288.onnx",
-    "yolo": "models/yolov8n.onnx",
+    "moganet": "models/moganet/moganet_b_ap2d_384x288_fp16.onnx",
+    "rf_detr": "models/rf_detr_nano_fp16.onnx",
+    "tcpformer": "models/tcpformer/TCPFormer_ap3d_81_fp16.onnx",
 }
 
 DEFAULT_EXPIRES = 3600  # 1 hour
@@ -57,13 +58,15 @@ def main() -> None:
         print(f"Missing env vars: {', '.join(missing)}", file=sys.stderr)
         sys.exit(1)
 
+    from botocore.config import Config as BotoConfig
+
     s3 = boto3.client(
         "s3",
         endpoint_url=endpoint,
         aws_access_key_id=access_key,
         aws_secret_access_key=secret,
         region_name=region,
-        config={"s3": {"addressing_style": "path"}},
+        config=BotoConfig(signature_version="s3v4", s3={"addressing_style": "path"}),
     )
 
     urls: dict[str, str] = {}

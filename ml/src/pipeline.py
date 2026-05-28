@@ -109,6 +109,10 @@ class AnalysisPipeline:
         extractor = self._get_pose_2d_extractor()
         self._profiler.record("extractor_init", time.perf_counter() - t0)
 
+        if extractor is None:
+            msg = "2D pose extractor not initialized"
+            raise RuntimeError(msg)
+
         # 2. Tracked extraction (per-frame RTMO inference + tracking)
         t0 = time.perf_counter()
         extraction = extractor.extract_video_tracked(video_path, person_click=self._person_click)
@@ -257,7 +261,7 @@ class AnalysisPipeline:
             # (preserves snapshot angles by resetting filter at boundaries)
             elif element_type is not None and element_defs.is_jump(element_type):
                 pre_result = self._get_phase_detector().detect_phases(
-                    normalized, meta.fps, element_type
+                    normalized, meta.fps, element_type, poses_3d=poses_3d
                 )
                 pre_phases = pre_result.phases
                 boundaries = [pre_phases.takeoff, pre_phases.peak, pre_phases.landing]
@@ -289,7 +293,7 @@ class AnalysisPipeline:
                 phases = pre_phases
             else:
                 phase_result = self._get_phase_detector().detect_phases(
-                    smoothed, meta.fps, element_type
+                    smoothed, meta.fps, element_type, poses_3d=poses_3d
                 )
                 phases = phase_result.phases
             self._profiler.record("phase_detection", time.perf_counter() - t0)
@@ -307,10 +311,21 @@ class AnalysisPipeline:
                 reference = self._reference_store.get_best_match(element_type)
                 if reference is not None:
                     aligner = self._get_aligner()
-                    dtw_distance = aligner.compute_distance(
-                        normalized[phases.start : phases.end],
-                        reference.poses[reference.phases.start : reference.phases.end],
-                    )
+                    # Prefer 3D DTW when both user and reference have 3D data
+                    if (
+                        poses_3d is not None
+                        and hasattr(reference, "poses_3d")
+                        and reference.poses_3d is not None
+                    ):
+                        dtw_distance = aligner.compute_distance_3d(
+                            poses_3d[phases.start : phases.end],
+                            reference.poses_3d[reference.phases.start : reference.phases.end],
+                        )
+                    else:
+                        dtw_distance = aligner.compute_distance(
+                            normalized[phases.start : phases.end],
+                            reference.poses[reference.phases.start : reference.phases.end],
+                        )
             self._profiler.record("dtw_alignment", time.perf_counter() - t0)
 
             # Stage 6.5: Physics calculations
@@ -706,7 +721,7 @@ class AnalysisPipeline:
             # (preserves snapshot angles by resetting filter at boundaries)
             elif element_type is not None and element_defs.is_jump(element_type):
                 pre_result = self._get_phase_detector().detect_phases(
-                    normalized, meta.fps, element_type
+                    normalized, meta.fps, element_type, poses_3d=poses_3d
                 )
                 pre_phases_async = pre_result.phases
                 boundaries = [
@@ -748,7 +763,9 @@ class AnalysisPipeline:
                 # Use pre-detected phases from normalized (smoothed can distort CoM)
                 phases = pre_phases_async
             else:
-                phases = await self._detect_phases_async(smoothed, meta.fps, element_type, None)
+                phases = await self._detect_phases_async(
+                    smoothed, meta.fps, element_type, None, poses_3d=poses_3d
+                )
 
             # === Wave 2: metrics + DTW + physics in parallel ===
             # All three depend only on Wave 1 outputs (phases, reference, smoothed/normalized).
@@ -771,7 +788,9 @@ class AnalysisPipeline:
             # Task 2b: DTW alignment (needs normalized poses + phases + reference)
             if reference is not None:
                 wave2_tasks.append(
-                    asyncio.create_task(self._compute_dtw_async(normalized, phases, reference))
+                    asyncio.create_task(
+                        self._compute_dtw_async(normalized, phases, reference, poses_3d)
+                    )
                 )
 
             # Task 2c: Physics (3D if available, else 2D)
@@ -815,6 +834,7 @@ class AnalysisPipeline:
         fps: float,
         element_type: str,
         manual_phases: ElementPhase | None,
+        poses_3d: np.ndarray | None = None,
     ) -> ElementPhase:
         """Async phase detection.
 
@@ -823,6 +843,7 @@ class AnalysisPipeline:
             fps: Video frame rate.
             element_type: Element type for detection.
             manual_phases: Manual phases if provided.
+            poses_3d: Optional 3D poses for Z-axis detection.
 
         Returns:
             ElementPhase with detected boundaries.
@@ -833,7 +854,9 @@ class AnalysisPipeline:
         # Run in thread pool
         loop = asyncio.get_event_loop()
         detector = self._get_phase_detector()
-        result = await loop.run_in_executor(None, detector.detect_phases, poses, fps, element_type)
+        result = await loop.run_in_executor(
+            None, lambda: detector.detect_phases(poses, fps, element_type, poses_3d=poses_3d)
+        )
         return result.phases
 
     async def _compute_metrics_async(
@@ -888,28 +911,45 @@ class AnalysisPipeline:
         normalized: np.ndarray,
         phases: ElementPhase,
         reference,
+        poses_3d: np.ndarray | None = None,
     ) -> float:
         """Async DTW alignment against reference.
 
-        Uses normalized poses (not smoothed) for DTW to preserve
-        original signal characteristics.
+        Uses 3D DTW when both user and reference have 3D data,
+        otherwise falls back to 2D.
 
         Args:
             normalized: (N, 17, 2) normalized poses.
             phases: Element phases for slicing.
             reference: ReferenceData with .poses and .phases.
+            poses_3d: Optional (N, 17, 3) 3D poses.
 
         Returns:
             DTW distance (float).
         """
         loop = asyncio.get_event_loop()
         aligner = self._get_aligner()
-        return await loop.run_in_executor(
-            None,
-            aligner.compute_distance,
-            normalized[phases.start : phases.end],
-            reference.poses[reference.phases.start : reference.phases.end],
+
+        use_3d = (
+            poses_3d is not None
+            and hasattr(reference, "poses_3d")
+            and reference.poses_3d is not None
         )
+
+        if use_3d:
+            return await loop.run_in_executor(
+                None,
+                aligner.compute_distance_3d,
+                poses_3d[phases.start : phases.end],
+                reference.poses_3d[reference.phases.start : reference.phases.end],
+            )
+        else:
+            return await loop.run_in_executor(
+                None,
+                aligner.compute_distance,
+                normalized[phases.start : phases.end],
+                reference.poses[reference.phases.start : reference.phases.end],
+            )
 
     async def _compute_physics_async(
         self,

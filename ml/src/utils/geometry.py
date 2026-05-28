@@ -4,7 +4,7 @@ import numpy as np
 from numba import njit  # type: ignore
 from numpy.typing import NDArray
 
-from ..types import FrameKeypoints, H36Key, NormalizedPose, TimeSeries
+from ..types import FrameKeypoints, H36Key, NormalizedPose, NormalizedPose3D, TimeSeries
 
 
 # Numba-jitted core functions (for performance)
@@ -333,6 +333,56 @@ def calculate_com_trajectory(poses: NormalizedPose) -> NDArray[np.float32]:
     )
 
     return com_y.astype(np.float32)
+
+
+def calculate_com_trajectory_3d(poses: NormalizedPose3D) -> NDArray[np.float32]:
+    """Calculate Center of Mass Z-coordinate trajectory from 3D poses.
+
+    In 3D, the Z-axis represents height above the ground (ice surface).
+    This gives true vertical displacement — far more accurate than
+    inferring height from 2D Y-coordinates (image space).
+
+    Args:
+        poses: NormalizedPose3D (num_frames, 17, 3).
+
+    Returns:
+        CoM Z-coordinates (num_frames,) — higher values mean higher off ice.
+    """
+    head_mass = 0.081
+    torso_mass = 0.497
+    arm_mass = 0.050
+    thigh_mass = 0.100
+    leg_mass = 0.161
+
+    head = poses[:, H36Key.HEAD]
+
+    torso = (
+        poses[:, H36Key.LSHOULDER]
+        + poses[:, H36Key.RSHOULDER]
+        + poses[:, H36Key.LHIP]
+        + poses[:, H36Key.RHIP]
+    ) / 4
+
+    l_upper_arm = (poses[:, H36Key.LSHOULDER] + poses[:, H36Key.LELBOW]) / 2
+    r_upper_arm = (poses[:, H36Key.RSHOULDER] + poses[:, H36Key.RELBOW]) / 2
+    l_forearm = (poses[:, H36Key.LELBOW] + poses[:, H36Key.LWRIST]) / 2
+    r_forearm = (poses[:, H36Key.RELBOW] + poses[:, H36Key.RWRIST]) / 2
+
+    l_thigh = (poses[:, H36Key.LHIP] + poses[:, H36Key.LKNEE]) / 2
+    r_thigh = (poses[:, H36Key.RHIP] + poses[:, H36Key.RKNEE]) / 2
+    l_leg = (poses[:, H36Key.LKNEE] + poses[:, H36Key.LFOOT]) / 2
+    r_leg = (poses[:, H36Key.RKNEE] + poses[:, H36Key.RFOOT]) / 2
+
+    # Weighted sum of Z-coordinates (index 2 = height axis)
+    com_z = (
+        head_mass * head[:, 2]
+        + torso_mass * torso[:, 2]
+        + arm_mass * (l_upper_arm[:, 2] + r_upper_arm[:, 2] + l_forearm[:, 2] + r_forearm[:, 2])
+        + thigh_mass * (l_thigh[:, 2] + r_thigh[:, 2])
+        + leg_mass * (l_leg[:, 2] + r_leg[:, 2])
+    )
+
+    return com_z.astype(np.float32)
 
 
 def calculate_com_trajectory_2d(poses: NormalizedPose) -> NDArray[np.float32]:

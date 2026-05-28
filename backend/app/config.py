@@ -84,6 +84,10 @@ class JWTConfig(BaseSettings):
     access_token_expire_minutes: int = 15
     refresh_token_expire_days: int = 7
 
+    @property
+    def is_default_secret(self) -> bool:
+        return self.secret_key.get_secret_value() == "change-me-to-a-random-secret"
+
     class Config:
         env_prefix = "JWT_"
 

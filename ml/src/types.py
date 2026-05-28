@@ -598,6 +598,7 @@ class ReferenceData:
         element_type: Type of skating element.
         name: Reference name (e.g., "expert_waltz_jump").
         poses: Normalized pose sequence (num_frames, 17, 2).
+        poses_3d: Optional 3D pose sequence (num_frames, 17, 3) for DTW.
         phases: Phase boundaries for this reference.
         fps: Original video frame rate.
         meta: Video metadata (optional).
@@ -609,17 +610,17 @@ class ReferenceData:
     poses: NormalizedPose
     phases: ElementPhase
     fps: float
+    poses_3d: NormalizedPose3D | None = None
     meta: VideoMeta | None = None
     source: str = "unknown"
 
     def save(self, path: Path) -> None:
         """Save reference to .npz file."""
-        np.savez(
-            path,
-            element_type=self.element_type,
-            name=self.name,
-            poses=self.poses,
-            phases=(
+        save_dict = {
+            "element_type": self.element_type,
+            "name": self.name,
+            "poses": self.poses,
+            "phases": (
                 self.phases.name,
                 self.phases.start,
                 self.phases.takeoff,
@@ -627,8 +628,11 @@ class ReferenceData:
                 self.phases.landing,
                 self.phases.end,
             ),
-            fps=self.fps,
-        )
+            "fps": self.fps,
+        }
+        if self.poses_3d is not None:
+            save_dict["poses_3d"] = self.poses_3d
+        np.savez(path, **save_dict)
 
     @classmethod
     def load(cls, path: Path) -> "ReferenceData":
@@ -643,10 +647,14 @@ class ReferenceData:
             landing=int(landing),
             end=int(end),
         )
+        poses_3d = None
+        if "poses_3d" in data:
+            poses_3d = data["poses_3d"].astype(np.float32)
         return cls(
             element_type=str(data["element_type"]),
             name=str(data["name"]),
             poses=data["poses"].astype(np.float32),
+            poses_3d=poses_3d,
             phases=phases,
             fps=float(data["fps"]),
         )

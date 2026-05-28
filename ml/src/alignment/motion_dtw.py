@@ -10,7 +10,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 from dtw import dtw  # type: ignore[import-untyped]
 
-from ..types import ElementPhase, NormalizedPose
+from ..types import ElementPhase, NormalizedPose, NormalizedPose3D
 
 if TYPE_CHECKING:
     from dtw import DTW
@@ -473,3 +473,34 @@ class MotionDTWAligner:
         result = self.align_with_keyframes(user, user_phases, reference, ref_phases, joints)
 
         return result.total_distance
+
+    def compute_distance_3d(
+        self,
+        user: NormalizedPose3D,
+        reference: NormalizedPose3D,
+        joints: list[int] | None = None,
+    ) -> float:
+        """Compute DTW distance between 3D pose sequences.
+
+        Uses all 3 coordinates for more accurate comparison,
+        especially for rotations where 2D projection loses information.
+
+        Args:
+            user: User 3D pose sequence (num_frames, num_joints, 3).
+            reference: Reference 3D pose sequence (num_frames, num_joints, 3).
+            joints: Joint indices to use (None = all joints).
+
+        Returns:
+            Normalized DTW distance.
+        """
+        if joints is None:
+            joints = list(range(user.shape[1]))
+
+        # Flatten to 2D: (num_frames, num_joints * 3)
+        user_flat = user[:, joints, :].reshape(len(user), -1)
+        ref_flat = reference[:, joints, :].reshape(len(reference), -1)
+
+        # Compute DTW
+        alignment = self._compute_dtw(user_flat, ref_flat, self._window_size)
+
+        return float(alignment.distance / max(len(user), len(reference)))  # type: ignore[attr-defined]
