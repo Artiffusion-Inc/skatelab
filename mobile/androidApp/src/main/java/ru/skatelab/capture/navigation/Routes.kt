@@ -34,7 +34,3 @@ import kotlinx.serialization.Serializable
 @Serializable object CalibrationRoute
 
 @Serializable object RecordingRoute
-
-@Serializable data class ExportRoute(val sessionId: String)
-
-@Serializable data class SessionDetailRoute(val sessionId: String)
