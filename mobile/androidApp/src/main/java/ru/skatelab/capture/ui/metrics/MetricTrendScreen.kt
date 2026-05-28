@@ -106,10 +106,12 @@ fun MetricTrendScreen(
                     horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
                     Box(
-                        modifier = Modifier.semantics(mergeDescendants = true) {
-                            contentDescription = "Загрузка данных тренда"
-                            role = Role.ValuePicker
-                        },
+                        modifier =
+                            Modifier
+                                .semantics(mergeDescendants = true) {
+                                    contentDescription = "Загрузка данных тренда"
+                                    role = Role.ValuePicker
+                                },
                     ) {
                         CircularProgressIndicator(modifier = Modifier.size(48.dp))
                     }
@@ -145,10 +147,11 @@ fun MetricTrendScreen(
                 val metricDef = state.metricDef
 
                 Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(padding)
-                        .verticalScroll(rememberScrollState()),
+                    modifier =
+                        Modifier
+                            .fillMaxSize()
+                            .padding(padding)
+                            .verticalScroll(rememberScrollState()),
                 ) {
                     // Trend indicator row
                     TrendIndicatorRow(
@@ -197,18 +200,20 @@ private fun TrendIndicatorRow(
     trendDirection: String?,
     currentPr: Double?,
 ) {
-    val (arrow, color) = when (trendDirection) {
-        "improving" -> "↑" to Color(0xFF4CAF50)
-        "declining" -> "↓" to Color(0xFFF44336)
-        "stable" -> "→" to Color(0xFF9E9E9E)
-        else -> "—" to Color(0xFF9E9E9E)
-    }
+    val (arrow, color) =
+        when (trendDirection) {
+            "improving" -> "↑" to Color(0xFF4CAF50)
+            "declining" -> "↓" to Color(0xFFF44336)
+            "stable" -> "→" to Color(0xFF9E9E9E)
+            else -> "—" to Color(0xFF9E9E9E)
+        }
 
     Card(
         modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant,
-        ),
+        colors =
+            CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surfaceVariant,
+            ),
     ) {
         Row(
             modifier = Modifier.padding(16.dp).fillMaxWidth(),
@@ -296,39 +301,44 @@ private fun TrendChart(
         }
     }
 
-    val prIndices = remember(trend.dataPoints) {
-        trend.dataPoints.mapIndexedNotNull { i, dp -> if (dp.isPr) i else null }
-    }
+    val prIndices =
+        remember(trend.dataPoints) {
+            trend.dataPoints.mapIndexedNotNull { i, dp -> if (dp.isPr) i else null }
+        }
 
-    val decorations = listOfNotNull(
-        trend.referenceRange?.let { range ->
-            val minY = range["min"] ?: 0.0
-            val maxY = range["max"] ?: 100.0
-            HorizontalBox(
-                y = { minY..maxY },
-                box = rememberShapeComponent(
-                    fill = Fill(ArcticSkySemi.value.toInt()),
-                    shape = Shape.Rectangle,
-                ),
-            )
-        },
-    )
+    val decorations =
+        listOfNotNull(
+            trend.referenceRange?.let { range ->
+                val minY = range["min"] ?: 0.0
+                val maxY = range["max"] ?: 100.0
+                HorizontalBox(
+                    y = { minY..maxY },
+                    box =
+                        rememberShapeComponent(
+                            fill = Fill(ArcticSkySemi.value.toInt()),
+                            shape = Shape.Rectangle,
+                        ),
+                )
+            },
+        )
 
     val prMarker = rememberDefaultCartesianMarker()
 
     CartesianChartHost(
         modelProducer = modelProducer,
-        chart = rememberCartesianChart(
-            rememberLineCartesianLayer(),
-            decorations = decorations,
-            persistentMarkers = if (prIndices.isEmpty()) {
-                null
-            } else {
-                { prIndices.forEach { index -> prMarker at index.toFloat() } }
-            },
-            startAxis = VerticalAxis.rememberStart(),
-            bottomAxis = HorizontalAxis.rememberBottom(),
-        ),
+        chart =
+            rememberCartesianChart(
+                rememberLineCartesianLayer(),
+                decorations = decorations,
+                persistentMarkers =
+                    if (prIndices.isEmpty()) {
+                        null
+                    } else {
+                        { prIndices.forEach { index -> prMarker at index.toFloat() } }
+                    },
+                startAxis = VerticalAxis.rememberStart(),
+                bottomAxis = HorizontalAxis.rememberBottom(),
+            ),
         modifier = modifier,
         scrollState = rememberVicoScrollState(scrollEnabled = true),
         zoomState = rememberVicoZoomState(zoomEnabled = false),
@@ -343,9 +353,10 @@ private fun DataTable(
     Column(modifier = Modifier.fillMaxWidth()) {
         // Header
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 8.dp),
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
         ) {
             Text("Дата", style = MaterialTheme.typography.labelMedium, modifier = Modifier.weight(1f))
@@ -360,17 +371,19 @@ private fun DataTable(
         ) {
             itemsIndexed(dataPoints) { index, point ->
                 val delta = if (index > 0) point.value - dataPoints[index - 1].value else null
-                val deltaColor = when {
-                    delta == null -> MaterialTheme.colorScheme.onSurfaceVariant
-                    delta > 0 -> Color(0xFF4CAF50)
-                    delta < 0 -> Color(0xFFF44336)
-                    else -> MaterialTheme.colorScheme.onSurfaceVariant
-                }
+                val deltaColor =
+                    when {
+                        delta == null -> MaterialTheme.colorScheme.onSurfaceVariant
+                        delta > 0 -> Color(0xFF4CAF50)
+                        delta < 0 -> Color(0xFFF44336)
+                        else -> MaterialTheme.colorScheme.onSurfaceVariant
+                    }
 
                 Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 4.dp),
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 4.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
@@ -386,9 +399,11 @@ private fun DataTable(
                         modifier = Modifier.weight(1f),
                     )
                     Text(
-                        text = delta?.let {
-                            "${if (it >= 0) "+" else ""}${String.format("%.1f", it)}"
-                        } ?: "—",
+                        text =
+                            delta?.let {
+                                "${if (it >= 0) "+" else ""}${String.format("%.1f", it)}"
+                            }
+                                ?: "—",
                         style = MaterialTheme.typography.bodyMedium,
                         color = deltaColor,
                         modifier = Modifier.weight(1f),
