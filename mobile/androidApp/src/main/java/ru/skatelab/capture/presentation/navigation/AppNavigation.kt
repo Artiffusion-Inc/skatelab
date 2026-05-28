@@ -133,6 +133,9 @@ fun AppNavigation() {
                 onNavigateToMetricTrend = { metricName, elementType ->
                     navController.navigate(MetricTrendRoute(metricName, elementType))
                 },
+                onNavigateToProcessing = { uploadId ->
+                    navController.navigate(ProcessingRoute(uploadId = uploadId))
+                },
             )
         }
 

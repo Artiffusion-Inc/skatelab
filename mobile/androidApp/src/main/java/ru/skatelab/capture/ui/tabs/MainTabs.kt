@@ -44,6 +44,7 @@ fun MainTabsScreen(
     onLogout: () -> Unit = {},
     onNavigateToSessionDetail: (String) -> Unit = {},
     onNavigateToMetricTrend: (String, String) -> Unit = { _, _ -> },
+    onNavigateToProcessing: (String) -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val tabNavController = rememberNavController()
@@ -79,6 +80,7 @@ fun MainTabsScreen(
             onLogout = onLogout,
             onNavigateToSessionDetail = onNavigateToSessionDetail,
             onNavigateToMetricTrend = onNavigateToMetricTrend,
+            onNavigateToProcessing = onNavigateToProcessing,
             modifier = Modifier.padding(innerPadding),
         )
     }

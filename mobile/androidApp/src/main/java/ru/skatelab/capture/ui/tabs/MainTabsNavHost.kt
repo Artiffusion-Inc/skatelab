@@ -26,6 +26,7 @@ fun MainTabsNavHost(
     onLogout: () -> Unit = {},
     onNavigateToSessionDetail: (String) -> Unit = {},
     onNavigateToMetricTrend: (String, String) -> Unit = { _, _ -> },
+    onNavigateToProcessing: (String) -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     NavHost(
@@ -38,6 +39,7 @@ fun MainTabsNavHost(
             CameraScreen(
                 viewModel = viewModel,
                 onNavigateToImuCapture = onNavigateToBleScan,
+                onNavigateToProcessing = onNavigateToProcessing,
             )
         }
 
