@@ -260,13 +260,14 @@ fun DynamicSkeletonOverlay(
             val kpStart = keypoints[start]
             val kpEnd = keypoints[end]
             if (kpStart == null || kpEnd == null) continue
-            if (kpStart.confidence < DEFAULT_CONFIDENCE_THRESHOLD) continue
-            if (kpEnd.confidence < DEFAULT_CONFIDENCE_THRESHOLD) continue
+            if (kpStart.size < 3 || kpEnd.size < 3) continue
+            if (kpStart[2] < DEFAULT_CONFIDENCE_THRESHOLD) continue
+            if (kpEnd[2] < DEFAULT_CONFIDENCE_THRESHOLD) continue
 
             drawLine(
                 color = boneColor,
-                start = Offset(kpStart.x * w, kpStart.y * h),
-                end = Offset(kpEnd.x * w, kpEnd.y * h),
+                start = Offset(kpStart[0] * w, kpStart[1] * h),
+                end = Offset(kpEnd[0] * w, kpEnd[1] * h),
                 strokeWidth = boneWidthPx,
             )
         }
@@ -274,12 +275,13 @@ fun DynamicSkeletonOverlay(
         // Draw joint circles
         for (i in keypoints.indices) {
             val kp = keypoints[i] ?: continue
-            if (kp.confidence < DEFAULT_CONFIDENCE_THRESHOLD) continue
+            if (kp.size < 3) continue
+            if (kp[2] < DEFAULT_CONFIDENCE_THRESHOLD) continue
 
             drawCircle(
                 color = jointBaseColor,
                 radius = jointRadiusPx,
-                center = Offset(kp.x * w, kp.y * h),
+                center = Offset(kp[0] * w, kp[1] * h),
             )
         }
     }

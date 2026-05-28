@@ -54,6 +54,7 @@ import com.patrykandpatrick.vico.compose.cartesian.rememberCartesianChart
 import com.patrykandpatrick.vico.compose.cartesian.rememberVicoScrollState
 import com.patrykandpatrick.vico.compose.cartesian.rememberVicoZoomState
 import com.patrykandpatrick.vico.compose.common.component.rememberShapeComponent
+import com.patrykandpatrick.vico.compose.common.component.rememberTextComponent
 import com.patrykandpatrick.vico.core.cartesian.axis.HorizontalAxis
 import com.patrykandpatrick.vico.core.cartesian.axis.VerticalAxis
 import com.patrykandpatrick.vico.core.cartesian.data.CartesianChartModelProducer
@@ -322,7 +323,7 @@ private fun TrendChart(
             },
         )
 
-    val prMarker = rememberDefaultCartesianMarker()
+    val prMarker = rememberDefaultCartesianMarker(label = rememberTextComponent())
 
     CartesianChartHost(
         modelProducer = modelProducer,

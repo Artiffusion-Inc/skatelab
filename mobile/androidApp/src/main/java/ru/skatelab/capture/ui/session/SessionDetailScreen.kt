@@ -194,7 +194,6 @@ private fun SessionDetailContent(
                     factory = { ctx ->
                         PlayerView(ctx).apply {
                             player = exoPlayer
-                            surfaceType = PlayerView.SURFACE_TYPE_TEXTURE_VIEW
                         }
                     },
                     modifier = Modifier.matchParentSize(),
@@ -236,9 +235,10 @@ private fun SessionDetailContent(
 
         Column(modifier = Modifier.padding(horizontal = 16.dp)) {
             // -- Phase timeline --
-            if (session.phases != null) {
+            val phases = session.phases
+            if (phases != null) {
                 PhaseTimeline(
-                    phases = session.phases,
+                    phases = phases,
                     modifier = Modifier.fillMaxWidth().height(32.dp),
                 )
                 Spacer(modifier = Modifier.height(16.dp))
