@@ -79,6 +79,9 @@ class LayerContext:
     camera_distance: float = 3.0
     focal_length: int = 800
 
+    # Physics data (CoM trajectory, inertia, angular momentum, jump params)
+    physics: dict[str, Any] = field(default_factory=dict)
+
     # Custom data
     custom_data: dict[str, Any] = field(default_factory=dict)
 

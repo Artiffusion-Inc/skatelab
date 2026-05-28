@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import csv as _csv
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 
@@ -77,6 +77,7 @@ class VizPipeline:
     layer: int = 0
     confs: NDArray[np.float32] | None = None
     frame_indices: NDArray[np.intp] | None = None
+    physics: dict[str, Any] | None = None
 
     # Internal state
     layers: list = field(default_factory=list, init=False)
@@ -136,6 +137,7 @@ class VizPipeline:
             frame_idx=frame_idx,
             total_frames=total,
             normalized=True,
+            physics=self.physics or {},
         )
 
         # Skeleton (always drawn when pose available)
