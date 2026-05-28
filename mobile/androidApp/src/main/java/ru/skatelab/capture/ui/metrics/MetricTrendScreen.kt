@@ -48,19 +48,19 @@ import androidx.compose.ui.unit.dp
 import com.patrykandpatrick.vico.compose.cartesian.CartesianChartHost
 import com.patrykandpatrick.vico.compose.cartesian.axis.rememberBottom
 import com.patrykandpatrick.vico.compose.cartesian.axis.rememberStart
-import com.patrykandpatrick.vico.compose.cartesian.decoration.rememberHorizontalBox
 import com.patrykandpatrick.vico.compose.cartesian.layer.rememberLineCartesianLayer
-import com.patrykandpatrick.vico.compose.cartesian.marker.rememberPersistentMarker
+import com.patrykandpatrick.vico.compose.cartesian.marker.rememberDefaultCartesianMarker
 import com.patrykandpatrick.vico.compose.cartesian.rememberCartesianChart
 import com.patrykandpatrick.vico.compose.cartesian.rememberVicoScrollState
 import com.patrykandpatrick.vico.compose.cartesian.rememberVicoZoomState
+import com.patrykandpatrick.vico.compose.common.component.rememberShapeComponent
 import com.patrykandpatrick.vico.core.cartesian.axis.HorizontalAxis
 import com.patrykandpatrick.vico.core.cartesian.axis.VerticalAxis
-import com.patrykandpatrick.vico.core.cartesian.component.ShapeComponent
-import com.patrykandpatrick.vico.core.cartesian.component.Shapes
 import com.patrykandpatrick.vico.core.cartesian.data.CartesianChartModelProducer
 import com.patrykandpatrick.vico.core.cartesian.data.lineSeries
-import com.patrykandpatrick.vico.core.cartesian.marker.PersistentMarker
+import com.patrykandpatrick.vico.core.cartesian.decoration.HorizontalBox
+import com.patrykandpatrick.vico.core.common.Fill
+import com.patrykandpatrick.vico.core.common.shape.Shape
 import ru.skatelab.shared.models.TrendDataPoint
 import ru.skatelab.shared.models.TrendResponse
 import ru.skatelab.shared.state.TrendState
@@ -300,28 +300,31 @@ private fun TrendChart(
         trend.dataPoints.mapIndexedNotNull { i, dp -> if (dp.isPr) i else null }
     }
 
+    val decorations = listOfNotNull(
+        trend.referenceRange?.let { range ->
+            val minY = range["min"] ?: 0.0
+            val maxY = range["max"] ?: 100.0
+            HorizontalBox(
+                y = { minY..maxY },
+                box = rememberShapeComponent(
+                    fill = Fill(ArcticSkySemi.value.toInt()),
+                    shape = Shape.Rectangle,
+                ),
+            )
+        },
+    )
+
+    val prMarker = rememberDefaultCartesianMarker()
+
     CartesianChartHost(
         modelProducer = modelProducer,
         chart = rememberCartesianChart(
             rememberLineCartesianLayer(),
-            decorations = listOfNotNull(
-                trend.referenceRange?.let { range ->
-                    rememberHorizontalBox(
-                        yMin = { range["min"]?.toFloat() ?: 0f },
-                        yMax = { range["max"]?.toFloat() ?: 100f },
-                        box = rememberShapeComponent(ArcticSkySemi),
-                    )
-                },
-            ),
-            persistentMarkers = remember(prIndices) {
-                if (prIndices.isEmpty()) {
-                    emptyMap()
-                } else {
-                    prIndices.associate { index ->
-                        PersistentMarker.Position.ToVerticalMiddle(index.toFloat()) to
-                            rememberPersistentMarker { rememberShapeComponent(PrMarkerColor) }
-                    }
-                }
+            decorations = decorations,
+            persistentMarkers = if (prIndices.isEmpty()) {
+                null
+            } else {
+                { prIndices.forEach { index -> prMarker at index.toFloat() } }
             },
             startAxis = VerticalAxis.rememberStart(),
             bottomAxis = HorizontalAxis.rememberBottom(),
@@ -330,13 +333,6 @@ private fun TrendChart(
         scrollState = rememberVicoScrollState(scrollEnabled = true),
         zoomState = rememberVicoZoomState(zoomEnabled = false),
     )
-}
-
-@Composable
-private fun rememberShapeComponent(color: Color): ShapeComponent {
-    return remember(color) {
-        ShapeComponent(Shapes.rectShape, color.value.toInt())
-    }
 }
 
 @Composable

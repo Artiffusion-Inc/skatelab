@@ -165,10 +165,11 @@ fun SessionListScreen(
                     Column(modifier = Modifier.fillMaxSize()) {
                         // Filter chips
                         Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .horizontalScroll(rememberScrollState())
-                                .padding(horizontal = 16.dp, vertical = 8.dp),
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .horizontalScroll(rememberScrollState())
+                                    .padding(horizontal = 16.dp, vertical = 8.dp),
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
                         ) {
                             FilterChip(
@@ -262,11 +263,13 @@ private fun SessionCard(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 // Inline metrics — show first 2
-                val priorityMetrics = session.metrics
-                    .filter { it.metricName in listOf("airtime", "rotation_speed") }
-                val displayMetrics = priorityMetrics.ifEmpty {
-                    session.metrics.take(2)
-                }.take(2)
+                val priorityMetrics =
+                    session.metrics
+                        .filter { it.metricName in listOf("airtime", "rotation_speed") }
+                val displayMetrics =
+                    priorityMetrics.ifEmpty {
+                        session.metrics.take(2)
+                    }.take(2)
                 if (displayMetrics.isNotEmpty()) {
                     Spacer(modifier = Modifier.height(4.dp))
                     Row(
@@ -302,12 +305,13 @@ private fun StatusBadge(
         }
 
     // GOE score badge with color coding
-    val goeColor = when {
-        score != null && status == "completed" && score >= 0.7f -> MaterialTheme.colorScheme.primary
-        score != null && status == "completed" && score >= 0.4f -> MaterialTheme.colorScheme.tertiary
-        score != null && status == "completed" -> MaterialTheme.colorScheme.error
-        else -> color
-    }
+    val goeColor =
+        when {
+            score != null && status == "completed" && score >= 0.7f -> MaterialTheme.colorScheme.primary
+            score != null && status == "completed" && score >= 0.4f -> MaterialTheme.colorScheme.tertiary
+            score != null && status == "completed" -> MaterialTheme.colorScheme.error
+            else -> color
+        }
 
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         if (score != null && status == "completed") {
@@ -326,14 +330,15 @@ private fun StatusBadge(
     }
 }
 
-private fun metricLabelRu(metricName: String): String = when (metricName) {
-    "airtime" -> "Время в воздухе"
-    "rotation_speed" -> "Скорость вращения"
-    "jump_height" -> "Высота прыжка"
-    "knee_angle" -> "Угол колена"
-    "landing_quality" -> "Качество приземления"
-    else -> metricName.replaceFirstChar { it.uppercase() }
-}
+private fun metricLabelRu(metricName: String): String =
+    when (metricName) {
+        "airtime" -> "Время в воздухе"
+        "rotation_speed" -> "Скорость вращения"
+        "jump_height" -> "Высота прыжка"
+        "knee_angle" -> "Угол колена"
+        "landing_quality" -> "Качество приземления"
+        else -> metricName.replaceFirstChar { it.uppercase() }
+    }
 
 private fun formatMetricValue(value: Float): String {
     return if (value < 1 && value > -1) {

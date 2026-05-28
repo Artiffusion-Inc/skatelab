@@ -78,9 +78,10 @@ fun SessionDetailScreen(
         topBar = {
             TopAppBar(
                 title = {
-                    val title = (uiState as? SessionDetailState.Loaded)
-                        ?.session?.elementType?.elementLabelRu()
-                        ?: stringResource(R.string.session_detail_result_fallback)
+                    val title =
+                        (uiState as? SessionDetailState.Loaded)
+                            ?.session?.elementType?.elementLabelRu()
+                            ?: stringResource(R.string.session_detail_result_fallback)
                     Text(title)
                 },
                 navigationIcon = {
@@ -179,9 +180,10 @@ private fun SessionDetailContent(
     var recommendationsExpanded by remember { mutableStateOf(false) }
 
     Column(
-        modifier = modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState()),
+        modifier =
+            modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState()),
     ) {
         // -- Video player with skeleton overlay --
         if (videoUrl != null) {
@@ -212,18 +214,20 @@ private fun SessionDetailContent(
                 // Skeleton toggle FAB
                 FloatingActionButton(
                     onClick = onToggleSkeleton,
-                    modifier = Modifier
-                        .align(Alignment.BottomEnd)
-                        .padding(8.dp),
+                    modifier =
+                        Modifier
+                            .align(Alignment.BottomEnd)
+                            .padding(8.dp),
                     containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.8f),
                 ) {
                     Icon(
                         imageVector = if (showSkeleton) Icons.Filled.VisibilityOff else Icons.Filled.Visibility,
-                        contentDescription = if (showSkeleton) {
-                            stringResource(R.string.session_ui_hide_skeleton)
-                        } else {
-                            stringResource(R.string.session_ui_show_skeleton)
-                        },
+                        contentDescription =
+                            if (showSkeleton) {
+                                stringResource(R.string.session_ui_hide_skeleton)
+                            } else {
+                                stringResource(R.string.session_ui_show_skeleton)
+                            },
                     )
                 }
             }
@@ -277,20 +281,22 @@ private fun SessionDetailContent(
                     maxItemsInEachRow = 2,
                 ) {
                     session.metrics.forEach { metric ->
-                        val label = state.metricDefs[metric.metricName]?.labelRu
-                            ?: metric.metricName
+                        val label =
+                            state.metricDefs[metric.metricName]?.labelRu
+                                ?: metric.metricName
                         MetricCard(
                             metric = metric,
                             label = label,
-                            modifier = Modifier
-                                .weight(1f)
-                                .padding(2.dp)
-                                .clickable {
-                                    onNavigateToMetricTrend(
-                                        metric.metricName,
-                                        session.elementType,
-                                    )
-                                },
+                            modifier =
+                                Modifier
+                                    .weight(1f)
+                                    .padding(2.dp)
+                                    .clickable {
+                                        onNavigateToMetricTrend(
+                                            metric.metricName,
+                                            session.elementType,
+                                        )
+                                    },
                         )
                     }
                 }
@@ -301,9 +307,10 @@ private fun SessionDetailContent(
             val recommendations = session.recommendations
             if (!recommendations.isNullOrEmpty()) {
                 Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable { recommendationsExpanded = !recommendationsExpanded },
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .clickable { recommendationsExpanded = !recommendationsExpanded },
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
@@ -313,16 +320,18 @@ private fun SessionDetailContent(
                         fontWeight = FontWeight.SemiBold,
                     )
                     Icon(
-                        imageVector = if (recommendationsExpanded) {
-                            Icons.Filled.ExpandLess
-                        } else {
-                            Icons.Filled.ExpandMore
-                        },
-                        contentDescription = if (recommendationsExpanded) {
-                            stringResource(R.string.session_ui_recommendations_collapse)
-                        } else {
-                            stringResource(R.string.session_ui_recommendations_expand)
-                        },
+                        imageVector =
+                            if (recommendationsExpanded) {
+                                Icons.Filled.ExpandLess
+                            } else {
+                                Icons.Filled.ExpandMore
+                            },
+                        contentDescription =
+                            if (recommendationsExpanded) {
+                                stringResource(R.string.session_ui_recommendations_collapse)
+                            } else {
+                                stringResource(R.string.session_ui_recommendations_expand)
+                            },
                     )
                 }
                 AnimatedVisibility(visible = recommendationsExpanded) {
@@ -331,9 +340,10 @@ private fun SessionDetailContent(
                         recommendations.forEach { rec ->
                             Card(
                                 modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp),
-                                colors = CardDefaults.cardColors(
-                                    containerColor = MaterialTheme.colorScheme.surfaceVariant,
-                                ),
+                                colors =
+                                    CardDefaults.cardColors(
+                                        containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                                    ),
                             ) {
                                 Text(
                                     text = rec,
@@ -363,11 +373,12 @@ private fun PhaseTimeline(
 
     // Collect non-null markers with their normalized positions and labels.
     // We need a max frame to normalize — use the latest non-null phase frame as max.
-    val markers = buildList {
-        phases.takeoff?.let { add(it to stringResource(R.string.phase_takeoff)) }
-        phases.peak?.let { add(it to stringResource(R.string.phase_peak)) }
-        phases.landing?.let { add(it to stringResource(R.string.phase_landing)) }
-    }
+    val markers =
+        buildList {
+            phases.takeoff?.let { add(it to stringResource(R.string.phase_takeoff)) }
+            phases.peak?.let { add(it to stringResource(R.string.phase_peak)) }
+            phases.landing?.let { add(it to stringResource(R.string.phase_landing)) }
+        }
 
     if (markers.isEmpty()) return
 

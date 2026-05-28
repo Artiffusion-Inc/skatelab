@@ -14,9 +14,9 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.unit.dp
 import ru.skatelab.capture.R
-import ru.skatelab.shared.models.PoseData
-import ru.skatelab.shared.models.PhasesData
 import ru.skatelab.shared.models.Phase
+import ru.skatelab.shared.models.PhasesData
+import ru.skatelab.shared.models.PoseData
 import ru.skatelab.shared.models.phaseForFrame
 import ru.skatelab.shared.utils.interpolatePose
 
@@ -199,11 +199,12 @@ fun SkeletonOverlay(
 }
 
 /** Phase-to-color mapping for dynamic skeleton overlay. */
-private fun phaseColor(phase: Phase): Color = when (phase) {
-    Phase.APPROACH -> Color.White
-    Phase.FLIGHT -> Color(0xFF29B6F6)  // Arctic Sky cyan
-    Phase.LANDING -> Color(0xFFFFBF00) // amber
-}
+private fun phaseColor(phase: Phase): Color =
+    when (phase) {
+        Phase.APPROACH -> Color.White
+        Phase.FLIGHT -> Color(0xFF29B6F6) // Arctic Sky cyan
+        Phase.LANDING -> Color(0xFFFFBF00) // amber
+    }
 
 /**
  * A Compose [Canvas] composable that draws an H3.6M skeleton overlay

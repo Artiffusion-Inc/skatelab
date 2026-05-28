@@ -33,7 +33,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import ru.skatelab.shared.models.DiagnosticsFinding
-import ru.skatelab.shared.models.PersonalRecord
 import ru.skatelab.shared.models.SessionResponse
 import ru.skatelab.shared.models.elementLabelRu
 import ru.skatelab.shared.state.DashboardData
@@ -118,9 +117,10 @@ private fun DashboardContent(
     onNavigateToSessionDetail: (String) -> Unit,
 ) {
     Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp),
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         // Greeting
@@ -138,10 +138,11 @@ private fun DashboardContent(
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.SemiBold,
             )
-            val prByType = data.personalRecords
-                .filter { it.elementType != null }
-                .groupBy { it.elementType!! }
-                .mapValues { (_, records) -> records.maxByOrNull { it.value } }
+            val prByType =
+                data.personalRecords
+                    .filter { it.elementType != null }
+                    .groupBy { it.elementType!! }
+                    .mapValues { (_, records) -> records.maxByOrNull { it.value } }
             LazyRow(
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
             ) {
@@ -160,10 +161,11 @@ private fun DashboardContent(
         // Weekly Summary
         if (data.weeklySessions.isNotEmpty()) {
             val completedWeekly = data.weeklySessions.filter { it.status == "completed" }
-            val avgScore = completedWeekly
-                .mapNotNull { it.overallScore }
-                .takeIf { it.isNotEmpty() }
-                ?.let { scores -> scores.sum() / scores.size }
+            val avgScore =
+                completedWeekly
+                    .mapNotNull { it.overallScore }
+                    .takeIf { it.isNotEmpty() }
+                    ?.let { scores -> scores.sum() / scores.size }
             ElevatedCard(
                 modifier = Modifier.fillMaxWidth(),
             ) {
@@ -274,11 +276,12 @@ private fun PrCard(
 
 @Composable
 private fun FindingRow(finding: DiagnosticsFinding) {
-    val icon = when (finding.severity) {
-        "warning" -> "⚠️"
-        "info" -> "💡"
-        else -> "ℹ️"
-    }
+    val icon =
+        when (finding.severity) {
+            "warning" -> "⚠️"
+            "info" -> "💡"
+            else -> "ℹ️"
+        }
     Row(
         modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -344,9 +347,10 @@ private fun scoreColor(score: Float): androidx.compose.ui.graphics.Color {
 private fun formatDate(isoDate: String): String {
     return try {
         val instant = java.time.Instant.parse(isoDate)
-        val formatter = java.time.format.DateTimeFormatter
-            .ofPattern("dd.MM.yyyy")
-            .withZone(java.time.ZoneId.systemDefault())
+        val formatter =
+            java.time.format.DateTimeFormatter
+                .ofPattern("dd.MM.yyyy")
+                .withZone(java.time.ZoneId.systemDefault())
         formatter.format(instant)
     } catch (_: Exception) {
         isoDate

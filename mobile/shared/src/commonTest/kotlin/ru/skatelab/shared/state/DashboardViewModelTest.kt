@@ -13,6 +13,7 @@ import io.ktor.serialization.kotlinx.json.json
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestScope
+import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.Json
 import ru.skatelab.shared.api.MetricsApi
@@ -114,7 +115,6 @@ class DashboardViewModelTest {
             path == "/metrics/prs" -> respond(metricsPrs.first, metricsPrs.second, jsonHeaders)
             path == "/metrics/diagnostics" -> respond(metricsDiagnostics.first, metricsDiagnostics.second, jsonHeaders)
             path == "/sessions" -> {
-                // Distinguish recent (limit=3) vs weekly (limit=50) by query param
                 val limit = request.url.parameters["limit"]?.toIntOrNull() ?: 20
                 if (limit > 10) {
                     val resp = sessionsWeekly ?: sessions
@@ -127,17 +127,14 @@ class DashboardViewModelTest {
         }
     }
 
-    private fun createViewModel(engine: MockEngine): DashboardViewModel {
-        val testDispatcher = StandardTestDispatcher()
-        val testScope = TestScope(testDispatcher)
+    private fun TestScope.createViewModel(engine: MockEngine): DashboardViewModel {
         val httpClient = client(engine)
-        val viewModel = DashboardViewModel(
+        return DashboardViewModel(
             sessionsApi = SessionsApi(httpClient),
             metricsApi = MetricsApi(httpClient),
             usersApi = UsersApi(httpClient),
-            scope = testScope,
+            scope = this,
         )
-        return viewModel.also { testScope.runTest { it.load() } }
     }
 
     // --- Tests ---
@@ -145,19 +142,12 @@ class DashboardViewModelTest {
     @Test
     fun allEndpointsSucceed_showsLoadedWithAllData() = runTest {
         val engine = routeEngine()
-        val testDispatcher = StandardTestDispatcher()
-        val testScope = TestScope(testDispatcher)
-        val httpClient = client(engine)
-        val viewModel = DashboardViewModel(
-            sessionsApi = SessionsApi(httpClient),
-            metricsApi = MetricsApi(httpClient),
-            usersApi = UsersApi(httpClient),
-            scope = testScope,
-        )
+        val viewModel = createViewModel(engine)
 
         viewModel.uiState.test {
             assertEquals(DashboardState.Loading, awaitItem())
             viewModel.load()
+            advanceUntilIdle()
             val loaded = awaitItem()
             assertIs<DashboardState.Loaded>(loaded)
             assertEquals("user-1", loaded.data.user?.id)
@@ -174,23 +164,16 @@ class DashboardViewModelTest {
     }
 
     @Test
-    fun usersApiFills_showsLoadedWithNullUserAndOtherData() = runTest {
+    fun usersApiFails_showsLoadedWithNullUserAndOtherData() = runTest {
         val engine = routeEngine(
             usersMe = errorJson to HttpStatusCode.InternalServerError,
         )
-        val testDispatcher = StandardTestDispatcher()
-        val testScope = TestScope(testDispatcher)
-        val httpClient = client(engine)
-        val viewModel = DashboardViewModel(
-            sessionsApi = SessionsApi(httpClient),
-            metricsApi = MetricsApi(httpClient),
-            usersApi = UsersApi(httpClient),
-            scope = testScope,
-        )
+        val viewModel = createViewModel(engine)
 
         viewModel.uiState.test {
             assertEquals(DashboardState.Loading, awaitItem())
             viewModel.load()
+            advanceUntilIdle()
             val loaded = awaitItem()
             assertIs<DashboardState.Loaded>(loaded)
             assertNull(loaded.data.user)
@@ -209,19 +192,12 @@ class DashboardViewModelTest {
             metricsDiagnostics = errorJson to HttpStatusCode.InternalServerError,
             sessions = errorJson to HttpStatusCode.InternalServerError,
         )
-        val testDispatcher = StandardTestDispatcher()
-        val testScope = TestScope(testDispatcher)
-        val httpClient = client(engine)
-        val viewModel = DashboardViewModel(
-            sessionsApi = SessionsApi(httpClient),
-            metricsApi = MetricsApi(httpClient),
-            usersApi = UsersApi(httpClient),
-            scope = testScope,
-        )
+        val viewModel = createViewModel(engine)
 
         viewModel.uiState.test {
             assertEquals(DashboardState.Loading, awaitItem())
             viewModel.load()
+            advanceUntilIdle()
             val loaded = awaitItem()
             assertIs<DashboardState.Loaded>(loaded)
             assertNull(loaded.data.user)
@@ -237,19 +213,12 @@ class DashboardViewModelTest {
         val engine = routeEngine(
             sessions = emptySessionsJson to HttpStatusCode.OK,
         )
-        val testDispatcher = StandardTestDispatcher()
-        val testScope = TestScope(testDispatcher)
-        val httpClient = client(engine)
-        val viewModel = DashboardViewModel(
-            sessionsApi = SessionsApi(httpClient),
-            metricsApi = MetricsApi(httpClient),
-            usersApi = UsersApi(httpClient),
-            scope = testScope,
-        )
+        val viewModel = createViewModel(engine)
 
         viewModel.uiState.test {
             assertEquals(DashboardState.Loading, awaitItem())
             viewModel.load()
+            advanceUntilIdle()
             val loaded = awaitItem()
             assertIs<DashboardState.Loaded>(loaded)
             assertEquals("user-1", loaded.data.user?.id)
