@@ -20,7 +20,7 @@ import kotlinx.serialization.Serializable
 
 @Serializable data class MetricTrendRoute(val metricName: String, val elementType: String)
 
-@Serializable data class ProcessingRoute(val videoKey: String, val sessionId: String? = null)
+@Serializable data class ProcessingRoute(val uploadId: String? = null, val sessionId: String? = null)
 
 @Serializable object ProfileRoute
 

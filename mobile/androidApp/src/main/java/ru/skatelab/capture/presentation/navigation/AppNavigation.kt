@@ -140,7 +140,7 @@ fun AppNavigation() {
         composable<ProcessingRoute> { backStackEntry ->
             val route = backStackEntry.toRoute<ProcessingRoute>()
             ProcessingScreen(
-                videoKey = route.videoKey,
+                uploadId = route.uploadId,
                 sessionId = route.sessionId,
                 onCompleted = { taskId ->
                     navController.navigate(ResultDetailRoute(taskId)) {
