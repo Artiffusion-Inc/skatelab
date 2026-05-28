@@ -14,6 +14,11 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.unit.dp
 import ru.skatelab.capture.R
+import ru.skatelab.shared.models.PoseData
+import ru.skatelab.shared.models.PhasesData
+import ru.skatelab.shared.models.Phase
+import ru.skatelab.shared.models.phaseForFrame
+import ru.skatelab.shared.utils.interpolatePose
 
 /**
  * A single keypoint in normalized [0, 1] coordinates.
@@ -189,6 +194,92 @@ fun SkeletonOverlay(
                     style = Stroke(width = comOutlinePx),
                 )
             }
+        }
+    }
+}
+
+/** Phase-to-color mapping for dynamic skeleton overlay. */
+private fun phaseColor(phase: Phase): Color = when (phase) {
+    Phase.APPROACH -> Color.White
+    Phase.FLIGHT -> Color(0xFF29B6F6)  // Arctic Sky cyan
+    Phase.LANDING -> Color(0xFFFFBF00) // amber
+}
+
+/**
+ * A Compose [Canvas] composable that draws an H3.6M skeleton overlay
+ * driven by real pose data from the backend, with phase-based coloring.
+ *
+ * Converts [currentFrameMs] to a frame index, interpolates pose keypoints,
+ * determines the skating phase, and renders bones/joints with phase-dependent colors.
+ *
+ * @param poseData Pose data from backend (keyframes + fps).
+ * @param currentFrameMs Current video playback position in milliseconds.
+ * @param phases Phase boundaries (may be null if analysis not complete).
+ * @param videoWidth Video width in pixels (unused — coords are normalized).
+ * @param videoHeight Video height in pixels (unused — coords are normalized).
+ * @param showOverlay Whether the overlay is visible.
+ * @param modifier Standard modifier.
+ */
+@Composable
+fun DynamicSkeletonOverlay(
+    poseData: PoseData,
+    currentFrameMs: Long,
+    phases: PhasesData?,
+    videoWidth: Int,
+    videoHeight: Int,
+    showOverlay: Boolean,
+    modifier: Modifier = Modifier,
+) {
+    if (!showOverlay) return
+
+    val density = LocalDensity.current
+    val jointRadiusPx = with(density) { JOINT_RADIUS_DP.toPx() }
+    val boneWidthPx = with(density) { BONE_WIDTH_DP.toPx() }
+
+    // Convert playback time to frame index
+    val frameIndex = ((currentFrameMs / 1000.0) * poseData.fps).toInt()
+
+    // Interpolate keypoints at this frame
+    val keypoints = interpolatePose(poseData.poses, keyframeInterval = 10, frameIndex = frameIndex)
+
+    // Determine phase for coloring
+    val phase = phaseForFrame(phases, frameIndex)
+    val boneColor = if (phase != null) phaseColor(phase).copy(alpha = 0.7f) else BONE_COLOR
+    val jointBaseColor = if (phase != null) phaseColor(phase) else Color.White
+
+    Canvas(modifier = modifier) {
+        if (keypoints == null) return@Canvas
+        if (keypoints.size < 17) return@Canvas
+
+        val w = size.width
+        val h = size.height
+
+        // Draw skeleton bones
+        for ((start, end) in H36M_CONNECTIONS) {
+            val kpStart = keypoints[start]
+            val kpEnd = keypoints[end]
+            if (kpStart == null || kpEnd == null) continue
+            if (kpStart.confidence < DEFAULT_CONFIDENCE_THRESHOLD) continue
+            if (kpEnd.confidence < DEFAULT_CONFIDENCE_THRESHOLD) continue
+
+            drawLine(
+                color = boneColor,
+                start = Offset(kpStart.x * w, kpStart.y * h),
+                end = Offset(kpEnd.x * w, kpEnd.y * h),
+                strokeWidth = boneWidthPx,
+            )
+        }
+
+        // Draw joint circles
+        for (i in keypoints.indices) {
+            val kp = keypoints[i] ?: continue
+            if (kp.confidence < DEFAULT_CONFIDENCE_THRESHOLD) continue
+
+            drawCircle(
+                color = jointBaseColor,
+                radius = jointRadiusPx,
+                center = Offset(kp.x * w, kp.y * h),
+            )
         }
     }
 }
