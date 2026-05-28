@@ -229,6 +229,9 @@ class AnalysisPipeline:
             from .pose_3d.normalizer_3d import Pose3DNormalizer
 
             poses_3d = Pose3DNormalizer().normalize(poses_3d_raw)
+            # Release ONNX session to return VRAM to driver pool
+            lifter.release()
+            self._3d_lifter = None
         else:
             poses_3d = None
         self._profiler.record("3d_lift", time.perf_counter() - t0)
@@ -504,7 +507,12 @@ class AnalysisPipeline:
 
         Returns ONNXPoseExtractor for TCPFormer model.
         Returns None if model file not found (graceful degradation).
+        After release(), calling again re-creates the ONNX session.
         """
+        # _3d_lifter_unavailable = True means model file doesn't exist (don't retry)
+        if getattr(self, "_3d_lifter_unavailable", False):
+            return None
+
         if self._3d_lifter is None:
             from pathlib import Path
 
@@ -527,7 +535,7 @@ class AnalysisPipeline:
                     "TCPFormer model not found — 3D lift disabled. "
                     "Upload FP16 model to S3 and rebuild the GPU worker image."
                 )
-                self._3d_lifter = None  # type: ignore[assignment]
+                self._3d_lifter_unavailable = True
 
         return self._3d_lifter
 
@@ -954,6 +962,8 @@ class AnalysisPipeline:
     async def _lift_3d_async(self, normalized: np.ndarray) -> np.ndarray:
         """Async 3D lift — runs TCPFormer in thread pool (GIL released by ORT CUDA).
 
+        Releases ONNX session after inference to return VRAM to driver pool.
+
         Args:
             normalized: (N, 17, 2) normalized 2D poses.
 
@@ -968,4 +978,7 @@ class AnalysisPipeline:
         poses_3d_raw = await loop.run_in_executor(None, lifter.estimate_3d, normalized)
         normalizer = self._get_normalizer()
         poses_3d = await loop.run_in_executor(None, normalizer.normalize_3d, poses_3d_raw)
+        # Release ONNX session to return VRAM to driver pool
+        lifter.release()
+        self._3d_lifter = None
         return poses_3d
