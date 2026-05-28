@@ -22,7 +22,10 @@ object DatabaseModule {
     fun provideDatabase(
         @ApplicationContext context: Context,
     ): AppDatabase {
-        val builder = Room.databaseBuilder(context, AppDatabase::class.java, "skatelab.db")
+        val builder =
+            Room
+                .databaseBuilder(context, AppDatabase::class.java, "skatelab.db")
+                .addMigrations(AppDatabase.MIGRATION_1_2)
         if (BuildConfig.DEBUG) {
             builder.fallbackToDestructiveMigration(true)
         }

@@ -11,6 +11,7 @@ data class PendingUploadEntity(
     val imuLeftPath: String? = null,
     val imuRightPath: String? = null,
     val manifestPath: String? = null,
+    val elementType: String? = null,
     val status: String = "READY",
     val uploadId: String? = null,
     val r2Key: String? = null,
