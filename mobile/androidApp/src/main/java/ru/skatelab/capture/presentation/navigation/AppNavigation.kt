@@ -139,6 +139,9 @@ fun AppNavigation() {
                 onNavigateToProcessing = { uploadId ->
                     navController.navigate(ProcessingRoute(uploadId = uploadId))
                 },
+                onNavigateToUploadQueue = {
+                    navController.navigate(UploadQueueRoute)
+                },
             )
         }
 

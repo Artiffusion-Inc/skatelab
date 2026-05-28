@@ -1,6 +1,8 @@
 package ru.skatelab.capture.ui.tabs
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
@@ -10,6 +12,7 @@ import ru.skatelab.capture.navigation.CameraRoute
 import ru.skatelab.capture.navigation.DashboardRoute
 import ru.skatelab.capture.navigation.ProfileRoute
 import ru.skatelab.capture.navigation.SessionsRoute
+import ru.skatelab.capture.navigation.UploadQueueRoute
 import ru.skatelab.capture.ui.camera.CameraScreen
 import ru.skatelab.capture.ui.camera.CameraViewModel
 import ru.skatelab.capture.ui.dashboard.AndroidDashboardViewModel
@@ -18,6 +21,7 @@ import ru.skatelab.capture.ui.profile.ProfileScreen
 import ru.skatelab.capture.ui.profile.ProfileViewModel
 import ru.skatelab.capture.ui.session.AndroidSessionsViewModel
 import ru.skatelab.capture.ui.session.SessionListScreen
+import ru.skatelab.capture.ui.upload.UploadQueueViewModel
 
 @Composable
 fun MainTabsNavHost(
@@ -27,6 +31,7 @@ fun MainTabsNavHost(
     onNavigateToSessionDetail: (String) -> Unit = {},
     onNavigateToMetricTrend: (String, String) -> Unit = { _, _ -> },
     onNavigateToProcessing: (String) -> Unit = {},
+    onNavigateToUploadQueue: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     NavHost(
@@ -65,9 +70,13 @@ fun MainTabsNavHost(
 
         composable<ProfileRoute> {
             val viewModel: ProfileViewModel = hiltViewModel()
+            val uploadViewModel: UploadQueueViewModel = hiltViewModel()
+            val pendingCount by uploadViewModel.pendingCount.collectAsState()
             ProfileScreen(
                 viewModel = viewModel,
                 onLogout = onLogout,
+                onNavigateToUploadQueue = { navController.navigate(UploadQueueRoute) },
+                pendingCount = pendingCount,
             )
         }
     }
