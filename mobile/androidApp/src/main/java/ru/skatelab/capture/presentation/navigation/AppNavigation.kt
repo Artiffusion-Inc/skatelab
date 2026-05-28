@@ -45,6 +45,7 @@ import ru.skatelab.capture.ui.auth.LoginScreen
 import ru.skatelab.capture.ui.auth.RegisterScreen
 import ru.skatelab.capture.ui.auth.SplashScreen
 import ru.skatelab.capture.ui.processing.ProcessingScreen
+import ru.skatelab.capture.ui.session.AndroidSessionDetailViewModel
 import ru.skatelab.capture.ui.session.AndroidSessionsViewModel
 import ru.skatelab.capture.ui.session.SessionDetailScreen as ResultDetailScreen
 import ru.skatelab.capture.ui.session.SessionListScreen as ResultListScreen
@@ -158,11 +159,12 @@ fun AppNavigation() {
 
         composable<ResultDetailRoute> { backStackEntry ->
             val route = backStackEntry.toRoute<ResultDetailRoute>()
-            val viewModel: AndroidSessionsViewModel = hiltViewModel()
+            val viewModel: AndroidSessionDetailViewModel = hiltViewModel()
             ResultDetailScreen(
                 viewModel = viewModel,
                 sessionId = route.sessionId,
                 onBack = { navController.popBackStack() },
+                onNavigateToMetricTrend = { _, _ -> /* TODO: navigate to metric trend */ },
             )
         }
 

@@ -184,6 +184,11 @@
     <string name="session_ui_score_label">score</string>
     <string name="session_ui_metrics_title">Metrics</string>
     <string name="session_ui_recommendations_title">Recommendations</string>
+    <string name="session_ui_recommendations_collapse">Hide recommendations</string>
+    <string name="session_ui_recommendations_expand">Show recommendations</string>
+    <string name="phase_takeoff">Takeoff</string>
+    <string name="phase_peak">Peak</string>
+    <string name="phase_landing">Landing</string>
 
     <!-- Metric names -->
     <string name="metric_jump_height">Jump height</string>

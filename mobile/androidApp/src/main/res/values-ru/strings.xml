@@ -171,6 +171,11 @@
     <string name="session_ui_score_label">оценка</string>
     <string name="session_ui_metrics_title">Метрики</string>
     <string name="session_ui_recommendations_title">Рекомендации</string>
+    <string name="session_ui_recommendations_collapse">Скрыть рекомендации</string>
+    <string name="session_ui_recommendations_expand">Показать рекомендации</string>
+    <string name="phase_takeoff">Отталкивание</string>
+    <string name="phase_peak">Пик</string>
+    <string name="phase_landing">Приземление</string>
 
     <string name="metric_jump_height">Высота прыжка</string>
     <string name="metric_airtime">Время в воздухе</string>
