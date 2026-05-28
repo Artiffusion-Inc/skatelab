@@ -51,8 +51,8 @@ PIPELINE_MODELS: dict[str, dict] = {
         "fp32_path": "rf_detr_nano.onnx",
         "fp16_path": "rf_detr_nano_fp16.onnx",
         "s3_key": "models/rf_detr_nano_fp16.onnx",
-        "size_mb_fp32": "~120MB",
-        "size_mb_fp16": "~60MB",
+        "size_mb_fp32": "~103MB",
+        "size_mb_fp16": "~52MB",
         "description": "RF-DETR-Nano person detector (384x384)",
     },
     "tcpformer": {
@@ -66,18 +66,27 @@ PIPELINE_MODELS: dict[str, dict] = {
 }
 
 
-def convert_to_fp16(input_path: Path, output_path: Path) -> bool:
+def convert_to_fp16(
+    input_path: Path,
+    output_path: Path,
+    op_block_list: list[str] | None = None,
+) -> bool:
     """Convert ONNX FP32 model to FP16 (keep IO in FP32).
+
+    Runs shape inference before conversion to avoid type mismatch errors
+    in models with mixed-precision architectures (e.g. RF-DETR Conv nodes).
 
     Args:
         input_path: Path to source FP32 ONNX model.
         output_path: Path to write FP16 ONNX model.
+        op_block_list: Additional ops to keep in FP32 (beyond defaults).
 
     Returns:
         True if conversion succeeded.
     """
     try:
         import onnx
+        from onnx import shape_inference
         from onnxconverter_common import float16
     except ImportError as exc:
         msg = (
@@ -97,7 +106,24 @@ def convert_to_fp16(input_path: Path, output_path: Path) -> bool:
 
     print(f"  Converting: {input_path} -> {output_path}")
     model = onnx.load(str(input_path))
-    model_fp16 = float16.convert_float_to_float16(model, keep_io_types=True)
+
+    print("  Running shape inference...")
+    try:
+        model = shape_inference.infer_shapes(model)
+    except Exception as e:
+        print(f"  Shape inference failed ({e}), proceeding without it")
+
+    block_list = sorted(
+        set(float16.DEFAULT_OP_BLOCK_LIST)
+        | {"LayerNormalization", "Softmax", "ReduceMean"}
+        | (set(op_block_list) if op_block_list else set())
+    )
+
+    model_fp16 = float16.convert_float_to_float16(
+        model,
+        keep_io_types=True,
+        op_block_list=block_list,
+    )
     output_path.parent.mkdir(parents=True, exist_ok=True)
     onnx.save(model_fp16, str(output_path))
 
