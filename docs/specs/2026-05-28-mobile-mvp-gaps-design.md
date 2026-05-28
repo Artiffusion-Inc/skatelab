@@ -81,10 +81,10 @@ Phase 2 — **Processing phase**: When UploadWorker sets status to `PROCESSING` 
 
 ```kotlin
 @Serializable
-data class ProcessingRoute(val uploadId: String)
+data class ProcessingRoute(val uploadId: String? = null, val sessionId: String? = null)
 ```
 
-The existing `videoKey` and `sessionId` parameters are removed — the screen derives them from the PendingUploadEntity in Room. For backward compat, if navigated from other entry points with a sessionId directly, an overloaded route or a check can handle it.
+Primary entry: `uploadId` (from camera/gallery flow). The screen loads the PendingUploadEntity from Room and observes status transitions. Fallback entry: `sessionId` only (from deep link, notification, or other entry point) — skips upload phase, goes directly to SSE subscription. Exactly one of `uploadId` or `sessionId` must be non-null.
 
 **CameraViewModel change:** After `stopRecording()` → save PendingUpload → enqueue → emit navigation event with `uploadId`.
 
