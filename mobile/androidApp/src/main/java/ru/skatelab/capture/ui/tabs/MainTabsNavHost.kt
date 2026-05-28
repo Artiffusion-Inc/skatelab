@@ -1,6 +1,7 @@
 package ru.skatelab.capture.ui.tabs
 
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
@@ -56,6 +57,7 @@ fun MainTabsNavHost(
             SessionListScreen(
                 viewModel = viewModel,
                 onSessionClick = onNavigateToSessionDetail,
+                onBack = { navController.popBackStack() },
             )
         }
 
