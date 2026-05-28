@@ -234,6 +234,23 @@
     <!-- Camera -->
     <string name="camera_preparing">Preparing camera…</string>
     <string name="camera_reconnecting">Reconnecting: %1$s</string>
+    <string name="camera_gallery_upload">Upload video</string>
+    <string name="camera_gallery_copy_error">Failed to copy video</string>
+
+    <!-- Element type selection -->
+    <string name="element_type_title">Select element</string>
+    <string name="element_type_next">Next</string>
+
+    <!-- Upload queue -->
+    <string name="upload_queue_title">Uploads</string>
+    <string name="upload_queue_empty">No uploads</string>
+    <string name="upload_queue_retry">Retry</string>
+    <string name="upload_queue_cancel">Cancel</string>
+    <string name="upload_status_ready">Ready</string>
+    <string name="upload_status_uploading">Uploading</string>
+    <string name="upload_status_processing">Processing</string>
+    <string name="upload_status_completed">Completed</string>
+    <string name="upload_status_failed">Failed</string>
 
     <!-- Calibration countdown -->
     <string name="calibration_countdown">%1$d s</string>
