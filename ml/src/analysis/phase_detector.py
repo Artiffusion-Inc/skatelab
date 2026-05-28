@@ -7,8 +7,8 @@ from pose sequences using biomechanical cues.
 import numpy as np
 from scipy.signal import find_peaks
 
-from ..types import ElementPhase, NormalizedPose
-from ..utils.geometry import calculate_com_trajectory
+from ..types import ElementPhase, NormalizedPose, NormalizedPose3D
+from ..utils.geometry import calculate_com_trajectory, calculate_com_trajectory_3d
 from .element_defs import ElementDef
 from .metrics import BiomechanicsAnalyzer, PhaseDetectionResult
 
@@ -24,6 +24,7 @@ class PhaseDetector:
         poses: NormalizedPose,
         fps: float,
         element_type: str,
+        poses_3d: NormalizedPose3D | None = None,
     ) -> PhaseDetectionResult:
         """Detect phases for a skating element.
 
@@ -31,12 +32,15 @@ class PhaseDetector:
             poses: NormalizedPose (num_frames, num_joints, 2).
             fps: Frame rate.
             element_type: Type of element (jump or step).
+            poses_3d: Optional 3D poses (num_frames, 17, 3). When provided,
+                Z-axis (height above ice) is used for more accurate flight
+                phase detection.
 
         Returns:
             PhaseDetectionResult with detected boundaries and confidence.
         """
         if element_type in ("waltz_jump", "toe_loop", "flip", "salchow", "loop", "lutz", "axel"):
-            return self.detect_jump_phases(poses, fps)
+            return self.detect_jump_phases(poses, fps, poses_3d=poses_3d)
         elif element_type == "three_turn":
             return self.detect_three_turn_phases(poses, fps)
         else:
@@ -53,23 +57,33 @@ class PhaseDetector:
                 confidence=0.0,
             )
 
-    def detect_jump_phases(self, poses: NormalizedPose, fps: float) -> PhaseDetectionResult:
+    def detect_jump_phases(
+        self,
+        poses: NormalizedPose,
+        fps: float,
+        poses_3d: NormalizedPose3D | None = None,
+    ) -> PhaseDetectionResult:
         """Detect jump phases: takeoff, peak, landing.
 
         Uses parabolic CoM fitting to identify true flight phases.
         Falls back to velocity-based detection when no parabola passes quality checks.
+        When poses_3d is provided, Z-axis (height) gives more accurate flight detection.
 
         Args:
             poses: NormalizedPose (num_frames, 17, 2).
             fps: Frame rate.
+            poses_3d: Optional 3D poses for Z-axis flight detection.
 
         Returns:
             PhaseDetectionResult with jump phase boundaries.
         """
-        return self._detect_jump_phases_parabolic(poses, fps)
+        return self._detect_jump_phases_parabolic(poses, fps, poses_3d=poses_3d)
 
     def _detect_jump_phases_com_improved(
-        self, poses: NormalizedPose, fps: float
+        self,
+        poses: NormalizedPose,
+        fps: float,
+        poses_3d: NormalizedPose3D | None = None,
     ) -> PhaseDetectionResult:
         """Improved jump phase detection using CoM velocity with adaptive thresholds.
 
@@ -80,12 +94,16 @@ class PhaseDetector:
         Args:
             poses: NormalizedPose (num_frames, num_joints, 2).
             fps: Frame rate.
+            poses_3d: Optional 3D poses for Z-axis height detection.
 
         Returns:
             PhaseDetectionResult with improved jump phase boundaries.
         """
-        # Calculate CoM trajectory
-        com_y = calculate_com_trajectory(poses)
+        # Calculate CoM trajectory — prefer 3D Z-axis when available
+        if poses_3d is not None:
+            com_y = -calculate_com_trajectory_3d(poses_3d)
+        else:
+            com_y = calculate_com_trajectory(poses)
 
         # Calculate vertical velocity (positive = upward, negative = downward)
         vy = np.gradient(com_y) * fps
@@ -204,7 +222,10 @@ class PhaseDetector:
         return PhaseDetectionResult(phases=phases, confidence=float(confidence))
 
     def _detect_jump_phases_parabolic(
-        self, poses: NormalizedPose, fps: float
+        self,
+        poses: NormalizedPose,
+        fps: float,
+        poses_3d: NormalizedPose3D | None = None,
     ) -> PhaseDetectionResult:
         """Detect jump phases by fitting parabolas to CoM trajectory segments.
 
@@ -213,12 +234,17 @@ class PhaseDetector:
         that does not fit a parabola well. By sliding over elevated segments
         and fitting y(t) = at² + bt + c, we discriminate real flight from prep.
 
+        When 3D poses are available, the Z-axis (height above ice) is used
+        directly — higher Z = higher off ice. This is more reliable than 2D
+        Y-coordinates which are affected by camera angle and perspective.
+
         Falls back to :meth:`_detect_jump_phases_com_improved` when no segment
         passes the quality checks.
 
         Args:
             poses: NormalizedPose (num_frames, 17, 2).
             fps: Frame rate.
+            poses_3d: Optional 3D poses for Z-axis height detection.
 
         Returns:
             PhaseDetectionResult with jump phase boundaries.
@@ -227,11 +253,16 @@ class PhaseDetector:
 
         N = len(poses)
         if N < 12:
-            # Too short for any meaningful analysis — fallback
-            return self._detect_jump_phases_com_improved(poses, fps)
+            return self._detect_jump_phases_com_improved(poses, fps, poses_3d=poses_3d)
 
-        # 1. Compute CoM trajectory
-        com_y = calculate_com_trajectory(poses)
+        # 1. Compute CoM trajectory — prefer 3D Z-axis when available
+        if poses_3d is not None:
+            com_y = calculate_com_trajectory_3d(poses_3d)
+            # In 3D: Z increases with height (opposite of 2D image coords)
+            # Flip so "higher" = lower value (consistent with 2D image-coord logic below)
+            com_y = -com_y
+        else:
+            com_y = calculate_com_trajectory(poses)
 
         # 2. Smooth with median filter (remove spikes)
         com_smooth = _median_filter(com_y.astype(np.float64), size=5)
@@ -245,7 +276,7 @@ class PhaseDetector:
         threshold = float(np.std(excursion))
         if threshold < 1e-6:
             # Essentially flat — no jump present
-            return self._detect_jump_phases_com_improved(poses, fps)
+            return self._detect_jump_phases_com_improved(poses, fps, poses_3d=poses_3d)
 
         # 5. Find contiguous elevated segments (com_smooth < baseline - threshold)
         #    In image coords, lower Y means person is higher.
@@ -277,7 +308,7 @@ class PhaseDetector:
         segments = [(s, e) for s, e in segments if (e - s + 1) >= min_dur]
 
         if not segments:
-            return self._detect_jump_phases_com_improved(poses, fps)
+            return self._detect_jump_phases_com_improved(poses, fps, poses_3d=poses_3d)
 
         # 8. For each segment, extend, fit parabola, score
         best_score = -1.0
@@ -359,7 +390,7 @@ class PhaseDetector:
 
         # 12. Fallback if no good parabola found
         if best_result is None:
-            return self._detect_jump_phases_com_improved(poses, fps)
+            return self._detect_jump_phases_com_improved(poses, fps, poses_3d=poses_3d)
 
         return best_result
 

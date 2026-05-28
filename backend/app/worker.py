@@ -254,6 +254,7 @@ async def process_video_task(
     tracking: str = "auto",
     ml_flags: dict[str, bool] | None = None,
     session_id: str | None = None,
+    user_id: str | None = None,
 ) -> dict[str, Any]:
     """arq task: dispatch video processing to Vast.ai Serverless GPU."""
     if ml_flags is None:
@@ -286,13 +287,15 @@ async def process_video_task(
         from app.database import async_session_factory  # type: ignore[import-untyped]
         from app.vastai.client import process_video_remote_async
 
-        # Fetch element_type from session if session_id provided
+        # Fetch element_type and user_id from session if session_id provided
         element_type = None
         if session_id:
             async with async_session_factory() as db:
                 session = await get_by_id(db, session_id)
                 if session:
                     element_type = session.element_type
+                    if user_id is None:
+                        user_id = str(session.user_id)
 
         logger.info("Dispatching task %s to Vast.ai (video_key=%s)", task_id, video_key)
         await update_progress(task_id, 0.1, "Dispatching to GPU...")
@@ -306,11 +309,10 @@ async def process_video_task(
             await mark_cancelled(task_id)
             return {"status": "cancelled"}
 
-        # TODO: propagate user_id from session for proper distinct_id
         from app.analytics_events import vastai_dispatched
 
         vastai_dispatched(
-            distinct_id=session_id or task_id,
+            distinct_id=user_id or session_id or task_id,
             session_id=session_id or "",
             instance_type="vastai-serverless",
             estimated_cost_usd=0.0,  # No estimate available at dispatch time
@@ -445,13 +447,12 @@ async def process_video_task(
         # Write Valkey status LAST, after DB commit (if any)
         await store_result(task_id, response_data)
 
-        # TODO: propagate user_id from session for proper distinct_id
         from app.analytics_events import analysis_completed
 
         analysis_completed(
-            distinct_id=session_id or task_id,
+            distinct_id=user_id or session_id or task_id,
             session_id=session_id or "",
-            duration_s=0,  # TODO: compute from started_at timestamp stored in valkey
+            duration_s=0,
             model="moganet-b",
             elements_count=len(vast_result.segments) if vast_result.segments else 0,
             gpu="vastai",
@@ -468,11 +469,10 @@ async def process_video_task(
         logger.exception("Pipeline task %s failed", task_id)
         await store_error(task_id, str(e))
 
-        # TODO: propagate user_id from session for proper distinct_id
         from app.analytics_events import analysis_failed
 
         analysis_failed(
-            distinct_id=session_id or task_id,
+            distinct_id=user_id or session_id or task_id,
             session_id=session_id or "",
             error_type=type(e).__name__,
             retry_count=ctx.get("job_try", 1),

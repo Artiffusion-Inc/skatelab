@@ -122,19 +122,21 @@ tasks:
 
   # Vast.ai Serverless tasks
   vastai-presign:
-    desc: Generate pre-signed R2 URLs for model embedding (requires R2 env vars)
+    desc: Generate pre-signed S3 URLs for FP16 model embedding (requires RustFS S3 env vars)
     dir: ml
     cmds:
       - uv run python scripts/generate_model_presigned_urls.py --output /tmp/model_urls.json
       - jq -r .moganet /tmp/model_urls.json > /tmp/moganet_url.txt
-      - jq -r .yolo /tmp/model_urls.json > /tmp/yolo_url.txt
+      - jq -r .rf_detr /tmp/model_urls.json > /tmp/rf_detr_url.txt
+      - jq -r .tcpformer /tmp/model_urls.json > /tmp/tcpformer_url.txt
 
   vastai-build:
     desc: Build GPU worker image with embedded models (run vastai-presign first)
     cmds:
       - podman build
           --secret id=moganet_url,src=/tmp/moganet_url.txt
-          --secret id=yolo_url,src=/tmp/yolo_url.txt
+          --secret id=rf_detr_url,src=/tmp/rf_detr_url.txt
+          --secret id=tcpformer_url,src=/tmp/tcpformer_url.txt
           -f ml/gpu_server/Containerfile
           -t ghcr.io/Artiffusion-Inc/skatelab-worker:latest
           .

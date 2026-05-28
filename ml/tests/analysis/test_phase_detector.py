@@ -268,3 +268,102 @@ class TestParabolicFlightDetector:
 
         assert isinstance(result, PhaseDetectionResult)
         assert result.phases is not None
+
+
+class TestPhaseDetector3D:
+    """Test PhaseDetector with 3D poses (Z-axis height)."""
+
+    @staticmethod
+    def _make_jump_poses_3d(
+        n_frames: int,
+        takeoff_frame: int,
+        landing_frame: int,
+        peak_z: float = 0.3,
+        baseline_z: float = 0.0,
+    ) -> tuple[np.ndarray, np.ndarray]:
+        """Create 2D + 3D poses with a parabolic Z trajectory (height above ice).
+
+        Z increases with height. During flight, CoM Z follows a parabola
+        opening downward (gravity).
+        """
+        poses_2d = np.full((n_frames, 17, 2), 0.4, dtype=np.float32)
+        poses_2d[:, :, 0] = 0.5
+
+        poses_3d = np.zeros((n_frames, 17, 3), dtype=np.float32)
+        poses_3d[:, :, 0] = 0.5  # x
+        poses_3d[:, :, 1] = 0.4  # y (image coords, constant)
+        poses_3d[:, :, 2] = baseline_z  # z (height)
+
+        peak_frame = (takeoff_frame + landing_frame) // 2
+        for f in range(takeoff_frame, landing_frame + 1):
+            t = f - peak_frame
+            half_span = max(1, (landing_frame - takeoff_frame) / 2.0)
+            # Parabola opening downward: z = -a*t^2 + peak_z
+            a = (peak_z - baseline_z) / (half_span**2)
+            z = -a * (t**2) + peak_z
+            poses_3d[f, :, 2] = z
+
+        return poses_2d, poses_3d
+
+    def test_3d_jump_phases_detected(self):
+        """3D poses should detect jump phases using Z-axis height."""
+        detector = PhaseDetector()
+
+        poses_2d, poses_3d = self._make_jump_poses_3d(
+            n_frames=60,
+            takeoff_frame=15,
+            landing_frame=45,
+            peak_z=0.3,
+            baseline_z=0.0,
+        )
+
+        result = detector.detect_jump_phases(poses_2d, fps=30.0, poses_3d=poses_3d)
+
+        assert isinstance(result, PhaseDetectionResult)
+        assert result.phases.takeoff < result.phases.peak
+        assert result.phases.peak < result.phases.landing
+        # Peak should be roughly in the middle
+        assert 20 <= result.phases.peak <= 40
+
+    def test_3d_improves_over_2d_flat_2d(self):
+        """3D should work even when 2D Y-coords are flat (camera angle issue).
+
+        In real skating videos, the camera may be at ice level, making Y-coords
+        unreliable for height estimation. Z-axis from 3D lift fixes this.
+        """
+        detector = PhaseDetector()
+
+        # 2D: completely flat Y (camera at ice level — no Y movement)
+        poses_2d = np.full((60, 17, 2), 0.4, dtype=np.float32)
+        poses_2d[:, :, 0] = 0.5
+
+        # 3D: clear parabolic Z trajectory
+        _, poses_3d = self._make_jump_poses_3d(
+            n_frames=60,
+            takeoff_frame=15,
+            landing_frame=45,
+            peak_z=0.3,
+            baseline_z=0.0,
+        )
+
+        # With 3D, should detect the jump despite flat 2D
+        result = detector.detect_jump_phases(poses_2d, fps=30.0, poses_3d=poses_3d)
+
+        assert isinstance(result, PhaseDetectionResult)
+        assert result.phases.takeoff < result.phases.peak
+        assert result.phases.peak < result.phases.landing
+
+    def test_detect_phases_passes_3d_to_jump(self):
+        """detect_phases() should forward poses_3d to detect_jump_phases."""
+        detector = PhaseDetector()
+
+        poses_2d, poses_3d = self._make_jump_poses_3d(
+            n_frames=60,
+            takeoff_frame=15,
+            landing_frame=45,
+        )
+
+        result = detector.detect_phases(poses_2d, fps=30.0, element_type="axel", poses_3d=poses_3d)
+
+        assert isinstance(result, PhaseDetectionResult)
+        assert result.phases.takeoff < result.phases.peak

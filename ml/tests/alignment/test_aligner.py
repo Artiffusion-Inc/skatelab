@@ -225,3 +225,49 @@ class TestMotionAligner17Keypoints:
         aligned, _path = aligner.align(user, ref)
         assert aligned.shape[1] == 17  # NOT 33
         assert aligned.shape[2] == 2
+
+
+class TestMotionAligner3D:
+    """Test MotionAligner with 3D poses."""
+
+    def test_compute_distance_3d(self):
+        """compute_distance_3d should return valid DTW distance for 3D poses."""
+        aligner = MotionAligner(window_type=None)
+
+        rng = np.random.default_rng(42)
+        user_3d = rng.random((30, 17, 3)).astype(np.float32)
+        ref_3d = rng.random((40, 17, 3)).astype(np.float32)
+
+        distance = aligner.compute_distance_3d(user_3d, ref_3d)
+
+        assert isinstance(distance, float)
+        assert distance >= 0.0
+
+    def test_compute_distance_3d_identical(self):
+        """3D DTW distance for identical sequences should be near zero."""
+        aligner = MotionAligner()
+
+        rng = np.random.default_rng(42)
+        poses_3d = rng.random((30, 17, 3)).astype(np.float32)
+
+        distance = aligner.compute_distance_3d(poses_3d, poses_3d)
+
+        assert distance < 0.01  # Identical sequences ≈ 0
+
+    def test_compute_distance_3d_uses_z(self):
+        """3D DTW should capture Z-dimension differences that 2D misses."""
+        aligner = MotionAligner(window_type=None)
+
+        rng = np.random.default_rng(42)
+        base_2d = rng.random((30, 17, 2)).astype(np.float32)
+        base_3d = np.zeros((30, 17, 3), dtype=np.float32)
+        base_3d[:, :, :2] = base_2d
+        base_3d[:, :, 2] = 0.5
+
+        # Variant with different Z
+        variant_3d = base_3d.copy()
+        variant_3d[:, :, 2] = 0.0
+
+        distance_3d = aligner.compute_distance_3d(base_3d, variant_3d)
+
+        assert distance_3d > 0  # Z difference detected

@@ -40,6 +40,16 @@ async def app_lifespan(app: Litestar) -> AsyncGenerator[None, None]:
     """Initialize and tear down shared resources."""
     settings = get_settings()
 
+    # 0. Security check: reject default JWT secret in production
+    if settings.jwt.is_default_secret and not settings.app.skip_auth:
+        logger.critical(
+            "JWT_SECRET_KEY is set to the default value. "
+            "Set JWT_SECRET_KEY env var to a random secret in production."
+        )
+        if settings.sentry.environment != "development":
+            msg = "Refusing to start with default JWT secret in non-dev environment"
+            raise RuntimeError(msg)
+
     # 1. Valkey pool — non-fatal: app starts in degraded mode if unavailable
     try:
         await init_valkey_pool(max_connections=20)

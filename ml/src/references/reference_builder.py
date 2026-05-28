@@ -97,23 +97,25 @@ class ReferenceBuilder:
         output_path = output_dir / filename
 
         # Save to .npz format
-        np.savez_compressed(
-            output_path,
-            element_type=ref.element_type,
-            poses=ref.poses,
-            meta_fps=ref.meta.fps if ref.meta else 30.0,
-            meta_width=ref.meta.width if ref.meta else 1920,
-            meta_height=ref.meta.height if ref.meta else 1080,
-            meta_num_frames=ref.meta.num_frames if ref.meta else len(ref.poses),
-            meta_path=str(ref.meta.path) if ref.meta else "",
-            phases_name=ref.phases.name,
-            phases_start=ref.phases.start,
-            phases_takeoff=ref.phases.takeoff,
-            phases_peak=ref.phases.peak,
-            phases_landing=ref.phases.landing,
-            phases_end=ref.phases.end,
-            source=ref.source,
-        )
+        save_dict = {
+            "element_type": ref.element_type,
+            "poses": ref.poses,
+            "meta_fps": ref.meta.fps if ref.meta else 30.0,
+            "meta_width": ref.meta.width if ref.meta else 1920,
+            "meta_height": ref.meta.height if ref.meta else 1080,
+            "meta_num_frames": ref.meta.num_frames if ref.meta else len(ref.poses),
+            "meta_path": str(ref.meta.path) if ref.meta else "",
+            "phases_name": ref.phases.name,
+            "phases_start": ref.phases.start,
+            "phases_takeoff": ref.phases.takeoff,
+            "phases_peak": ref.phases.peak,
+            "phases_landing": ref.phases.landing,
+            "phases_end": ref.phases.end,
+            "source": ref.source,
+        }
+        if ref.poses_3d is not None:
+            save_dict["poses_3d"] = ref.poses_3d
+        np.savez_compressed(output_path, **save_dict)
 
         return output_path
 
@@ -147,10 +149,15 @@ class ReferenceBuilder:
             end=int(data["phases_end"]),
         )
 
+        poses_3d = None
+        if "poses_3d" in data:
+            poses_3d = data["poses_3d"].astype(np.float32)
+
         return ReferenceData(
             element_type=str(data["element_type"]),
             name=str(data["source"]),
             poses=data["poses"],
+            poses_3d=poses_3d,
             phases=phases,
             fps=float(data.get("fps", meta.fps if meta else 30.0)),
             meta=meta,

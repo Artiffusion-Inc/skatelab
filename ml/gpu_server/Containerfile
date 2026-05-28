@@ -1,5 +1,9 @@
 # Vast.ai Serverless GPU worker image
-# Build: go-task vastai-build
+# Build: go-task vastai-deploy (presign + build + push)
+#
+# FP16 ONNX models downloaded from RustFS S3 via pre-signed URLs at build time.
+# Models: MogaNet-B, RF-DETR-Nano, TCPFormer (all FP16, ~225MB total).
+# TAS model not in S3 yet — server.py handles missing model gracefully.
 #
 # Uses python:3.11-slim instead of nvidia/cuda base image.
 # CUDA runtime comes from pip packages (nvidia-cudnn-cu12 etc.).
@@ -66,19 +70,20 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Secret files containing pre-signed URLs (one URL per file)
 # Cache mount persists downloads across builds — no re-download on URL rotation
 # All models are FP16 (half VRAM, <1mm MPJPE increase)
+# TAS model (bigr_refiner_best.onnx) not in S3 yet — server.py handles missing gracefully
 RUN --mount=type=secret,id=moganet_url \
-    --mount=type=secret,id=yolo_url \
+    --mount=type=secret,id=rf_detr_url \
     --mount=type=secret,id=tcpformer_url \
     --mount=type=cache,target=/model-cache \
-    mkdir -p /models/moganet /models/tcpformer && \
+    mkdir -p /models/moganet /models/tcpformer /models/tas && \
     MOGANET_URL=$(cat /run/secrets/moganet_url) && \
     if [ ! -f /model-cache/moganet_b_fp16.onnx ]; then \
       curl -sS --fail -o /model-cache/moganet_b_fp16.onnx "$MOGANET_URL"; \
     fi && \
     cp /model-cache/moganet_b_fp16.onnx /models/moganet/moganet_b_ap2d_384x288_fp16.onnx && \
-    YOLO_URL=$(cat /run/secrets/yolo_url) && \
+    RF_DETR_URL=$(cat /run/secrets/rf_detr_url) && \
     if [ ! -f /model-cache/rf_detr_nano_fp16.onnx ]; then \
-      curl -sS --fail -o /model-cache/rf_detr_nano_fp16.onnx "$YOLO_URL"; \
+      curl -sS --fail -o /model-cache/rf_detr_nano_fp16.onnx "$RF_DETR_URL"; \
     fi && \
     cp /model-cache/rf_detr_nano_fp16.onnx /models/ && \
     TCPFORMER_URL=$(cat /run/secrets/tcpformer_url) && \

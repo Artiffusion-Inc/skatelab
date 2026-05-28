@@ -220,3 +220,29 @@ class TestMotionDTW17Keypoints:
         result = aligner.compute_distance(user, ref)
         assert isinstance(result, float)
         assert result >= 0.0
+
+
+class TestMotionDTW3D:
+    """Test MotionDTWAligner with 3D poses."""
+
+    def test_compute_distance_3d(self):
+        """compute_distance_3d should return valid distance for 3D poses."""
+        aligner = MotionDTWAligner(window_type=None)
+        rng = np.random.default_rng(42)
+        user_3d = rng.random((40, 17, 3)).astype(np.float32)
+        ref_3d = rng.random((50, 17, 3)).astype(np.float32)
+
+        distance = aligner.compute_distance_3d(user_3d, ref_3d)
+
+        assert isinstance(distance, float)
+        assert distance >= 0.0
+
+    def test_compute_distance_3d_identical(self):
+        """3D DTW distance for identical sequences should be near zero."""
+        aligner = MotionDTWAligner()
+        rng = np.random.default_rng(42)
+        poses_3d = rng.random((40, 17, 3)).astype(np.float32)
+
+        distance = aligner.compute_distance_3d(poses_3d, poses_3d)
+
+        assert distance < 0.01

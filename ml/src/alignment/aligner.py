@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 from dtw import dtw  # type: ignore[import-untyped]
 
-from ..types import ElementPhase, NormalizedPose
+from ..types import ElementPhase, NormalizedPose, NormalizedPose3D
 
 if TYPE_CHECKING:
     from dtw import DTW
@@ -91,6 +91,40 @@ class MotionAligner:
             joints = list(range(user.shape[1]))
 
         # Flatten to 2D sequences
+        user_flat = user[:, joints, :].reshape(len(user), -1)
+        ref_flat = reference[:, joints, :].reshape(len(reference), -1)
+
+        # Compute DTW
+        alignment = self._compute_dtw(user_flat, ref_flat)
+
+        # Normalize distance by path length
+        return float(
+            alignment.distance / max(len(user), len(reference))  # type: ignore[attr-defined]
+        )
+
+    def compute_distance_3d(
+        self,
+        user: NormalizedPose3D,
+        reference: NormalizedPose3D,
+        joints: list[int] | None = None,
+    ) -> float:
+        """Compute DTW distance between 3D pose sequences.
+
+        Uses all 3 coordinates (x, y, z) for more accurate motion comparison,
+        especially for rotations where 2D projection loses information.
+
+        Args:
+            user: User 3D pose sequence (num_user_frames, num_joints, 3).
+            reference: Reference 3D pose sequence (num_ref_frames, num_joints, 3).
+            joints: List of joint indices to use for alignment (None = all joints).
+
+        Returns:
+            DTW distance (normalized).
+        """
+        if joints is None:
+            joints = list(range(user.shape[1]))
+
+        # Flatten to 2D sequences: (num_frames, num_joints * 3)
         user_flat = user[:, joints, :].reshape(len(user), -1)
         ref_flat = reference[:, joints, :].reshape(len(reference), -1)
 
