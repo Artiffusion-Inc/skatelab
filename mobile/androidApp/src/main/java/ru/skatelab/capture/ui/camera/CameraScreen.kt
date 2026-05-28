@@ -209,7 +209,7 @@ fun CameraScreen(
                 OutlinedButton(
                     onClick = {
                         videoPickerLauncher.launch(
-                            PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.MediaType.VideoOnly),
+                            PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.VideoOnly),
                         )
                     },
                     modifier = Modifier.padding(bottom = 16.dp),
