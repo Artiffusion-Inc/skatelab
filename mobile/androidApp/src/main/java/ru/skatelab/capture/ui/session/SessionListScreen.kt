@@ -1,5 +1,6 @@
 package ru.skatelab.capture.ui.session
 
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -12,6 +13,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.Button
@@ -19,6 +22,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -34,6 +38,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -46,6 +51,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import ru.skatelab.capture.R
 import ru.skatelab.shared.models.SessionResponse
+import ru.skatelab.shared.models.elementLabelRu
+import ru.skatelab.shared.models.elementLabelsRu
 import ru.skatelab.shared.state.SessionsUiState
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -57,6 +64,7 @@ fun SessionListScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     var isRefreshing by remember { mutableStateOf(false) }
+    var selectedElementType by remember { mutableStateOf<String?>(null) }
     val resultsTitle = stringResource(R.string.session_list_results)
     val navBackLabel = stringResource(R.string.session_list_nav_back)
 
@@ -123,7 +131,7 @@ fun SessionListScreen(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     Spacer(modifier = Modifier.height(16.dp))
-                    Button(onClick = { viewModel.loadSessions() }) {
+                    Button(onClick = { viewModel.loadSessions(elementType = selectedElementType) }) {
                         Text(retryLabel)
                     }
                 }
@@ -133,44 +141,88 @@ fun SessionListScreen(
                 val sessions = loaded.sessions
                 val emptyLabel = stringResource(R.string.session_list_empty)
 
+                // Infinite scroll
+                val listState = rememberLazyListState()
+                LaunchedEffect(listState) {
+                    snapshotFlow { listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index }
+                        .collect { lastVisible ->
+                            val total = sessions.size
+                            if (lastVisible != null && lastVisible >= total - 2) {
+                                viewModel.loadMore()
+                            }
+                        }
+                }
+
                 PullToRefreshBox(
                     isRefreshing = isRefreshing,
                     onRefresh = {
                         isRefreshing = true
-                        viewModel.refresh()
+                        viewModel.loadSessions(elementType = selectedElementType)
                     },
                     state = rememberPullToRefreshState(),
                     modifier = Modifier.padding(padding),
                 ) {
-                    if (sessions.isEmpty()) {
-                        Column(
-                            modifier = Modifier.fillMaxSize(),
-                            verticalArrangement = Arrangement.Center,
-                            horizontalAlignment = Alignment.CenterHorizontally,
+                    Column(modifier = Modifier.fillMaxSize()) {
+                        // Filter chips
+                        Row(
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .horizontalScroll(rememberScrollState())
+                                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
                         ) {
-                            Text(
-                                emptyLabel,
-                                style = MaterialTheme.typography.bodyLarge,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            FilterChip(
+                                selected = selectedElementType == null,
+                                onClick = {
+                                    selectedElementType = null
+                                    viewModel.loadSessions(elementType = null)
+                                },
+                                label = { Text("Все") },
                             )
-                        }
-                    } else {
-                        LazyColumn(
-                            modifier = Modifier.fillMaxSize(),
-                            verticalArrangement = Arrangement.spacedBy(8.dp),
-                            contentPadding =
-                                androidx.compose.foundation.layout.PaddingValues(
-                                    start = 16.dp,
-                                    end = 16.dp,
-                                    top = 8.dp,
-                                    bottom = 16.dp,
-                                ),
-                        ) {
-                            items(sessions, key = { it.id }) { session ->
-                                SessionCard(
-                                    session = session,
-                                    onClick = { onSessionClick(session.id) },
+                            elementLabelsRu.forEach { (key, label) ->
+                                FilterChip(
+                                    selected = selectedElementType == key,
+                                    onClick = {
+                                        selectedElementType = key
+                                        viewModel.loadSessions(elementType = key)
+                                    },
+                                    label = { Text(label) },
                                 )
+                            }
+                        }
+
+                        if (sessions.isEmpty()) {
+                            Column(
+                                modifier = Modifier.fillMaxSize(),
+                                verticalArrangement = Arrangement.Center,
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                            ) {
+                                Text(
+                                    emptyLabel,
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                        } else {
+                            LazyColumn(
+                                state = listState,
+                                modifier = Modifier.fillMaxSize(),
+                                verticalArrangement = Arrangement.spacedBy(8.dp),
+                                contentPadding =
+                                    androidx.compose.foundation.layout.PaddingValues(
+                                        start = 16.dp,
+                                        end = 16.dp,
+                                        top = 0.dp,
+                                        bottom = 16.dp,
+                                    ),
+                            ) {
+                                items(sessions, key = { it.id }) { session ->
+                                    SessionCard(
+                                        session = session,
+                                        onClick = { onSessionClick(session.id) },
+                                    )
+                                }
                             }
                         }
                     }
@@ -200,7 +252,7 @@ private fun SessionCard(
         ) {
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = formatElementType(session.elementType),
+                    text = session.elementType.elementLabelRu(),
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.SemiBold,
                 )
@@ -210,6 +262,28 @@ private fun SessionCard(
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
+                // Inline metrics — show first 2
+                val priorityMetrics =
+                    session.metrics
+                        .filter { it.metricName in listOf("airtime", "rotation_speed") }
+                val displayMetrics =
+                    priorityMetrics.ifEmpty {
+                        session.metrics.take(2)
+                    }.take(2)
+                if (displayMetrics.isNotEmpty()) {
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        displayMetrics.forEach { metric ->
+                            Text(
+                                text = "${metricLabelRu(metric.metricName)}: ${formatMetricValue(metric.metricValue)}",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
+                }
             }
             StatusBadge(status = session.status, score = session.overallScore)
         }
@@ -230,13 +304,22 @@ private fun StatusBadge(
             else -> (status to MaterialTheme.colorScheme.onSurfaceVariant)
         }
 
+    // GOE score badge with color coding
+    val goeColor =
+        when {
+            score != null && status == "completed" && score >= 0.7f -> MaterialTheme.colorScheme.primary
+            score != null && status == "completed" && score >= 0.4f -> MaterialTheme.colorScheme.tertiary
+            score != null && status == "completed" -> MaterialTheme.colorScheme.error
+            else -> color
+        }
+
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         if (score != null && status == "completed") {
             Text(
-                text = "%.0f%%".format(score * 100),
+                text = "GOE %.0f%%".format(score * 100),
                 style = MaterialTheme.typography.headlineSmall,
                 fontWeight = FontWeight.Bold,
-                color = color,
+                color = goeColor,
             )
         }
         Text(
@@ -244,6 +327,24 @@ private fun StatusBadge(
             style = MaterialTheme.typography.labelMedium,
             color = color,
         )
+    }
+}
+
+private fun metricLabelRu(metricName: String): String =
+    when (metricName) {
+        "airtime" -> "Время в воздухе"
+        "rotation_speed" -> "Скорость вращения"
+        "jump_height" -> "Высота прыжка"
+        "knee_angle" -> "Угол колена"
+        "landing_quality" -> "Качество приземления"
+        else -> metricName.replaceFirstChar { it.uppercase() }
+    }
+
+private fun formatMetricValue(value: Float): String {
+    return if (value < 1 && value > -1) {
+        "%.2f".format(value)
+    } else {
+        "%.1f".format(value)
     }
 }
 

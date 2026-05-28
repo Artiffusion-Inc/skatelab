@@ -79,12 +79,13 @@ class MetricsApiTest {
             )
         }
         val api = MetricsApi(client(engine))
-        val response = api.getTrend("jump_height", period = "30d")
+        val response = api.getTrend("jump_height", "axel", period = "30d")
         assertEquals("jump_height", response.metricName)
         assertEquals("axel", response.elementType)
         assertEquals(2, response.dataPoints.size)
         assertEquals("improving", response.trend)
         assertTrue(capturedQuery!!.contains("metric_name=jump_height"))
+        assertTrue(capturedQuery!!.contains("element_type=axel"))
         assertTrue(capturedQuery!!.contains("period=30d"))
     }
 
@@ -135,6 +136,28 @@ class MetricsApiTest {
         assertEquals(1, response.findings.size)
         assertEquals("warning", response.findings[0].severity)
         assertTrue(capturedQuery!!.contains("session_id=sess-1"))
+    }
+
+    @Test
+    fun getDiagnostics_withoutSessionId() = kotlinx.coroutines.test.runTest {
+        var capturedQuery: String? = null
+        val payload = """{
+            "user_id": "u1",
+            "findings": []
+        }"""
+        val engine = MockEngine { request ->
+            capturedQuery = request.url.encodedQuery
+            respond(
+                payload,
+                status = HttpStatusCode.OK,
+                headers = headersOf(HttpHeaders.ContentType, ContentType.Application.Json.toString()),
+            )
+        }
+        val api = MetricsApi(client(engine))
+        val response = api.getDiagnostics()
+        assertEquals("u1", response.userId)
+        // No session_id parameter should be sent
+        assertTrue(capturedQuery.isNullOrEmpty() || !capturedQuery!!.contains("session_id"))
     }
 
     @Test

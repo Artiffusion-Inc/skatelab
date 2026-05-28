@@ -59,8 +59,9 @@ fun metricDisplayName(key: String): String =
 fun MetricCard(
     metric: SessionMetricResponse,
     modifier: Modifier = Modifier,
+    label: String? = null,
 ) {
-    val label = metricDisplayName(metric.metricName)
+    val displayName = label ?: metricDisplayName(metric.metricName)
     val unitResId = metricUnitResIds[metric.metricName] ?: 0
     val unit = if (unitResId != 0) stringResource(unitResId) else ""
 
@@ -85,7 +86,7 @@ fun MetricCard(
                 horizontalArrangement = Arrangement.spacedBy(4.dp),
             ) {
                 Text(
-                    text = label,
+                    text = displayName,
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )

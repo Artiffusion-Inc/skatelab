@@ -16,6 +16,7 @@ class PendingUploadEntityTest {
         assertEquals(null, entity.imuLeftPath)
         assertEquals(null, entity.imuRightPath)
         assertEquals(null, entity.manifestPath)
+        assertEquals(null, entity.elementType)
         assertEquals("READY", entity.status)
         assertEquals(null, entity.uploadId)
         assertEquals(null, entity.r2Key)
@@ -43,6 +44,7 @@ class PendingUploadEntityTest {
         assertEquals("/tmp/imu_left.protobuf", entity.imuLeftPath)
         assertEquals("/tmp/imu_right.protobuf", entity.imuRightPath)
         assertEquals("/tmp/manifest.json", entity.manifestPath)
+        assertEquals(null, entity.elementType)
         assertEquals("UPLOADING", entity.status)
         assertEquals("up-456", entity.uploadId)
         assertEquals("sessions/123/video.mp4", entity.r2Key)
@@ -68,5 +70,17 @@ class PendingUploadEntityTest {
         val e1 = PendingUploadEntity(id = "1", videoPath = "/v.mp4")
         val e2 = PendingUploadEntity(id = "1", videoPath = "/v.mp4")
         assertEquals(e1, e2)
+    }
+
+    @Test
+    fun elementType_nullByDefault() {
+        val entity = PendingUploadEntity(id = "1", videoPath = "/path.mp4")
+        assertEquals(null, entity.elementType)
+    }
+
+    @Test
+    fun elementType_preservedWhenSet() {
+        val entity = PendingUploadEntity(id = "1", videoPath = "/path.mp4", elementType = "flip")
+        assertEquals("flip", entity.elementType)
     }
 }

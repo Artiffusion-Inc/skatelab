@@ -12,11 +12,17 @@ import kotlinx.serialization.Serializable
 // --- Main app flow ---
 @Serializable object CameraRoute
 
-@Serializable object ResultsRoute
+@Serializable object DashboardRoute
+
+@Serializable object SessionsRoute
 
 @Serializable data class ResultDetailRoute(val sessionId: String)
 
-@Serializable data class ProcessingRoute(val videoKey: String, val sessionId: String? = null)
+@Serializable data class MetricTrendRoute(val metricName: String, val elementType: String)
+
+@Serializable data class ProcessingRoute(val uploadId: String? = null, val sessionId: String? = null)
+
+@Serializable object UploadQueueRoute
 
 @Serializable object ProfileRoute
 
@@ -28,9 +34,3 @@ import kotlinx.serialization.Serializable
 @Serializable object CalibrationRoute
 
 @Serializable object RecordingRoute
-
-@Serializable data class ExportRoute(val sessionId: String)
-
-@Serializable object SessionsRoute
-
-@Serializable data class SessionDetailRoute(val sessionId: String)

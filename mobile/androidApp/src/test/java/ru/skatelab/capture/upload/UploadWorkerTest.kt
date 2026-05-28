@@ -66,4 +66,18 @@ class UploadWorkerTest {
         val ex = UploadException("test")
         assertTrue(ex is Exception)
     }
+
+    @Test
+    fun pendingUploadEntity_elementType_nullFallsBackToAxel() {
+        val entity = PendingUploadEntity(id = "1", videoPath = "/path.mp4")
+        val resolved = entity.elementType ?: "axel"
+        assertEquals("axel", resolved)
+    }
+
+    @Test
+    fun pendingUploadEntity_elementType_setValueUsed() {
+        val entity = PendingUploadEntity(id = "1", videoPath = "/path.mp4", elementType = "lutz")
+        val resolved = entity.elementType ?: "axel"
+        assertEquals("lutz", resolved)
+    }
 }

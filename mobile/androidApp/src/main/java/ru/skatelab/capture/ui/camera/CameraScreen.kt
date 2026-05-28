@@ -1,5 +1,9 @@
 package ru.skatelab.capture.ui.camera
 
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.camera.compose.CameraXViewfinder
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -12,14 +16,17 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AttachFile
 import androidx.compose.material.icons.filled.Bluetooth
 import androidx.compose.material.icons.filled.Memory
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -35,13 +42,16 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import java.io.File
 import ru.skatelab.capture.R
 import ru.skatelab.capture.domain.model.SensorId
+import ru.skatelab.capture.ui.elements.ElementTypeBottomSheet
 
 @Composable
 fun CameraScreen(
     viewModel: CameraViewModel,
     onNavigateToImuCapture: () -> Unit,
+    onNavigateToProcessing: (String) -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
@@ -54,6 +64,45 @@ fun CameraScreen(
     val bleConnected by viewModel.bleConnected.collectAsState()
     val sensorInfo by viewModel.sensorInfo.collectAsState()
     val reconnectingSensor by viewModel.reconnectingSensor.collectAsState()
+    val navigateToProcessing by viewModel.navigateToProcessing.collectAsState()
+    val pendingElementType by viewModel.pendingElementType.collectAsState()
+    val pendingUploadId by viewModel.pendingUploadId.collectAsState()
+
+    var recordingElementType by remember { mutableStateOf("axel") }
+    var showGalleryElementType by remember { mutableStateOf(false) }
+    var galleryVideoPath by remember { mutableStateOf<String?>(null) }
+    var galleryElementType by remember { mutableStateOf("axel") }
+
+    // Navigate to ProcessingScreen after element type confirmed
+    LaunchedEffect(navigateToProcessing) {
+        navigateToProcessing?.let { uploadId ->
+            onNavigateToProcessing(uploadId)
+            viewModel.onNavigatedToProcessing()
+        }
+    }
+
+    // Gallery video picker
+    val videoPickerLauncher =
+        rememberLauncherForActivityResult(
+            contract = ActivityResultContracts.PickVisualMedia(),
+        ) { uri: Uri? ->
+            uri?.let {
+                val destFile =
+                    File(
+                        context.getExternalFilesDir(android.os.Environment.DIRECTORY_MOVIES),
+                        "gallery_${System.currentTimeMillis()}.mp4",
+                    )
+                try {
+                    context.contentResolver.openInputStream(it)?.use { input ->
+                        destFile.outputStream().use { output -> input.copyTo(output) }
+                    }
+                    galleryVideoPath = destFile.absolutePath
+                    showGalleryElementType = true
+                } catch (e: Exception) {
+                    viewModel.setGalleryUploadError(context.getString(R.string.camera_gallery_copy_error))
+                }
+            }
+        }
 
     var cameraBound by remember { mutableStateOf(false) }
 
@@ -155,6 +204,30 @@ fun CameraScreen(
                     .padding(vertical = 24.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
+            // Gallery upload button
+            if (!isRecording) {
+                OutlinedButton(
+                    onClick = {
+                        videoPickerLauncher.launch(
+                            PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.VideoOnly),
+                        )
+                    },
+                    modifier = Modifier.padding(bottom = 16.dp),
+                    colors =
+                        androidx.compose.material3.ButtonDefaults.outlinedButtonColors(
+                            contentColor = Color.White,
+                        ),
+                ) {
+                    Icon(
+                        Icons.Default.AttachFile,
+                        contentDescription = stringResource(R.string.camera_gallery_upload),
+                        modifier = Modifier.size(18.dp),
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(stringResource(R.string.camera_gallery_upload))
+                }
+            }
+
             // Record button
             RecordButton(
                 isRecording = isRecording,
@@ -171,6 +244,39 @@ fun CameraScreen(
                     style = MaterialTheme.typography.bodySmall,
                 )
             }
+        }
+
+        // Element type bottom sheet after recording
+        if (pendingElementType != null && pendingUploadId != null) {
+            ElementTypeBottomSheet(
+                selectedType = recordingElementType,
+                onTypeSelected = { recordingElementType = it },
+                onConfirm = {
+                    viewModel.confirmElementType(pendingUploadId!!, recordingElementType)
+                },
+                onDismiss = {
+                    viewModel.confirmElementType(pendingUploadId!!, recordingElementType)
+                },
+            )
+        }
+
+        // Element type bottom sheet for gallery upload
+        if (showGalleryElementType) {
+            ElementTypeBottomSheet(
+                selectedType = galleryElementType,
+                onTypeSelected = { galleryElementType = it },
+                onConfirm = {
+                    showGalleryElementType = false
+                    galleryVideoPath?.let { path ->
+                        viewModel.createGalleryUpload(path, galleryElementType)
+                    }
+                    galleryVideoPath = null
+                },
+                onDismiss = {
+                    showGalleryElementType = false
+                    galleryVideoPath = null
+                },
+            )
         }
     }
 }

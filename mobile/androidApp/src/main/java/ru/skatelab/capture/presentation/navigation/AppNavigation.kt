@@ -17,37 +17,33 @@ import java.io.File
 import ru.skatelab.capture.navigation.BleScanRoute
 import ru.skatelab.capture.navigation.CalibrationRoute
 import ru.skatelab.capture.navigation.CameraRoute
-import ru.skatelab.capture.navigation.ExportRoute
 import ru.skatelab.capture.navigation.LoginRoute
+import ru.skatelab.capture.navigation.MetricTrendRoute
 import ru.skatelab.capture.navigation.ProcessingRoute
 import ru.skatelab.capture.navigation.RecordingRoute
 import ru.skatelab.capture.navigation.RegisterRoute
 import ru.skatelab.capture.navigation.ResultDetailRoute
-import ru.skatelab.capture.navigation.ResultsRoute
-import ru.skatelab.capture.navigation.SessionDetailRoute
 import ru.skatelab.capture.navigation.SessionsRoute
 import ru.skatelab.capture.navigation.SplashRoute
+import ru.skatelab.capture.navigation.UploadQueueRoute
 import ru.skatelab.capture.presentation.SessionState
 import ru.skatelab.capture.presentation.ble.BleScanScreen
 import ru.skatelab.capture.presentation.ble.BleScanViewModel
 import ru.skatelab.capture.presentation.calibration.CalibrationScreen
 import ru.skatelab.capture.presentation.calibration.CalibrationViewModel
-import ru.skatelab.capture.presentation.export.ExportScreen
-import ru.skatelab.capture.presentation.export.ExportViewModel
 import ru.skatelab.capture.presentation.recording.RecordingScreen
 import ru.skatelab.capture.presentation.recording.RecordingViewModel
-import ru.skatelab.capture.presentation.session.SessionListScreen as LocalSessionListScreen
-import ru.skatelab.capture.presentation.session.SessionListViewModel
-import ru.skatelab.capture.presentation.sessiondetail.SessionDetailScreen as LocalSessionDetailScreen
-import ru.skatelab.capture.presentation.sessiondetail.SessionDetailViewModel
 import ru.skatelab.capture.ui.auth.AuthViewModel
 import ru.skatelab.capture.ui.auth.LoginScreen
 import ru.skatelab.capture.ui.auth.RegisterScreen
 import ru.skatelab.capture.ui.auth.SplashScreen
+import ru.skatelab.capture.ui.metrics.AndroidMetricTrendViewModel
+import ru.skatelab.capture.ui.metrics.MetricTrendScreen
 import ru.skatelab.capture.ui.processing.ProcessingScreen
-import ru.skatelab.capture.ui.session.AndroidSessionsViewModel
+import ru.skatelab.capture.ui.session.AndroidSessionDetailViewModel
 import ru.skatelab.capture.ui.session.SessionDetailScreen as ResultDetailScreen
-import ru.skatelab.capture.ui.session.SessionListScreen as ResultListScreen
+import ru.skatelab.capture.ui.upload.UploadQueueScreen
+import ru.skatelab.capture.ui.upload.UploadQueueViewModel
 
 @InstallIn(SingletonComponent::class)
 @EntryPoint
@@ -126,6 +122,18 @@ fun AppNavigation() {
                         popUpTo<SplashRoute> { inclusive = true }
                     }
                 },
+                onNavigateToSessionDetail = { sessionId ->
+                    navController.navigate(ResultDetailRoute(sessionId))
+                },
+                onNavigateToMetricTrend = { metricName, elementType ->
+                    navController.navigate(MetricTrendRoute(metricName, elementType))
+                },
+                onNavigateToProcessing = { uploadId ->
+                    navController.navigate(ProcessingRoute(uploadId = uploadId))
+                },
+                onNavigateToUploadQueue = {
+                    navController.navigate(UploadQueueRoute)
+                },
             )
         }
 
@@ -133,7 +141,7 @@ fun AppNavigation() {
         composable<ProcessingRoute> { backStackEntry ->
             val route = backStackEntry.toRoute<ProcessingRoute>()
             ProcessingScreen(
-                videoKey = route.videoKey,
+                uploadId = route.uploadId,
                 sessionId = route.sessionId,
                 onCompleted = { taskId ->
                     navController.navigate(ResultDetailRoute(taskId)) {
@@ -145,23 +153,36 @@ fun AppNavigation() {
         }
 
         // --- Results (server sessions) ---
-        composable<ResultsRoute> {
-            val viewModel: AndroidSessionsViewModel = hiltViewModel()
-            ResultListScreen(
+        composable<ResultDetailRoute> { backStackEntry ->
+            val route = backStackEntry.toRoute<ResultDetailRoute>()
+            val viewModel: AndroidSessionDetailViewModel = hiltViewModel()
+            ResultDetailScreen(
                 viewModel = viewModel,
-                onSessionClick = { sessionId ->
-                    navController.navigate(ResultDetailRoute(sessionId))
+                sessionId = route.sessionId,
+                onBack = { navController.popBackStack() },
+                onNavigateToMetricTrend = { metricName, elementType ->
+                    navController.navigate(MetricTrendRoute(metricName, elementType))
                 },
+            )
+        }
+
+        // --- Upload queue ---
+        composable<UploadQueueRoute> {
+            val viewModel: UploadQueueViewModel = hiltViewModel()
+            UploadQueueScreen(
+                viewModel = viewModel,
                 onBack = { navController.popBackStack() },
             )
         }
 
-        composable<ResultDetailRoute> { backStackEntry ->
-            val route = backStackEntry.toRoute<ResultDetailRoute>()
-            val viewModel: AndroidSessionsViewModel = hiltViewModel()
-            ResultDetailScreen(
+        // --- Metric trend chart ---
+        composable<MetricTrendRoute> { backStackEntry ->
+            val route = backStackEntry.toRoute<MetricTrendRoute>()
+            val viewModel: AndroidMetricTrendViewModel = hiltViewModel()
+            MetricTrendScreen(
                 viewModel = viewModel,
-                sessionId = route.sessionId,
+                metricName = route.metricName,
+                elementType = route.elementType,
                 onBack = { navController.popBackStack() },
             )
         }
@@ -204,51 +225,8 @@ fun AppNavigation() {
                 outputDir = outputDir,
                 calibration = sessionState.calibration,
                 onRecordingComplete = { sessionId ->
-                    navController.navigate(SessionDetailRoute(sessionId)) {
+                    navController.navigate(ResultDetailRoute(sessionId)) {
                         popUpTo<SessionsRoute> { inclusive = false }
-                    }
-                },
-            )
-        }
-
-        composable<ExportRoute> { backStackEntry ->
-            val sessionId = backStackEntry.arguments?.getString("sessionId") ?: ""
-            val viewModel: ExportViewModel = hiltViewModel()
-            ExportScreen(
-                viewModel = viewModel,
-                sessionId = sessionId,
-                onExportComplete = {
-                    navController.navigate(SessionsRoute) {
-                        popUpTo<SessionsRoute> { inclusive = true }
-                    }
-                },
-            )
-        }
-
-        composable<SessionDetailRoute> { backStackEntry ->
-            val sessionId = backStackEntry.arguments?.getString("sessionId") ?: ""
-            val viewModel: SessionDetailViewModel = hiltViewModel()
-            LocalSessionDetailScreen(
-                viewModel = viewModel,
-                sessionId = sessionId,
-                onBack = { navController.popBackStack() },
-                onExport = { navController.navigate(ExportRoute(it)) },
-            )
-        }
-
-        composable<SessionsRoute> {
-            val viewModel: SessionListViewModel = hiltViewModel()
-            LocalSessionListScreen(
-                viewModel = viewModel,
-                onSessionClick = { sessionId ->
-                    navController.navigate(SessionDetailRoute(sessionId))
-                },
-                onExportSession = { sessionId ->
-                    navController.navigate(ExportRoute(sessionId))
-                },
-                onNewRecording = {
-                    navController.navigate(BleScanRoute) {
-                        popUpTo<SessionsRoute> { inclusive = true }
                     }
                 },
             )

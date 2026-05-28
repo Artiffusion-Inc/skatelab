@@ -171,6 +171,11 @@
     <string name="session_ui_score_label">оценка</string>
     <string name="session_ui_metrics_title">Метрики</string>
     <string name="session_ui_recommendations_title">Рекомендации</string>
+    <string name="session_ui_recommendations_collapse">Скрыть рекомендации</string>
+    <string name="session_ui_recommendations_expand">Показать рекомендации</string>
+    <string name="phase_takeoff">Отталкивание</string>
+    <string name="phase_peak">Пик</string>
+    <string name="phase_landing">Приземление</string>
 
     <string name="metric_jump_height">Высота прыжка</string>
     <string name="metric_airtime">Время в воздухе</string>
@@ -210,6 +215,21 @@
 
     <string name="camera_preparing">Подготовка камеры…</string>
     <string name="camera_reconnecting">Переподключение: %1$s</string>
+    <string name="camera_gallery_upload">Загрузить видео</string>
+    <string name="camera_gallery_copy_error">Не удалось скопировать видео</string>
+
+    <string name="element_type_title">Выберите элемент</string>
+    <string name="element_type_next">Далее</string>
+
+    <string name="upload_queue_title">Загрузки</string>
+    <string name="upload_queue_empty">Нет загрузок</string>
+    <string name="upload_queue_retry">Повторить</string>
+    <string name="upload_queue_cancel">Отменить</string>
+    <string name="upload_status_ready">Готово к загрузке</string>
+    <string name="upload_status_uploading">Загрузка</string>
+    <string name="upload_status_processing">Обработка</string>
+    <string name="upload_status_completed">Завершено</string>
+    <string name="upload_status_failed">Ошибка</string>
 
     <string name="calibration_countdown">%1$d с</string>
 

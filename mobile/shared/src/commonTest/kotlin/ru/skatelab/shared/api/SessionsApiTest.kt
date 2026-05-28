@@ -63,9 +63,8 @@ class SessionsApiTest {
         val listJson = """{
             "sessions": [$sampleSessionJson],
             "total": 1,
-            "page": 1,
-            "page_size": 20,
-            "pages": 1
+            "next_cursor": "cursor-abc",
+            "has_more": true
         }"""
         val engine = MockEngine { request ->
             respond(
@@ -77,6 +76,8 @@ class SessionsApiTest {
         val api = SessionsApi(client(engine))
         val response = api.list()
         assertEquals(1, response.total)
+        assertEquals("cursor-abc", response.nextCursor)
+        assertEquals(true, response.hasMore)
         assertEquals(1, response.sessions.size)
         assertEquals("sess-1", response.sessions[0].id)
     }
@@ -89,16 +90,16 @@ class SessionsApiTest {
             capturedPath = request.url.encodedPath
             capturedQuery = request.url.encodedQuery
             respond(
-                """{"sessions":[],"total":0,"page":1,"page_size":20,"pages":0}""",
+                """{"sessions":[],"total":0}""",
                 status = HttpStatusCode.OK,
                 headers = headersOf(HttpHeaders.ContentType, ContentType.Application.Json.toString()),
             )
         }
         val api = SessionsApi(client(engine))
-        api.list(limit = 10, offset = 5, elementType = "lutz")
+        api.list(limit = 10, cursor = "cursor-xyz", elementType = "lutz")
         assertEquals("/sessions", capturedPath)
         assertTrue(capturedQuery!!.contains("limit=10"))
-        assertTrue(capturedQuery!!.contains("offset=5"))
+        assertTrue(capturedQuery!!.contains("cursor=cursor-xyz"))
         assertTrue(capturedQuery!!.contains("element_type=lutz"))
     }
 

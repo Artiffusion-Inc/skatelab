@@ -54,6 +54,9 @@ class UploadWorker
 
             val entity = pendingUploadDao.getById(uploadId) ?: return Result.failure()
 
+            // Mark as UPLOADING before starting upload
+            pendingUploadDao.updateStatus(entity.id, "UPLOADING")
+
             return try {
                 // Step 1: Upload video via chunked uploader
                 val videoFile = File(entity.videoPath)
@@ -95,11 +98,11 @@ class UploadWorker
                     }
                 }
 
-                // Step 4: Create session on backend (default: axel; can be refined later)
+                // Step 4: Create session on backend
                 pendingUploadDao.updateStatus(entity.id, "PROCESSING")
                 val session =
                     skateLabClient.sessions.create(
-                        elementType = "axel",
+                        elementType = entity.elementType ?: "axel",
                         videoKey = videoKey,
                         imuLeftKey = imuLeftKey,
                         imuRightKey = imuRightKey,

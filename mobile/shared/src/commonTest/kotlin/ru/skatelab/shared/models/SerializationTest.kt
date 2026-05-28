@@ -4,6 +4,12 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.decodeFromString
 import ru.skatelab.shared.api.PresignResponse
+import ru.skatelab.shared.models.PoseData
+import ru.skatelab.shared.models.PhasesData
+import ru.skatelab.shared.models.FrameMetrics
+import ru.skatelab.shared.models.Phase
+import ru.skatelab.shared.models.phaseForFrame
+import ru.skatelab.shared.models.elementLabelRu
 import ru.skatelab.shared.models.MetricsRegistryResponse
 import ru.skatelab.shared.models.MetricDefinition
 import ru.skatelab.shared.models.TrendResponse
@@ -68,16 +74,107 @@ class SerializationTest {
     }
 
     @Test
+    fun elementLabelRu_returnsRussianLabel() {
+        assertEquals("Аксель", "axel".elementLabelRu())
+        assertEquals("Флип", "flip".elementLabelRu())
+        assertEquals("Тулуп", "toe_loop".elementLabelRu())
+    }
+
+    @Test
+    fun elementLabelRu_fallbackCapitalizes() {
+        assertEquals("Unknown_element", "unknown_element".elementLabelRu())
+    }
+
+    @Test
+    fun phaseForFrame_returnsCorrectPhase() {
+        val phases = PhasesData(takeoff = 10, peak = 15, landing = 20)
+        assertEquals(Phase.APPROACH, phaseForFrame(phases, 5))
+        assertEquals(Phase.FLIGHT, phaseForFrame(phases, 12))
+        assertEquals(Phase.LANDING, phaseForFrame(phases, 25))
+    }
+
+    @Test
+    fun phaseForFrame_nullPhases_returnsApproach() {
+        assertEquals(Phase.APPROACH, phaseForFrame(null, 100))
+    }
+
+    @Test
     fun sessionListResponseDeserialize() {
-        val payload = """{"sessions":[{"id":"s1","user_id":"u1","element_type":"lutz","video_url":null,"processed_video_url":null,"status":"processing","overall_score":null,"recommendations":null,"metrics":[],"created_at":"2026-05-24T10:00:00Z"}],"total":1,"page":1,"page_size":20,"pages":1}"""
+        val payload = """{"sessions":[{"id":"s1","user_id":"u1","element_type":"lutz","video_url":null,"processed_video_url":null,"status":"processing","overall_score":null,"recommendations":null,"metrics":[],"created_at":"2026-05-24T10:00:00Z"}],"total":1,"next_cursor":"abc123","has_more":true}"""
         val decoded = json.decodeFromString<SessionListResponse>(payload)
         assertEquals(1, decoded.total)
-        assertEquals(1, decoded.page)
-        assertEquals(20, decoded.pageSize)
+        assertEquals("abc123", decoded.nextCursor)
+        assertEquals(true, decoded.hasMore)
         assertEquals(1, decoded.sessions.size)
         assertEquals("s1", decoded.sessions[0].id)
-        assertEquals("u1", decoded.sessions[0].userId)
-        assertEquals("lutz", decoded.sessions[0].elementType)
+    }
+
+    @Test
+    fun sessionListResponse_withoutCursor() {
+        val payload = """{"sessions":[],"total":0}"""
+        val decoded = json.decodeFromString<SessionListResponse>(payload)
+        assertEquals(0, decoded.total)
+        assertEquals(null, decoded.nextCursor)
+        assertEquals(false, decoded.hasMore)
+    }
+
+    @Test
+    fun poseDataDeserialize() {
+        val payload = """{"poses":[[[0.1,0.2,0.9],[0.3,0.4,0.8]]],"fps":30.0}"""
+        val decoded = json.decodeFromString<PoseData>(payload)
+        assertEquals(1, decoded.poses.size)
+        assertEquals(2, decoded.poses[0].size)
+        assertEquals(0.1f, decoded.poses[0][0][0])
+        assertEquals(30.0f, decoded.fps)
+    }
+
+    @Test
+    fun phasesDataDeserialize() {
+        val payload = """{"takeoff":45,"peak":62,"landing":88}"""
+        val decoded = json.decodeFromString<PhasesData>(payload)
+        assertEquals(45, decoded.takeoff)
+        assertEquals(62, decoded.peak)
+        assertEquals(88, decoded.landing)
+    }
+
+    @Test
+    fun phasesData_handlesNulls() {
+        val payload = """{}"""
+        val decoded = json.decodeFromString<PhasesData>(payload)
+        assertEquals(null, decoded.takeoff)
+        assertEquals(null, decoded.peak)
+        assertEquals(null, decoded.landing)
+    }
+
+    @Test
+    fun frameMetricsDeserialize() {
+        val payload = """{"knee_angles_r":[1.0,2.0],"knee_angles_l":[3.0],"com_height":[4.0,5.0,6.0]}"""
+        val decoded = json.decodeFromString<FrameMetrics>(payload)
+        assertEquals(listOf(1.0f, 2.0f), decoded.kneeAnglesR)
+        assertEquals(listOf(3.0f), decoded.kneeAnglesL)
+        assertEquals(listOf(4.0f, 5.0f, 6.0f), decoded.comHeight)
+    }
+
+    @Test
+    fun sessionResponseWithNewFields() {
+        val payload = """{"id":"s1","user_id":"u1","element_type":"axel","status":"done","overall_score":7.2,"created_at":"2026-05-28","pose_data":{"poses":[[[0.5,0.5,0.9]]],"fps":30.0},"phases":{"takeoff":10,"peak":15,"landing":20},"process_task_id":"t1","processed_at":"2026-05-28T12:00:00"}"""
+        val decoded = json.decodeFromString<SessionResponse>(payload)
+        assertEquals(PoseData(listOf(listOf(listOf(0.5f, 0.5f, 0.9f))), 30.0f), decoded.poseData)
+        assertEquals(PhasesData(10, 15, 20), decoded.phases)
+        assertEquals("t1", decoded.processTaskId)
+        assertEquals("2026-05-28T12:00:00", decoded.processedAt)
+    }
+
+    @Test
+    fun sessionResponse_handlesMissingNewFields() {
+        val payload = """{"id":"s1","user_id":"u1","element_type":"axel","status":"done","created_at":"2026-05-28"}"""
+        val decoded = json.decodeFromString<SessionResponse>(payload)
+        assertEquals(null, decoded.poseData)
+        assertEquals(null, decoded.phases)
+        assertEquals(null, decoded.frameMetrics)
+        assertEquals(null, decoded.errorMessage)
+        assertEquals(null, decoded.processTaskId)
+        assertEquals(null, decoded.processedAt)
     }
 
     @Test

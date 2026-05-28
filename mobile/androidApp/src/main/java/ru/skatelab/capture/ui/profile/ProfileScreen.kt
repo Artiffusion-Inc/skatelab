@@ -1,6 +1,7 @@
 package ru.skatelab.capture.ui.profile
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -17,8 +18,10 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Save
+import androidx.compose.material3.Badge
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -74,6 +77,8 @@ private val ANGULAR_UNITS =
 @Composable
 fun ProfileScreen(
     onLogout: () -> Unit,
+    onNavigateToUploadQueue: () -> Unit = {},
+    pendingCount: Int = 0,
     modifier: Modifier = Modifier,
     viewModel: ProfileViewModel = hiltViewModel(),
 ) {
@@ -265,6 +270,31 @@ fun ProfileScreen(
                         Spacer(Modifier.width(8.dp))
                         Text(stringResource(R.string.profile_save))
                     }
+                }
+
+                Spacer(Modifier.height(16.dp))
+
+                // Upload queue row
+                Row(
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .clickable(onClick = onNavigateToUploadQueue)
+                            .padding(vertical = 12.dp, horizontal = 4.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text(stringResource(R.string.upload_queue_title), style = MaterialTheme.typography.bodyLarge)
+                        if (pendingCount > 0) {
+                            Badge { Text("$pendingCount") }
+                        }
+                    }
+                    Icon(
+                        Icons.AutoMirrored.Filled.ArrowForward,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
                 }
 
                 Spacer(Modifier.height(16.dp))

@@ -3,8 +3,8 @@ package ru.skatelab.capture.ui.tabs
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CameraAlt
+import androidx.compose.material.icons.filled.Dashboard
 import androidx.compose.material.icons.filled.History
-import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
@@ -20,9 +20,9 @@ import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import ru.skatelab.capture.navigation.CameraRoute
-import ru.skatelab.capture.navigation.MoreRoute
+import ru.skatelab.capture.navigation.DashboardRoute
 import ru.skatelab.capture.navigation.ProfileRoute
-import ru.skatelab.capture.navigation.ResultsRoute
+import ru.skatelab.capture.navigation.SessionsRoute
 
 private data class TabItem(
     val label: String,
@@ -32,16 +32,20 @@ private data class TabItem(
 
 private val TABS =
     listOf(
-        TabItem("Camera", Icons.Default.CameraAlt, CameraRoute),
-        TabItem("Results", Icons.Default.History, ResultsRoute),
-        TabItem("Profile", Icons.Default.Person, ProfileRoute),
-        TabItem("More", Icons.Default.MoreVert, MoreRoute),
+        TabItem("Камера", Icons.Default.CameraAlt, CameraRoute),
+        TabItem("Прогресс", Icons.Default.Dashboard, DashboardRoute),
+        TabItem("Сессии", Icons.Default.History, SessionsRoute),
+        TabItem("Профиль", Icons.Default.Person, ProfileRoute),
     )
 
 @Composable
 fun MainTabsScreen(
     onNavigateToBleScan: () -> Unit,
     onLogout: () -> Unit = {},
+    onNavigateToSessionDetail: (String) -> Unit = {},
+    onNavigateToMetricTrend: (String, String) -> Unit = { _, _ -> },
+    onNavigateToProcessing: (String) -> Unit = {},
+    onNavigateToUploadQueue: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val tabNavController = rememberNavController()
@@ -75,6 +79,10 @@ fun MainTabsScreen(
             navController = tabNavController,
             onNavigateToBleScan = onNavigateToBleScan,
             onLogout = onLogout,
+            onNavigateToSessionDetail = onNavigateToSessionDetail,
+            onNavigateToMetricTrend = onNavigateToMetricTrend,
+            onNavigateToProcessing = onNavigateToProcessing,
+            onNavigateToUploadQueue = onNavigateToUploadQueue,
             modifier = Modifier.padding(innerPadding),
         )
     }
