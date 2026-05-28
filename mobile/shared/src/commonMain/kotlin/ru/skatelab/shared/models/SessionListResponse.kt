@@ -7,7 +7,6 @@ import kotlinx.serialization.Serializable
 data class SessionListResponse(
     val sessions: List<SessionResponse>,
     val total: Int,
-    val page: Int,
-    @SerialName("page_size") val pageSize: Int,
-    val pages: Int,
+    @SerialName("next_cursor") val nextCursor: String? = null,
+    @SerialName("has_more") val hasMore: Boolean = false,
 )

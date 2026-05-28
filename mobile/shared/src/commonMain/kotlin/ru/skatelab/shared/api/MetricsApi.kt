@@ -9,18 +9,19 @@ class MetricsApi(private val client: HttpClient) {
     suspend fun getRegistry(): MetricsRegistryResponse =
         client.get("/metrics/registry").body()
 
-    suspend fun getTrend(metricName: String, period: String? = null): TrendResponse =
+    suspend fun getTrend(metricName: String, elementType: String, period: String? = null): TrendResponse =
         client.get("/metrics/trend") {
             parameter("metric_name", metricName)
+            parameter("element_type", elementType)
             if (period != null) parameter("period", period)
         }.body()
 
     suspend fun getPersonalRecords(): PRsResponse =
         client.get("/metrics/prs").body()
 
-    suspend fun getDiagnostics(sessionId: String): DiagnosticsResponse =
+    suspend fun getDiagnostics(sessionId: String? = null): DiagnosticsResponse =
         client.get("/metrics/diagnostics") {
-            parameter("session_id", sessionId)
+            if (sessionId != null) parameter("session_id", sessionId)
         }.body()
 
     suspend fun getSummary(elementType: String, period: String): SummaryResponse =

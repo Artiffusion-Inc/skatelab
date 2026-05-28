@@ -42,9 +42,8 @@ class SessionsViewModelTest {
     private val sessionListJson = """{
         "sessions": [$sessionJson],
         "total": 1,
-        "page": 1,
-        "page_size": 20,
-        "pages": 1
+        "next_cursor": "cursor-1",
+        "has_more": true
     }"""
 
     private val jsonHeaders = headersOf(
@@ -67,7 +66,8 @@ class SessionsViewModelTest {
             assertEquals(1, loaded.sessions.size)
             assertEquals("sess-1", loaded.sessions[0].id)
             assertEquals(1, loaded.total)
-            assertEquals(1, loaded.page)
+            assertEquals("cursor-1", loaded.nextCursor)
+            assertEquals(true, loaded.hasMore)
         }
     }
 
@@ -103,7 +103,6 @@ class SessionsViewModelTest {
         assertNull(viewModel.selectedSession.value)
 
         viewModel.selectedSession.test {
-            // Skip initial null
             awaitItem()
             viewModel.loadSession("sess-1")
             val session = awaitItem()
@@ -138,5 +137,47 @@ class SessionsViewModelTest {
     fun errorStateCarriesAppErrorNotString() {
         val state = SessionsUiState.Error(AppError.Network())
         assertIs<AppError.Network>((state as SessionsUiState.Error).error)
+    }
+
+    @Test
+    fun loadMore_appendsSessions() = kotlinx.coroutines.test.runTest {
+        var callCount = 0
+        val engine = MockEngine { request ->
+            callCount++
+            if (callCount == 1) {
+                respond(sessionListJson, status = HttpStatusCode.OK, headers = jsonHeaders)
+            } else {
+                val moreJson = """{
+                    "sessions": [{
+                        "id": "sess-2",
+                        "user_id": "user-1",
+                        "element_type": "lutz",
+                        "status": "completed",
+                        "created_at": "2026-05-25T12:00:00Z"
+                    }],
+                    "total": 2,
+                    "next_cursor": null,
+                    "has_more": false
+                }"""
+                respond(moreJson, status = HttpStatusCode.OK, headers = jsonHeaders)
+            }
+        }
+        val api = SessionsApi(client(engine))
+        val viewModel = SessionsViewModel(api)
+
+        viewModel.uiState.test {
+            assertEquals(SessionsUiState.Loading, awaitItem())
+            viewModel.loadSessions()
+            val first = awaitItem()
+            assertIs<SessionsUiState.Loaded>(first)
+            assertEquals(1, first.sessions.size)
+
+            viewModel.loadMore()
+            val second = awaitItem()
+            assertIs<SessionsUiState.Loaded>(second)
+            assertEquals(2, second.sessions.size)
+            assertEquals("sess-2", second.sessions[1].id)
+            assertEquals(false, second.hasMore)
+        }
     }
 }

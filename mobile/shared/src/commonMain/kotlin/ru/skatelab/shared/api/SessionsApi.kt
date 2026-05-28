@@ -21,12 +21,12 @@ class SessionsApi(private val client: HttpClient) {
 
     suspend fun list(
         limit: Int = 20,
-        offset: Int = 0,
+        cursor: String? = null,
         elementType: String? = null,
     ): SessionListResponse =
         client.get("/sessions") {
             parameter("limit", limit)
-            parameter("offset", offset)
+            if (cursor != null) parameter("cursor", cursor)
             if (elementType != null) parameter("element_type", elementType)
         }.body()
 

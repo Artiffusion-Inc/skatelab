@@ -43,9 +43,9 @@ class AndroidSessionsViewModelTest {
                         createdAt = "2026-05-24T10:00:00Z",
                     ),
                 )
-            coEvery { sessionsApi.list(20, 0) } returns
+            coEvery { sessionsApi.list(any(), any(), any()) } returns
                 SessionListResponse(
-                    sessions = sessions, total = 1, page = 1, pageSize = 20, pages = 1,
+                    sessions = sessions, total = 1, nextCursor = "c1", hasMore = false,
                 )
 
             viewModel.loadSessions()
@@ -55,12 +55,14 @@ class AndroidSessionsViewModelTest {
             assertTrue(state is SessionsUiState.Loaded)
             assertEquals(1, (state as SessionsUiState.Loaded).sessions.size)
             assertEquals("s1", state.sessions[0].id)
+            assertEquals("c1", state.nextCursor)
+            assertEquals(false, state.hasMore)
         }
 
     @Test
     fun loadSessions_failure_setsErrorState() =
         testScope.runTest {
-            coEvery { sessionsApi.list(any(), any()) } throws RuntimeException("Network error")
+            coEvery { sessionsApi.list(any(), any(), any()) } throws RuntimeException("Network error")
 
             viewModel.loadSessions()
             advanceUntilIdle()

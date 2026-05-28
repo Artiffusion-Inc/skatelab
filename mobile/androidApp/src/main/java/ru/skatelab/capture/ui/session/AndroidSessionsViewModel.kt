@@ -22,11 +22,12 @@ class AndroidSessionsViewModel
         val uiState: StateFlow<SessionsUiState> = shared.uiState
         val selectedSession: StateFlow<SessionResponse?> = shared.selectedSession
 
-        fun loadSessions(
-            page: Int = 1,
-            limit: Int = 20,
-        ) {
-            viewModelScope.launch { shared.loadSessions(page, limit) }
+        fun loadSessions(elementType: String? = null, limit: Int = 20) {
+            viewModelScope.launch { shared.loadSessions(elementType, limit) }
+        }
+
+        fun loadMore(limit: Int = 20) {
+            viewModelScope.launch { shared.loadMore(limit) }
         }
 
         fun loadSession(id: String) {
