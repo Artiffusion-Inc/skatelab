@@ -67,6 +67,18 @@ class CameraViewModel
         private val _reconnectingSensor = MutableStateFlow<SensorId?>(null)
         val reconnectingSensor: StateFlow<SensorId?> = _reconnectingSensor
 
+        private val _navigateToProcessing = MutableStateFlow<String?>(null)
+        val navigateToProcessing: StateFlow<String?> = _navigateToProcessing
+
+        private val _pendingElementType = MutableStateFlow<String?>(null)
+        val pendingElementType: StateFlow<String?> = _pendingElementType
+
+        private val _pendingUploadId = MutableStateFlow<String?>(null)
+        val pendingUploadId: StateFlow<String?> = _pendingUploadId
+
+        private val _galleryUploadError = MutableStateFlow<String?>(null)
+        val galleryUploadError: StateFlow<String?> = _galleryUploadError
+
         val surfaceRequest: StateFlow<SurfaceRequest?> = cameraRepository.surfaceRequest
 
         private var currentStartInfo: RecordingStartInfo? = null
@@ -178,7 +190,6 @@ class CameraViewModel
 
                 // Create a PendingUpload in Room for later upload
                 val uploadId = UUID.randomUUID().toString()
-                val sessionId = UUID.randomUUID().toString()
                 val pendingUpload =
                     PendingUploadEntity(
                         id = uploadId,
@@ -187,13 +198,16 @@ class CameraViewModel
                         imuRightPath = startInfo.imuRightFile.absolutePath,
                         manifestPath = File(outputDir, "manifest.json").absolutePath,
                         status = "READY",
-                        sessionId = sessionId,
                     )
                 pendingUploadDao.insert(pendingUpload)
                 appLogger.i(TAG, "PendingUpload saved: $uploadId")
 
                 // Enqueue upload with network constraints
                 UploadScheduler.enqueue(appContext, uploadId)
+
+                // Show element type selection before navigating
+                _pendingElementType.value = "axel"
+                _pendingUploadId.value = uploadId
 
                 currentStartInfo = null
                 _isPreviewReady.value = false
@@ -208,6 +222,43 @@ class CameraViewModel
                 stopRecording(context)
             } else {
                 startRecording(context)
+            }
+        }
+
+        fun confirmElementType(
+            uploadId: String,
+            elementType: String,
+        ) {
+            viewModelScope.launch {
+                val entity = pendingUploadDao.getById(uploadId) ?: return@launch
+                pendingUploadDao.insert(entity.copy(elementType = elementType))
+                _pendingElementType.value = null
+                _pendingUploadId.value = null
+                _navigateToProcessing.value = uploadId
+            }
+        }
+
+        fun onNavigatedToProcessing() {
+            _navigateToProcessing.value = null
+        }
+
+        fun createGalleryUpload(
+            videoPath: String,
+            elementType: String?,
+        ) {
+            viewModelScope.launch {
+                val uploadId = UUID.randomUUID().toString()
+                val pendingUpload =
+                    PendingUploadEntity(
+                        id = uploadId,
+                        videoPath = videoPath,
+                        elementType = elementType,
+                        status = "READY",
+                    )
+                pendingUploadDao.insert(pendingUpload)
+                appLogger.i(TAG, "Gallery upload saved: $uploadId")
+                UploadScheduler.enqueue(appContext, uploadId)
+                _navigateToProcessing.value = uploadId
             }
         }
 
