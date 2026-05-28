@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<network-security-config>
+    <!-- Production: pin API certificate with backup for rotation -->
+    <domain-config cleartextTrafficPermitted="false">
+        <domain includeSubdomains="true">api.skatelab.ru</domain>
+        <pin-set expiration="2028-12-31">
+            <!-- TODO: Replace with real SPKI hashes before Play Store launch.
+                 Extract: openssl s_client -connect api.skatelab.ru:443 2>/dev/null | \
+                   openssl x509 -pubkey -noout | openssl pkey -pubin -outform der 2>/dev/null | \
+                   openssl dgst -sha256 -binary | openssl base64
+            -->
+            <pin digest="SHA-256">PRODUCTION_PIN_BASE64_HERE</pin>
+            <!-- Backup: different CA key for rotation (pre-pinned) -->
+            <pin digest="SHA-256">BACKUP_PIN_BASE64_HERE</pin>
+        </pin-set>
+        <trust-anchors>
+            <certificates src="system"/>
+        </trust-anchors>
+    </domain-config>
+
+    <!-- Debug: trust user-added CAs for Charles/proxy tools -->
+    <debug-overrides>
+        <trust-anchors>
+            <certificates src="system"/>
+            <certificates src="user"/>
+        </trust-anchors>
+    </debug-overrides>
+</network-security-config>

@@ -12,6 +12,7 @@ import io.ktor.http.headersOf
 import io.ktor.serialization.kotlinx.json.json
 import kotlinx.serialization.json.Json
 import ru.skatelab.shared.api.SessionsApi
+import ru.skatelab.shared.models.AppError
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
@@ -22,6 +23,7 @@ class SessionsViewModelTest {
 
     private fun client(engine: MockEngine) = HttpClient(engine) {
         install(ContentNegotiation) { json(json) }
+        expectSuccess = true
     }
 
     private val sessionJson = """{
@@ -70,12 +72,12 @@ class SessionsViewModelTest {
     }
 
     @Test
-    fun loadSessions_failure_showsError() = kotlinx.coroutines.test.runTest {
+    fun loadSessions_failure_showsErrorWithAppError() = kotlinx.coroutines.test.runTest {
         val engine = MockEngine { request ->
             respond(
-                "Internal Server Error",
+                """{"detail": "Internal Server Error"}""",
                 status = HttpStatusCode.InternalServerError,
-                headers = headersOf(HttpHeaders.ContentType, ContentType.Text.Plain.toString()),
+                headers = jsonHeaders,
             )
         }
         val api = SessionsApi(client(engine))
@@ -86,6 +88,7 @@ class SessionsViewModelTest {
             viewModel.loadSessions()
             val error = awaitItem()
             assertIs<SessionsUiState.Error>(error)
+            assertIs<AppError.Server>(error.error)
         }
     }
 
@@ -111,12 +114,12 @@ class SessionsViewModelTest {
     }
 
     @Test
-    fun loadSession_failure_showsError() = kotlinx.coroutines.test.runTest {
+    fun loadSession_failure_showsErrorWithAppError() = kotlinx.coroutines.test.runTest {
         val engine = MockEngine { request ->
             respond(
-                "Not Found",
+                """{"detail": "Not Found"}""",
                 status = HttpStatusCode.NotFound,
-                headers = headersOf(HttpHeaders.ContentType, ContentType.Text.Plain.toString()),
+                headers = jsonHeaders,
             )
         }
         val api = SessionsApi(client(engine))
@@ -127,6 +130,13 @@ class SessionsViewModelTest {
             viewModel.loadSession("missing-id")
             val error = awaitItem()
             assertIs<SessionsUiState.Error>(error)
+            assertIs<AppError.NotFound>(error.error)
         }
+    }
+
+    @Test
+    fun errorStateCarriesAppErrorNotString() {
+        val state = SessionsUiState.Error(AppError.Network())
+        assertIs<AppError.Network>((state as SessionsUiState.Error).error)
     }
 }

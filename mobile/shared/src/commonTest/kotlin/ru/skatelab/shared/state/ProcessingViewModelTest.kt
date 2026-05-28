@@ -6,6 +6,7 @@ import kotlinx.coroutines.flow.flowOf
 import ru.skatelab.shared.api.IProcessApi
 import ru.skatelab.shared.api.QueueProcessResponse
 import ru.skatelab.shared.api.TaskStatusResponse
+import ru.skatelab.shared.models.AppError
 import ru.skatelab.shared.models.ProcessEvent
 import ru.skatelab.shared.models.ProcessStatus
 import app.cash.turbine.test
@@ -82,7 +83,7 @@ class ProcessingViewModelTest {
             assertIs<ProcessingUiState.Progress>(awaitItem())
             val failed = awaitItem()
             assertIs<ProcessingUiState.Failed>(failed)
-            assertEquals("Server error", failed.message)
+            assertIs<AppError.Unknown>(failed.error)
         }
     }
 
@@ -105,7 +106,7 @@ class ProcessingViewModelTest {
             assertEquals(0.3f, running.percent)
             val failed = awaitItem()
             assertIs<ProcessingUiState.Failed>(failed)
-            assertEquals("GPU error", failed.message)
+            assertIs<AppError.Server>(failed.error)
         }
     }
 
@@ -130,7 +131,7 @@ class ProcessingViewModelTest {
             viewModel.cancelProcessing("task-1")
             val failed = awaitItem()
             assertIs<ProcessingUiState.Failed>(failed)
-            assertEquals("Cancel failed", failed.message)
+            assertIs<AppError.Unknown>(failed.error)
         }
     }
 }

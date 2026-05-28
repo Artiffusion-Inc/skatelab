@@ -1,6 +1,7 @@
 package ru.skatelab.capture.ui.processing
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -24,8 +25,18 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import ru.skatelab.capture.R
+import ru.skatelab.shared.models.AppError
 import ru.skatelab.shared.state.ProcessingUiState
 
 @Composable
@@ -64,9 +75,19 @@ fun ProcessingScreen(
     ) {
         when (val state = uiState) {
             is ProcessingUiState.Idle -> {
-                CircularProgressIndicator(modifier = Modifier.size(48.dp))
+                val context = LocalContext.current
+                Box(
+                    modifier =
+                        Modifier
+                            .semantics(mergeDescendants = true) {
+                                contentDescription = context.getString(R.string.cd_loading)
+                                role = Role.ValuePicker
+                            },
+                ) {
+                    CircularProgressIndicator(modifier = Modifier.size(48.dp))
+                }
                 Spacer(Modifier.height(16.dp))
-                Text("Preparing...", style = MaterialTheme.typography.bodyLarge)
+                Text(stringResource(R.string.processing_preparing), style = MaterialTheme.typography.bodyLarge)
             }
 
             is ProcessingUiState.Progress -> {
@@ -88,34 +109,49 @@ fun ProcessingScreen(
             }
 
             is ProcessingUiState.Completed -> {
-                // Handled by LaunchedEffect — show spinner while navigating
-                CircularProgressIndicator(modifier = Modifier.size(48.dp))
+                val context = LocalContext.current
+                Box(
+                    modifier =
+                        Modifier
+                            .semantics(mergeDescendants = true) {
+                                contentDescription = context.getString(R.string.cd_loading)
+                                role = Role.ValuePicker
+                            },
+                ) {
+                    CircularProgressIndicator(modifier = Modifier.size(48.dp))
+                }
                 Spacer(Modifier.height(16.dp))
-                Text("Done!", style = MaterialTheme.typography.bodyLarge)
+                Text(stringResource(R.string.processing_done), style = MaterialTheme.typography.bodyLarge)
             }
 
             is ProcessingUiState.Failed -> {
-                val isNetworkError =
-                    state.message.lowercase().let { msg ->
-                        msg.contains("network") || msg.contains("connection") ||
-                            msg.contains("timeout") || msg.contains("socket") ||
-                            msg.contains("unreachable") || msg.contains("resolve")
-                    }
+                val isNetworkError = state.error is AppError.Network || state.error is AppError.Timeout
                 Icon(
                     imageVector = if (isNetworkError) Icons.Default.CloudOff else Icons.Default.ErrorOutline,
-                    contentDescription = null,
+                    contentDescription = stringResource(R.string.cd_error_icon),
                     modifier = Modifier.size(48.dp),
                     tint = MaterialTheme.colorScheme.error,
                 )
                 Spacer(Modifier.height(12.dp))
                 Text(
-                    text = if (isNetworkError) "Нет подключения" else "Ошибка обработки",
+                    text =
+                        if (isNetworkError) {
+                            stringResource(R.string.processing_no_connection)
+                        } else {
+                            stringResource(R.string.processing_error)
+                        },
                     style = MaterialTheme.typography.headlineSmall,
                     color = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
                 )
                 Spacer(Modifier.height(8.dp))
                 Text(
-                    text = if (isNetworkError) "Проверьте подключение к интернету и повторите." else state.message,
+                    text =
+                        if (isNetworkError) {
+                            stringResource(R.string.processing_check_network)
+                        } else {
+                            stringResource(R.string.processing_error)
+                        },
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -124,14 +160,14 @@ fun ProcessingScreen(
                     onClick = { viewModel.retry(videoKey, sessionId) },
                     modifier = Modifier.fillMaxWidth(),
                 ) {
-                    Text("Retry")
+                    Text(stringResource(R.string.processing_retry))
                 }
                 Spacer(Modifier.height(8.dp))
                 OutlinedButton(
                     onClick = onBack,
                     modifier = Modifier.fillMaxWidth(),
                 ) {
-                    Text("Go back")
+                    Text(stringResource(R.string.processing_go_back))
                 }
             }
         }

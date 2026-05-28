@@ -33,6 +33,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -125,7 +126,7 @@ private fun SessionRow(
 ) {
     Card(
         onClick = onClick,
-        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+        modifier = Modifier.semantics(mergeDescendants = true) {}.fillMaxWidth().padding(vertical = 4.dp),
     ) {
         Row(
             modifier = Modifier.padding(12.dp).fillMaxWidth(),
@@ -161,20 +162,20 @@ private fun SessionRow(
                         MaterialTheme.colorScheme.error
                     },
             )
-            IconButton(onClick = onExport, modifier = Modifier.size(32.dp)) {
+            IconButton(onClick = onExport) {
                 Icon(
                     Icons.Default.IosShare,
                     contentDescription = stringResource(R.string.session_export),
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.size(18.dp),
+                    modifier = Modifier.size(24.dp),
                 )
             }
-            IconButton(onClick = onDelete, modifier = Modifier.size(32.dp)) {
+            IconButton(onClick = onDelete) {
                 Icon(
                     Icons.Default.Delete,
                     contentDescription = stringResource(R.string.session_delete),
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.size(18.dp),
+                    modifier = Modifier.size(24.dp),
                 )
             }
         }

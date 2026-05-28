@@ -97,7 +97,7 @@ class AuthViewModelTest {
 
             val state = viewModel.uiState.value
             assertTrue(state is AuthUiState.Error)
-            assertTrue((state as AuthUiState.Error).message.contains("Invalid credentials"))
+            assertTrue((state as AuthUiState.Error).error.messageKey.isNotEmpty())
         }
 
     @Test

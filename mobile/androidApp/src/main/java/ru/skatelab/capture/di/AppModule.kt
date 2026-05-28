@@ -15,6 +15,7 @@ import javax.inject.Singleton
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import ru.skatelab.capture.AppLogger
+import ru.skatelab.capture.BuildConfig
 import ru.skatelab.capture.data.ble.KableBleRepository
 import ru.skatelab.capture.data.ble.NoOpBleRepository
 import ru.skatelab.capture.data.export.ManifestBuilder
@@ -93,7 +94,7 @@ abstract class AppModule {
         @Singleton
         fun provideSkateLabClient(tokenStorage: TokenStorage): SkateLabClient =
             SkateLabClient(
-                baseUrl = "https://api.skatelab.ru/v1",
+                baseUrl = BuildConfig.API_BASE_URL,
                 engine = OkHttp.create(),
                 tokenStorage = tokenStorage,
             )

@@ -42,16 +42,32 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.media3.common.MediaItem
 import androidx.media3.exoplayer.ExoPlayer
+import ru.skatelab.capture.R
 import ru.skatelab.capture.ui.skeleton.Keypoint
 import ru.skatelab.capture.ui.skeleton.SkeletonOverlay
 import ru.skatelab.shared.models.SessionMetricResponse
 import ru.skatelab.shared.models.SessionResponse
 import ru.skatelab.shared.state.SessionsUiState
+
+@Composable
+fun formatElementType(type: String): String =
+    when (type.lowercase()) {
+        "axel" -> stringResource(R.string.element_axel)
+        "lutz" -> stringResource(R.string.element_lutz)
+        "flip" -> stringResource(R.string.element_flip)
+        "loop" -> stringResource(R.string.element_loop)
+        "salchow" -> stringResource(R.string.element_salchow)
+        "toe_loop" -> stringResource(R.string.element_toe_loop)
+        "toe_loop_flip" -> stringResource(R.string.element_toe_loop_flip)
+        "cascade" -> stringResource(R.string.element_cascade)
+        else -> type
+    }
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
@@ -62,6 +78,8 @@ fun SessionDetailScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val selectedSession by viewModel.selectedSession.collectAsState()
+    val navBackLabel = stringResource(R.string.session_ui_nav_back)
+    val resultFallback = stringResource(R.string.session_detail_result_fallback)
 
     LaunchedEffect(sessionId) {
         viewModel.loadSession(sessionId)
@@ -71,11 +89,11 @@ fun SessionDetailScreen(
         topBar = {
             TopAppBar(
                 title = {
-                    Text(selectedSession?.elementType?.let { formatElementType(it) } ?: "Результат")
+                    Text(selectedSession?.elementType?.let { formatElementType(it) } ?: resultFallback)
                 },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Назад")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = navBackLabel)
                     }
                 },
             )
@@ -97,25 +115,27 @@ fun SessionDetailScreen(
                 )
             }
             uiState is SessionsUiState.Error -> {
+                val errorLoading = stringResource(R.string.session_ui_error_loading)
+                val retryLabel = stringResource(R.string.session_ui_retry)
                 Column(
                     modifier = Modifier.fillMaxSize().padding(padding),
                     verticalArrangement = Arrangement.Center,
                     horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
                     Text(
-                        "Ошибка загрузки",
+                        errorLoading,
                         style = MaterialTheme.typography.titleMedium,
                         color = MaterialTheme.colorScheme.error,
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        (uiState as SessionsUiState.Error).message,
+                        (uiState as SessionsUiState.Error).error.messageKey,
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     Spacer(modifier = Modifier.height(16.dp))
                     Button(onClick = { viewModel.loadSession(sessionId) }) {
-                        Text("Повторить")
+                        Text(retryLabel)
                     }
                 }
             }
@@ -130,6 +150,8 @@ private fun SessionDetailContent(
     modifier: Modifier = Modifier,
 ) {
     var showSkeleton by remember { mutableStateOf(false) }
+    val hideSkeletonLabel = stringResource(R.string.session_ui_hide_skeleton)
+    val showSkeletonLabel = stringResource(R.string.session_ui_show_skeleton)
 
     Column(
         modifier =
@@ -163,7 +185,7 @@ private fun SessionDetailContent(
                 ) {
                     Icon(
                         imageVector = if (showSkeleton) Icons.Filled.VisibilityOff else Icons.Filled.Visibility,
-                        contentDescription = if (showSkeleton) "Скрыть скелет" else "Показать скелет",
+                        contentDescription = if (showSkeleton) hideSkeletonLabel else showSkeletonLabel,
                         tint = Color.White.copy(alpha = 0.8f),
                     )
                 }
@@ -178,6 +200,7 @@ private fun SessionDetailContent(
 
             // Score
             session.overallScore?.let { score ->
+                val scoreLabel = stringResource(R.string.session_ui_score_label)
                 Row(
                     verticalAlignment = Alignment.Bottom,
                     horizontalArrangement = Arrangement.spacedBy(4.dp),
@@ -189,7 +212,7 @@ private fun SessionDetailContent(
                         color = MaterialTheme.colorScheme.primary,
                     )
                     Text(
-                        text = "оценка",
+                        text = scoreLabel,
                         style = MaterialTheme.typography.labelLarge,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(bottom = 6.dp),
@@ -200,8 +223,9 @@ private fun SessionDetailContent(
 
             // Metric cards grid
             if (session.metrics.isNotEmpty()) {
+                val metricsTitle = stringResource(R.string.session_ui_metrics_title)
                 Text(
-                    text = "Метрики",
+                    text = metricsTitle,
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.SemiBold,
                 )
@@ -234,8 +258,9 @@ private fun SessionDetailContent(
             // Recommendations
             val recommendations = session.recommendations
             if (!recommendations.isNullOrEmpty()) {
+                val recommendationsTitle = stringResource(R.string.session_ui_recommendations_title)
                 Text(
-                    text = "Рекомендации",
+                    text = recommendationsTitle,
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.SemiBold,
                 )
@@ -303,10 +328,10 @@ private fun ElementTypeBadge(
 ) {
     val statusLabel =
         when (status) {
-            "completed" -> "Готово"
-            "processing" -> "Обработка…"
-            "failed" -> "Ошибка"
-            "queued" -> "В очереди"
+            "completed" -> stringResource(R.string.status_completed)
+            "processing" -> stringResource(R.string.status_processing)
+            "failed" -> stringResource(R.string.status_failed)
+            "queued" -> stringResource(R.string.status_queued)
             else -> status
         }
     val statusColor =
@@ -351,6 +376,9 @@ private fun AngularVelocityChart(metrics: List<SessionMetricResponse>) {
     // render a Vico line chart here.
     val avgAngVel = metrics.map { it.metricValue }.average().toFloat()
     val maxAngVel = metrics.maxOf { it.metricValue }
+    val angVelTitle = stringResource(R.string.ang_vel_title)
+    val angVelAvg = stringResource(R.string.ang_vel_avg)
+    val angVelMax = stringResource(R.string.ang_vel_max)
 
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -361,7 +389,7 @@ private fun AngularVelocityChart(metrics: List<SessionMetricResponse>) {
     ) {
         Column(modifier = Modifier.padding(12.dp)) {
             Text(
-                text = "Угловая скорость",
+                text = angVelTitle,
                 style = MaterialTheme.typography.titleSmall,
                 fontWeight = FontWeight.SemiBold,
             )
@@ -371,36 +399,23 @@ private fun AngularVelocityChart(metrics: List<SessionMetricResponse>) {
                 horizontalArrangement = Arrangement.SpaceBetween,
             ) {
                 Column {
-                    Text("Средняя", style = MaterialTheme.typography.labelSmall)
+                    Text(angVelAvg, style = MaterialTheme.typography.labelSmall)
                     Text(
-                        "%.1f °/с".format(avgAngVel),
+                        stringResource(R.string.ang_vel_format, avgAngVel),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
                     )
                 }
                 Column {
-                    Text("Максимальная", style = MaterialTheme.typography.labelSmall)
+                    Text(angVelMax, style = MaterialTheme.typography.labelSmall)
                     Text(
-                        "%.1f °/с".format(maxAngVel),
+                        stringResource(R.string.ang_vel_format, maxAngVel),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
                     )
                 }
             }
         }
-    }
-}
-
-private fun formatElementType(elementType: String): String {
-    return when (elementType.lowercase()) {
-        "axel" -> "Аксель"
-        "lutz" -> "Лутц"
-        "flip" -> "Флип"
-        "loop" -> "Риттбергер"
-        "salchow" -> "Сальхов"
-        "toe_loop" -> "Тулуп"
-        "combination" -> "Каскад"
-        else -> elementType.replace('_', ' ').replaceFirstChar { it.uppercase() }
     }
 }
 

@@ -16,9 +16,14 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import ru.skatelab.capture.R
 import ru.skatelab.capture.domain.model.SensorId
+import ru.skatelab.capture.domain.model.asString
+import ru.skatelab.capture.domain.model.isError
 import ru.skatelab.capture.domain.repository.BleRepository.ConnectionState
 import ru.skatelab.capture.domain.repository.ScanDevice
 
@@ -29,7 +34,7 @@ fun BleScanScreen(
 ) {
     val scanResults by viewModel.scanResults.collectAsState()
     val connectionState by viewModel.connectionState.collectAsState()
-    val factoryResetStatus by viewModel.factoryResetStatus.collectAsState()
+    val scanStatus by viewModel.scanStatus.collectAsState()
 
     LaunchedEffect(Unit) { viewModel.startScan() }
 
@@ -82,9 +87,14 @@ fun BleScanScreen(
             Text(stringResource(R.string.ble_proceed_calibration))
         }
 
-        factoryResetStatus?.let {
+        scanStatus?.let { status ->
             Spacer(modifier = Modifier.height(8.dp))
-            Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+            Text(
+                status.asString(),
+                style = MaterialTheme.typography.bodySmall,
+                color = if (status.isError) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
+                modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
+            )
         }
     }
 }
@@ -118,9 +128,13 @@ private fun ScanDeviceRow(
                     Text(device.name, style = MaterialTheme.typography.bodyLarge)
                     Text(device.address, style = MaterialTheme.typography.bodySmall)
                     if (device.isConnected) {
-                        Text("Подключен", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
+                        Text(
+                            stringResource(R.string.ble_connected),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.primary,
+                        )
                     } else {
-                        Text("RSSI: ${device.rssi}", style = MaterialTheme.typography.bodySmall)
+                        Text(stringResource(R.string.ble_rssi, device.rssi), style = MaterialTheme.typography.bodySmall)
                     }
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -135,18 +149,34 @@ private fun ScanDeviceRow(
             ) {
                 if (isLeftDevice) {
                     TextButton(onClick = onFactoryResetLeft) {
-                        Text("Сброс лев.", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.labelSmall)
+                        Text(
+                            stringResource(R.string.ble_reset_left),
+                            color = MaterialTheme.colorScheme.error,
+                            style = MaterialTheme.typography.labelSmall,
+                        )
                     }
                     TextButton(onClick = onAccCalibrateLeft) {
-                        Text("ACC лев.", color = MaterialTheme.colorScheme.tertiary, style = MaterialTheme.typography.labelSmall)
+                        Text(
+                            stringResource(R.string.ble_acc_left),
+                            color = MaterialTheme.colorScheme.tertiary,
+                            style = MaterialTheme.typography.labelSmall,
+                        )
                     }
                 }
                 if (isRightDevice) {
                     TextButton(onClick = onFactoryResetRight) {
-                        Text("Сброс прав.", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.labelSmall)
+                        Text(
+                            stringResource(R.string.ble_reset_right),
+                            color = MaterialTheme.colorScheme.error,
+                            style = MaterialTheme.typography.labelSmall,
+                        )
                     }
                     TextButton(onClick = onAccCalibrateRight) {
-                        Text("ACC прав.", color = MaterialTheme.colorScheme.tertiary, style = MaterialTheme.typography.labelSmall)
+                        Text(
+                            stringResource(R.string.ble_acc_right),
+                            color = MaterialTheme.colorScheme.tertiary,
+                            style = MaterialTheme.typography.labelSmall,
+                        )
                     }
                 }
             }

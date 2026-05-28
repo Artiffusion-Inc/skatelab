@@ -76,7 +76,7 @@ fun CalibrationScreen(
             )
             Spacer(modifier = Modifier.height(4.dp))
             Text(
-                text = "$secondsLeft с",
+                text = stringResource(R.string.calibration_countdown, secondsLeft),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )

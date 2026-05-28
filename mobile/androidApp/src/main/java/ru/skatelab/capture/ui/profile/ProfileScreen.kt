@@ -47,9 +47,16 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import ru.skatelab.capture.R
 
 private data class AngularUnitOption(
     val value: String,
@@ -85,9 +92,10 @@ fun ProfileScreen(
         }
     }
 
+    val savedMessage = stringResource(R.string.profile_saved)
     LaunchedEffect(uiState.saveSuccess) {
         if (uiState.saveSuccess) {
-            snackbarHostState.showSnackbar("Saved")
+            snackbarHostState.showSnackbar(savedMessage)
             viewModel.clearSaveSuccess()
         }
     }
@@ -100,14 +108,19 @@ fun ProfileScreen(
         modifier = modifier,
     ) { innerPadding ->
         if (uiState.isLoading) {
+            val context = LocalContext.current
             Box(
                 modifier =
                     Modifier
                         .fillMaxSize()
-                        .padding(innerPadding),
+                        .padding(innerPadding)
+                        .semantics(mergeDescendants = true) {
+                            contentDescription = context.getString(R.string.cd_loading)
+                            role = Role.ValuePicker
+                        },
                 contentAlignment = Alignment.Center,
             ) {
-                CircularProgressIndicator()
+                CircularProgressIndicator(modifier = Modifier.size(48.dp))
             }
         } else {
             val profile = uiState.profile
@@ -248,9 +261,9 @@ fun ProfileScreen(
                         },
                         modifier = Modifier.fillMaxWidth(),
                     ) {
-                        Icon(Icons.Default.Save, contentDescription = null)
+                        Icon(Icons.Default.Save, contentDescription = stringResource(R.string.cd_save_profile))
                         Spacer(Modifier.width(8.dp))
-                        Text("Save profile")
+                        Text(stringResource(R.string.profile_save))
                     }
                 }
 
@@ -265,7 +278,7 @@ fun ProfileScreen(
                             contentColor = MaterialTheme.colorScheme.error,
                         ),
                 ) {
-                    Text("Log out")
+                    Text(stringResource(R.string.profile_log_out))
                 }
 
                 Spacer(Modifier.height(16.dp))

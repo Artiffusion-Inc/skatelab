@@ -167,8 +167,8 @@ private fun CameraPreview(
                         .padding(horizontal = 8.dp, vertical = 4.dp),
             ) {
                 val parts = mutableListOf<String>()
-                leftInfo?.let { parts.add("Л:${it.batteryPercent}%(${it.batteryMv})") }
-                rightInfo?.let { parts.add("П:${it.batteryPercent}%(${it.batteryMv})") }
+                leftInfo?.let { parts.add(stringResource(R.string.recording_left_battery, it.batteryPercent) + "(${it.batteryMv})") }
+                rightInfo?.let { parts.add(stringResource(R.string.recording_right_battery, it.batteryPercent) + "(${it.batteryMv})") }
                 Text(
                     parts.joinToString(" "),
                     color = Color.White,
@@ -206,7 +206,7 @@ private fun CameraPreview(
                             .padding(horizontal = 8.dp, vertical = 4.dp),
                 ) {
                     Text(
-                        "Переподключение: ${reconnectingSensor?.name?.lowercase()}",
+                        stringResource(R.string.recording_reconnecting, reconnectingSensor?.name?.lowercase() ?: ""),
                         color = MaterialTheme.colorScheme.onErrorContainer,
                         style = MaterialTheme.typography.labelMedium,
                     )

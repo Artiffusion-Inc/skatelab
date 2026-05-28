@@ -1,6 +1,7 @@
 package ru.skatelab.capture.ui.session
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -8,6 +9,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
@@ -34,8 +36,15 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import ru.skatelab.capture.R
 import ru.skatelab.shared.models.SessionResponse
 import ru.skatelab.shared.state.SessionsUiState
 
@@ -48,6 +57,8 @@ fun SessionListScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     var isRefreshing by remember { mutableStateOf(false) }
+    val resultsTitle = stringResource(R.string.session_list_results)
+    val navBackLabel = stringResource(R.string.session_list_nav_back)
 
     LaunchedEffect(Unit) {
         viewModel.loadSessions()
@@ -63,10 +74,10 @@ fun SessionListScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Результаты") },
+                title = { Text(resultsTitle) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Назад")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = navBackLabel)
                     }
                 },
             )
@@ -74,24 +85,37 @@ fun SessionListScreen(
     ) { padding ->
         when (uiState) {
             is SessionsUiState.Loading -> {
+                val loadingLabel = stringResource(R.string.session_list_loading)
+                val context = LocalContext.current
                 Column(
                     modifier = Modifier.fillMaxSize().padding(padding),
                     verticalArrangement = Arrangement.Center,
                     horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
-                    CircularProgressIndicator()
+                    Box(
+                        modifier =
+                            Modifier
+                                .semantics(mergeDescendants = true) {
+                                    contentDescription = context.getString(R.string.cd_loading)
+                                    role = Role.ValuePicker
+                                },
+                    ) {
+                        CircularProgressIndicator(modifier = Modifier.size(48.dp))
+                    }
                     Spacer(modifier = Modifier.height(12.dp))
-                    Text("Загрузка…", style = MaterialTheme.typography.bodyLarge)
+                    Text(loadingLabel, style = MaterialTheme.typography.bodyLarge)
                 }
             }
             is SessionsUiState.Error -> {
-                val message = (uiState as SessionsUiState.Error).message
+                val errorLabel = stringResource(R.string.session_list_error)
+                val retryLabel = stringResource(R.string.session_list_retry)
+                val message = (uiState as SessionsUiState.Error).error.messageKey
                 Column(
                     modifier = Modifier.fillMaxSize().padding(padding),
                     verticalArrangement = Arrangement.Center,
                     horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
-                    Text("Ошибка загрузки", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.error)
+                    Text(errorLabel, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.error)
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
                         message,
@@ -100,13 +124,14 @@ fun SessionListScreen(
                     )
                     Spacer(modifier = Modifier.height(16.dp))
                     Button(onClick = { viewModel.loadSessions() }) {
-                        Text("Повторить")
+                        Text(retryLabel)
                     }
                 }
             }
             is SessionsUiState.Loaded -> {
                 val loaded = uiState as SessionsUiState.Loaded
                 val sessions = loaded.sessions
+                val emptyLabel = stringResource(R.string.session_list_empty)
 
                 PullToRefreshBox(
                     isRefreshing = isRefreshing,
@@ -124,7 +149,7 @@ fun SessionListScreen(
                             horizontalAlignment = Alignment.CenterHorizontally,
                         ) {
                             Text(
-                                "Нет результатов анализа",
+                                emptyLabel,
                                 style = MaterialTheme.typography.bodyLarge,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
@@ -198,10 +223,10 @@ private fun StatusBadge(
 ) {
     val (label, color) =
         when (status) {
-            "completed" -> ("Готово" to MaterialTheme.colorScheme.primary)
-            "processing" -> ("Обработка…" to MaterialTheme.colorScheme.tertiary)
-            "failed" -> ("Ошибка" to MaterialTheme.colorScheme.error)
-            "queued" -> ("В очереди" to MaterialTheme.colorScheme.outline)
+            "completed" -> (stringResource(R.string.status_completed) to MaterialTheme.colorScheme.primary)
+            "processing" -> (stringResource(R.string.status_processing) to MaterialTheme.colorScheme.tertiary)
+            "failed" -> (stringResource(R.string.status_failed) to MaterialTheme.colorScheme.error)
+            "queued" -> (stringResource(R.string.status_queued) to MaterialTheme.colorScheme.outline)
             else -> (status to MaterialTheme.colorScheme.onSurfaceVariant)
         }
 
@@ -219,20 +244,6 @@ private fun StatusBadge(
             style = MaterialTheme.typography.labelMedium,
             color = color,
         )
-    }
-}
-
-private fun formatElementType(elementType: String): String {
-    return when (elementType.lowercase()) {
-        "axel" -> "Аксель"
-        "lutz" -> "Лутц"
-        "flip" -> "Флип"
-        "loop" -> "Риттбергер"
-        "salchow" -> "Сальхов"
-        "toe_loop" -> "Тулуп"
-        "toe_loop_flip" -> "Тулуп (флип)"
-        "combination" -> "Каскад"
-        else -> elementType.replace('_', ' ').replaceFirstChar { it.uppercase() }
     }
 }
 

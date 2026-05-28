@@ -8,6 +8,7 @@ plugins {
 android {
     namespace = "ru.skatelab.capture"
     defaultConfig {
+        buildConfigField("String", "API_BASE_URL", "\"${System.getenv("API_BASE_URL") ?: "https://api.skatelab.ru/v1"}\"")
         applicationId = "ru.skatelab.capture"
         versionCode = 1
         versionName = "1.0.0"
@@ -29,6 +30,7 @@ android {
 
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 
     ksp {
@@ -140,6 +142,7 @@ dependencies {
     androidTestImplementation(libs.test.ext.junit)
     androidTestImplementation(libs.espresso.core)
     androidTestImplementation("androidx.compose.ui:ui-test-junit4")
+    androidTestImplementation("androidx.compose.ui:ui-test-junit4-accessibility:1.8.2")
     androidTestImplementation(libs.test.runner)
     androidTestImplementation(libs.test.rules)
 }

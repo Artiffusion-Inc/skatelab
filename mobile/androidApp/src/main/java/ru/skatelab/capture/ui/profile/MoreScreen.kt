@@ -33,8 +33,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import ru.skatelab.capture.R
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -62,7 +64,7 @@ fun MoreScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(title = { Text("More") })
+            TopAppBar(title = { Text(stringResource(R.string.more_title)) })
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },
         modifier = modifier,
@@ -76,7 +78,7 @@ fun MoreScreen(
         ) {
             // BLE settings section
             Text(
-                text = "Sensors",
+                text = stringResource(R.string.more_sensors),
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.primary,
             )
@@ -91,12 +93,12 @@ fun MoreScreen(
                     ),
             ) {
                 ListItem(
-                    headlineContent = { Text("BLE Scan") },
+                    headlineContent = { Text(stringResource(R.string.more_ble_scan)) },
                     supportingContent = { Text("Connect IMU sensors") },
                     leadingContent = {
                         Icon(
                             Icons.Default.Bluetooth,
-                            contentDescription = null,
+                            contentDescription = stringResource(R.string.cd_ble_sensor),
                             tint = MaterialTheme.colorScheme.primary,
                         )
                     },
@@ -108,7 +110,7 @@ fun MoreScreen(
 
             // App info section
             Text(
-                text = "About",
+                text = stringResource(R.string.more_about),
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.primary,
             )
@@ -123,12 +125,12 @@ fun MoreScreen(
                     ),
             ) {
                 ListItem(
-                    headlineContent = { Text("App version") },
+                    headlineContent = { Text(stringResource(R.string.more_app_version)) },
                     supportingContent = { Text(getAppVersion(context)) },
                     leadingContent = {
                         Icon(
                             Icons.Default.Info,
-                            contentDescription = null,
+                            contentDescription = stringResource(R.string.cd_app_info),
                             tint = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     },
@@ -153,9 +155,9 @@ fun MoreScreen(
                                 contentColor = MaterialTheme.colorScheme.error,
                             ),
                     ) {
-                        Icon(Icons.AutoMirrored.Filled.Logout, contentDescription = null)
+                        Icon(Icons.AutoMirrored.Filled.Logout, contentDescription = stringResource(R.string.cd_logout))
                         Spacer(modifier = Modifier.size(8.dp))
-                        Text("Log out")
+                        Text(stringResource(R.string.more_log_out))
                     }
                 }
             }

@@ -15,37 +15,57 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import ru.skatelab.capture.R
 import ru.skatelab.shared.models.SessionMetricResponse
 
-/** Human-readable labels and units for known metric names. */
-private val metricMeta: Map<String, Pair<String, String>> =
+/** Metric name → string resource ID for unit suffix. */
+private val metricUnitResIds: Map<String, Int> =
     mapOf(
-        "jump_height" to ("Высота прыжка" to "м"),
-        "airtime" to ("Время в воздухе" to "с"),
-        "angular_velocity" to ("Угловая скорость" to "°/с"),
-        "knee_angle_min" to ("Мин. угол колена" to "°"),
-        "landing_quality" to ("Качество приземления" to ""),
-        "rotation_count" to ("Количество вращений" to ""),
-        "torso_lean" to ("Наклон корпуса" to "°"),
-        "approach_arc" to ("Дуга разбега" to ""),
-        "pre_rotation" to ("Предварит. вращение" to "°"),
-        "total_rotation" to ("Общее вращение" to "°"),
-        "speed_at_takeoff" to ("Скорость на отрыве" to "м/с"),
+        "jump_height" to R.string.unit_m,
+        "airtime" to R.string.unit_s,
+        "angular_velocity" to R.string.unit_dps,
+        "knee_angle_min" to R.string.unit_deg,
+        "landing_quality" to 0,
+        "rotation_count" to 0,
+        "torso_lean" to R.string.unit_deg,
+        "approach_arc" to 0,
+        "pre_rotation" to R.string.unit_deg,
+        "total_rotation" to R.string.unit_deg,
+        "speed_at_takeoff" to R.string.unit_mps,
     )
+
+@Composable
+fun metricDisplayName(key: String): String =
+    when (key) {
+        "jump_height" -> stringResource(R.string.metric_jump_height)
+        "airtime" -> stringResource(R.string.metric_airtime)
+        "angular_velocity" -> stringResource(R.string.metric_angular_velocity)
+        "knee_angle_min" -> stringResource(R.string.metric_knee_angle_min)
+        "landing_quality" -> stringResource(R.string.metric_landing_quality)
+        "rotation_count" -> stringResource(R.string.metric_rotation_count)
+        "torso_lean" -> stringResource(R.string.metric_torso_lean)
+        "approach_arc" -> stringResource(R.string.metric_approach_arc)
+        "pre_rotation" -> stringResource(R.string.metric_pre_rotation)
+        "total_rotation" -> stringResource(R.string.metric_total_rotation)
+        "speed_at_takeoff" -> stringResource(R.string.metric_speed_at_takeoff)
+        else -> key
+    }
 
 @Composable
 fun MetricCard(
     metric: SessionMetricResponse,
     modifier: Modifier = Modifier,
 ) {
-    val meta = metricMeta[metric.metricName]
-    val label = meta?.first ?: metric.metricName.replace('_', ' ').replaceFirstChar { it.uppercase() }
-    val unit = meta?.second ?: ""
+    val label = metricDisplayName(metric.metricName)
+    val unitResId = metricUnitResIds[metric.metricName] ?: 0
+    val unit = if (unitResId != 0) stringResource(unitResId) else ""
 
     Card(
-        modifier = modifier.padding(4.dp),
+        modifier = modifier.semantics(mergeDescendants = true) {}.padding(4.dp),
         colors =
             CardDefaults.cardColors(
                 containerColor =
@@ -73,7 +93,7 @@ fun MetricCard(
                     Icon(
                         imageVector = Icons.Default.EmojiEvents,
                         contentDescription = "PR",
-                        modifier = Modifier.size(16.dp),
+                        modifier = Modifier.size(24.dp),
                         tint = MaterialTheme.colorScheme.primary,
                     )
                 }
@@ -118,7 +138,7 @@ private fun ReferenceRange(metric: SessionMetricResponse) {
         horizontalArrangement = Arrangement.spacedBy(4.dp),
     ) {
         Text(
-            text = "Референс:",
+            text = stringResource(R.string.metric_reference),
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )

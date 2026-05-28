@@ -20,6 +20,7 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
+import ru.skatelab.capture.domain.model.BleScanStatus
 import ru.skatelab.capture.domain.model.SensorId
 import ru.skatelab.capture.domain.repository.BleRepository
 import ru.skatelab.capture.domain.repository.ScanDevice
@@ -146,8 +147,8 @@ class BleScanViewModelTest {
             viewModel.factoryResetSensor(SensorId.LEFT)
             advanceUntilIdle()
 
-            val status = viewModel.factoryResetStatus.value
-            assertTrue("Status should contain OK", status!!.contains("OK"))
+            val status = viewModel.scanStatus.value
+            assertEquals(BleScanStatus.RESET_OK_LEFT, status)
         }
 
     @Test
@@ -159,8 +160,8 @@ class BleScanViewModelTest {
             viewModel.factoryResetSensor(SensorId.RIGHT)
             advanceUntilIdle()
 
-            val status = viewModel.factoryResetStatus.value
-            assertTrue("Status should contain error", status!!.contains("Ошибка"))
+            val status = viewModel.scanStatus.value
+            assertEquals(BleScanStatus.RESET_FAILED, status)
         }
 
     @Test
@@ -171,8 +172,8 @@ class BleScanViewModelTest {
             viewModel.accCalibrateSensor(SensorId.LEFT)
             advanceUntilIdle()
 
-            val status = viewModel.factoryResetStatus.value
-            assertTrue("Status should contain OK", status!!.contains("OK"))
+            val status = viewModel.scanStatus.value
+            assertEquals(BleScanStatus.CALIBRATION_OK_LEFT, status)
         }
 
     @Test
@@ -184,7 +185,7 @@ class BleScanViewModelTest {
             viewModel.accCalibrateSensor(SensorId.RIGHT)
             advanceUntilIdle()
 
-            val status = viewModel.factoryResetStatus.value
-            assertTrue("Status should contain error", status!!.contains("Ошибка"))
+            val status = viewModel.scanStatus.value
+            assertEquals(BleScanStatus.CALIBRATION_FAILED, status)
         }
 }

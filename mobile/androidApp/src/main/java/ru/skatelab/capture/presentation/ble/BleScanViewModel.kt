@@ -11,6 +11,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import ru.skatelab.capture.domain.model.BleScanStatus
 import ru.skatelab.capture.domain.model.SensorId
 import ru.skatelab.capture.domain.repository.BleRepository
 import ru.skatelab.capture.domain.repository.ScanDevice
@@ -45,8 +46,8 @@ class BleScanViewModel
             bleRepository.connectionState
                 .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyMap())
 
-        private val _factoryResetStatus = MutableStateFlow<String?>(null)
-        val factoryResetStatus: StateFlow<String?> = _factoryResetStatus.asStateFlow()
+        private val _scanStatus = MutableStateFlow<BleScanStatus?>(null)
+        val scanStatus: StateFlow<BleScanStatus?> = _scanStatus.asStateFlow()
 
         private val _isScanning = MutableStateFlow(false)
         val isScanning: StateFlow<Boolean> = _isScanning.asStateFlow()
@@ -80,14 +81,14 @@ class BleScanViewModel
 
         fun factoryResetSensor(sensorId: SensorId) {
             viewModelScope.launch {
-                _factoryResetStatus.value = "Сброс ${sensorId.name.lowercase()}..."
+                _scanStatus.value = if (sensorId == SensorId.LEFT) BleScanStatus.RESETTING_LEFT else BleScanStatus.RESETTING_RIGHT
                 appLogger.i(tag, "factoryResetSensor: $sensorId")
                 val result = factoryResetSensorUseCase(sensorId)
                 if (result.isSuccess) {
-                    _factoryResetStatus.value = "Сброс ${sensorId.name.lowercase()} OK"
+                    _scanStatus.value = if (sensorId == SensorId.LEFT) BleScanStatus.RESET_OK_LEFT else BleScanStatus.RESET_OK_RIGHT
                     appLogger.i(tag, "factoryReset success: $sensorId")
                 } else {
-                    _factoryResetStatus.value = "Ошибка сброса: ${result.exceptionOrNull()?.message}"
+                    _scanStatus.value = BleScanStatus.RESET_FAILED
                     appLogger.e(tag, "factoryReset failed: ${result.exceptionOrNull()?.message}")
                 }
             }
@@ -95,14 +96,14 @@ class BleScanViewModel
 
         fun accCalibrateSensor(sensorId: SensorId) {
             viewModelScope.launch {
-                _factoryResetStatus.value = "Калибровка ACC ${sensorId.name.lowercase()}... Датчик горизонтально!"
+                _scanStatus.value = if (sensorId == SensorId.LEFT) BleScanStatus.CALIBRATING_LEFT else BleScanStatus.CALIBRATING_RIGHT
                 appLogger.i(tag, "accCalibrateSensor: $sensorId")
                 val result = accCalibrateSensorUseCase(sensorId)
                 if (result.isSuccess) {
-                    _factoryResetStatus.value = "ACC калибровка ${sensorId.name.lowercase()} OK"
+                    _scanStatus.value = if (sensorId == SensorId.LEFT) BleScanStatus.CALIBRATION_OK_LEFT else BleScanStatus.CALIBRATION_OK_RIGHT
                     appLogger.i(tag, "accCalibrate success: $sensorId")
                 } else {
-                    _factoryResetStatus.value = "Ошибка калибровки: ${result.exceptionOrNull()?.message}"
+                    _scanStatus.value = BleScanStatus.CALIBRATION_FAILED
                     appLogger.e(tag, "accCalibrate failed: ${result.exceptionOrNull()?.message}")
                 }
             }

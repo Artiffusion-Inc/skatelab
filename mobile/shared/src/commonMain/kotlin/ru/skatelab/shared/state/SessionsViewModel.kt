@@ -4,13 +4,15 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import ru.skatelab.shared.api.SessionsApi
+import ru.skatelab.shared.models.AppError
 import ru.skatelab.shared.models.SessionResponse
 import ru.skatelab.shared.models.SessionListResponse
+import ru.skatelab.shared.utils.toAppError
 
 sealed interface SessionsUiState {
     data object Loading : SessionsUiState
     data class Loaded(val sessions: List<SessionResponse>, val total: Int, val page: Int) : SessionsUiState
-    data class Error(val message: String) : SessionsUiState
+    data class Error(val error: AppError) : SessionsUiState
 }
 
 class SessionsViewModel(private val sessionsApi: SessionsApi) {
@@ -27,7 +29,7 @@ class SessionsViewModel(private val sessionsApi: SessionsApi) {
             val response = sessionsApi.list(limit, offset)
             _uiState.value = SessionsUiState.Loaded(response.sessions, response.total, response.page)
         } catch (e: Exception) {
-            _uiState.value = SessionsUiState.Error(e.message ?: "Failed to load sessions")
+            _uiState.value = SessionsUiState.Error(e.toAppError())
         }
     }
 
@@ -36,7 +38,7 @@ class SessionsViewModel(private val sessionsApi: SessionsApi) {
         try {
             _selectedSession.value = sessionsApi.get(id)
         } catch (e: Exception) {
-            _uiState.value = SessionsUiState.Error(e.message ?: "Failed to load session")
+            _uiState.value = SessionsUiState.Error(e.toAppError())
         }
     }
 }

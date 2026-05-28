@@ -6,8 +6,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.role
 import androidx.compose.ui.unit.dp
+import ru.skatelab.capture.R
 
 /**
  * A single keypoint in normalized [0, 1] coordinates.
@@ -114,12 +120,19 @@ fun SkeletonOverlay(
     showCenterOfMass: Boolean = true,
 ) {
     val density = LocalDensity.current
+    val context = LocalContext.current
     val jointRadiusPx = with(density) { JOINT_RADIUS_DP.toPx() }
     val comRadiusPx = with(density) { COM_RADIUS_DP.toPx() }
     val boneWidthPx = with(density) { BONE_WIDTH_DP.toPx() }
     val comOutlinePx = with(density) { COM_OUTLINE_DP.toPx() }
 
-    Canvas(modifier = modifier) {
+    Canvas(
+        modifier =
+            modifier.clearAndSetSemantics {
+                contentDescription = context.getString(R.string.cd_skeleton_overlay)
+                role = Role.Image
+            },
+    ) {
         if (keypoints == null) return@Canvas
         if (keypoints.size < 17) return@Canvas
 

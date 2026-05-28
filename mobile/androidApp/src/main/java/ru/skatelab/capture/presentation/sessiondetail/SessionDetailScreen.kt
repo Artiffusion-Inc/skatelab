@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -41,6 +42,10 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.media3.ui.PlayerView
@@ -90,7 +95,7 @@ fun SessionDetailScreen(
             title = { Text(stringResource(R.string.session_detail_title)) },
             navigationIcon = {
                 IconButton(onClick = onBack) {
-                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.nav_back))
                 }
             },
         )
@@ -156,8 +161,18 @@ private fun ChartsTab(
 
     when {
         isLoading -> {
-            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator()
+            val context = LocalContext.current
+            Box(
+                modifier =
+                    Modifier
+                        .fillMaxSize()
+                        .semantics(mergeDescendants = true) {
+                            contentDescription = context.getString(R.string.cd_loading)
+                            role = Role.ValuePicker
+                        },
+                contentAlignment = Alignment.Center,
+            ) {
+                CircularProgressIndicator(modifier = Modifier.size(48.dp))
             }
         }
         imuData == null || imuData.timeSeconds.isEmpty() -> {
@@ -234,6 +249,7 @@ private fun ImuChartSection(
     rightValues: FloatArray,
     playheadTime: Float? = null,
 ) {
+    val context = LocalContext.current
     val modelProducer = remember { CartesianChartModelProducer() }
     val leftPeak = remember(leftValues.contentHashCode()) { leftValues.maxOrNull()?.let { (it * 10).roundToInt() / 10f } ?: 0f }
     val rightPeak = remember(rightValues.contentHashCode()) { rightValues.maxOrNull()?.let { (it * 10).roundToInt() / 10f } ?: 0f }
@@ -273,7 +289,11 @@ private fun ImuChartSection(
                         )
                     }
                     Spacer(modifier = Modifier.width(4.dp))
-                    Text("Левый", style = MaterialTheme.typography.labelSmall, color = LeftColor)
+                    Text(
+                        stringResource(R.string.session_detail_left_sensor),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = LeftColor,
+                    )
                 }
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Canvas(modifier = Modifier.width(12.dp).height(3.dp)) {
@@ -285,7 +305,11 @@ private fun ImuChartSection(
                         )
                     }
                     Spacer(modifier = Modifier.width(4.dp))
-                    Text("Правый", style = MaterialTheme.typography.labelSmall, color = RightColor)
+                    Text(
+                        stringResource(R.string.session_detail_right_sensor),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = RightColor,
+                    )
                 }
             }
         }
@@ -295,18 +319,27 @@ private fun ImuChartSection(
             horizontalArrangement = Arrangement.SpaceBetween,
         ) {
             Text(
-                "Л: пик ${leftPeak}$unit, средн ${leftAvg}$unit",
+                stringResource(R.string.session_detail_left_summary, "$leftPeak$unit", "$leftAvg$unit"),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Text(
-                "П: пик ${rightPeak}$unit, средн ${rightAvg}$unit",
+                stringResource(R.string.session_detail_right_summary, "$rightPeak$unit", "$rightAvg$unit"),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
         Spacer(modifier = Modifier.height(4.dp))
-        Box(modifier = Modifier.fillMaxWidth().height(180.dp)) {
+        Box(
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .height(180.dp)
+                    .semantics(mergeDescendants = true) {
+                        contentDescription = context.getString(R.string.cd_imu_chart, "$leftPeak", "$rightPeak")
+                        role = Role.Image
+                    },
+        ) {
             CartesianChartHost(
                 chart =
                     rememberCartesianChart(
@@ -352,8 +385,18 @@ private fun DetailsTab(
     onExport: () -> Unit,
 ) {
     if (session == null) {
-        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            CircularProgressIndicator()
+        val context = LocalContext.current
+        Box(
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .semantics(mergeDescendants = true) {
+                        contentDescription = context.getString(R.string.cd_loading)
+                        role = Role.ValuePicker
+                    },
+            contentAlignment = Alignment.Center,
+        ) {
+            CircularProgressIndicator(modifier = Modifier.size(48.dp))
         }
         return
     }
@@ -362,8 +405,14 @@ private fun DetailsTab(
         modifier = Modifier.fillMaxSize().padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        Text(stringResource(R.string.detail_duration, session.durationMs / 1000), style = MaterialTheme.typography.bodyLarge)
-        Text(stringResource(R.string.detail_fps, session.actualFps), style = MaterialTheme.typography.bodyLarge)
+        Text(
+            stringResource(R.string.detail_duration, session.durationMs / 1000),
+            style = MaterialTheme.typography.bodyLarge,
+        )
+        Text(
+            stringResource(R.string.detail_fps, session.actualFps),
+            style = MaterialTheme.typography.bodyLarge,
+        )
         if (session.videoWidth > 0 && session.videoHeight > 0) {
             Text(
                 stringResource(R.string.detail_resolution, session.videoWidth, session.videoHeight),
@@ -397,11 +446,23 @@ private fun DetailsTab(
         )
 
         Spacer(modifier = Modifier.height(8.dp))
-        Text("Файлы", style = MaterialTheme.typography.titleMedium)
+        Text(
+            stringResource(R.string.session_detail_files),
+            style = MaterialTheme.typography.titleMedium,
+        )
         HorizontalDivider()
-        Text(stringResource(R.string.detail_video_size, fileSizeLabel(session.videoFile)), style = MaterialTheme.typography.bodyMedium)
-        Text(stringResource(R.string.detail_imu_left, fileSizeLabel(session.imuLeftFile)), style = MaterialTheme.typography.bodyMedium)
-        Text(stringResource(R.string.detail_imu_right, fileSizeLabel(session.imuRightFile)), style = MaterialTheme.typography.bodyMedium)
+        Text(
+            stringResource(R.string.detail_video_size, fileSizeLabel(session.videoFile)),
+            style = MaterialTheme.typography.bodyMedium,
+        )
+        Text(
+            stringResource(R.string.detail_imu_left, fileSizeLabel(session.imuLeftFile)),
+            style = MaterialTheme.typography.bodyMedium,
+        )
+        Text(
+            stringResource(R.string.detail_imu_right, fileSizeLabel(session.imuRightFile)),
+            style = MaterialTheme.typography.bodyMedium,
+        )
 
         Spacer(modifier = Modifier.height(16.dp))
         Row(
@@ -412,7 +473,7 @@ private fun DetailsTab(
                 onClick = onExport,
                 modifier = Modifier.weight(1f),
             ) {
-                Icon(Icons.Default.IosShare, contentDescription = null)
+                Icon(Icons.Default.IosShare, contentDescription = stringResource(R.string.cd_export_session))
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(stringResource(R.string.export_title))
             }

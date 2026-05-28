@@ -2,6 +2,7 @@ package ru.skatelab.capture.ui.auth
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -25,9 +26,16 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
+import ru.skatelab.capture.R
 import ru.skatelab.shared.state.AuthUiState
 
 private fun isNetworkError(message: String): Boolean {
@@ -68,13 +76,13 @@ fun RegisterScreen(
         verticalArrangement = Arrangement.Center,
     ) {
         Text(
-            text = "Create Account",
+            text = stringResource(R.string.auth_register_title),
             style = MaterialTheme.typography.headlineMedium,
             color = MaterialTheme.colorScheme.primary,
         )
         Spacer(Modifier.height(8.dp))
         Text(
-            text = "Sign up to get started",
+            text = stringResource(R.string.auth_register_subtitle),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -83,7 +91,7 @@ fun RegisterScreen(
         OutlinedTextField(
             value = displayName,
             onValueChange = { displayName = it },
-            label = { Text("Display name") },
+            label = { Text(stringResource(R.string.auth_display_name)) },
             singleLine = true,
             modifier = Modifier.fillMaxWidth(),
             enabled = uiState !is AuthUiState.Loading,
@@ -94,7 +102,7 @@ fun RegisterScreen(
         OutlinedTextField(
             value = email,
             onValueChange = { email = it },
-            label = { Text("Email") },
+            label = { Text(stringResource(R.string.auth_email)) },
             singleLine = true,
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
             modifier = Modifier.fillMaxWidth(),
@@ -106,7 +114,7 @@ fun RegisterScreen(
         OutlinedTextField(
             value = password,
             onValueChange = { password = it },
-            label = { Text("Password") },
+            label = { Text(stringResource(R.string.auth_password)) },
             singleLine = true,
             visualTransformation = PasswordVisualTransformation(),
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
@@ -117,10 +125,10 @@ fun RegisterScreen(
         Spacer(Modifier.height(8.dp))
 
         if (uiState is AuthUiState.Error) {
-            val msg = uiState.message
+            val msg = uiState.error.messageKey
             val displayMsg =
                 if (isNetworkError(msg)) {
-                    "Нет подключения к интернету. Проверьте сеть и повторите."
+                    stringResource(R.string.auth_no_network)
                 } else {
                     msg
                 }
@@ -135,28 +143,38 @@ fun RegisterScreen(
                 onClick = { onRegister(email.trim(), password, displayName.trim()) },
                 modifier = Modifier.fillMaxWidth(),
             ) {
-                Text("Повторить")
+                Text(stringResource(R.string.auth_retry))
             }
         }
 
         Spacer(Modifier.height(16.dp))
 
         if (uiState is AuthUiState.Loading) {
-            CircularProgressIndicator(modifier = Modifier.size(24.dp))
+            val context = LocalContext.current
+            Box(
+                modifier =
+                    Modifier
+                        .semantics(mergeDescendants = true) {
+                            contentDescription = context.getString(R.string.cd_loading)
+                            role = Role.ValuePicker
+                        },
+            ) {
+                CircularProgressIndicator(modifier = Modifier.size(24.dp))
+            }
         } else {
             Button(
                 onClick = { onRegister(email.trim(), password, displayName.trim()) },
                 enabled = email.isNotBlank() && password.isNotBlank() && displayName.isNotBlank(),
                 modifier = Modifier.fillMaxWidth(),
             ) {
-                Text("Register")
+                Text(stringResource(R.string.auth_register_button))
             }
         }
 
         Spacer(Modifier.height(12.dp))
 
         TextButton(onClick = onNavigateToLogin) {
-            Text("Already have an account? Log in")
+            Text(stringResource(R.string.auth_has_account))
         }
     }
 }
