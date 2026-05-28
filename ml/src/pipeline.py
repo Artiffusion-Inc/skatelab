@@ -350,6 +350,9 @@ class AnalysisPipeline:
                         "takeoff_velocity": None,
                         "fit_quality": None,
                         "avg_inertia": float(np.mean(physics_result.moment_of_inertia)),
+                        "center_of_mass": physics_result.center_of_mass,
+                        "moment_of_inertia": physics_result.moment_of_inertia,
+                        "angular_momentum": physics_result.angular_momentum,
                     }
                 else:
                     physics_dict = engine.analyze_2d(
@@ -988,6 +991,9 @@ class AnalysisPipeline:
                     "takeoff_velocity": None,
                     "fit_quality": None,
                     "avg_inertia": float(np.mean(result.moment_of_inertia)),
+                    "center_of_mass": result.center_of_mass,
+                    "moment_of_inertia": result.moment_of_inertia,
+                    "angular_momentum": result.angular_momentum,
                 }
             else:
                 return await loop.run_in_executor(
