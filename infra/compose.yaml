@@ -1,6 +1,7 @@
 name: infra
 
 services:
+  # ── Core: Valkey + Postgres ──────────────────────────────────────
   valkey:
     image: docker.io/valkey/valkey:alpine
     restart: unless-stopped
@@ -34,6 +35,40 @@ services:
       start_period: 10s
     volumes:
       - postgres-data:/var/lib/postgresql/data
+    networks:
+      - infra
+
+  # ── Caddy (reverse proxy, owns :80/:443) ────────────────────────
+  caddy:
+    image: ghcr.io/caddybuilds/caddy-cloudflare:latest
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    environment:
+      DOMAIN: ${DOMAIN:-skatelab.ru}
+      CLOUDFLARE_API_TOKEN: ${CLOUDFLARE_API_TOKEN}
+    volumes:
+      - ./services/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    networks:
+      - infra
+      - dev
+
+  # ── RustFS (S3-compatible) ─────────────────────────────────────
+  rustfs:
+    image: docker.io/rustfs/rustfs:latest
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:9000:9000"
+      - "127.0.0.1:9001:9001"
+    environment:
+      RUSTFS_ROOT_USER: ${RUSTFS_ACCESS_KEY}
+      RUSTFS_ROOT_PASSWORD: ${RUSTFS_SECRET_KEY}
+    volumes:
+      - rustfs-data:/data
     networks:
       - infra
 
@@ -71,11 +106,155 @@ services:
     networks:
       - infra
 
+  # ── Miniflux (RSS reader) ──────────────────────────────────────
+  miniflux:
+    image: docker.io/miniflux/miniflux:latest
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER:-skatelab}:${POSTGRES_PASSWORD}@postgres/miniflux?sslmode=disable
+      RUN_MIGRATIONS: "1"
+      CREATE_ADMIN: "1"
+      ADMIN_USERNAME: ${MINIFLUX_ADMIN_USER:-admin}
+      ADMIN_PASSWORD: ${MINIFLUX_ADMIN_PASS}
+    networks:
+      - infra
+
+  # ── RSSHub ─────────────────────────────────────────────────────
+  rsshub:
+    image: docker.io/diygod/rsshub:chromium-bundled
+    restart: unless-stopped
+    networks:
+      - infra
+
+  # ── SearXNG ─────────────────────────────────────────────────────
+  searxng:
+    image: docker.io/searxng/searxng:latest
+    restart: unless-stopped
+    volumes:
+      - searxng-data:/etc/searxng
+    networks:
+      - infra
+
+  # ── ntfy ────────────────────────────────────────────────────────
+  ntfy:
+    image: docker.io/binwiederhier/ntfy:latest
+    restart: unless-stopped
+    command: serve
+    volumes:
+      - ntfy-data:/var/lib/ntfy
+    networks:
+      - infra
+
+  # ── Mosquitto (MQTT) ────────────────────────────────────────────
+  mosquitto:
+    image: docker.io/eclipse-mosquitto:2
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:1883:1883"
+    volumes:
+      - ./services/mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+      - mosquitto-data:/mosquitto/data
+      - mosquitto-data:/mosquitto/data
+      - mosquitto-log:/mosquitto/log
+    networks:
+      - infra
+
+  # ── qBittorrent ────────────────────────────────────────────────
+  qbittorrent:
+    image: docker.io/linuxserver/qbittorrent:latest
+    restart: unless-stopped
+    environment:
+      PUID: "1000"
+      PGID: "1000"
+      WEBUI_PORT: "8080"
+    volumes:
+      - qbittorrent-config:/config
+      - qbittorrent-downloads:/downloads
+    networks:
+      - infra
+
+  # ── Baikal (CalDAV/CardDAV) ─────────────────────────────────────
+  baikal:
+    image: docker.io/ckulka/baikal:latest
+    restart: unless-stopped
+    volumes:
+      - baikal-config:/var/www/baikal/config
+      - baikal-data:/var/www/baikal/Specific
+    networks:
+      - infra
+
+  # ── OpenViking ──────────────────────────────────────────────────
+  openviking:
+    image: docker.io/openviking/openviking:latest
+    restart: unless-stopped
+    environment:
+      OPENVIKING_CONF_CONTENT: '{"server":{"root_api_key":"${OPENVIKING_API_KEY}","host":"0.0.0.0","port":1933},"storage":{"workspace":"/data","agfs":{"backend":"local"},"vectordb":{"backend":"local"}},"embedding":{"dense":{"provider":"jina","api_base":"http://9router:20128/v1","api_key":"${MIROFISH_LLM_API_KEY}","model":"jina/jina-embeddings-v3"}},"vlm":{"provider":"openai","api_base":"http://9router:20128/v1","api_key":"${MIROFISH_LLM_API_KEY}","model":"deepseek-v4-pro"}}'
+    volumes:
+      - openviking-data:/data
+    networks:
+      - infra
+
+  # ── MiroFish + Neo4j ───────────────────────────────────────────
+  mirofish:
+    image: localhost/mirofish-local:latest
+    restart: unless-stopped
+    command: ["sh", "-c", "echo 'import{defineConfig}from\"vite\";export default defineConfig({server:{allowedHosts:[\"mf.skatelab.ru\"]}})' > frontend/vite.host.mjs && npx concurrently --kill-others -n backend,frontend -c green,cyan \"cd backend && uv run python run.py\" \"cd frontend && npx vite --host 0.0.0.0 --port 3000 --config vite.host.mjs\""]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    environment:
+      NEO4J_URI: bolt://neo4j:7687
+      NEO4J_USER: neo4j
+      NEO4J_PASSWORD: ${NEO4J_PASSWORD}
+      LLM_API_KEY: ${MIROFISH_LLM_API_KEY}
+      LLM_BASE_URL: ${MIROFISH_LLM_BASE_URL}
+      LLM_MODEL_NAME: ${MIROFISH_LLM_MODEL_NAME}
+      LLM_BOOST_API_KEY: ${MIROFISH_LLM_BOOST_API_KEY}
+      LLM_BOOST_BASE_URL: ${MIROFISH_LLM_BOOST_BASE_URL}
+      LLM_BOOST_MODEL_NAME: ${MIROFISH_LLM_BOOST_MODEL_NAME:-deepseek-v4-flash}
+      ZEP_API_KEY: ${ZEP_API_KEY:-disabled}
+    depends_on:
+      - neo4j
+    networks:
+      - infra
+
+  neo4j:
+    image: docker.io/library/neo4j:5
+    restart: unless-stopped
+    environment:
+      NEO4J_AUTH: neo4j/${NEO4J_PASSWORD}
+    volumes:
+      - neo4j-data:/data
+    networks:
+      - infra
+
 volumes:
   valkey-data:
   postgres-data:
+  caddy-data:
+  caddy-config:
+  rustfs-data:
+  mosquitto-data:
+  mosquitto-log:
+  ntfy-data:
+  searxng-data:
+  qbittorrent-config:
+  qbittorrent-downloads:
+  baikal-config:
+  baikal-data:
+  openviking-data:
+  neo4j-data:
 
 networks:
   infra:
     name: infra_app_network
+    external: true
+  dev:
+    name: dev_default
     external: true

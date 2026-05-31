@@ -12,13 +12,6 @@ search.{$DOMAIN} {
   }
 }
 
-monitor.{$DOMAIN} {
-  basic_auth {
-    admin $2a$14$qCujhVVkXSQPVUwRJunm8uYOgfiOM.Mox1K9lVoCQqWm1XieVs7DG
-  }
-  reverse_proxy cadvisor:8080
-}
-
 ntfy.{$DOMAIN} {
   request_body {
     max_size 0
