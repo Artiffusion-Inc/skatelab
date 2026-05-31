@@ -219,6 +219,8 @@ services:
       LLM_BOOST_BASE_URL: ${MIROFISH_LLM_BOOST_BASE_URL}
       LLM_BOOST_MODEL_NAME: ${MIROFISH_LLM_BOOST_MODEL_NAME:-deepseek-v4-flash}
       ZEP_API_KEY: ${ZEP_API_KEY:-disabled}
+      ZEP_BACKEND: graphiti
+      GRAPHITI_EMBEDDING_MODEL: jina/jina-embeddings-v3
     depends_on:
       - neo4j
     networks:
