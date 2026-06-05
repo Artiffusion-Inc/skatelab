@@ -200,6 +200,7 @@ services:
   # ── MiroFish + Neo4j ───────────────────────────────────────────
   mirofish:
     image: localhost/mirofish-local:latest
+    pull_policy: never
     restart: unless-stopped
     command: ["sh", "-c", "echo 'import{defineConfig}from\"vite\";export default defineConfig({server:{allowedHosts:[\"mf.skatelab.ru\"]}})' > frontend/vite.host.mjs && npx concurrently --kill-others -n backend,frontend -c green,cyan \"cd backend && uv run python run.py\" \"cd frontend && npx vite --host 0.0.0.0 --port 3000 --config vite.host.mjs\""]
     healthcheck:
@@ -213,10 +214,10 @@ services:
       NEO4J_USER: neo4j
       NEO4J_PASSWORD: ${NEO4J_PASSWORD}
       LLM_API_KEY: ${MIROFISH_LLM_API_KEY}
-      LLM_BASE_URL: ${MIROFISH_LLM_BASE_URL}
-      LLM_MODEL_NAME: ${MIROFISH_LLM_MODEL_NAME}
+      LLM_BASE_URL: http://9router:20128/v1
+      LLM_MODEL_NAME: groq/llama-3.3-70b-versatile
       LLM_BOOST_API_KEY: ${MIROFISH_LLM_BOOST_API_KEY}
-      LLM_BOOST_BASE_URL: ${MIROFISH_LLM_BOOST_BASE_URL}
+      LLM_BOOST_BASE_URL: http://9router:20128/v1
       LLM_BOOST_MODEL_NAME: ${MIROFISH_LLM_BOOST_MODEL_NAME:-deepseek-v4-flash}
       ZEP_API_KEY: ${ZEP_API_KEY:-disabled}
       ZEP_BACKEND: graphiti
