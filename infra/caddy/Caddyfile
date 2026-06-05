@@ -57,8 +57,15 @@ mqtt.{$DOMAIN} {
 }
 
 mf.{$DOMAIN} {
-  reverse_proxy mirofish:3000 {
-    flush_interval -1
+  @api path /api/* /health
+  handle @api {
+    reverse_proxy mirofish:5001
+  }
+
+  handle {
+    reverse_proxy mirofish:3000 {
+      flush_interval -1
+    }
   }
 }
 
