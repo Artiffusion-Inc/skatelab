@@ -202,7 +202,7 @@ services:
     image: localhost/mirofish-local:latest
     pull_policy: never
     restart: unless-stopped
-    command: ["sh", "-c", "echo 'import{defineConfig}from\"vite\";export default defineConfig({server:{allowedHosts:[\"mf.skatelab.ru\"]}})' > frontend/vite.host.mjs && npx concurrently --kill-others -n backend,frontend -c green,cyan \"cd backend && uv run python run.py\" \"cd frontend && npx vite --host 0.0.0.0 --port 3000 --config vite.host.mjs\""]
+    command: ["sh", "-c", "echo 'import vue from \"@vitejs/plugin-vue\";import{defineConfig}from\"vite\";export default defineConfig({plugins:[vue()],server:{host:\"0.0.0.0\",port:3000,allowedHosts:[\"mf.skatelab.ru\"],proxy:{\"/api\":{target:\"http://localhost:5001\",changeOrigin:true,secure:false}}}})' > frontend/vite.host.mjs && npx concurrently --kill-others -n backend,frontend -c green,cyan \"cd backend && uv run python run.py\" \"cd frontend && npx vite --config vite.host.mjs\""]
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3000/"]
       interval: 30s
