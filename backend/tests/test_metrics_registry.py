@@ -33,6 +33,11 @@ class TestMetricRegistry:
             "knee_angle",
             "trunk_lean",
             "edge_change_smoothness",
+            "spread_eagle_angle",
+            "ina_bauer_score",
+            "spiral_indicator",
+            # Jump/spin cross-check
+            "rotation_discrepancy",
             # Spin metrics
             "spin_type",
             "spin_peak_velocity",
@@ -118,6 +123,7 @@ class TestMetricRegistry:
             "rotation_speed",
             "total_rotation_deg",
             "rotation_count",
+            "rotation_discrepancy",
             "under_rotation_deg",
             "jump_type",
             "symmetry",
@@ -139,6 +145,7 @@ class TestMetricRegistry:
             "spin_peak_velocity",
             "total_rotation_deg",
             "rotation_count",
+            "rotation_discrepancy",
             "symmetry",
         }
         assert set(upright_spin_metrics.keys()) == expected_spin_metrics
@@ -163,6 +170,9 @@ class TestMetricRegistry:
             "knee_angle",
             "trunk_lean",
             "edge_change_smoothness",
+            "spread_eagle_angle",
+            "ina_bauer_score",
+            "spiral_indicator",
             "symmetry",
         }
         assert set(three_turn_metrics.keys()) == expected_step_metrics
