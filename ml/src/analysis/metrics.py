@@ -1224,6 +1224,73 @@ class BiomechanicsAnalyzer:
 
         return np.degrees(np.arccos(cos_angle))
 
+    @staticmethod
+    def compute_spiral_indicator(poses: np.ndarray) -> np.ndarray:
+        """Detect one-foot support via Y-coordinate gap between feet.
+
+        Args:
+            poses: Poses array (N, 17, 2) or (N, 17, 3). Y-down coords.
+
+        Returns:
+            Per-frame |LFOOT_y - RFOOT_y| difference. Large = spiral candidate.
+        """
+        return np.abs(poses[:, H36Key.LFOOT, 1] - poses[:, H36Key.RFOOT, 1])
+
+    def compute_ina_bauer_score(
+        self, poses: np.ndarray, se_angle: np.ndarray | None = None
+    ) -> np.ndarray:
+        """Composite score for Ina Bauer detection.
+
+        Only meaningful on frames where spread_eagle_angle >= 150 degrees.
+        Components normalized to [0, 1] before weighting.
+
+        Args:
+            poses: Poses array (N, 17, 2) or (N, 17, 3).
+            se_angle: Pre-computed spread eagle angle series (optional).
+
+        Returns:
+            Per-frame score in [0, 1]. >= 0.7 means Ina Bauer detected.
+        """
+        if se_angle is None:
+            se_angle = self.compute_spread_eagle_angle(poses)
+
+        # Leg angle: 150 deg -> 0, 180 deg -> 1
+        leg_angle_norm = np.clip((se_angle - 150.0) / 30.0, 0, 1)
+
+        # Torso lean: angle between hip_center->thorax and vertical (0, -1)
+        trunk = poses[:, H36Key.THORAX] - poses[:, H36Key.HIP_CENTER]  # 8 - 0
+        trunk_norm = trunk / (np.linalg.norm(trunk, axis=-1, keepdims=True) + 1e-8)
+        torso_lean = np.degrees(np.arccos(np.clip(-trunk_norm[:, 1], -1, 1)))
+        torso_lean_norm = np.clip(torso_lean / 45.0, 0, 1)
+
+        # Knee asymmetry: |L_knee_angle - R_knee_angle|
+        l_knee = np.array(
+            [
+                self._angle_3pt_from_poses(poses, f, H36Key.LHIP, H36Key.LKNEE, H36Key.LFOOT)
+                for f in range(len(poses))
+            ]
+        )
+        r_knee = np.array(
+            [
+                self._angle_3pt_from_poses(poses, f, H36Key.RHIP, H36Key.RKNEE, H36Key.RFOOT)
+                for f in range(len(poses))
+            ]
+        )
+        knee_diff_norm = np.clip(np.abs(l_knee - r_knee) / 40.0, 0, 1)
+
+        return 0.5 * leg_angle_norm + 0.3 * torso_lean_norm + 0.2 * knee_diff_norm
+
+    @staticmethod
+    def _angle_3pt_from_poses(poses: np.ndarray, frame: int, j1: int, j2: int, j3: int) -> float:
+        """Compute 3-point angle (j1-j2-j3) in degrees for a single frame."""
+        a = poses[frame, j1]
+        b = poses[frame, j2]
+        c = poses[frame, j3]
+        ba = a - b
+        bc = c - b
+        cos_val = np.dot(ba, bc) / (np.linalg.norm(ba) * np.linalg.norm(bc) + 1e-8)
+        return float(np.degrees(np.arccos(np.clip(cos_val, -1.0, 1.0))))
+
     def compute_rotation_speed(
         self,
         poses: NormalizedPose,

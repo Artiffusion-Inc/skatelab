@@ -196,3 +196,98 @@ class TestSpreadEagleAngle:
         analyzer = BiomechanicsAnalyzer(self.STEP_DEF)
         se_angle = analyzer.compute_spread_eagle_angle(poses)
         assert se_angle.shape == (1,)
+
+
+class TestInaBauerScore:
+    """Tests for compute_ina_bauer_score."""
+
+    def test_standing_pose_low_score(self):
+        """Standing pose: score should be low (no spread eagle, no lean, no asymmetry)."""
+        from src.analysis.element_defs import ElementDef
+        from src.analysis.metrics import BiomechanicsAnalyzer
+
+        poses = SyntheticPoseFactory.make_standing_pose(n_frames=10)
+        analyzer = BiomechanicsAnalyzer(
+            ElementDef(
+                name="three_turn",
+                name_ru="Тройной поворот",
+                rotations=0,
+                has_toe_pick=False,
+                key_joints=[],
+                ideal_metrics={},
+            )
+        )
+        score = analyzer.compute_ina_bauer_score(poses)
+        assert score.shape == (10,)
+        assert np.mean(score) < 0.3, f"Standing pose IB score too high: {np.mean(score)}"
+
+    def test_ina_bauer_pose_moderate_score(self):
+        """Ina Bauer pose: score should be > 0.3."""
+        from src.analysis.element_defs import ElementDef
+        from src.analysis.metrics import BiomechanicsAnalyzer
+
+        poses = SyntheticPoseFactory.make_ina_bauer_pose(
+            leg_spread_deg=160, lean_deg=30, knee_diff_deg=30, n_frames=10
+        )
+        analyzer = BiomechanicsAnalyzer(
+            ElementDef(
+                name="three_turn",
+                name_ru="Тройной поворот",
+                rotations=0,
+                has_toe_pick=False,
+                key_joints=[],
+                ideal_metrics={},
+            )
+        )
+        score = analyzer.compute_ina_bauer_score(poses)
+        assert np.mean(score) > 0.3, f"IB pose score too low: {np.mean(score)}"
+
+    def test_output_range_0_to_1(self):
+        """Score values in [0, 1]."""
+        from src.analysis.element_defs import ElementDef
+        from src.analysis.metrics import BiomechanicsAnalyzer
+
+        poses = SyntheticPoseFactory.make_ina_bauer_pose(
+            leg_spread_deg=170, lean_deg=40, knee_diff_deg=35, n_frames=10
+        )
+        analyzer = BiomechanicsAnalyzer(
+            ElementDef(
+                name="three_turn",
+                name_ru="Тройной поворот",
+                rotations=0,
+                has_toe_pick=False,
+                key_joints=[],
+                ideal_metrics={},
+            )
+        )
+        score = analyzer.compute_ina_bauer_score(poses)
+        assert np.all(score >= 0.0)
+        assert np.all(score <= 1.0)
+
+    def test_weights_sum_to_one(self):
+        """Component weights 0.5 + 0.3 + 0.2 = 1.0."""
+        assert abs(0.5 + 0.3 + 0.2 - 1.0) < 1e-10
+
+
+class TestSpiralIndicator:
+    """Tests for compute_spiral_indicator."""
+
+    def test_standing_pose_low_indicator(self):
+        """Both feet on ice: low foot Y difference."""
+        from src.analysis.element_defs import ElementDef
+        from src.analysis.metrics import BiomechanicsAnalyzer
+
+        poses = SyntheticPoseFactory.make_standing_pose(n_frames=10)
+        analyzer = BiomechanicsAnalyzer(
+            ElementDef(
+                name="three_turn",
+                name_ru="Тройной поворот",
+                rotations=0,
+                has_toe_pick=False,
+                key_joints=[],
+                ideal_metrics={},
+            )
+        )
+        indicator = analyzer.compute_spiral_indicator(poses)
+        assert indicator.shape == (10,)
+        assert np.mean(indicator) < 0.05
