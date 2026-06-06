@@ -142,8 +142,13 @@ class BiomechanicsAnalyzer:
 
         # Compute metrics based on element type
         if self._element_def.rotations > 0:
-            # Jump metrics
-            results.extend(self._analyze_jump(poses_2d, phases, fps, com_trajectory=com_trajectory))
+            # Jump metrics — pass 3D poses for yaw cross-check when available
+            poses_3d = poses if is_3d else None
+            results.extend(
+                self._analyze_jump(
+                    poses_2d, phases, fps, com_trajectory=com_trajectory, poses_3d=poses_3d
+                )
+            )
         elif is_spin(self._element_def.name):
             # Spin metrics
             results.extend(self._analyze_spin(poses_2d, phases, fps))
@@ -169,8 +174,17 @@ class BiomechanicsAnalyzer:
         phases: ElementPhase,
         fps: float,
         com_trajectory: NDArray[np.float32] | None = None,
+        poses_3d: NDArray[np.float32] | None = None,
     ) -> list[MetricResult]:
-        """Analyze jump-specific metrics."""
+        """Analyze jump-specific metrics.
+
+        Args:
+            poses: 2D poses (num_frames, 17, 2).
+            phases: Element phase boundaries.
+            fps: Frame rate.
+            com_trajectory: Pre-computed CoM trajectory (optional).
+            poses_3d: Original 3D poses (num_frames, 17, 3) for yaw cross-check.
+        """
         results: list[MetricResult] = []
 
         # Airtime
@@ -351,10 +365,25 @@ class BiomechanicsAnalyzer:
             )
         )
 
-        # Total rotation & rotation count
+        # Total rotation & rotation count (with yaw cross-check)
         total_rotation_deg, rotation_count = self.compute_total_rotation_from_poses(
             poses, phases, fps
         )
+
+        # Cross-check with yaw delta method (requires 3D poses)
+        rotation_discrepancy = False
+        if poses_3d is not None and poses_3d.shape[-1] == 3:
+            flight_indices = np.arange(phases.takeoff, phases.landing)
+            yaw_total, yaw_count, clamped = self.compute_rotation_yaw_delta(
+                poses_3d, flight_indices, fps
+            )
+            discrepancy = abs(rotation_count - yaw_count)
+            rotation_discrepancy = discrepancy > 0.5
+            # Prefer yaw method if discrepancy detected and fewer clamped frames (more reliable guard)
+            if rotation_discrepancy and clamped.sum() < 3:
+                rotation_count = yaw_count
+                total_rotation_deg = abs(yaw_total)
+
         results.append(
             MetricResult(
                 name="total_rotation_deg",
@@ -368,6 +397,15 @@ class BiomechanicsAnalyzer:
             MetricResult(
                 name="rotation_count",
                 value=rotation_count,
+                unit="score",
+                is_good=False,
+                reference_range=(0, 0),
+            )
+        )
+        results.append(
+            MetricResult(
+                name="rotation_discrepancy",
+                value=rotation_discrepancy,
                 unit="score",
                 is_good=False,
                 reference_range=(0, 0),
@@ -458,6 +496,45 @@ class BiomechanicsAnalyzer:
                 name="edge_change_smoothness",
                 value=edge_change,
                 unit="score",
+                is_good=False,
+                reference_range=(0, 0),
+            )
+        )
+
+        # Spread eagle angle
+        se_angle = self.compute_spread_eagle_angle(poses)
+        peak_se = float(np.max(se_angle))
+        results.append(
+            MetricResult(
+                name="spread_eagle_angle",
+                value=peak_se,
+                unit="deg",
+                is_good=peak_se >= 150,
+                reference_range=(150, 180),
+            )
+        )
+
+        # Ina Bauer score (only meaningful when spread eagle angle >= 150)
+        ib_score = self.compute_ina_bauer_score(poses, se_angle=se_angle)
+        peak_ib = float(np.max(ib_score))
+        results.append(
+            MetricResult(
+                name="ina_bauer_score",
+                value=peak_ib,
+                unit="score",
+                is_good=peak_ib >= 0.7,
+                reference_range=(0.7, 1.0),
+            )
+        )
+
+        # Spiral indicator (foot Y difference - large = one-foot element)
+        spiral_ind = self.compute_spiral_indicator(poses)
+        max_spiral = float(np.max(spiral_ind))
+        results.append(
+            MetricResult(
+                name="spiral_indicator",
+                value=max_spiral,
+                unit="norm",
                 is_good=False,
                 reference_range=(0, 0),
             )
@@ -1145,6 +1222,151 @@ class BiomechanicsAnalyzer:
         unwrapped = np.unwrap(angles)
 
         return compute_total_rotation(unwrapped, fps)
+
+    @staticmethod
+    def compute_rotation_yaw_delta(
+        poses_3d: np.ndarray,
+        flight_indices: np.ndarray,
+        fps: float = 30.0,
+    ) -> tuple[float, float, np.ndarray]:
+        """Alternative rotation count via 3D shoulder-axis yaw with physiological clamping.
+
+        Uses Z-axis depth from 3D poses to avoid 2D projection collapse.
+        Clamps per-frame deltas exceeding 720 deg/s (physiologically impossible).
+
+        Args:
+            poses_3d: 3D poses (N, 17, 3).
+            flight_indices: Indices of flight-phase frames.
+            fps: Frame rate.
+
+        Returns:
+            (total_degrees, rotation_count, clamped_mask) where clamped_mask
+            is True for frames with physiologically impossible deltas.
+        """
+        if len(flight_indices) < 2:
+            return 0.0, 0.0, np.array([], dtype=bool)
+
+        l_sho = poses_3d[flight_indices, H36Key.LSHOULDER]
+        r_sho = poses_3d[flight_indices, H36Key.RSHOULDER]
+
+        # Shoulder length guard: skip frames where shoulder axis is near-zero
+        shoulder_length = np.linalg.norm(r_sho - l_sho, axis=1)
+        median_length = np.median(shoulder_length)
+        if median_length < 1e-6:
+            return 0.0, 0.0, np.zeros(len(flight_indices) - 1, dtype=bool)
+        valid = shoulder_length > 0.05 * median_length
+
+        # Yaw from 3D: Z-depth avoids 2D collapse
+        yaw = np.arctan2(r_sho[:, 2] - l_sho[:, 2], r_sho[:, 0] - l_sho[:, 0])
+
+        # Interpolate invalid frames from neighbors
+        if not np.all(valid):
+            valid_idx = np.where(valid)[0]
+            if len(valid_idx) < 2:
+                return 0.0, 0.0, np.zeros(len(flight_indices) - 1, dtype=bool)
+            yaw[~valid] = np.interp(np.where(~valid)[0], valid_idx, yaw[valid])
+
+        # Manual delta with wrap-around
+        delta = np.diff(yaw)
+        delta = np.where(delta > np.pi, delta - 2 * np.pi, delta)
+        delta = np.where(delta < -np.pi, delta + 2 * np.pi, delta)
+
+        # Physiological clamp: max 720 deg/s
+        max_delta = np.radians(720.0 / fps)
+        clamped = np.abs(delta) > max_delta
+        delta[clamped] = 0.0
+
+        total_deg = float(np.sum(delta) * 180 / np.pi)
+        rotation_count = round(abs(total_deg) / 360, 1)
+
+        return total_deg, rotation_count, clamped
+
+    @staticmethod
+    def compute_spread_eagle_angle(poses: np.ndarray) -> np.ndarray:
+        """Bilateral angle between left and right leg vectors (hip→knee).
+
+        Args:
+            poses: Poses array (N, 17, 2) or (N, 17, 3).
+
+        Returns:
+            Per-frame angle series in degrees [0, 180].
+            Near 0° = legs parallel (normal skating), near 180° = spread eagle.
+        """
+        l_leg = poses[:, H36Key.LKNEE] - poses[:, H36Key.LHIP]  # 5 - 4
+        r_leg = poses[:, H36Key.RKNEE] - poses[:, H36Key.RHIP]  # 2 - 1
+
+        dot_prod = np.sum(l_leg * r_leg, axis=-1)
+        norms = np.linalg.norm(l_leg, axis=-1) * np.linalg.norm(r_leg, axis=-1) + 1e-8
+        cos_angle = np.clip(dot_prod / norms, -1.0, 1.0)
+
+        return np.degrees(np.arccos(cos_angle))
+
+    @staticmethod
+    def compute_spiral_indicator(poses: np.ndarray) -> np.ndarray:
+        """Detect one-foot support via Y-coordinate gap between feet.
+
+        Args:
+            poses: Poses array (N, 17, 2) or (N, 17, 3). Y-down coords.
+
+        Returns:
+            Per-frame |LFOOT_y - RFOOT_y| difference. Large = spiral candidate.
+        """
+        return np.abs(poses[:, H36Key.LFOOT, 1] - poses[:, H36Key.RFOOT, 1])
+
+    def compute_ina_bauer_score(
+        self, poses: np.ndarray, se_angle: np.ndarray | None = None
+    ) -> np.ndarray:
+        """Composite score for Ina Bauer detection.
+
+        Only meaningful on frames where spread_eagle_angle >= 150 degrees.
+        Components normalized to [0, 1] before weighting.
+
+        Args:
+            poses: Poses array (N, 17, 2) or (N, 17, 3).
+            se_angle: Pre-computed spread eagle angle series (optional).
+
+        Returns:
+            Per-frame score in [0, 1]. >= 0.7 means Ina Bauer detected.
+        """
+        if se_angle is None:
+            se_angle = self.compute_spread_eagle_angle(poses)
+
+        # Leg angle: 150 deg -> 0, 180 deg -> 1
+        leg_angle_norm = np.clip((se_angle - 150.0) / 30.0, 0, 1)
+
+        # Torso lean: angle between hip_center->thorax and vertical (0, -1)
+        trunk = poses[:, H36Key.THORAX] - poses[:, H36Key.HIP_CENTER]  # 8 - 0
+        trunk_norm = trunk / (np.linalg.norm(trunk, axis=-1, keepdims=True) + 1e-8)
+        torso_lean = np.degrees(np.arccos(np.clip(-trunk_norm[:, 1], -1, 1)))
+        torso_lean_norm = np.clip(torso_lean / 45.0, 0, 1)
+
+        # Knee asymmetry: |L_knee_angle - R_knee_angle|
+        l_knee = np.array(
+            [
+                self._angle_3pt_from_poses(poses, f, H36Key.LHIP, H36Key.LKNEE, H36Key.LFOOT)
+                for f in range(len(poses))
+            ]
+        )
+        r_knee = np.array(
+            [
+                self._angle_3pt_from_poses(poses, f, H36Key.RHIP, H36Key.RKNEE, H36Key.RFOOT)
+                for f in range(len(poses))
+            ]
+        )
+        knee_diff_norm = np.clip(np.abs(l_knee - r_knee) / 40.0, 0, 1)
+
+        return 0.5 * leg_angle_norm + 0.3 * torso_lean_norm + 0.2 * knee_diff_norm
+
+    @staticmethod
+    def _angle_3pt_from_poses(poses: np.ndarray, frame: int, j1: int, j2: int, j3: int) -> float:
+        """Compute 3-point angle (j1-j2-j3) in degrees for a single frame."""
+        a = poses[frame, j1]
+        b = poses[frame, j2]
+        c = poses[frame, j3]
+        ba = a - b
+        bc = c - b
+        cos_val = np.dot(ba, bc) / (np.linalg.norm(ba) * np.linalg.norm(bc) + 1e-8)
+        return float(np.degrees(np.arccos(np.clip(cos_val, -1.0, 1.0))))
 
     def compute_rotation_speed(
         self,
