@@ -1,0 +1,9 @@
+appId: ru.skatelab
+tags:
+  - upload
+---
+- launchApp
+- tapOn: "Профиль"
+- assertVisible: { id: "profileUploadQueueLink" }
+- tapOn: { id: "profileUploadQueueLink" }
+- assertVisible: { id: "uploadQueueList" }
