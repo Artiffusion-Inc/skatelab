@@ -107,6 +107,11 @@ fun CameraScreen(
 
     var cameraBound by remember { mutableStateOf(false) }
 
+    // Reset cameraBound when preview becomes not ready so camera rebinds
+    LaunchedEffect(isPreviewReady) {
+        if (!isPreviewReady) cameraBound = false
+    }
+
     LaunchedEffect(Unit) {
         viewModel.startBatteryPolling()
         viewModel.startBleMonitoring()
