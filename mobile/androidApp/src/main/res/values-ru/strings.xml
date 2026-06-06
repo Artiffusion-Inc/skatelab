@@ -147,6 +147,7 @@
     <string name="processing_check_network">Проверьте подключение к интернету и повторите.</string>
     <string name="processing_retry">Повторить</string>
     <string name="processing_go_back">Назад</string>
+    <string name="processing_cancel">Отмена</string>
     <string name="processing_error">Ошибка обработки</string>
 
     <string name="session_detail_left_sensor">Левый</string>
