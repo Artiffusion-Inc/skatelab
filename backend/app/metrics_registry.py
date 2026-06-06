@@ -257,6 +257,16 @@ METRIC_REGISTRY: dict[str, MetricDef] = {
         element_types=("three_turn",),
         ideal_range=(0, 0.05),
     ),
+    # GOE-derived metrics
+    "estimated_score": MetricDef(
+        name="estimated_score",
+        label_ru="Оценка элемента (баллы)",
+        unit="score",
+        format=".2f",
+        direction="higher",
+        element_types=(*JUMP_ELEMENTS, *SPIN_ELEMENTS, "three_turn"),
+        ideal_range=(0.0, 20.0),
+    ),
 }
 
 
