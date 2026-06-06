@@ -138,25 +138,29 @@ fun LoginScreen(
 
         Spacer(Modifier.height(16.dp))
 
-        if (uiState is AuthUiState.Loading) {
-            val context = LocalContext.current
-            Box(
-                modifier =
-                    Modifier
-                        .semantics(mergeDescendants = true) {
-                            contentDescription = context.getString(R.string.cd_loading)
-                            role = Role.ValuePicker
-                        },
-            ) {
-                CircularProgressIndicator(modifier = Modifier.size(24.dp))
+        when (uiState) {
+            is AuthUiState.Loading -> {
+                val context = LocalContext.current
+                Box(
+                    modifier =
+                        Modifier
+                            .semantics(mergeDescendants = true) {
+                                contentDescription = context.getString(R.string.cd_loading)
+                                role = Role.ValuePicker
+                            },
+                ) {
+                    CircularProgressIndicator(modifier = Modifier.size(24.dp))
+                }
             }
-        } else {
-            Button(
-                onClick = { onLogin(email.trim(), password) },
-                enabled = email.isNotBlank() && password.isNotBlank(),
-                modifier = Modifier.fillMaxWidth().testTag("loginButton"),
-            ) {
-                Text(stringResource(R.string.auth_login_button))
+            is AuthUiState.Error -> { /* error block already shown above */ }
+            else -> {
+                Button(
+                    onClick = { onLogin(email.trim(), password) },
+                    enabled = email.isNotBlank() && password.isNotBlank(),
+                    modifier = Modifier.fillMaxWidth().testTag("loginButton"),
+                ) {
+                    Text(stringResource(R.string.auth_login_button))
+                }
             }
         }
 
