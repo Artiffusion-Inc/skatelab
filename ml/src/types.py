@@ -236,6 +236,7 @@ __all__ = [
     "ElementPhase",
     "ElementSegment",
     "FrameKeypoints",
+    "GOEGrade",
     "H36Key",
     "H36MPose2D",
     "H36MPose3D",
@@ -832,3 +833,26 @@ class RecommendationRule:
     condition: Callable[[float, tuple[float, float]], bool]
     priority: int
     templates: Mapping[str, str]
+
+
+@dataclass
+class GOEGrade:
+    """ISU GOE grade computed from biomechanical metrics.
+
+    Attributes:
+        grade: ISU GOE grade, -5 to +5.
+        base_value: ISU base value (after modifier adjustment).
+        estimated_score: BV * (1 + grade * 0.10).
+        modifier: ISU modifier string ("", "q", "<", "<<", "e", "!").
+        positives: List of positive bullet IDs met.
+        negatives: List of error reduction IDs applied.
+        confidence: 0-1, fraction of criteria with available metric data.
+    """
+
+    grade: int
+    base_value: float
+    estimated_score: float
+    modifier: str
+    positives: list[str]
+    negatives: list[str]
+    confidence: float
