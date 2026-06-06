@@ -18,11 +18,13 @@ sealed interface ProcessingUiState {
 class ProcessingViewModel(private val processApi: IProcessApi) {
     private val _uiState = MutableStateFlow<ProcessingUiState>(ProcessingUiState.Idle)
     val uiState: StateFlow<ProcessingUiState> = _uiState.asStateFlow()
+    private var currentTaskId: String? = null
 
     suspend fun startProcessing(videoKey: String, sessionId: String? = null) {
         _uiState.value = ProcessingUiState.Progress(0f, "Queuing...")
         try {
             val response = processApi.queue(videoKey, sessionId)
+            currentTaskId = response.taskId
             observeProgress(response.taskId)
         } catch (e: Exception) {
             _uiState.value = ProcessingUiState.Failed(e.toAppError())
@@ -43,7 +45,8 @@ class ProcessingViewModel(private val processApi: IProcessApi) {
         }
     }
 
-    suspend fun cancelProcessing(taskId: String) {
+    suspend fun cancelProcessing() {
+        val taskId = currentTaskId ?: return
         runCatching { processApi.cancel(taskId) }
             .onFailure { _uiState.value = ProcessingUiState.Failed(it.toAppError()) }
     }

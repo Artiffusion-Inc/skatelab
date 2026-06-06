@@ -14,6 +14,7 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import ru.skatelab.shared.models.ProcessEvent
+import ru.skatelab.shared.models.ProcessStatus
 
 private val sseJson = Json { ignoreUnknownKeys = true }
 
@@ -46,21 +47,45 @@ class ProcessApi(private val client: HttpClient) : IProcessApi {
     }
 
     override fun stream(taskId: String): Flow<ProcessEvent> = flow {
-        val response: HttpResponse = client.get("/process/$taskId/stream")
-        val channel: ByteReadChannel = response.body()
-        val buffer = StringBuilder()
-        while (!channel.isClosedForRead) {
-            val line = channel.readUTF8Line() ?: continue
-            when {
-                line.startsWith("data: ") -> {
-                    val data = line.removePrefix("data: ").trim()
-                    if (data.isNotEmpty()) {
-                        val event = sseJson.decodeFromString<ProcessEvent>(data)
-                        emit(event)
+        var retries = 0
+        val maxRetries = 3
+        while (retries <= maxRetries) {
+            try {
+                val response: HttpResponse = client.get("/process/$taskId/stream")
+                val channel: ByteReadChannel = response.body()
+                val buffer = StringBuilder()
+                var receivedEvent = false
+                while (!channel.isClosedForRead) {
+                    val line = channel.readUTF8Line() ?: continue
+                    when {
+                        line.startsWith("data: ") -> {
+                            val data = line.removePrefix("data: ").trim()
+                            if (data.isNotEmpty()) {
+                                val event = sseJson.decodeFromString<ProcessEvent>(data)
+                                emit(event)
+                                receivedEvent = true
+                                if (event.parsedStatus == ProcessStatus.COMPLETED ||
+                                    event.parsedStatus == ProcessStatus.FAILED
+                                ) {
+                                    return@flow
+                                }
+                            }
+                        }
+                        line.isEmpty() -> buffer.clear()
+                        else -> buffer.appendLine(line)
                     }
                 }
-                line.isEmpty() -> buffer.clear()
-                else -> buffer.appendLine(line)
+                // Stream ended without terminal event — reconnect
+                if (!receivedEvent || retries < maxRetries) {
+                    retries++
+                    kotlinx.coroutines.delay(1000L * retries)
+                    continue
+                }
+                return@flow
+            } catch (_: Exception) {
+                retries++
+                if (retries > maxRetries) return@flow
+                kotlinx.coroutines.delay(1000L * retries)
             }
         }
     }
