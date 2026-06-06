@@ -1,6 +1,7 @@
 package ru.skatelab.capture.ui.processing
 
 import io.mockk.coEvery
+import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -101,7 +102,6 @@ class AndroidProcessingViewModelTest {
             viewModel.cancelProcessing()
             advanceUntilIdle()
 
-            // Cancel was called (mockk verifies this)
-            coEvery { processApi.cancel("task-1") } returns Unit
+            coVerify { processApi.cancel("task-1") }
         }
 }

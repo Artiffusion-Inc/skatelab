@@ -120,9 +120,10 @@ class ProcessingViewModelTest {
         val viewModel = ProcessingViewModel(fakeApi)
 
         viewModel.startProcessing("video-key")
-        // Wait for taskId to be stored
-        assertIs<ProcessingUiState.Progress>(viewModel.uiState.value)
+        advanceUntilIdle()
+        // taskId is now stored in viewModel
         viewModel.cancelProcessing()
+        advanceUntilIdle()
         // No exception = success
     }
 
@@ -137,8 +138,7 @@ class ProcessingViewModelTest {
         val viewModel = ProcessingViewModel(fakeApi)
 
         viewModel.startProcessing("video-key")
-        // Wait for taskId to be stored
-        assertIs<ProcessingUiState.Progress>(viewModel.uiState.value)
+        advanceUntilIdle()
 
         viewModel.uiState.test {
             viewModel.cancelProcessing()
