@@ -26,7 +26,7 @@ class AuthViewModel(
      * Call when Bearer token refresh fails — clears tokens and forces LoggedOut.
      * Safe to call from any thread; no-op if already logged out.
      */
-    fun onAuthFailure() {
+    suspend fun onAuthFailure() {
         if (_uiState.value is AuthUiState.LoggedIn) {
             authRepo.logout()
             _uiState.value = AuthUiState.LoggedOut
