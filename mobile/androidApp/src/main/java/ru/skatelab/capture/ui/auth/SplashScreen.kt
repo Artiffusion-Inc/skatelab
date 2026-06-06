@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.ui.res.stringResource
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
@@ -19,6 +20,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import ru.skatelab.capture.R
 import ru.skatelab.shared.state.AuthUiState
 
 @Composable
@@ -53,14 +55,14 @@ fun SplashScreen(
             verticalArrangement = Arrangement.Center,
         ) {
             Text(
-                text = "OOFSkate",
+                text = stringResource(R.string.splash_brand),
                 color = Color.White,
                 fontSize = 36.sp,
                 fontWeight = FontWeight.Bold,
             )
             Spacer(Modifier.height(8.dp))
             Text(
-                text = "AI Coach for Figure Skating",
+                text = stringResource(R.string.splash_tagline),
                 color = Color.White.copy(alpha = 0.7f),
                 fontSize = 14.sp,
             )

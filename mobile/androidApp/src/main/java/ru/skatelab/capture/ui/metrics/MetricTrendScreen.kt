@@ -43,6 +43,7 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.patrykandpatrick.vico.compose.cartesian.CartesianChartHost
@@ -62,6 +63,7 @@ import com.patrykandpatrick.vico.core.cartesian.data.lineSeries
 import com.patrykandpatrick.vico.core.cartesian.decoration.HorizontalBox
 import com.patrykandpatrick.vico.core.common.Fill
 import com.patrykandpatrick.vico.core.common.shape.Shape
+import ru.skatelab.capture.R
 import ru.skatelab.shared.models.TrendDataPoint
 import ru.skatelab.shared.models.TrendResponse
 import ru.skatelab.shared.state.TrendState
@@ -92,7 +94,7 @@ fun MetricTrendScreen(
                     IconButton(onClick = onBack) {
                         Icon(
                             Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Назад",
+                            contentDescription = stringResource(R.string.nav_back),
                         )
                     }
                 },
@@ -101,6 +103,7 @@ fun MetricTrendScreen(
     ) { padding ->
         when (val state = uiState) {
             is TrendState.Loading -> {
+                val loadingDesc = stringResource(R.string.trend_loading_desc)
                 Column(
                     modifier = Modifier.fillMaxSize().padding(padding),
                     verticalArrangement = Arrangement.Center,
@@ -110,14 +113,14 @@ fun MetricTrendScreen(
                         modifier =
                             Modifier
                                 .semantics(mergeDescendants = true) {
-                                    contentDescription = "Загрузка данных тренда"
+                                    contentDescription = loadingDesc
                                     role = Role.ValuePicker
                                 },
                     ) {
                         CircularProgressIndicator(modifier = Modifier.size(48.dp))
                     }
                     Spacer(modifier = Modifier.height(12.dp))
-                    Text("Загрузка...", style = MaterialTheme.typography.bodyLarge)
+                    Text(stringResource(R.string.session_list_loading), style = MaterialTheme.typography.bodyLarge)
                 }
             }
             is TrendState.Error -> {
@@ -127,7 +130,7 @@ fun MetricTrendScreen(
                     horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
                     Text(
-                        "Ошибка загрузки",
+                        stringResource(R.string.session_list_error),
                         style = MaterialTheme.typography.titleMedium,
                         color = MaterialTheme.colorScheme.error,
                     )
@@ -139,7 +142,7 @@ fun MetricTrendScreen(
                     )
                     Spacer(modifier = Modifier.height(16.dp))
                     Button(onClick = { viewModel.shared.load(metricName, elementType) }) {
-                        Text("Повторить")
+                        Text(stringResource(R.string.session_list_retry))
                     }
                 }
             }
@@ -251,7 +254,7 @@ private fun TrendIndicatorRow(
                             fontWeight = FontWeight.Bold,
                         )
                         Text(
-                            text = "Текущий ПР",
+                            text = stringResource(R.string.trend_current_pr),
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -268,7 +271,11 @@ private fun PeriodSelectorRow(
     selectedPeriod: String,
     onPeriodChange: (String) -> Unit,
 ) {
-    val periods = listOf("30d" to "30д", "90d" to "90д", "all" to "Все")
+    val periods = listOf(
+        "30d" to stringResource(R.string.trend_period_30d),
+        "90d" to stringResource(R.string.trend_period_90d),
+        "all" to stringResource(R.string.trend_period_all),
+    )
 
     Row(
         modifier = Modifier.fillMaxWidth(),
@@ -360,8 +367,8 @@ private fun DataTable(
                     .padding(horizontal = 16.dp, vertical = 8.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
         ) {
-            Text("Дата", style = MaterialTheme.typography.labelMedium, modifier = Modifier.weight(1f))
-            Text("Значение", style = MaterialTheme.typography.labelMedium, modifier = Modifier.weight(1f))
+            Text(stringResource(R.string.trend_date_column), style = MaterialTheme.typography.labelMedium, modifier = Modifier.weight(1f))
+            Text(stringResource(R.string.trend_value_column), style = MaterialTheme.typography.labelMedium, modifier = Modifier.weight(1f))
             Text("Δ", style = MaterialTheme.typography.labelMedium, modifier = Modifier.weight(1f))
             Spacer(modifier = Modifier.width(40.dp))
         }
@@ -411,7 +418,7 @@ private fun DataTable(
                     )
                     if (point.isPr) {
                         Text(
-                            text = "★ ПР",
+                            text = stringResource(R.string.trend_pr_marker),
                             style = MaterialTheme.typography.labelMedium,
                             fontWeight = FontWeight.Bold,
                             color = PrMarkerColor,

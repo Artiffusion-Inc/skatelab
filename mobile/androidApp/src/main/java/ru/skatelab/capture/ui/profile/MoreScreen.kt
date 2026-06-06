@@ -94,7 +94,7 @@ fun MoreScreen(
             ) {
                 ListItem(
                     headlineContent = { Text(stringResource(R.string.more_ble_scan)) },
-                    supportingContent = { Text("Connect IMU sensors") },
+                    supportingContent = { Text(stringResource(R.string.profile_ble_connect_desc)) },
                     leadingContent = {
                         Icon(
                             Icons.Default.Bluetooth,

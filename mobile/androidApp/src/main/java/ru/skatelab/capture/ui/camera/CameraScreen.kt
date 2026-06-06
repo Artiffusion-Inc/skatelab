@@ -172,7 +172,7 @@ fun CameraScreen(
             ) {
                 Icon(
                     Icons.Default.Bluetooth,
-                    contentDescription = "BLE connected",
+                    contentDescription = stringResource(R.string.camera_ble_connected_desc),
                     tint = Color.White,
                     modifier = Modifier.size(24.dp),
                 )
@@ -199,7 +199,7 @@ fun CameraScreen(
                     .testTag("cameraImuButton"),
             containerColor = MaterialTheme.colorScheme.secondaryContainer,
         ) {
-            Icon(Icons.Default.Memory, contentDescription = "IMU capture")
+            Icon(Icons.Default.Memory, contentDescription = stringResource(R.string.camera_imu_capture_desc))
         }
 
         // Bottom controls
@@ -361,7 +361,7 @@ private fun CameraPreviewLayer(
                 val min = (totalSec / 60).toInt()
                 val sec = (totalSec % 60).toInt()
                 Text(
-                    "REC %02d:%02d".format(min, sec),
+                    stringResource(R.string.camera_rec_timer_format, min, sec),
                     color = Color.White,
                     style = MaterialTheme.typography.labelLarge,
                 )

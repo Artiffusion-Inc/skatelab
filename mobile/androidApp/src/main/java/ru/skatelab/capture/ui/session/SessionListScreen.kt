@@ -179,7 +179,7 @@ fun SessionListScreen(
                                     selectedElementType = null
                                     viewModel.loadSessions(elementType = null)
                                 },
-                                label = { Text("Все") },
+                                label = { Text(stringResource(R.string.filter_all)) },
                             )
                             elementLabelsRu.forEach { (key, label) ->
                                 FilterChip(
@@ -342,13 +342,14 @@ private fun StatusBadge(
     }
 }
 
+@Composable
 private fun metricLabelRu(metricName: String): String =
     when (metricName) {
-        "airtime" -> "Время в воздухе"
-        "rotation_speed" -> "Скорость вращения"
-        "jump_height" -> "Высота прыжка"
-        "knee_angle" -> "Угол колена"
-        "landing_quality" -> "Качество приземления"
+        "airtime" -> stringResource(R.string.metric_airtime_label)
+        "rotation_speed" -> stringResource(R.string.metric_rotation_speed_label)
+        "jump_height" -> stringResource(R.string.metric_jump_height_label)
+        "knee_angle" -> stringResource(R.string.metric_knee_angle_label)
+        "landing_quality" -> stringResource(R.string.metric_landing_quality_label)
         else -> metricName.replaceFirstChar { it.uppercase() }
     }
 

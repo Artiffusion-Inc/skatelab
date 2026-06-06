@@ -269,4 +269,60 @@
     <string name="cd_imu_chart">IMU chart: angular velocity. Left peak %1$s, right peak %2$s</string>
     <string name="cd_loading">Loading</string>
     <string name="cd_error_icon">Error</string>
+
+    <!-- Dashboard -->
+    <string name="dashboard_greeting">Hello!</string>
+    <string name="dashboard_greeting_name">Hello, %s!</string>
+    <string name="dashboard_best_results">Best results</string>
+    <string name="dashboard_week">Week</string>
+    <string name="dashboard_sessions_count">Sessions</string>
+    <string name="dashboard_avg_score">Avg score</string>
+    <string name="dashboard_recommendations">Recommendations</string>
+    <string name="dashboard_recent_sessions">Recent sessions</string>
+    <string name="dashboard_all_sessions">All sessions →</string>
+
+    <!-- Tabs -->
+    <string name="tab_camera">Camera</string>
+    <string name="tab_progress">Progress</string>
+    <string name="tab_sessions">Sessions</string>
+    <string name="tab_profile">Profile</string>
+
+    <!-- Metric Trend -->
+    <string name="trend_loading_desc">Loading trend data</string>
+    <string name="trend_current_pr">Current PR</string>
+    <string name="trend_period_30d">30d</string>
+    <string name="trend_period_90d">90d</string>
+    <string name="trend_period_all">All</string>
+    <string name="trend_date_column">Date</string>
+    <string name="trend_value_column">Value</string>
+    <string name="trend_pr_marker">★ PR</string>
+
+    <!-- Session List Filters -->
+    <string name="filter_all">All</string>
+
+    <!-- Session List Metric Labels -->
+    <string name="metric_airtime_label">Air time</string>
+    <string name="metric_rotation_speed_label">Rotation speed</string>
+    <string name="metric_jump_height_label">Jump height</string>
+    <string name="metric_knee_angle_label">Knee angle</string>
+    <string name="metric_landing_quality_label">Landing quality</string>
+
+    <!-- Profile -->
+    <string name="profile_title">Profile</string>
+    <string name="profile_avatar_desc">Avatar</string>
+    <string name="profile_display_name_label">Display name</string>
+    <string name="profile_bio_label">Bio</string>
+    <string name="profile_height_label">Height (cm)</string>
+    <string name="profile_weight_label">Weight (kg)</string>
+    <string name="profile_angular_unit_label">Angular unit</string>
+    <string name="profile_ble_connect_desc">Connect IMU sensors</string>
+
+    <!-- Splash -->
+    <string name="splash_brand">SkateLab</string>
+    <string name="splash_tagline">AI Coach for Figure Skating</string>
+
+    <!-- Camera -->
+    <string name="camera_ble_connected_desc">BLE connected</string>
+    <string name="camera_imu_capture_desc">IMU capture</string>
+    <string name="camera_rec_timer_format">REC %02d:%02d</string>
 </resources>

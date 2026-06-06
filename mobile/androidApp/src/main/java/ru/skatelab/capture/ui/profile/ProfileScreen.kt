@@ -108,7 +108,7 @@ fun ProfileScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(title = { Text("Profile") })
+            TopAppBar(title = { Text(stringResource(R.string.profile_title)) })
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },
         modifier = modifier,
@@ -170,7 +170,7 @@ fun ProfileScreen(
                 ) {
                     Icon(
                         imageVector = Icons.Default.Person,
-                        contentDescription = "Avatar",
+                        contentDescription = stringResource(R.string.profile_avatar_desc),
                         modifier = Modifier.size(48.dp),
                         tint = MaterialTheme.colorScheme.onPrimaryContainer,
                     )
@@ -193,7 +193,7 @@ fun ProfileScreen(
                 OutlinedTextField(
                     value = displayName,
                     onValueChange = { displayName = it },
-                    label = { Text("Display name") },
+                    label = { Text(stringResource(R.string.profile_display_name_label)) },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                     enabled = !uiState.isSaving,
@@ -204,7 +204,7 @@ fun ProfileScreen(
                 OutlinedTextField(
                     value = bio,
                     onValueChange = { bio = it },
-                    label = { Text("Bio") },
+                    label = { Text(stringResource(R.string.profile_bio_label)) },
                     minLines = 2,
                     maxLines = 4,
                     modifier = Modifier.fillMaxWidth(),
@@ -220,7 +220,7 @@ fun ProfileScreen(
                     OutlinedTextField(
                         value = heightCm,
                         onValueChange = { heightCm = it },
-                        label = { Text("Height (cm)") },
+                        label = { Text(stringResource(R.string.profile_height_label)) },
                         singleLine = true,
                         modifier = Modifier.weight(1f),
                         enabled = !uiState.isSaving,
@@ -230,7 +230,7 @@ fun ProfileScreen(
                     OutlinedTextField(
                         value = weightKg,
                         onValueChange = { weightKg = it },
-                        label = { Text("Weight (kg)") },
+                        label = { Text(stringResource(R.string.profile_weight_label)) },
                         singleLine = true,
                         modifier = Modifier.weight(1f),
                         enabled = !uiState.isSaving,
@@ -341,7 +341,7 @@ private fun AngularUnitSelector(
             value = selectedLabel,
             onValueChange = {},
             readOnly = true,
-            label = { Text("Angular unit") },
+            label = { Text(stringResource(R.string.profile_angular_unit_label)) },
             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
             modifier =
                 Modifier
