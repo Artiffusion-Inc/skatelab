@@ -232,3 +232,38 @@ class TestRecommender:
         # Check that recommendations contain Cyrillic characters
         assert recommendations
         assert any(ord(c) > 127 for c in recommendations[0] for c in recommendations[0])
+
+    def test_recommend_with_goe(self):
+        """Should include GOE summary when GOEGrade provided."""
+        from src.types import GOEGrade
+
+        recommender = Recommender()
+        goe = GOEGrade(
+            grade=2,
+            base_value=4.20,
+            estimated_score=5.04,
+            modifier="",
+            positives=["height_length", "takeoff_landing"],
+            negatives=[],
+            confidence=0.75,
+        )
+        metrics = [
+            MetricResult(
+                name="airtime", value=0.2, unit="s", is_good=False, reference_range=(0.3, 0.7)
+            ),
+        ]
+        recommendations = recommender.recommend_with_goe(metrics, "waltz_jump", goe)
+        assert any("GOE +2" in r for r in recommendations)
+        assert any("4.20" in r for r in recommendations)
+
+    def test_recommend_without_goe(self):
+        """Should work without GOEGrade (backward compat)."""
+        recommender = Recommender()
+        metrics = [
+            MetricResult(
+                name="airtime", value=0.2, unit="s", is_good=False, reference_range=(0.3, 0.7)
+            ),
+        ]
+        recommendations = recommender.recommend_with_goe(metrics, "waltz_jump", None)
+        assert isinstance(recommendations, list)
+        assert len(recommendations) > 0
