@@ -82,4 +82,8 @@ class AndroidProcessingViewModel
         ) {
             viewModelScope.launch { shared.startProcessing(videoKey, sessionId) }
         }
+
+        fun cancel() {
+            viewModelScope.launch { shared.cancelProcessing() }
+        }
     }

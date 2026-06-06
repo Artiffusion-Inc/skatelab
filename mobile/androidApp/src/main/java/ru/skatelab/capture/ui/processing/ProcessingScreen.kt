@@ -108,6 +108,7 @@ fun ProcessingScreen(
                 ProcessingContent(
                     state = processingState,
                     onRetry = { viewModel.retry("", sessionId) },
+                    onCancel = { viewModel.cancel() },
                     onBack = onBack,
                 )
         }
@@ -174,6 +175,7 @@ private fun UploadFailedContent(
 private fun ProcessingContent(
     state: ProcessingUiState,
     onRetry: () -> Unit,
+    onCancel: () -> Unit,
     onBack: () -> Unit,
 ) {
     when (state) {
@@ -209,6 +211,13 @@ private fun ProcessingContent(
                 style = MaterialTheme.typography.headlineMedium,
                 color = MaterialTheme.colorScheme.primary,
             )
+            Spacer(Modifier.height(24.dp))
+            OutlinedButton(
+                onClick = onCancel,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text(stringResource(R.string.processing_cancel))
+            }
         }
 
         is ProcessingUiState.Completed -> {
