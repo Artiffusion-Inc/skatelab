@@ -205,7 +205,7 @@ class SessionsViewModelTest {
             assertEquals(false, loaded.hasMore)
             // loadMore should be no-op when hasMore is false
             viewModel.loadMore()
-            // No new emissions expected — loadMore is no-op
+            expectNoEvents()
         }
 
         assertEquals(1, callCount)
