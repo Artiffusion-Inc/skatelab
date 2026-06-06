@@ -306,4 +306,47 @@ class AuthViewModelTest {
         val state = viewModel.uiState.value
         assertIs<AuthUiState.Error>(state)
     }
-}
+
+    @Test
+    fun onAuthFailure_whenLoggedIn_transitionsToLoggedOut() = kotlinx.coroutines.test.runTest {
+        val engine = MockEngine { request ->
+            when (request.url.encodedPath) {
+                "/users/me" -> respond(userResponse, HttpStatusCode.OK, jsonHeaders())
+                "/auth/logout" -> respond("{}", HttpStatusCode.OK, jsonHeaders())
+                else -> respondError(HttpStatusCode.NotFound)
+            }
+        }
+        val client = makeClient(engine)
+        val tokenStorage = TokenStorage(MapSettings())
+        tokenStorage.saveTokens("access", "refresh")
+
+        val viewModel = AuthViewModel(
+            authRepo = AuthRepository(AuthApi(client), tokenStorage),
+            usersApi = UsersApi(client),
+        )
+
+        viewModel.checkLogin()
+        assertEquals(AuthUiState.LoggedIn("user-1", "Alice"), viewModel.uiState.value)
+
+        viewModel.onAuthFailure()
+        assertEquals(AuthUiState.LoggedOut, viewModel.uiState.value)
+        assertEquals(null, tokenStorage.getAccessToken())
+    }
+
+    @Test
+    fun onAuthFailure_whenLoggedOut_isNoOp() = kotlinx.coroutines.test.runTest {
+        val engine = MockEngine { respondError(HttpStatusCode.NotFound) }
+        val client = makeClient(engine)
+        val tokenStorage = TokenStorage(MapSettings())
+
+        val viewModel = AuthViewModel(
+            authRepo = AuthRepository(AuthApi(client), tokenStorage),
+            usersApi = UsersApi(client),
+        )
+
+        viewModel.checkLogin()
+        assertEquals(AuthUiState.LoggedOut, viewModel.uiState.value)
+
+        viewModel.onAuthFailure()
+        assertEquals(AuthUiState.LoggedOut, viewModel.uiState.value)
+    }
