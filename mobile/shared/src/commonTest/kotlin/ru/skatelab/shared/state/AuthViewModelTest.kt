@@ -72,10 +72,11 @@ class AuthViewModelTest {
     }
 
     @Test
-    fun checkLogin_whenLoggedIn_getMeFails_fallsBackToCached() = kotlinx.coroutines.test.runTest {
+    fun checkLogin_whenLoggedIn_getMeFails_transitionsToLoggedOut() = kotlinx.coroutines.test.runTest {
         val engine = MockEngine { request ->
             when (request.url.encodedPath) {
                 "/users/me" -> respondError(HttpStatusCode.InternalServerError)
+                "/auth/logout" -> respond("{}", HttpStatusCode.OK, jsonHeaders())
                 else -> respondError(HttpStatusCode.NotFound)
             }
         }
@@ -90,7 +91,8 @@ class AuthViewModelTest {
 
         viewModel.checkLogin()
 
-        assertEquals(AuthUiState.LoggedIn("cached", null), viewModel.uiState.value)
+        assertEquals(AuthUiState.LoggedOut, viewModel.uiState.value)
+        assertEquals(null, tokenStorage.getAccessToken())
     }
 
     @Test
