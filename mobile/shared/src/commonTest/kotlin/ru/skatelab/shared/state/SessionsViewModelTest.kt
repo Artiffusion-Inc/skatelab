@@ -197,14 +197,17 @@ class SessionsViewModelTest {
         val api = SessionsApi(client(engine))
         val viewModel = SessionsViewModel(api)
 
-        viewModel.loadSessions()
-        advanceUntilIdle()
-
-        val state = viewModel.uiState.value as SessionsUiState.Loaded
-        assertEquals(false, state.hasMore)
-        // loadMore should be no-op when hasMore is false
-        viewModel.loadMore()
-        advanceUntilIdle()
+        viewModel.uiState.test {
+            assertEquals(SessionsUiState.Loading, awaitItem())
+            viewModel.loadSessions()
+            val loaded = awaitItem()
+            assertIs<SessionsUiState.Loaded>(loaded)
+            assertEquals(false, loaded.hasMore)
+            // loadMore should be no-op when hasMore is false
+            viewModel.loadMore()
+            // No new emissions expected — loadMore is no-op
+        }
 
         assertEquals(1, callCount)
     }
+}

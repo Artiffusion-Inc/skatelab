@@ -350,3 +350,4 @@ class AuthViewModelTest {
         viewModel.onAuthFailure()
         assertEquals(AuthUiState.LoggedOut, viewModel.uiState.value)
     }
+}
