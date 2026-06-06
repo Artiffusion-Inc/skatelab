@@ -26,6 +26,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.Role
@@ -200,6 +201,7 @@ private fun ProcessingContent(
             Text(
                 text = state.message.ifBlank { "Processing..." },
                 style = MaterialTheme.typography.bodyLarge,
+                modifier = Modifier.testTag("processingStatus"),
             )
             Spacer(Modifier.height(8.dp))
             Text(
