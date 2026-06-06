@@ -1,8 +1,8 @@
 package ru.skatelab.capture.ui.upload
 
-import androidx.work.ExistingWorkPolicy
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import androidx.work.ExistingWorkPolicy
 import androidx.work.WorkManager
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
