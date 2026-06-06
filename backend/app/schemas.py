@@ -301,12 +301,14 @@ class CreateSessionRequest(BaseModel):
     imu_left_key: str | None = Field(default=None, max_length=500)
     imu_right_key: str | None = Field(default=None, max_length=500)
     manifest_key: str | None = Field(default=None, max_length=500)
+    isu_code: str | None = None
 
 
 class PatchSessionRequest(BaseModel):
     element_type: str | None = Field(default=None, max_length=50)
     status: str | None = Field(default=None, max_length=20)
     process_task_id: str | None = Field(default=None, max_length=50)
+    isu_code: str | None = None
 
 
 class SessionMetricResponse(BaseModel):
@@ -402,6 +404,7 @@ class SessionResponse(BaseModel):
     imu_left_key: str | None = None
     imu_right_key: str | None = None
     manifest_key: str | None = None
+    isu_code: str | None = None
     created_at: str
     processed_at: str | None
     timeline: TimelineData | None = None

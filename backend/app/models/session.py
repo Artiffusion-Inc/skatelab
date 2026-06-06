@@ -53,6 +53,7 @@ class Session(TimestampMixin, Base):
     imu_left_key: Mapped[str | None] = mapped_column(String(500), nullable=True)
     imu_right_key: Mapped[str | None] = mapped_column(String(500), nullable=True)
     manifest_key: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    isu_code: Mapped[str | None] = mapped_column(String(10), nullable=True, default=None)
 
     # Relationships
     metrics: Mapped[list[SessionMetric]] = relationship(
