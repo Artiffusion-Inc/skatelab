@@ -14,6 +14,8 @@ import javax.inject.Qualifier
 import javax.inject.Singleton
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.launch
 import ru.skatelab.capture.AppLogger
 import ru.skatelab.capture.BuildConfig
 import ru.skatelab.capture.data.ble.KableBleRepository
