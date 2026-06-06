@@ -328,7 +328,8 @@ private fun AngularUnitSelector(
     modifier: Modifier = Modifier,
 ) {
     var expanded by remember { mutableStateOf(false) }
-    val selectedLabel = ANGULAR_UNITS.find { it.value == selectedUnit }?.label ?: selectedUnit
+    val selectedLabel = ANGULAR_UNITS.find { it.value == selectedUnit }?.label
+        ?: selectedUnit.replace("_", " ").replaceFirstChar { it.uppercase() }
 
     ExposedDropdownMenuBox(
         expanded = expanded,
