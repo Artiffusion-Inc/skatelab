@@ -1146,6 +1146,64 @@ class BiomechanicsAnalyzer:
 
         return compute_total_rotation(unwrapped, fps)
 
+    @staticmethod
+    def compute_rotation_yaw_delta(
+        poses_3d: np.ndarray,
+        flight_indices: np.ndarray,
+        fps: float = 30.0,
+    ) -> tuple[float, float, np.ndarray]:
+        """Alternative rotation count via 3D shoulder-axis yaw with physiological clamping.
+
+        Uses Z-axis depth from 3D poses to avoid 2D projection collapse.
+        Clamps per-frame deltas exceeding 720 deg/s (physiologically impossible).
+
+        Args:
+            poses_3d: 3D poses (N, 17, 3).
+            flight_indices: Indices of flight-phase frames.
+            fps: Frame rate.
+
+        Returns:
+            (total_degrees, rotation_count, clamped_mask) where clamped_mask
+            is True for frames with physiologically impossible deltas.
+        """
+        if len(flight_indices) < 2:
+            return 0.0, 0.0, np.array([], dtype=bool)
+
+        l_sho = poses_3d[flight_indices, H36Key.LSHOULDER]
+        r_sho = poses_3d[flight_indices, H36Key.RSHOULDER]
+
+        # Shoulder length guard: skip frames where shoulder axis is near-zero
+        shoulder_length = np.linalg.norm(r_sho - l_sho, axis=1)
+        median_length = np.median(shoulder_length)
+        if median_length < 1e-6:
+            return 0.0, 0.0, np.zeros(len(flight_indices) - 1, dtype=bool)
+        valid = shoulder_length > 0.05 * median_length
+
+        # Yaw from 3D: Z-depth avoids 2D collapse
+        yaw = np.arctan2(r_sho[:, 2] - l_sho[:, 2], r_sho[:, 0] - l_sho[:, 0])
+
+        # Interpolate invalid frames from neighbors
+        if not np.all(valid):
+            valid_idx = np.where(valid)[0]
+            if len(valid_idx) < 2:
+                return 0.0, 0.0, np.zeros(len(flight_indices) - 1, dtype=bool)
+            yaw[~valid] = np.interp(np.where(~valid)[0], valid_idx, yaw[valid])
+
+        # Manual delta with wrap-around
+        delta = np.diff(yaw)
+        delta = np.where(delta > np.pi, delta - 2 * np.pi, delta)
+        delta = np.where(delta < -np.pi, delta + 2 * np.pi, delta)
+
+        # Physiological clamp: max 720 deg/s
+        max_delta = np.radians(720.0 / fps)
+        clamped = np.abs(delta) > max_delta
+        delta[clamped] = 0.0
+
+        total_deg = float(np.sum(delta) * 180 / np.pi)
+        rotation_count = round(abs(total_deg) / 360, 1)
+
+        return total_deg, rotation_count, clamped
+
     def compute_rotation_speed(
         self,
         poses: NormalizedPose,
