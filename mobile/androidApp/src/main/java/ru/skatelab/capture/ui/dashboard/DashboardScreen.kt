@@ -132,8 +132,14 @@ private fun DashboardContent(
     ) {
         // Greeting
         val name = data.user?.displayName
+        val greetingText =
+            if (name != null) {
+                stringResource(R.string.dashboard_greeting_name, name)
+            } else {
+                stringResource(R.string.dashboard_greeting)
+            }
         Text(
-            text = if (name != null) stringResource(R.string.dashboard_greeting_name, name) else stringResource(R.string.dashboard_greeting),
+            text = greetingText,
             style = MaterialTheme.typography.headlineMedium,
             fontWeight = FontWeight.Bold,
         )
