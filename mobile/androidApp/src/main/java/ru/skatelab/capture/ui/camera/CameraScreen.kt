@@ -39,6 +39,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.LocalLifecycleOwner
@@ -159,7 +160,8 @@ fun CameraScreen(
                         .align(Alignment.TopStart)
                         .padding(12.dp)
                         .background(Color.Black.copy(alpha = 0.6f), MaterialTheme.shapes.small)
-                        .padding(horizontal = 8.dp, vertical = 4.dp),
+                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                        .testTag("cameraBleIndicator"),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(4.dp),
             ) {
@@ -188,7 +190,8 @@ fun CameraScreen(
             modifier =
                 Modifier
                     .align(Alignment.TopEnd)
-                    .padding(12.dp),
+                    .padding(12.dp)
+                    .testTag("cameraImuButton"),
             containerColor = MaterialTheme.colorScheme.secondaryContainer,
         ) {
             Icon(Icons.Default.Memory, contentDescription = "IMU capture")
@@ -212,7 +215,7 @@ fun CameraScreen(
                             PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.VideoOnly),
                         )
                     },
-                    modifier = Modifier.padding(bottom = 16.dp),
+                    modifier = Modifier.padding(bottom = 16.dp).testTag("cameraGalleryButton"),
                     colors =
                         androidx.compose.material3.ButtonDefaults.outlinedButtonColors(
                             contentColor = Color.White,
@@ -289,7 +292,7 @@ private fun RecordButton(
 ) {
     FloatingActionButton(
         onClick = onToggle,
-        modifier = Modifier.size(72.dp),
+        modifier = Modifier.size(72.dp).testTag("cameraRecordButton"),
         containerColor =
             if (isRecording) {
                 MaterialTheme.colorScheme.error
@@ -346,7 +349,8 @@ private fun CameraPreviewLayer(
                         .align(Alignment.TopCenter)
                         .padding(12.dp)
                         .background(Color.Red, MaterialTheme.shapes.small)
-                        .padding(horizontal = 8.dp, vertical = 4.dp),
+                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                        .testTag("cameraRecIndicator"),
             ) {
                 val totalSec = elapsedMs / 1000
                 val min = (totalSec / 60).toInt()

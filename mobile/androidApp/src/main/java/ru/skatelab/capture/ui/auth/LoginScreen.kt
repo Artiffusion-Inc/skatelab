@@ -27,6 +27,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -153,7 +154,7 @@ fun LoginScreen(
             Button(
                 onClick = { onLogin(email.trim(), password) },
                 enabled = email.isNotBlank() && password.isNotBlank(),
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().testTag("loginButton"),
             ) {
                 Text(stringResource(R.string.auth_login_button))
             }

@@ -1,8 +1,0 @@
-appId: ru.skatelab
-tags:
-  - smokeTest
-  - sessions
----
-- launchApp
-- assertVisible: "Сессии"
-- assertVisible: ".*"   # At least one session item visible (regex matches any text)

@@ -1,0 +1,17 @@
+appId: ru.skatelab
+tags:
+  - auth
+---
+- launchApp
+- assertVisible: "Войдите в аккаунт"
+- tapOn: "Нет аккаунта? Зарегистрируйтесь"
+- assertVisible: "Создать аккаунт"
+- tapOn: "Имя"
+- inputText: ${MAESTRO_TEST_DISPLAY_NAME}
+- tapOn: "Email"
+- inputText: ${MAESTRO_TEST_EMAIL}
+- tapOn: "Пароль"
+- inputText: ${MAESTRO_TEST_PASSWORD}
+- tapOn: { id: "registerButton" }
+# After registration, user lands on MainTabs (Camera tab)
+- assertVisible: "Камера"

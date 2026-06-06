@@ -30,6 +30,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import ru.skatelab.shared.models.DiagnosticsFinding
@@ -44,6 +45,7 @@ fun DashboardScreen(
     viewModel: AndroidDashboardViewModel,
     onNavigateToSessions: (String?) -> Unit,
     onNavigateToSessionDetail: (String) -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     val uiState by viewModel.shared.uiState.collectAsState()
     var isRefreshing by remember { mutableStateOf(false) }
@@ -104,6 +106,7 @@ fun DashboardScreen(
                     data = data,
                     onNavigateToSessions = onNavigateToSessions,
                     onNavigateToSessionDetail = onNavigateToSessionDetail,
+                    modifier = modifier,
                 )
             }
         }
@@ -115,12 +118,14 @@ private fun DashboardContent(
     data: DashboardData,
     onNavigateToSessions: (String?) -> Unit,
     onNavigateToSessionDetail: (String) -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     Column(
         modifier =
-            Modifier
+            modifier
                 .fillMaxSize()
-                .padding(16.dp),
+                .padding(16.dp)
+                .testTag("dashboardContent"),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         // Greeting

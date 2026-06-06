@@ -2,37 +2,14 @@ appId: ru.skatelab
 tags:
   - recording
 ---
-# Recording start/stop flow
-# NOTE: Selectors are based on source code analysis. Adjust after first manual E2E run.
-# The record button is a FAB (no text) — use id or index-based tap.
-# Timer format: "REC MM:SS" (e.g., "REC 00:03").
-
 - launchApp
-
-# After login, app lands on Camera tab (start destination)
-- assertVisible: "Camera"
-
-# Wait for camera preview to be ready (black overlay disappears)
-- assertNotVisible: "Preparing camera…"
-
-# Tap the record button (white circle FAB, 72dp, bottom center)
-# Maestro taps the first FAB-like element; the IMU FAB is top-right so
-# the bottom record button should be the primary target.
-- tapOn:
-    point: "50%,90%"
-
-# Verify REC indicator with timer appears (format: REC MM:SS)
-- assertVisible: "REC \\d{2}:\\d{2}"
-
-# Wait a few seconds of recording
+- assertVisible: "Камера"
+- assertNotVisible: "Подготовка камеры…"
+- tapOn: { id: "cameraRecordButton" }
+- assertVisible: { id: "cameraRecIndicator" }
 - extendedWaitUntil:
     visible: "REC 00:0[3-9]"
     timeout: 10000
-
-# Tap the same button to stop (now red square icon)
-- tapOn:
-    point: "50%,90%"
-
-# After recording stops, the app navigates to session detail
-# or returns to camera preview. Verify REC indicator is gone.
+- tapOn: { id: "cameraRecordButton" }
 - assertNotVisible: "REC"
+- assertVisible: { id: "elementTypeSheet" }

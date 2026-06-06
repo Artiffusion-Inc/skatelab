@@ -2,4 +2,3 @@ flows:
   - flows/*
 excludeTags:
   - util
-testOutputDir: /opt/skatelab-e2e/reports/maestro-output

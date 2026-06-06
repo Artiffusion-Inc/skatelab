@@ -1,0 +1,10 @@
+appId: ru.skatelab
+tags:
+  - smokeTest
+  - sessions
+---
+- launchApp
+- tapOn: "Сессии"
+- assertVisible: { id: "sessionListContent" }
+- tapOn: { id: "sessionCard" }
+- assertVisible: "Результат"
