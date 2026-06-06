@@ -142,8 +142,13 @@ class BiomechanicsAnalyzer:
 
         # Compute metrics based on element type
         if self._element_def.rotations > 0:
-            # Jump metrics
-            results.extend(self._analyze_jump(poses_2d, phases, fps, com_trajectory=com_trajectory))
+            # Jump metrics — pass 3D poses for yaw cross-check when available
+            poses_3d = poses if is_3d else None
+            results.extend(
+                self._analyze_jump(
+                    poses_2d, phases, fps, com_trajectory=com_trajectory, poses_3d=poses_3d
+                )
+            )
         elif is_spin(self._element_def.name):
             # Spin metrics
             results.extend(self._analyze_spin(poses_2d, phases, fps))
@@ -169,8 +174,17 @@ class BiomechanicsAnalyzer:
         phases: ElementPhase,
         fps: float,
         com_trajectory: NDArray[np.float32] | None = None,
+        poses_3d: NDArray[np.float32] | None = None,
     ) -> list[MetricResult]:
-        """Analyze jump-specific metrics."""
+        """Analyze jump-specific metrics.
+
+        Args:
+            poses: 2D poses (num_frames, 17, 2).
+            phases: Element phase boundaries.
+            fps: Frame rate.
+            com_trajectory: Pre-computed CoM trajectory (optional).
+            poses_3d: Original 3D poses (num_frames, 17, 3) for yaw cross-check.
+        """
         results: list[MetricResult] = []
 
         # Airtime
@@ -351,10 +365,25 @@ class BiomechanicsAnalyzer:
             )
         )
 
-        # Total rotation & rotation count
+        # Total rotation & rotation count (with yaw cross-check)
         total_rotation_deg, rotation_count = self.compute_total_rotation_from_poses(
             poses, phases, fps
         )
+
+        # Cross-check with yaw delta method (requires 3D poses)
+        rotation_discrepancy = False
+        if poses_3d is not None and poses_3d.shape[-1] == 3:
+            flight_indices = np.arange(phases.takeoff, phases.landing)
+            yaw_total, yaw_count, clamped = self.compute_rotation_yaw_delta(
+                poses_3d, flight_indices, fps
+            )
+            discrepancy = abs(rotation_count - yaw_count)
+            rotation_discrepancy = discrepancy > 0.5
+            # Prefer yaw method if discrepancy detected and fewer clamped frames (more reliable guard)
+            if rotation_discrepancy and clamped.sum() < 3:
+                rotation_count = yaw_count
+                total_rotation_deg = abs(yaw_total)
+
         results.append(
             MetricResult(
                 name="total_rotation_deg",
@@ -368,6 +397,15 @@ class BiomechanicsAnalyzer:
             MetricResult(
                 name="rotation_count",
                 value=rotation_count,
+                unit="score",
+                is_good=False,
+                reference_range=(0, 0),
+            )
+        )
+        results.append(
+            MetricResult(
+                name="rotation_discrepancy",
+                value=rotation_discrepancy,
                 unit="score",
                 is_good=False,
                 reference_range=(0, 0),

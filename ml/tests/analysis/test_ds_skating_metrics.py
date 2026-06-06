@@ -269,6 +269,80 @@ class TestInaBauerScore:
         assert abs(0.5 + 0.3 + 0.2 - 1.0) < 1e-10
 
 
+class TestRotationCrossCheck:
+    """Tests for rotation discrepancy detection in _analyze_jump."""
+
+    def test_discrepancy_flag_on_disagreement(self):
+        """When methods disagree by >0.5 rotation, rotation_discrepancy is True."""
+        from unittest.mock import patch
+
+        from src.analysis.metrics import BiomechanicsAnalyzer
+        from src.types import ElementPhase
+
+        element_def = ElementDef(
+            name="lutz",
+            name_ru="Лутц",
+            rotations=3,
+            has_toe_pick=True,
+            key_joints=[],
+            ideal_metrics={},
+        )
+        analyzer = BiomechanicsAnalyzer(element_def)
+
+        poses_2d = SyntheticPoseFactory.make_standing_pose(n_frames=30)
+        poses_3d = np.concatenate([poses_2d, np.zeros((30, 17, 1), dtype=np.float32)], axis=-1)
+        phases = ElementPhase(name="lutz", start=0, takeoff=5, peak=15, landing=25, end=29)
+
+        with patch.object(
+            analyzer, "compute_total_rotation_from_poses", return_value=(1080.0, 3.0)
+        ):
+            with patch.object(
+                analyzer,
+                "compute_rotation_yaw_delta",
+                return_value=(720.0, 2.0, np.array([], dtype=bool)),
+            ):
+                results = analyzer._analyze_jump(poses_2d, phases, fps=30.0, poses_3d=poses_3d)
+
+        discrepancy_metrics = [r for r in results if r.name == "rotation_discrepancy"]
+        assert len(discrepancy_metrics) == 1
+        assert discrepancy_metrics[0].value is True
+
+    def test_no_discrepancy_when_methods_agree(self):
+        """When methods agree, rotation_discrepancy is False."""
+        from unittest.mock import patch
+
+        from src.analysis.metrics import BiomechanicsAnalyzer
+        from src.types import ElementPhase
+
+        element_def = ElementDef(
+            name="lutz",
+            name_ru="Лутц",
+            rotations=3,
+            has_toe_pick=True,
+            key_joints=[],
+            ideal_metrics={},
+        )
+        analyzer = BiomechanicsAnalyzer(element_def)
+
+        poses_2d = SyntheticPoseFactory.make_standing_pose(n_frames=30)
+        poses_3d = np.concatenate([poses_2d, np.zeros((30, 17, 1), dtype=np.float32)], axis=-1)
+        phases = ElementPhase(name="lutz", start=0, takeoff=5, peak=15, landing=25, end=29)
+
+        with patch.object(
+            analyzer, "compute_total_rotation_from_poses", return_value=(1080.0, 3.0)
+        ):
+            with patch.object(
+                analyzer,
+                "compute_rotation_yaw_delta",
+                return_value=(1050.0, 2.9, np.array([], dtype=bool)),
+            ):
+                results = analyzer._analyze_jump(poses_2d, phases, fps=30.0, poses_3d=poses_3d)
+
+        discrepancy_metrics = [r for r in results if r.name == "rotation_discrepancy"]
+        assert len(discrepancy_metrics) == 1
+        assert discrepancy_metrics[0].value is False
+
+
 class TestSpiralIndicator:
     """Tests for compute_spiral_indicator."""
 
