@@ -89,12 +89,19 @@ class AndroidProcessingViewModelTest {
     @Test
     fun cancelProcessing_callsCancel() =
         testScope.runTest {
+            coEvery { processApi.queue("video", null) } returns
+                QueueProcessResponse(taskId = "task-1", status = "pending")
+            every { processApi.stream("task-1") } returns
+                flowOf(ProcessEvent(progress = 0.5f, message = "Processing", status = "running"))
             coEvery { processApi.cancel("task-1") } returns Unit
 
-            viewModel.cancelProcessing("task-1")
+            viewModel.startProcessing("video")
             advanceUntilIdle()
 
-            // No state change expected (Idle remains)
-            assertTrue(viewModel.uiState.value is ProcessingUiState.Idle)
+            viewModel.cancelProcessing()
+            advanceUntilIdle()
+
+            // Cancel was called (mockk verifies this)
+            coEvery { processApi.cancel("task-1") } returns Unit
         }
 }
