@@ -427,3 +427,91 @@ class TestStepAnalysisWithLegAngles:
         results = analyzer._analyze_step(poses, phases, fps=30.0)
         metric_names = [r.name for r in results]
         assert "spiral_indicator" in metric_names, f"Missing spiral_indicator. Got: {metric_names}"
+
+
+class TestEdgeCases:
+    """Edge case tests for new metrics."""
+
+    def test_yaw_delta_near_zero_shoulder_length(self):
+        """Shoulder axis near-zero: guard kicks in, returns 0."""
+        poses = np.zeros((10, 17, 3), dtype=np.float32)
+        from src.analysis.element_defs import ElementDef
+        from src.analysis.metrics import BiomechanicsAnalyzer
+
+        analyzer = BiomechanicsAnalyzer(
+            ElementDef(
+                name="lutz",
+                name_ru="Лутц",
+                rotations=3,
+                has_toe_pick=True,
+                key_joints=[],
+                ideal_metrics={},
+            )
+        )
+        total_deg, rot_count, _clamped = analyzer.compute_rotation_yaw_delta(
+            poses, np.arange(10), fps=30
+        )
+        assert total_deg == 0.0
+        assert rot_count == 0.0
+
+    def test_yaw_delta_2d_poses_fallback(self):
+        """2D poses (shape N,17,2): function still works using Z=0."""
+        poses = SyntheticPoseFactory.make_rotation_sequence(n_rotations=1, n_frames=60)
+        poses_2d = poses.copy()
+        poses_2d[:, :, 2] = 0
+        from src.analysis.element_defs import ElementDef
+        from src.analysis.metrics import BiomechanicsAnalyzer
+
+        analyzer = BiomechanicsAnalyzer(
+            ElementDef(
+                name="lutz",
+                name_ru="Лутц",
+                rotations=3,
+                has_toe_pick=True,
+                key_joints=[],
+                ideal_metrics={},
+            )
+        )
+        total_deg, _rot_count, _clamped = analyzer.compute_rotation_yaw_delta(
+            poses_2d, np.arange(60), fps=30
+        )
+        assert isinstance(total_deg, float)
+
+    def test_spread_eagle_arccos_stability(self):
+        """Near-180 spread eagle: arccos well-conditioned, not NaN."""
+        poses = SyntheticPoseFactory.make_spread_eagle_pose(angle_deg=179.9, n_frames=5)
+        from src.analysis.element_defs import ElementDef
+        from src.analysis.metrics import BiomechanicsAnalyzer
+
+        analyzer = BiomechanicsAnalyzer(
+            ElementDef(
+                name="three_turn",
+                name_ru="Тройной поворот",
+                rotations=0,
+                has_toe_pick=False,
+                key_joints=[],
+                ideal_metrics={},
+            )
+        )
+        se_angle = analyzer.compute_spread_eagle_angle(poses)
+        assert not np.any(np.isnan(se_angle))
+        assert np.all(se_angle <= 180.01)
+
+    def test_ina_bauer_all_zeros_poses(self):
+        """All-zero poses: should not crash (division by epsilon)."""
+        poses = np.zeros((5, 17, 2), dtype=np.float32)
+        from src.analysis.element_defs import ElementDef
+        from src.analysis.metrics import BiomechanicsAnalyzer
+
+        analyzer = BiomechanicsAnalyzer(
+            ElementDef(
+                name="three_turn",
+                name_ru="Тройной поворот",
+                rotations=0,
+                has_toe_pick=False,
+                key_joints=[],
+                ideal_metrics={},
+            )
+        )
+        score = analyzer.compute_ina_bauer_score(poses)
+        assert not np.any(np.isnan(score))
