@@ -154,7 +154,7 @@ private fun DashboardContent(
                 items(prByType.entries.toList(), key = { it.key }) { (elementType, pr) ->
                     pr?.let { record ->
                         PrCard(
-                            elementType = elementType,
+                            elementType = elementType!!,
                             score = record.value,
                             onClick = { onNavigateToSessions(elementType) },
                         )
