@@ -16,6 +16,7 @@ sealed interface SessionsUiState {
         val total: Int,
         val nextCursor: String? = null,
         val hasMore: Boolean = false,
+        val isLoadingMore: Boolean = false,
     ) : SessionsUiState
     data class Error(val error: AppError) : SessionsUiState
 }
@@ -47,7 +48,8 @@ class SessionsViewModel(private val sessionsApi: SessionsApi) {
 
     suspend fun loadMore(limit: Int = 20) {
         val current = _uiState.value as? SessionsUiState.Loaded ?: return
-        if (!current.hasMore) return
+        if (!current.hasMore || current.isLoadingMore) return
+        _uiState.value = current.copy(isLoadingMore = true)
         try {
             val response = sessionsApi.list(
                 limit = limit,
@@ -58,9 +60,10 @@ class SessionsViewModel(private val sessionsApi: SessionsApi) {
                 sessions = current.sessions + response.sessions,
                 nextCursor = response.nextCursor,
                 hasMore = response.hasMore,
+                isLoadingMore = false,
             )
         } catch (_: Exception) {
-            // Keep existing data on load-more failure
+            _uiState.value = current.copy(isLoadingMore = false)
         }
     }
 

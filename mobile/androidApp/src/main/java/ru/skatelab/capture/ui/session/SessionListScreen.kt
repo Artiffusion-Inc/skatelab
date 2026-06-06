@@ -224,6 +224,16 @@ fun SessionListScreen(
                                         onClick = { onSessionClick(session.id) },
                                     )
                                 }
+                                if (loaded.isLoadingMore) {
+                                    item {
+                                        Box(
+                                            modifier = Modifier.fillMaxWidth().padding(16.dp),
+                                            contentAlignment = Alignment.Center,
+                                        ) {
+                                            CircularProgressIndicator(modifier = Modifier.size(32.dp))
+                                        }
+                                    }
+                                }
                             }
                         }
                     }
