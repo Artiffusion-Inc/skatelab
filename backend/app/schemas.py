@@ -669,3 +669,21 @@ class ElementDefResponse(BaseModel):
 class ElementRegistryResponse(BaseModel):
     elements: list[ElementDefResponse]
     season: str
+
+
+# ---------------------------------------------------------------------------
+# GOE Scoring
+# ---------------------------------------------------------------------------
+
+
+class GOEResponse(BaseModel):
+    """ISU GOE grade response for an element."""
+
+    grade: int
+    base_value: float
+    estimated_score: float
+    modifier: str
+    positives: list[str]
+    negatives: list[str]
+    confidence: float
+    deductions: list[dict]
