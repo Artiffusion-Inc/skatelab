@@ -27,6 +27,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -165,7 +166,7 @@ fun RegisterScreen(
             Button(
                 onClick = { onRegister(email.trim(), password, displayName.trim()) },
                 enabled = email.isNotBlank() && password.isNotBlank() && displayName.isNotBlank(),
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().testTag("registerButton"),
             ) {
                 Text(stringResource(R.string.auth_register_button))
             }
