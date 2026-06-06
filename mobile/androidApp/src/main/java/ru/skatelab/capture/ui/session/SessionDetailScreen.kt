@@ -37,6 +37,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import kotlinx.coroutines.isActive
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -170,7 +171,7 @@ private fun SessionDetailContent(
     var videoWidth by remember { mutableStateOf(1920) }
     var videoHeight by remember { mutableStateOf(1080) }
     LaunchedEffect(exoPlayer) {
-        while (kotlinx.coroutines.isActive) {
+        while (isActive) {
             if (exoPlayer.isPlaying || exoPlayer.currentPosition > 0) {
                 currentFrameMs = exoPlayer.currentPosition
             }
@@ -179,7 +180,7 @@ private fun SessionDetailContent(
                 videoWidth = format.width
                 videoHeight = format.height
             }
-            kotlinx.coroutines.delay(50L)
+            kotlinx.coroutines.delay(50)
         }
     }
 
