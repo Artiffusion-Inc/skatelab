@@ -1,0 +1,93 @@
+name: Mobile E2E
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - 'mobile/androidApp/**'
+      - 'mobile/shared/**'
+      - 'mobile/e2e/**'
+      - '.github/workflows/mobile-e2e.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  checks: write
+
+concurrency:
+  group: mobile-e2e-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  e2e:
+    name: Maestro E2E tests
+    runs-on: macos-13
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: mobile
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Download APK from latest build
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh run download --name apk-debug --repo ${{ github.repository }} \
+            $(gh run list --repo ${{ github.repository }} \
+              --workflow=mobile-ci.yml --status=success --limit=1 --json databaseId -q '.[0].databaseId') \
+            -D androidApp/build/outputs/apk/debug || {
+              echo "::error::No successful mobile-build run found. Push a commit to trigger a build first."
+              exit 1
+            }
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Install Maestro CLI
+        run: curl -Ls "https://get.maestro.mobile.dev" | bash
+
+      - name: Boot Android emulator
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          target: google_apis
+          arch: x86_64
+          force-avd-creation: false
+          emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim
+          disable-animations: true
+          working-directory: mobile
+
+      - name: Install APK
+        run: |
+          APK_PATH=$(find androidApp/build/outputs/apk/debug -name '*.apk' | head -1)
+          adb install "$APK_PATH"
+
+      - name: Run Maestro tests
+        env:
+          MAESTRO_TEST_EMAIL: ${{ secrets.MAESTRO_TEST_EMAIL }}
+          MAESTRO_TEST_PASSWORD: ${{ secrets.MAESTRO_TEST_PASSWORD }}
+          MAESTRO_TEST_DISPLAY_NAME: ${{ secrets.MAESTRO_TEST_DISPLAY_NAME }}
+        run: |
+          export PATH="$HOME/.maestro/bin:$PATH"
+          maestro test \
+            --format junit \
+            --output build/reports/maestro/report.xml \
+            e2e/maestro/
+
+      - name: Upload JUnit report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: maestro-report
+          path: mobile/build/reports/maestro/
+
+      - name: Publish test results
+        if: always()
+        uses: mikepenz/action-junit-report@v4
+        with:
+          report_paths: mobile/build/reports/maestro/report.xml
+          require_tests: false
