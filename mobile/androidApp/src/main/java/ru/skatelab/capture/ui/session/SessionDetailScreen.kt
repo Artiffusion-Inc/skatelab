@@ -165,12 +165,19 @@ private fun SessionDetailContent(
         onDispose { exoPlayer.release() }
     }
 
-    // Track playback position for skeleton overlay
+    // Track playback position and video dimensions for skeleton overlay
     var currentFrameMs by remember { mutableStateOf(0L) }
+    var videoWidth by remember { mutableStateOf(1920) }
+    var videoHeight by remember { mutableStateOf(1080) }
     LaunchedEffect(exoPlayer) {
-        while (true) {
+        while (kotlinx.coroutines.isActive) {
             if (exoPlayer.isPlaying || exoPlayer.currentPosition > 0) {
                 currentFrameMs = exoPlayer.currentPosition
+            }
+            val format = exoPlayer.videoFormat
+            if (format != null) {
+                videoWidth = format.width
+                videoHeight = format.height
             }
             kotlinx.coroutines.delay(50L)
         }
@@ -204,8 +211,8 @@ private fun SessionDetailContent(
                         poseData = poseData,
                         currentFrameMs = currentFrameMs,
                         phases = session.phases,
-                        videoWidth = 1920,
-                        videoHeight = 1080,
+                        videoWidth = videoWidth,
+                        videoHeight = videoHeight,
                         showOverlay = showSkeleton,
                         modifier = Modifier.matchParentSize(),
                     )
