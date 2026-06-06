@@ -119,12 +119,16 @@ class ProcessingViewModelTest {
         )
         val viewModel = ProcessingViewModel(fakeApi)
 
-        viewModel.startProcessing("video-key")
-        advanceUntilIdle()
-        // taskId is now stored in viewModel
-        viewModel.cancelProcessing()
-        advanceUntilIdle()
-        // No exception = success
+        viewModel.uiState.test {
+            viewModel.startProcessing("video-key")
+            // Queuing...
+            assertIs<ProcessingUiState.Progress>(awaitItem())
+            // Running...
+            assertIs<ProcessingUiState.Progress>(awaitItem())
+            // Now taskId is stored, cancel
+            viewModel.cancelProcessing()
+            // Cancel succeeded, no exception thrown
+        }
     }
 
     @Test
@@ -137,10 +141,13 @@ class ProcessingViewModelTest {
         )
         val viewModel = ProcessingViewModel(fakeApi)
 
-        viewModel.startProcessing("video-key")
-        advanceUntilIdle()
-
         viewModel.uiState.test {
+            viewModel.startProcessing("video-key")
+            // Queuing...
+            assertIs<ProcessingUiState.Progress>(awaitItem())
+            // Running...
+            assertIs<ProcessingUiState.Progress>(awaitItem())
+            // Now cancel, which should fail
             viewModel.cancelProcessing()
             val failed = awaitItem()
             assertIs<ProcessingUiState.Failed>(failed)
