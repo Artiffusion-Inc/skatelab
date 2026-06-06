@@ -23,6 +23,8 @@ class SkateLabClient(
     engine: HttpClientEngine,
     private val tokenStorage: TokenStorage,
 ) {
+    var onAuthFailure: (() -> Unit)? = null
+
     val json = Json { ignoreUnknownKeys = true; isLenient = true }
 
     val httpClient = HttpClient(engine) {
@@ -52,6 +54,7 @@ class SkateLabClient(
                         BearerTokens(response.accessToken, response.refreshToken)
                     } else {
                         tokenStorage.clearTokens()
+                        onAuthFailure?.invoke()
                         null
                     }
                 }

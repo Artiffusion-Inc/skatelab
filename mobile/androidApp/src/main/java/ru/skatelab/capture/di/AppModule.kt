@@ -125,6 +125,11 @@ abstract class AppModule {
         fun provideSharedAuthViewModel(
             authRepo: AuthRepository,
             usersApi: UsersApi,
-        ): ru.skatelab.shared.state.AuthViewModel = ru.skatelab.shared.state.AuthViewModel(authRepo, usersApi)
+            client: SkateLabClient,
+        ): ru.skatelab.shared.state.AuthViewModel {
+            val vm = ru.skatelab.shared.state.AuthViewModel(authRepo, usersApi)
+            client.onAuthFailure = { vm.onAuthFailure() }
+            return vm
+        }
     }
 }
