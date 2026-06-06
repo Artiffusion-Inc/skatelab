@@ -258,7 +258,7 @@ fun CameraScreen(
                     viewModel.confirmElementType(pendingUploadId!!, recordingElementType)
                 },
                 onDismiss = {
-                    viewModel.confirmElementType(pendingUploadId!!, recordingElementType)
+                    viewModel.cancelElementTypeSelection()
                 },
             )
         }

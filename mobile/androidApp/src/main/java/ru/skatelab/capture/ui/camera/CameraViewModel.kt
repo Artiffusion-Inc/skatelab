@@ -246,6 +246,11 @@ class CameraViewModel
             _navigateToProcessing.value = null
         }
 
+        fun cancelElementTypeSelection() {
+            _pendingElementType.value = null
+            _pendingUploadId.value = null
+        }
+
         fun createGalleryUpload(
             videoPath: String,
             elementType: String?,
