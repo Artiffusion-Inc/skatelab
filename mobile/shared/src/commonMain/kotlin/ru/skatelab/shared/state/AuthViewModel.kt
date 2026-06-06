@@ -26,7 +26,10 @@ class AuthViewModel(
         if (authRepo.isLoggedIn()) {
             runCatching { usersApi.getMe() }
                 .onSuccess { user -> _uiState.value = AuthUiState.LoggedIn(user.id, user.displayName) }
-                .onFailure { _uiState.value = AuthUiState.LoggedIn("cached", null) }
+                .onFailure {
+                    authRepo.logout()
+                    _uiState.value = AuthUiState.LoggedOut
+                }
         } else {
             _uiState.value = AuthUiState.LoggedOut
         }

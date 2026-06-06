@@ -2,6 +2,7 @@ package ru.skatelab.capture.ui.upload
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import androidx.work.ExistingWorkPolicy
 import androidx.work.WorkManager
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -32,7 +33,7 @@ class UploadQueueViewModel
         fun retry(uploadId: String) {
             viewModelScope.launch {
                 pendingUploadDao.resetForRetry(uploadId)
-                UploadScheduler.enqueue(appContext, uploadId)
+                UploadScheduler.enqueue(appContext, uploadId, ExistingWorkPolicy.REPLACE)
             }
         }
 

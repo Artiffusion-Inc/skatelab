@@ -17,6 +17,7 @@ object UploadScheduler {
     fun enqueue(
         context: Context,
         uploadId: String,
+        policy: ExistingWorkPolicy = ExistingWorkPolicy.KEEP,
     ) {
         val constraints =
             Constraints.Builder()
@@ -34,7 +35,7 @@ object UploadScheduler {
         WorkManager.getInstance(context)
             .enqueueUniqueWork(
                 "upload-$uploadId",
-                ExistingWorkPolicy.KEEP,
+                policy,
                 workRequest,
             )
     }
