@@ -5,7 +5,7 @@ import pytest
 
 from ml.tests.conftest import SyntheticPoseFactory
 from src.analysis.element_defs import ElementDef
-from src.types import H36Key
+from src.types import ElementPhase, H36Key
 
 
 class TestSyntheticPoseFactory:
@@ -365,3 +365,65 @@ class TestSpiralIndicator:
         indicator = analyzer.compute_spiral_indicator(poses)
         assert indicator.shape == (10,)
         assert np.mean(indicator) < 0.05
+
+
+class TestStepAnalysisWithLegAngles:
+    """Verify _analyze_step includes spread eagle and Ina Bauer metrics."""
+
+    def test_step_analysis_includes_spread_eagle(self):
+        from src.analysis.metrics import BiomechanicsAnalyzer
+
+        poses = SyntheticPoseFactory.make_spread_eagle_pose(angle_deg=160, n_frames=30)
+        phases = ElementPhase(name="three_turn", start=0, takeoff=5, peak=15, landing=25, end=29)
+        element_def = ElementDef(
+            name="three_turn",
+            name_ru="Тройной поворот",
+            rotations=0,
+            has_toe_pick=False,
+            key_joints=[],
+            ideal_metrics={},
+        )
+        analyzer = BiomechanicsAnalyzer(element_def)
+        results = analyzer._analyze_step(poses, phases, fps=30.0)
+        metric_names = [r.name for r in results]
+        assert "spread_eagle_angle" in metric_names, (
+            f"Missing spread_eagle_angle. Got: {metric_names}"
+        )
+
+    def test_step_analysis_includes_ina_bauer(self):
+        from src.analysis.metrics import BiomechanicsAnalyzer
+
+        poses = SyntheticPoseFactory.make_ina_bauer_pose(
+            leg_spread_deg=160, lean_deg=30, knee_diff_deg=30, n_frames=30
+        )
+        phases = ElementPhase(name="three_turn", start=0, takeoff=5, peak=15, landing=25, end=29)
+        element_def = ElementDef(
+            name="three_turn",
+            name_ru="Тройной поворот",
+            rotations=0,
+            has_toe_pick=False,
+            key_joints=[],
+            ideal_metrics={},
+        )
+        analyzer = BiomechanicsAnalyzer(element_def)
+        results = analyzer._analyze_step(poses, phases, fps=30.0)
+        metric_names = [r.name for r in results]
+        assert "ina_bauer_score" in metric_names, f"Missing ina_bauer_score. Got: {metric_names}"
+
+    def test_step_analysis_includes_spiral_indicator(self):
+        from src.analysis.metrics import BiomechanicsAnalyzer
+
+        poses = SyntheticPoseFactory.make_standing_pose(n_frames=30)
+        phases = ElementPhase(name="three_turn", start=0, takeoff=5, peak=15, landing=25, end=29)
+        element_def = ElementDef(
+            name="three_turn",
+            name_ru="Тройной поворот",
+            rotations=0,
+            has_toe_pick=False,
+            key_joints=[],
+            ideal_metrics={},
+        )
+        analyzer = BiomechanicsAnalyzer(element_def)
+        results = analyzer._analyze_step(poses, phases, fps=30.0)
+        metric_names = [r.name for r in results]
+        assert "spiral_indicator" in metric_names, f"Missing spiral_indicator. Got: {metric_names}"

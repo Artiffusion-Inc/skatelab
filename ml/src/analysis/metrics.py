@@ -501,6 +501,45 @@ class BiomechanicsAnalyzer:
             )
         )
 
+        # Spread eagle angle
+        se_angle = self.compute_spread_eagle_angle(poses)
+        peak_se = float(np.max(se_angle))
+        results.append(
+            MetricResult(
+                name="spread_eagle_angle",
+                value=peak_se,
+                unit="deg",
+                is_good=peak_se >= 150,
+                reference_range=(150, 180),
+            )
+        )
+
+        # Ina Bauer score (only meaningful when spread eagle angle >= 150)
+        ib_score = self.compute_ina_bauer_score(poses, se_angle=se_angle)
+        peak_ib = float(np.max(ib_score))
+        results.append(
+            MetricResult(
+                name="ina_bauer_score",
+                value=peak_ib,
+                unit="score",
+                is_good=peak_ib >= 0.7,
+                reference_range=(0.7, 1.0),
+            )
+        )
+
+        # Spiral indicator (foot Y difference - large = one-foot element)
+        spiral_ind = self.compute_spiral_indicator(poses)
+        max_spiral = float(np.max(spiral_ind))
+        results.append(
+            MetricResult(
+                name="spiral_indicator",
+                value=max_spiral,
+                unit="norm",
+                is_good=False,
+                reference_range=(0, 0),
+            )
+        )
+
         return results
 
     def _analyze_spin(
