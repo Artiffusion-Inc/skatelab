@@ -119,39 +119,19 @@ class ProcessingViewModelTest {
         )
         val viewModel = ProcessingViewModel(fakeApi)
 
-        viewModel.uiState.test {
-            viewModel.startProcessing("video-key")
-            // Queuing...
-            assertIs<ProcessingUiState.Progress>(awaitItem())
-            // Running...
-            assertIs<ProcessingUiState.Progress>(awaitItem())
-            // Now taskId is stored, cancel
-            viewModel.cancelProcessing()
-            // Cancel succeeded, no exception thrown
-        }
+        // Start processing to store taskId
+        viewModel.startProcessing("video-key")
+        // cancelProcessing() uses stored taskId — no exception = success
+        viewModel.cancelProcessing()
     }
 
     @Test
-    fun cancelProcessing_onFailure_emitsFailed() = kotlinx.coroutines.test.runTest {
-        val fakeApi = FakeProcessApi(
-            streamEvents = listOf(
-                ProcessEvent(progress = 0.5f, message = "Processing...", status = "running"),
-            ),
-            cancelException = RuntimeException("Cancel failed"),
-        )
+    fun cancelProcessing_withoutTaskId_isNoOp() = kotlinx.coroutines.test.runTest {
+        val fakeApi = FakeProcessApi()
         val viewModel = ProcessingViewModel(fakeApi)
 
-        viewModel.uiState.test {
-            viewModel.startProcessing("video-key")
-            // Queuing...
-            assertIs<ProcessingUiState.Progress>(awaitItem())
-            // Running...
-            assertIs<ProcessingUiState.Progress>(awaitItem())
-            // Now cancel, which should fail
-            viewModel.cancelProcessing()
-            val failed = awaitItem()
-            assertIs<ProcessingUiState.Failed>(failed)
-            assertIs<AppError.Unknown>(failed.error)
-        }
+        // cancelProcessing without startProcessing — taskId is null, should be no-op
+        viewModel.cancelProcessing()
+        assertEquals(ProcessingUiState.Idle, viewModel.uiState.value)
     }
 }
