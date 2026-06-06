@@ -22,6 +22,17 @@ class AuthViewModel(
     private val _uiState = MutableStateFlow<AuthUiState>(AuthUiState.Loading)
     val uiState: StateFlow<AuthUiState> = _uiState.asStateFlow()
 
+    /**
+     * Call when Bearer token refresh fails — clears tokens and forces LoggedOut.
+     * Safe to call from any thread; no-op if already logged out.
+     */
+    suspend fun onAuthFailure() {
+        if (_uiState.value is AuthUiState.LoggedIn) {
+            authRepo.logout()
+            _uiState.value = AuthUiState.LoggedOut
+        }
+    }
+
     suspend fun checkLogin() {
         if (authRepo.isLoggedIn()) {
             runCatching { usersApi.getMe() }

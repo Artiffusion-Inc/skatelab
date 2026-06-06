@@ -14,6 +14,8 @@ import javax.inject.Qualifier
 import javax.inject.Singleton
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.launch
 import ru.skatelab.capture.AppLogger
 import ru.skatelab.capture.BuildConfig
 import ru.skatelab.capture.data.ble.KableBleRepository
@@ -125,6 +127,15 @@ abstract class AppModule {
         fun provideSharedAuthViewModel(
             authRepo: AuthRepository,
             usersApi: UsersApi,
-        ): ru.skatelab.shared.state.AuthViewModel = ru.skatelab.shared.state.AuthViewModel(authRepo, usersApi)
+            client: SkateLabClient,
+        ): ru.skatelab.shared.state.AuthViewModel {
+            val vm = ru.skatelab.shared.state.AuthViewModel(authRepo, usersApi)
+            client.onAuthFailure = {
+                kotlinx.coroutines.GlobalScope.launch {
+                    vm.onAuthFailure()
+                }
+            }
+            return vm
+        }
     }
 }
