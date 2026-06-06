@@ -1204,6 +1204,26 @@ class BiomechanicsAnalyzer:
 
         return total_deg, rotation_count, clamped
 
+    @staticmethod
+    def compute_spread_eagle_angle(poses: np.ndarray) -> np.ndarray:
+        """Bilateral angle between left and right leg vectors (hip→knee).
+
+        Args:
+            poses: Poses array (N, 17, 2) or (N, 17, 3).
+
+        Returns:
+            Per-frame angle series in degrees [0, 180].
+            Near 0° = legs parallel (normal skating), near 180° = spread eagle.
+        """
+        l_leg = poses[:, H36Key.LKNEE] - poses[:, H36Key.LHIP]  # 5 - 4
+        r_leg = poses[:, H36Key.RKNEE] - poses[:, H36Key.RHIP]  # 2 - 1
+
+        dot_prod = np.sum(l_leg * r_leg, axis=-1)
+        norms = np.linalg.norm(l_leg, axis=-1) * np.linalg.norm(r_leg, axis=-1) + 1e-8
+        cos_angle = np.clip(dot_prod / norms, -1.0, 1.0)
+
+        return np.degrees(np.arccos(cos_angle))
+
     def compute_rotation_speed(
         self,
         poses: NormalizedPose,

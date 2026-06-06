@@ -145,3 +145,54 @@ class TestRotationYawDelta:
         )
         assert total_deg == 0.0
         assert rot_count == 0.0
+
+
+class TestSpreadEagleAngle:
+    """Tests for compute_spread_eagle_angle."""
+
+    STEP_DEF = ElementDef(
+        name="three_turn",
+        name_ru="тройка",
+        rotations=0,
+        has_toe_pick=False,
+        key_joints=[],
+        ideal_metrics={},
+    )
+
+    def test_standing_pose_small_angle(self):
+        """Standing pose: legs nearly parallel, angle < 15°."""
+        from src.analysis.metrics import BiomechanicsAnalyzer
+
+        poses = SyntheticPoseFactory.make_standing_pose(n_frames=10)
+        analyzer = BiomechanicsAnalyzer(self.STEP_DEF)
+        se_angle = analyzer.compute_spread_eagle_angle(poses)
+        assert se_angle.shape == (10,)
+        assert np.mean(se_angle) < 15
+
+    def test_spread_eagle_160(self):
+        """160° spread eagle pose: mean angle ≈ 160°."""
+        from src.analysis.metrics import BiomechanicsAnalyzer
+
+        poses = SyntheticPoseFactory.make_spread_eagle_pose(angle_deg=160, n_frames=10)
+        analyzer = BiomechanicsAnalyzer(self.STEP_DEF)
+        se_angle = analyzer.compute_spread_eagle_angle(poses)
+        assert abs(np.mean(se_angle) - 160) < 5, f"Expected ~160°, got {np.mean(se_angle)}"
+
+    def test_output_range(self):
+        """All values in [0, 180]."""
+        from src.analysis.metrics import BiomechanicsAnalyzer
+
+        poses = SyntheticPoseFactory.make_spread_eagle_pose(angle_deg=170, n_frames=20)
+        analyzer = BiomechanicsAnalyzer(self.STEP_DEF)
+        se_angle = analyzer.compute_spread_eagle_angle(poses)
+        assert np.all(se_angle >= 0)
+        assert np.all(se_angle <= 180)
+
+    def test_single_frame(self):
+        """Single frame pose: returns single value."""
+        from src.analysis.metrics import BiomechanicsAnalyzer
+
+        poses = SyntheticPoseFactory.make_spread_eagle_pose(angle_deg=150, n_frames=1)
+        analyzer = BiomechanicsAnalyzer(self.STEP_DEF)
+        se_angle = analyzer.compute_spread_eagle_angle(poses)
+        assert se_angle.shape == (1,)
