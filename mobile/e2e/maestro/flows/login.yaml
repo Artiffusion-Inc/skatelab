@@ -4,8 +4,11 @@ tags:
   - auth
 ---
 - launchApp
-- assertVisible: "Войти"
-- tapOn: "Войти"
+- assertVisible: "Войдите в аккаунт"
+- tapOn: "Email"
 - inputText: ${MAESTRO_TEST_EMAIL}
-- tapOn: "Продолжить"
-- assertVisible: "Сессии"
+- tapOn: "Пароль"
+- inputText: ${MAESTRO_TEST_PASSWORD}
+- tapOn: { id: "loginButton" }
+# After login, user lands on MainTabs (Camera tab by default)
+- assertVisible: "Камера"
