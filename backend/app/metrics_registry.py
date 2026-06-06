@@ -220,6 +220,43 @@ METRIC_REGISTRY: dict[str, MetricDef] = {
         element_types=ALL_ELEMENTS,
         ideal_range=(0.6, 1.0),
     ),
+    # DS_Skating technique metrics
+    "rotation_discrepancy": MetricDef(
+        name="rotation_discrepancy",
+        label_ru="Расхождение подсчёта вращений",
+        unit="score",
+        format=".0f",
+        direction="lower",
+        element_types=(*JUMP_ELEMENTS, *SPIN_ELEMENTS),
+        ideal_range=(0, 0),
+    ),
+    "spread_eagle_angle": MetricDef(
+        name="spread_eagle_angle",
+        label_ru="Угол развода ног (spread eagle)",
+        unit="deg",
+        format=".0f",
+        direction="higher",
+        element_types=("three_turn",),
+        ideal_range=(150, 180),
+    ),
+    "ina_bauer_score": MetricDef(
+        name="ina_bauer_score",
+        label_ru="Оценка Ina Bauer",
+        unit="score",
+        format=".2f",
+        direction="higher",
+        element_types=("three_turn",),
+        ideal_range=(0.7, 1.0),
+    ),
+    "spiral_indicator": MetricDef(
+        name="spiral_indicator",
+        label_ru="Индикатор спирали",
+        unit="norm",
+        format=".3f",
+        direction="lower",
+        element_types=("three_turn",),
+        ideal_range=(0, 0.05),
+    ),
 }
 
 
