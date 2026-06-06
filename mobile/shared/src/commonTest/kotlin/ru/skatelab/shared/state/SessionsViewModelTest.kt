@@ -173,11 +173,17 @@ class SessionsViewModelTest {
             assertEquals(1, first.sessions.size)
 
             viewModel.loadMore()
+            // isLoadingMore = true
+            val loading = awaitItem()
+            assertIs<SessionsUiState.Loaded>(loading)
+            assertEquals(true, loading.isLoadingMore)
+            // loadMore result
             val second = awaitItem()
             assertIs<SessionsUiState.Loaded>(second)
             assertEquals(2, second.sessions.size)
             assertEquals("sess-2", second.sessions[1].id)
             assertEquals(false, second.hasMore)
+            assertEquals(false, second.isLoadingMore)
         }
     }
 }
