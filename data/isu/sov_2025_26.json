@@ -61,5 +61,72 @@
   },
   "choreo_sequences": {
     "ChSq1": { "base_value": 3.00, "name": "Choreographic Sequence" }
+  },
+  "pair_throws": {
+    "3STh":  { "base_value": 4.40, "name": "Throw Triple Salchow" },
+    "3LzTh": { "base_value": 5.30, "name": "Throw Triple Lutz" },
+    "3FTh":  { "base_value": 5.00, "name": "Throw Triple Flip" },
+    "3LoTh": { "base_value": 4.90, "name": "Throw Triple Loop" },
+    "4STh":  { "base_value": 7.70, "name": "Throw Quad Salchow" },
+    "4LzTh": { "base_value": 8.50, "name": "Throw Quad Lutz" },
+    "4FTh":  { "base_value": 8.00, "name": "Throw Quad Flip" },
+    "4LoTh": { "base_value": 7.80, "name": "Throw Quad Loop" }
+  },
+  "pair_twists": {
+    "1Tw":  { "base_value": 1.10, "name": "Twist Lift Lv1" },
+    "2Tw":  { "base_value": 2.80, "name": "Twist Lift Lv2" },
+    "3Tw":  { "base_value": 5.00, "name": "Twist Lift Lv3" },
+    "4Tw":  { "base_value": 6.60, "name": "Twist Lift Lv4" }
+  },
+  "pair_lifts": {
+    "3Li": { "base_value": 3.00, "name": "Group 3 Lift" },
+    "4Li": { "base_value": 4.00, "name": "Group 4 Lift" },
+    "5ALi": { "base_value": 5.50, "name": "Group 5 Axel Lasso Lift" },
+    "5SLi": { "base_value": 5.30, "name": "Group 5 Straight Line Lift" },
+    "5RLi": { "base_value": 5.50, "name": "Group 5 Rotational Lift" }
+  },
+  "pair_death_spirals": {
+    "FiDs": { "base_value": 2.50, "name": "Forward Inside Death Spiral" },
+    "BiDs": { "base_value": 2.80, "name": "Backward Inside Death Spiral" },
+    "FoDs": { "base_value": 2.60, "name": "Forward Outside Death Spiral" },
+    "BoDs": { "base_value": 2.90, "name": "Backward Outside Death Spiral" }
+  },
+  "pair_sbs": {
+    "2S(sbs)": { "base_value": 2.10, "name": "Side-by-Side Double Salchow" },
+    "2Lo(sbs)": { "base_value": 2.60, "name": "Side-by-Side Double Loop" },
+    "2T(sbs)": { "base_value": 2.00, "name": "Side-by-Side Double Toe Loop" },
+    "3S(sbs)": { "base_value": 4.30, "name": "Side-by-Side Triple Salchow" },
+    "3Lo(sbs)": { "base_value": 4.90, "name": "Side-by-Side Triple Loop" },
+    "3T(sbs)": { "base_value": 4.20, "name": "Side-by-Side Triple Toe Loop" },
+    "3F(sbs)": { "base_value": 5.30, "name": "Side-by-Side Triple Flip" },
+    "3Lz(sbs)": { "base_value": 5.90, "name": "Side-by-Side Triple Lutz" },
+    "3A(sbs)": { "base_value": 8.00, "name": "Side-by-Side Triple Axel" }
+  },
+  "dance_patterns": {
+    "FiSt": { "base_value": 5.00, "name": "Finnish Step" },
+    "MiSt": { "base_value": 5.00, "name": "Midline Step" },
+    "DiSt": { "base_value": 5.00, "name": "Diagonal Step" },
+    "SeSt": { "base_value": 5.00, "name": "Segmented Step" },
+    "NtMiTw": { "base_value": 4.00, "name": "Not Touching Midline Twizzle" },
+    "ChSt": { "base_value": 3.00, "name": "Choreographic Step" }
+  },
+  "dance_twizzles": {
+    "SeTw": { "base_value": 3.20, "name": "Set of Twizzles" },
+    "SqTw": { "base_value": 3.50, "name": "Sequential Twizzles" }
+  },
+  "dance_lifts": {
+    "1Li": { "base_value": 1.20, "name": "Dance Lift Lv1" },
+    "2Li": { "base_value": 2.20, "name": "Dance Lift Lv2" },
+    "3Li": { "base_value": 3.00, "name": "Dance Lift Lv3" },
+    "4Li": { "base_value": 3.50, "name": "Dance Lift Lv4" },
+    "SlLi": { "base_value": 3.50, "name": "Stationary Lift" },
+    "RoLi": { "base_value": 3.50, "name": "Rotational Lift" },
+    "CuLi": { "base_value": 3.50, "name": "Curve Lift" },
+    "RRoLi": { "base_value": 3.50, "name": "Reverse Rotational Lift" }
+  },
+  "dance_choreo": {
+    "ChSp": { "base_value": 1.10, "name": "Choreographic Spinning Movement" },
+    "ChLi": { "base_value": 1.10, "name": "Choreographic Lift" },
+    "ChTw": { "base_value": 1.10, "name": "Choreographic Twizzling Movement" }
   }
 }

@@ -96,7 +96,21 @@ class ISULoader:
     def load_sov(self) -> dict[str, SOVEntry]:
         data = self._read("sov")
         entries: dict[str, SOVEntry] = {}
-        for section in ("jumps", "spins", "step_sequences", "choreo_sequences"):
+        for section in (
+            "jumps",
+            "spins",
+            "step_sequences",
+            "choreo_sequences",
+            "pair_throws",
+            "pair_twists",
+            "pair_lifts",
+            "pair_death_spirals",
+            "pair_sbs",
+            "dance_patterns",
+            "dance_twizzles",
+            "dance_lifts",
+            "dance_choreo",
+        ):
             for code, info in data.get(section, {}).items():
                 entries[code] = SOVEntry(
                     code=code,
