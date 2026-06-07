@@ -1,0 +1,12 @@
+id: no-hardcoded-strings-kotlin
+valid:
+  - 'Text(stringResource(R.string.loading))'
+  - 'contentDescription = stringResource(R.string.content_back)'
+invalid:
+  - 'Text("Загрузка...")'
+  - 'Text("Повторить")'
+  - 'contentDescription = "Назад"'
+  - 'TabItem("Камера", icon)'
+  - 'Text("Profile")'
+  - 'TopAppBar(title = { Text("Profile") })'
+  - 'contentDescription = "Avatar"'
