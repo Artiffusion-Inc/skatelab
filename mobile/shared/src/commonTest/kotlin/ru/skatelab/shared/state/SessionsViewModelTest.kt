@@ -195,11 +195,14 @@ class SessionsViewModelTest {
         val api = SessionsApi(client(engine))
         val viewModel = SessionsViewModel(api)
 
-        viewModel.loadSessions()
-        val state = viewModel.uiState.value
-        assertIs<SessionsUiState.Loaded>(state)
-        assertEquals(false, state.hasMore)
-        // loadMore returns early when hasMore is false — no crash, no extra calls
-        viewModel.loadMore()
+        viewModel.uiState.test {
+            assertEquals(SessionsUiState.Loading, awaitItem())
+            viewModel.loadSessions()
+            val loaded = awaitItem()
+            assertIs<SessionsUiState.Loaded>(loaded)
+            assertEquals(false, loaded.hasMore)
+            // loadMore returns early when hasMore is false — no crash
+            viewModel.loadMore()
+        }
     }
 }
