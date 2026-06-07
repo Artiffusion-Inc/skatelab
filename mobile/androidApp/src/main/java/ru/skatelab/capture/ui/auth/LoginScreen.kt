@@ -94,7 +94,7 @@ fun LoginScreen(
             label = { Text(stringResource(R.string.auth_email)) },
             singleLine = true,
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier.fillMaxWidth().testTag("emailField"),
             enabled = uiState !is AuthUiState.Loading,
             isError = uiState is AuthUiState.Error,
         )
@@ -107,7 +107,7 @@ fun LoginScreen(
             singleLine = true,
             visualTransformation = PasswordVisualTransformation(),
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier.fillMaxWidth().testTag("passwordField"),
             enabled = uiState !is AuthUiState.Loading,
             isError = uiState is AuthUiState.Error,
         )

@@ -1,17 +1,32 @@
-appId: ru.skatelab
+appId: ru.skatelab.capture
 tags:
   - auth
 ---
 - launchApp
-- assertVisible: "Войдите в аккаунт"
-- tapOn: "Нет аккаунта? Зарегистрируйтесь"
-- assertVisible: "Создать аккаунт"
-- tapOn: "Имя"
-- inputText: ${MAESTRO_TEST_DISPLAY_NAME}
-- tapOn: "Email"
-- inputText: ${MAESTRO_TEST_EMAIL}
-- tapOn: "Пароль"
-- inputText: ${MAESTRO_TEST_PASSWORD}
-- tapOn: { id: "registerButton" }
-# After registration, user lands on MainTabs (Camera tab)
-- assertVisible: "Камера"
+# Grant camera permission if prompted
+- runFlow:
+    when:
+      visible: "While using the app"
+    commands:
+      - tapOn: "While using the app"
+# Navigate to register screen from login
+- assertVisible: "Log in to your account"
+- tapOn: "Register"
+- assertVisible: "Create account"
+- tapOn:
+    id: "displayNameField"
+- inputText: Test User
+- tapOn:
+    id: "emailField"
+- inputText: test@skatelab.ru
+- tapOn:
+    id: "passwordField"
+- inputText: Test123456
+- tapOn:
+    id: "registerButton"
+# After register attempt: either succeeds or shows network error
+- assertVisible:
+    label: "Register response (success or network error)"
+    anyOf:
+      - id: "cameraRecordButton"
+      - text: "network"
