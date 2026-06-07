@@ -1,0 +1,16 @@
+{
+  "_meta": { "season": "2025-26", "source": "ISU Communication 2701" },
+  "components": [
+    { "id": "skating_skills", "abbreviation": "SS", "name_en": "Skating Skills", "name_ru": "Навыки скольжения", "max_score": 10.0 },
+    { "id": "transitions", "abbreviation": "TR", "name_en": "Transitions", "name_ru": "Переходы", "max_score": 10.0 },
+    { "id": "performance", "abbreviation": "PE", "name_en": "Performance", "name_ru": "Представление", "max_score": 10.0 },
+    { "id": "composition", "abbreviation": "CO", "name_en": "Composition", "name_ru": "Композиция", "max_score": 10.0 },
+    { "id": "interpretation", "abbreviation": "IN", "name_en": "Interpretation of the Music", "name_ru": "Интерпретация музыки", "max_score": 10.0 }
+  ],
+  "factors": {
+    "men_sp": 0.80, "men_fs": 1.60,
+    "women_sp": 0.80, "women_fs": 1.60,
+    "pairs_sp": 0.80, "pairs_fs": 1.70,
+    "dance_rd": 1.33, "dance_fd": 2.00
+  }
+}

@@ -289,11 +289,13 @@ async def process_video_task(
 
         # Fetch element_type and user_id from session if session_id provided
         element_type = None
+        isu_code = None
         if session_id:
             async with async_session_factory() as db:
                 session = await get_by_id(db, session_id)
                 if session:
                     element_type = session.element_type
+                    isu_code = session.isu_code
                     if user_id is None:
                         user_id = str(session.user_id)
 
@@ -328,6 +330,7 @@ async def process_video_task(
                 tracking=tracking,
                 ml_flags=ml_flags,
                 element_type=element_type,
+                isu_code=isu_code,
             )
         logger.info("Vast.ai processing complete for task %s", task_id)
         await update_progress(task_id, 0.7, "GPU processing complete")
@@ -414,6 +417,7 @@ async def process_video_task(
                                 metrics=vast_result.metrics,
                                 phases=vast_result.phases,
                                 recommendations=vast_result.recommendations or [],
+                                goe_grade=vast_result.goe_grade,
                             )
 
                         # Save timeline segments (same transaction as metrics)

@@ -1,0 +1,132 @@
+{
+  "_meta": {
+    "season": "2025-26",
+    "source": "ISU Communication 2707",
+    "generated": "2026-06-06"
+  },
+  "jumps": {
+    "1T":  { "base_value": 0.40, "modifiers": { "q": 0.40, "<": 0.32, "<<": null, "e": null, "!": null }, "rotations": 1.0, "has_toe_pick": true, "name": "Single Toe Loop" },
+    "1S":  { "base_value": 0.40, "modifiers": { "q": 0.40, "<": 0.32, "<<": null, "e": null, "!": null }, "rotations": 1.0, "has_toe_pick": false, "name": "Single Salchow" },
+    "1Lo": { "base_value": 0.50, "modifiers": { "q": 0.50, "<": 0.40, "<<": null, "e": null, "!": null }, "rotations": 1.0, "has_toe_pick": false, "name": "Single Loop" },
+    "1F":  { "base_value": 0.50, "modifiers": { "q": 0.50, "<": 0.40, "<<": null, "e": null, "!": null }, "rotations": 1.0, "has_toe_pick": true, "name": "Single Flip" },
+    "1Lz": { "base_value": 0.60, "modifiers": { "q": 0.60, "<": 0.48, "<<": null, "e": 0.60, "!": 0.60 }, "rotations": 1.0, "has_toe_pick": true, "name": "Single Lutz" },
+    "1A":  { "base_value": 1.10, "modifiers": { "q": 1.10, "<": 0.88, "<<": null, "e": null, "!": null }, "rotations": 1.5, "has_toe_pick": false, "name": "Single Axel" },
+    "2T":  { "base_value": 1.30, "modifiers": { "q": 1.30, "<": 1.04, "<<": 0.40, "e": null, "!": null }, "rotations": 2.0, "has_toe_pick": true, "name": "Double Toe Loop" },
+    "2S":  { "base_value": 1.30, "modifiers": { "q": 1.30, "<": 1.04, "<<": 0.40, "e": null, "!": null }, "rotations": 2.0, "has_toe_pick": false, "name": "Double Salchow" },
+    "2Lo": { "base_value": 1.70, "modifiers": { "q": 1.70, "<": 1.36, "<<": 0.50, "e": null, "!": null }, "rotations": 2.0, "has_toe_pick": false, "name": "Double Loop" },
+    "2F":  { "base_value": 1.80, "modifiers": { "q": 1.80, "<": 1.44, "<<": 0.50, "e": 1.80, "!": 1.80 }, "rotations": 2.0, "has_toe_pick": true, "name": "Double Flip" },
+    "2Lz": { "base_value": 2.10, "modifiers": { "q": 2.10, "<": 1.68, "<<": 0.60, "e": 2.10, "!": 2.10 }, "rotations": 2.0, "has_toe_pick": true, "name": "Double Lutz" },
+    "2A":  { "base_value": 3.30, "modifiers": { "q": 3.30, "<": 2.64, "<<": 1.10, "e": null, "!": null }, "rotations": 2.5, "has_toe_pick": false, "name": "Double Axel" },
+    "3T":  { "base_value": 4.20, "modifiers": { "q": 4.20, "<": 3.36, "<<": 1.30, "e": null, "!": null }, "rotations": 3.0, "has_toe_pick": true, "name": "Triple Toe Loop" },
+    "3S":  { "base_value": 4.30, "modifiers": { "q": 4.30, "<": 3.44, "<<": 1.30, "e": null, "!": null }, "rotations": 3.0, "has_toe_pick": false, "name": "Triple Salchow" },
+    "3Lo": { "base_value": 4.90, "modifiers": { "q": 4.90, "<": 3.92, "<<": 1.70, "e": null, "!": null }, "rotations": 3.0, "has_toe_pick": false, "name": "Triple Loop" },
+    "3F":  { "base_value": 5.30, "modifiers": { "q": 5.30, "<": 4.24, "<<": 1.80, "e": 5.30, "!": 5.30 }, "rotations": 3.0, "has_toe_pick": true, "name": "Triple Flip" },
+    "3Lz": { "base_value": 5.90, "modifiers": { "q": 5.90, "<": 4.72, "<<": 2.10, "e": 5.90, "!": 5.90 }, "rotations": 3.0, "has_toe_pick": true, "name": "Triple Lutz" },
+    "3A":  { "base_value": 8.00, "modifiers": { "q": 8.00, "<": 6.40, "<<": 3.30, "e": null, "!": null }, "rotations": 3.5, "has_toe_pick": false, "name": "Triple Axel" },
+    "4T":  { "base_value": 9.50, "modifiers": { "q": 9.50, "<": 7.60, "<<": 4.20, "e": null, "!": null }, "rotations": 4.0, "has_toe_pick": true, "name": "Quad Toe Loop" },
+    "4S":  { "base_value": 9.70, "modifiers": { "q": 9.70, "<": 7.76, "<<": 4.30, "e": null, "!": null }, "rotations": 4.0, "has_toe_pick": false, "name": "Quad Salchow" },
+    "4Lo": { "base_value": 10.50, "modifiers": { "q": 10.50, "<": 8.40, "<<": 4.90, "e": null, "!": null }, "rotations": 4.0, "has_toe_pick": false, "name": "Quad Loop" },
+    "4F":  { "base_value": 11.00, "modifiers": { "q": 11.00, "<": 8.80, "<<": 5.30, "e": 11.00, "!": 11.00 }, "rotations": 4.0, "has_toe_pick": true, "name": "Quad Flip" },
+    "4Lz": { "base_value": 11.50, "modifiers": { "q": 11.50, "<": 9.20, "<<": 5.90, "e": 11.50, "!": 11.50 }, "rotations": 4.0, "has_toe_pick": true, "name": "Quad Lutz" },
+    "4A":  { "base_value": 12.50, "modifiers": { "q": 12.50, "<": 10.00, "<<": 8.00, "e": null, "!": null }, "rotations": 4.5, "has_toe_pick": false, "name": "Quad Axel" },
+    "1Eu": { "base_value": 0.50, "modifiers": { "q": 0.50, "<": null, "<<": null, "e": null, "!": null }, "rotations": 0.5, "has_toe_pick": false, "name": "Euler" }
+  },
+  "spins": {
+    "CSp1": { "base_value": 1.50, "level": 1, "name": "Change Foot Combination Spin Lv1" },
+    "CSp2": { "base_value": 2.00, "level": 2, "name": "Change Foot Combination Spin Lv2" },
+    "CSp3": { "base_value": 2.50, "level": 3, "name": "Change Foot Combination Spin Lv3" },
+    "CSp4": { "base_value": 3.20, "level": 4, "name": "Change Foot Combination Spin Lv4" },
+    "FSp1": { "base_value": 1.70, "level": 1, "name": "Flying Change Foot Spin Lv1" },
+    "FSp2": { "base_value": 2.30, "level": 2, "name": "Flying Change Foot Spin Lv2" },
+    "FSp3": { "base_value": 2.80, "level": 3, "name": "Flying Change Foot Spin Lv3" },
+    "FSp4": { "base_value": 3.00, "level": 4, "name": "Flying Change Foot Spin Lv4" },
+    "LSp1": { "base_value": 1.50, "level": 1, "name": "Layback Spin Lv1" },
+    "LSp2": { "base_value": 2.00, "level": 2, "name": "Layback Spin Lv2" },
+    "LSp3": { "base_value": 2.50, "level": 3, "name": "Layback Spin Lv3" },
+    "LSp4": { "base_value": 3.00, "level": 4, "name": "Layback Spin Lv4" },
+    "USp1": { "base_value": 1.50, "level": 1, "name": "Upright Spin Lv1" },
+    "USp2": { "base_value": 2.00, "level": 2, "name": "Upright Spin Lv2" },
+    "USp3": { "base_value": 2.50, "level": 3, "name": "Upright Spin Lv3" },
+    "USp4": { "base_value": 3.00, "level": 4, "name": "Upright Spin Lv4" },
+    "CSpB1": { "base_value": 1.70, "level": 1, "name": "Camel Spin Lv1" },
+    "CSpB2": { "base_value": 2.30, "level": 2, "name": "Camel Spin Lv2" },
+    "CSpB3": { "base_value": 2.80, "level": 3, "name": "Camel Spin Lv3" },
+    "CSpB4": { "base_value": 3.00, "level": 4, "name": "Camel Spin Lv4" }
+  },
+  "step_sequences": {
+    "StSq1": { "base_value": 1.50, "level": 1, "name": "Step Sequence Lv1" },
+    "StSq2": { "base_value": 2.60, "level": 2, "name": "Step Sequence Lv2" },
+    "StSq3": { "base_value": 3.30, "level": 3, "name": "Step Sequence Lv3" },
+    "StSq4": { "base_value": 3.90, "level": 4, "name": "Step Sequence Lv4" }
+  },
+  "choreo_sequences": {
+    "ChSq1": { "base_value": 3.00, "name": "Choreographic Sequence" }
+  },
+  "pair_throws": {
+    "3STh":  { "base_value": 4.40, "name": "Throw Triple Salchow" },
+    "3LzTh": { "base_value": 5.30, "name": "Throw Triple Lutz" },
+    "3FTh":  { "base_value": 5.00, "name": "Throw Triple Flip" },
+    "3LoTh": { "base_value": 4.90, "name": "Throw Triple Loop" },
+    "4STh":  { "base_value": 7.70, "name": "Throw Quad Salchow" },
+    "4LzTh": { "base_value": 8.50, "name": "Throw Quad Lutz" },
+    "4FTh":  { "base_value": 8.00, "name": "Throw Quad Flip" },
+    "4LoTh": { "base_value": 7.80, "name": "Throw Quad Loop" }
+  },
+  "pair_twists": {
+    "1Tw":  { "base_value": 1.10, "name": "Twist Lift Lv1" },
+    "2Tw":  { "base_value": 2.80, "name": "Twist Lift Lv2" },
+    "3Tw":  { "base_value": 5.00, "name": "Twist Lift Lv3" },
+    "4Tw":  { "base_value": 6.60, "name": "Twist Lift Lv4" }
+  },
+  "pair_lifts": {
+    "3Li": { "base_value": 3.00, "name": "Group 3 Lift" },
+    "4Li": { "base_value": 4.00, "name": "Group 4 Lift" },
+    "5ALi": { "base_value": 5.50, "name": "Group 5 Axel Lasso Lift" },
+    "5SLi": { "base_value": 5.30, "name": "Group 5 Straight Line Lift" },
+    "5RLi": { "base_value": 5.50, "name": "Group 5 Rotational Lift" }
+  },
+  "pair_death_spirals": {
+    "FiDs": { "base_value": 2.50, "name": "Forward Inside Death Spiral" },
+    "BiDs": { "base_value": 2.80, "name": "Backward Inside Death Spiral" },
+    "FoDs": { "base_value": 2.60, "name": "Forward Outside Death Spiral" },
+    "BoDs": { "base_value": 2.90, "name": "Backward Outside Death Spiral" }
+  },
+  "pair_sbs": {
+    "2S(sbs)": { "base_value": 2.10, "name": "Side-by-Side Double Salchow" },
+    "2Lo(sbs)": { "base_value": 2.60, "name": "Side-by-Side Double Loop" },
+    "2T(sbs)": { "base_value": 2.00, "name": "Side-by-Side Double Toe Loop" },
+    "3S(sbs)": { "base_value": 4.30, "name": "Side-by-Side Triple Salchow" },
+    "3Lo(sbs)": { "base_value": 4.90, "name": "Side-by-Side Triple Loop" },
+    "3T(sbs)": { "base_value": 4.20, "name": "Side-by-Side Triple Toe Loop" },
+    "3F(sbs)": { "base_value": 5.30, "name": "Side-by-Side Triple Flip" },
+    "3Lz(sbs)": { "base_value": 5.90, "name": "Side-by-Side Triple Lutz" },
+    "3A(sbs)": { "base_value": 8.00, "name": "Side-by-Side Triple Axel" }
+  },
+  "dance_patterns": {
+    "FiSt": { "base_value": 5.00, "name": "Finnish Step" },
+    "MiSt": { "base_value": 5.00, "name": "Midline Step" },
+    "DiSt": { "base_value": 5.00, "name": "Diagonal Step" },
+    "SeSt": { "base_value": 5.00, "name": "Segmented Step" },
+    "NtMiTw": { "base_value": 4.00, "name": "Not Touching Midline Twizzle" },
+    "ChSt": { "base_value": 3.00, "name": "Choreographic Step" }
+  },
+  "dance_twizzles": {
+    "SeTw": { "base_value": 3.20, "name": "Set of Twizzles" },
+    "SqTw": { "base_value": 3.50, "name": "Sequential Twizzles" }
+  },
+  "dance_lifts": {
+    "1Li": { "base_value": 1.20, "name": "Dance Lift Lv1" },
+    "2Li": { "base_value": 2.20, "name": "Dance Lift Lv2" },
+    "3Li": { "base_value": 3.00, "name": "Dance Lift Lv3" },
+    "4Li": { "base_value": 3.50, "name": "Dance Lift Lv4" },
+    "SlLi": { "base_value": 3.50, "name": "Stationary Lift" },
+    "RoLi": { "base_value": 3.50, "name": "Rotational Lift" },
+    "CuLi": { "base_value": 3.50, "name": "Curve Lift" },
+    "RRoLi": { "base_value": 3.50, "name": "Reverse Rotational Lift" }
+  },
+  "dance_choreo": {
+    "ChSp": { "base_value": 1.10, "name": "Choreographic Spinning Movement" },
+    "ChLi": { "base_value": 1.10, "name": "Choreographic Lift" },
+    "ChTw": { "base_value": 1.10, "name": "Choreographic Twizzling Movement" }
+  }
+}

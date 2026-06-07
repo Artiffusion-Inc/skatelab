@@ -1,0 +1,41 @@
+{
+  "_meta": { "season": "2025-26", "source": "ISU Communication 2701" },
+  "goe_scale": [
+    { "grade": -5, "percentage": -50, "label_ru": "−5", "description_ru": "Падение (обязательно)" },
+    { "grade": -4, "percentage": -40, "label_ru": "−4", "description_ru": "Очень серьёзные ошибки в комбинации" },
+    { "grade": -3, "percentage": -30, "label_ru": "−3", "description_ru": "Серьёзные ошибки: даунгрейд, приземление на две ноги" },
+    { "grade": -2, "percentage": -20, "label_ru": "−2", "description_ru": "Заметные ошибки: недокрут, нечёткое ребро" },
+    { "grade": -1, "percentage": -10, "label_ru": "−1", "description_ru": "Незначительные ошибки" },
+    { "grade": 0, "percentage": 0, "label_ru": "0", "description_ru": "Базовый уровень" },
+    { "grade": 1, "percentage": 10, "label_ru": "+1", "description_ru": "1 положительный критерий" },
+    { "grade": 2, "percentage": 20, "label_ru": "+2", "description_ru": "2 положительных критерия" },
+    { "grade": 3, "percentage": 30, "label_ru": "+3", "description_ru": "3 положительных критерия" },
+    { "grade": 4, "percentage": 40, "label_ru": "+4", "description_ru": "4+ критериев, 1-3 ВСЕ выполнены" },
+    { "grade": 5, "percentage": 50, "label_ru": "+5", "description_ru": "5+ критериев, 1-3 ВСЕ выполнены" }
+  ],
+  "positive_bullets": [
+    { "id": "height_length", "number": 1, "text_en": "Very good height and very good length", "text_ru": "Очень хорошая высота и очень хорошая длина", "required_for_plus4_plus5": true },
+    { "id": "takeoff_landing", "number": 2, "text_en": "Good take-off and landing", "text_ru": "Хороший вылет и приземление", "required_for_plus4_plus5": true },
+    { "id": "effortless", "number": 3, "text_en": "Effortless throughout", "text_ru": "Непринуждённость на протяжении всего элемента", "required_for_plus4_plus5": true },
+    { "id": "steps_creative_entry", "number": 4, "text_en": "Steps before the jump, unexpected or creative entry", "text_ru": "Шаги перед прыжком, неожиданный или творческий заход", "required_for_plus4_plus5": false },
+    { "id": "body_position", "number": 5, "text_en": "Very good body position from take-off to landing", "text_ru": "Очень хорошее положение тела от вылета до приземления", "required_for_plus4_plus5": false },
+    { "id": "matches_music", "number": 6, "text_en": "Element matches the music", "text_ru": "Элемент соответствует музыке", "required_for_plus4_plus5": false }
+  ],
+  "error_reductions": [
+    { "id": "fall", "goe_reduction": -5, "text_ru": "Падение", "mandatory": true },
+    { "id": "downgraded", "goe_reduction_min": -4, "goe_reduction_max": -3, "text_ru": "Даунгрейд (<<)" },
+    { "id": "under_rotated", "goe_reduction_min": -3, "goe_reduction_max": -2, "text_ru": "Недокрут (<)" },
+    { "id": "landed_quarter", "goe_reduction": -2, "text_ru": "Приземление на четверть (q)" },
+    { "id": "two_foot_landing", "goe_reduction_min": -4, "goe_reduction_max": -3, "text_ru": "Приземление на две ноги" },
+    { "id": "wrong_edge", "goe_reduction_min": -4, "goe_reduction_max": -2, "text_ru": "Неправильное ребро (e)" },
+    { "id": "unclear_edge", "goe_reduction_min": -2, "goe_reduction_max": -1, "text_ru": "Нечёткое ребро (!)" },
+    { "id": "touch_down", "goe_reduction_min": -3, "goe_reduction_max": -1, "text_ru": "Касание льда рукой/свободной ногой" },
+    { "id": "poor_speed_height", "goe_reduction_min": -3, "goe_reduction_max": -1, "text_ru": "Плохая скорость/высота/позиция" },
+    { "id": "long_preparation", "goe_reduction_min": -3, "goe_reduction_max": -1, "text_ru": "Длительная подготовка" }
+  ],
+  "rules": {
+    "fall_forces_goe_minus5": true,
+    "any_error_caps_goe_at_plus3": true,
+    "plus4_plus5_require_bullets_1_through_3": true
+  }
+}

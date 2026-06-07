@@ -301,12 +301,14 @@ class CreateSessionRequest(BaseModel):
     imu_left_key: str | None = Field(default=None, max_length=500)
     imu_right_key: str | None = Field(default=None, max_length=500)
     manifest_key: str | None = Field(default=None, max_length=500)
+    isu_code: str | None = None
 
 
 class PatchSessionRequest(BaseModel):
     element_type: str | None = Field(default=None, max_length=50)
     status: str | None = Field(default=None, max_length=20)
     process_task_id: str | None = Field(default=None, max_length=50)
+    isu_code: str | None = None
 
 
 class SessionMetricResponse(BaseModel):
@@ -402,11 +404,13 @@ class SessionResponse(BaseModel):
     imu_left_key: str | None = None
     imu_right_key: str | None = None
     manifest_key: str | None = None
+    isu_code: str | None = None
     created_at: str
     processed_at: str | None
     timeline: TimelineData | None = None
     segmentation_status: str = "pending"
     metrics: list[SessionMetricResponse] = []
+    goe_grade: GOEResponse | None = None
 
     model_config = {"from_attributes": True}
 
@@ -666,3 +670,21 @@ class ElementDefResponse(BaseModel):
 class ElementRegistryResponse(BaseModel):
     elements: list[ElementDefResponse]
     season: str
+
+
+# ---------------------------------------------------------------------------
+# GOE Scoring
+# ---------------------------------------------------------------------------
+
+
+class GOEResponse(BaseModel):
+    """ISU GOE grade response for an element."""
+
+    grade: int
+    base_value: float
+    estimated_score: float
+    modifier: str
+    positives: list[str]
+    negatives: list[str]
+    confidence: float
+    deductions: list[dict]

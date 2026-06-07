@@ -187,6 +187,7 @@ class AnalysisPipeline:
         element_type: str | None = None,
         manual_phases: ElementPhase | None = None,
         reference_path: Path | None = None,
+        isu_code: str | None = None,
     ) -> AnalysisReport:
         """Analyze a skating video.
 
@@ -197,6 +198,7 @@ class AnalysisPipeline:
                 (no metrics, DTW, or recommendations).
             manual_phases: Optional manual phase boundaries (auto-detect if None).
             reference_path: Optional path to reference video (use store if None).
+            isu_code: Optional ISU element code (e.g., '3T', '2A') for GOE grading.
 
         Returns:
             AnalysisReport with metrics, recommendations, and scores.
@@ -365,10 +367,25 @@ class AnalysisPipeline:
                 physics_dict = {}
             self._profiler.record("physics", time.perf_counter() - t0)
 
+            # Stage 6.5: ISU GOE grading (if isu_code available)
+            t0 = time.perf_counter()
+            goe_grade = None
+            if isu_code:
+                from .analysis.goe_grader import GOEGrader
+
+                goe_grader = GOEGrader()
+                sov_entry = self._get_sov_entry(isu_code)
+                bv = sov_entry.base_value if sov_entry else 0.0
+                expected_rot = sov_entry.rotations if sov_entry else element_def.rotations
+                goe_grade = goe_grader.compute_goe_grade(
+                    metrics, base_value=bv, expected_rotations=expected_rot
+                )
+            self._profiler.record("goe_grading", time.perf_counter() - t0)
+
             # Stage 7: Generate recommendations
             t0 = time.perf_counter()
             recommender = self._get_recommender()
-            recommendations = recommender.recommend(metrics, element_type)
+            recommendations = recommender.recommend_with_goe(metrics, element_type, goe_grade)
             self._profiler.record("recommendations", time.perf_counter() - t0)
 
             # Stage 8: Compute overall score
@@ -381,6 +398,7 @@ class AnalysisPipeline:
             overall_score = None
             dtw_distance = None
             physics_dict = {}
+            goe_grade = None
 
         return AnalysisReport(
             element_type=element_type or "unknown",
@@ -388,6 +406,7 @@ class AnalysisPipeline:
             metrics=metrics,
             recommendations=recommendations,
             overall_score=overall_score if overall_score is not None else 0.0,
+            goe_grade=goe_grade,
             dtw_distance=dtw_distance if dtw_distance is not None else 0.0,
             physics=physics_dict,
             profiling=self._profiler.to_dict(),
@@ -519,6 +538,32 @@ class AnalysisPipeline:
 
             self._recommender = Recommender()
         return self._recommender
+
+    def _get_sov_entry(self, isu_code: str):
+        """Load SOV entry for ISU code from data/isu JSON."""
+        import json
+        from pathlib import Path
+
+        sov_path = Path(__file__).parent.parent.parent / "data" / "isu" / "sov_2025_26.json"
+        if not sov_path.exists():
+            return None
+        try:
+            with sov_path.open() as f:
+                sov = json.load(f)
+            for section in ("jumps", "spins", "step_sequences", "choreo_sequences"):
+                entry = sov.get(section, {}).get(isu_code)
+                if entry:
+                    return type(
+                        "SOVEntry",
+                        (),
+                        {
+                            "base_value": entry["base_value"],
+                            "rotations": entry.get("rotations", 0.0),
+                        },
+                    )()
+        except (json.JSONDecodeError, KeyError):
+            return None
+        return None
 
     def _get_3d_lifter(self):
         """Lazy-load TCPFormer 3D lifter (ONNX).

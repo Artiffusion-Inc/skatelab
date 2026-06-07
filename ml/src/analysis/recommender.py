@@ -4,7 +4,7 @@ This module generates specific, actionable recommendations in Russian
 based on biomechanics metrics analysis.
 """
 
-from ..types import MetricResult, RecommendationRule
+from ..types import GOEGrade, MetricResult, RecommendationRule
 from .rules import jump_rules, three_turn_rules
 
 
@@ -65,6 +65,38 @@ class Recommender:
         # Sort by priority (lower = more critical) and return strings
         recommendations.sort(key=lambda x: x[0])
         return [rec for _, rec in recommendations]
+
+    def recommend_with_goe(
+        self,
+        metrics: list[MetricResult],
+        element_type: str,
+        goe_grade: GOEGrade | None = None,
+    ) -> list[str]:
+        """Generate recommendations with optional ISU GOE context.
+
+        Args:
+            metrics: List of computed MetricResult.
+            element_type: Type of skating element.
+            goe_grade: Optional GOEGrade from ISU GOE scoring.
+
+        Returns:
+            List of recommendation strings in Russian, with GOE summary
+            prepended if goe_grade is provided.
+        """
+        recommendations = self.recommend(metrics, element_type)
+        if goe_grade is None:
+            return recommendations
+        # Insert GOE summary as first recommendation
+        goe_summary = (
+            f"GOE {goe_grade.grade:+d} "
+            f"({len(goe_grade.positives)} плюсов, {len(goe_grade.negatives)} минусов). "
+            f"Оценка элемента: {goe_grade.estimated_score:.2f} баллов "
+            f"(BV {goe_grade.base_value:.2f}"
+        )
+        if goe_grade.modifier:
+            goe_summary += f", модификатор {goe_grade.modifier}"
+        goe_summary += f"). Уверенность: {goe_grade.confidence:.0%}."
+        return [goe_summary, *recommendations]
 
     def _determine_severity(
         self,

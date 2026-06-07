@@ -20,6 +20,7 @@ class ElementDef:
         has_toe_pick: True if takeoff uses toe pick (toe loop, flip, lutz).
         key_joints: List of H36Key indices relevant for analysis.
         ideal_metrics: Dict of metric_name -> (min_good, max_good) ranges.
+        isu_prefix: ISU code prefix for SOV lookup (e.g., 'T' for toe loop, 'A' for axel).
     """
 
     name: str
@@ -28,6 +29,7 @@ class ElementDef:
     has_toe_pick: bool
     key_joints: list[int]
     ideal_metrics: dict[str, tuple[float, float]]
+    isu_prefix: str = ""
 
 
 # Element definitions ordered by complexity
@@ -53,6 +55,7 @@ ELEMENT_DEFS: dict[str, ElementDef] = {
             "edge_change_smoothness": (0.1, 0.5),  # Smooth edge transition (low std = smooth)
             "symmetry": (0.6, 1.0),  # Body symmetry score
         },
+        isu_prefix="StSq",
     ),
     "waltz_jump": ElementDef(
         name="waltz_jump",
@@ -90,6 +93,7 @@ ELEMENT_DEFS: dict[str, ElementDef] = {
             "hard_landing": (0.5, 1.0),
             "goe_score": (5.0, 10.0),
         },
+        isu_prefix="1A",
     ),
     "toe_loop": ElementDef(
         name="toe_loop",
@@ -123,6 +127,7 @@ ELEMENT_DEFS: dict[str, ElementDef] = {
             "hard_landing": (0.5, 1.0),
             "goe_score": (5.0, 10.0),
         },
+        isu_prefix="T",
     ),
     "flip": ElementDef(
         name="flip",
@@ -156,6 +161,7 @@ ELEMENT_DEFS: dict[str, ElementDef] = {
             "hard_landing": (0.5, 1.0),
             "goe_score": (5.0, 10.0),
         },
+        isu_prefix="F",
     ),
     "salchow": ElementDef(
         name="salchow",
@@ -189,6 +195,7 @@ ELEMENT_DEFS: dict[str, ElementDef] = {
             "hard_landing": (0.5, 1.0),
             "goe_score": (5.0, 10.0),
         },
+        isu_prefix="S",
     ),
     "loop": ElementDef(
         name="loop",
@@ -221,6 +228,7 @@ ELEMENT_DEFS: dict[str, ElementDef] = {
             "hard_landing": (0.5, 1.0),
             "goe_score": (5.0, 10.0),
         },
+        isu_prefix="Lo",
     ),
     "lutz": ElementDef(
         name="lutz",
@@ -254,6 +262,7 @@ ELEMENT_DEFS: dict[str, ElementDef] = {
             "hard_landing": (0.5, 1.0),
             "goe_score": (5.0, 10.0),
         },
+        isu_prefix="Lz",
     ),
     "axel": ElementDef(
         name="axel",
@@ -287,6 +296,7 @@ ELEMENT_DEFS: dict[str, ElementDef] = {
             "hard_landing": (0.5, 1.0),
             "goe_score": (5.0, 10.0),
         },
+        isu_prefix="A",
     ),
     # Spin elements — rotations=0, classified by spin detection
     "upright_spin": ElementDef(
@@ -311,6 +321,7 @@ ELEMENT_DEFS: dict[str, ElementDef] = {
             "rotation_count": (1.0, 4.0),
             "symmetry": (0.6, 1.0),
         },
+        isu_prefix="USp",
     ),
     "one_foot_spin": ElementDef(
         name="one_foot_spin",
@@ -334,6 +345,7 @@ ELEMENT_DEFS: dict[str, ElementDef] = {
             "rotation_count": (1.0, 4.0),
             "symmetry": (0.6, 1.0),
         },
+        isu_prefix="CSp",
     ),
     "scratch_spin": ElementDef(
         name="scratch_spin",
@@ -357,6 +369,7 @@ ELEMENT_DEFS: dict[str, ElementDef] = {
             "rotation_count": (1.0, 4.0),
             "symmetry": (0.6, 1.0),
         },
+        isu_prefix="LSp",
     ),
 }
 
@@ -447,3 +460,37 @@ def is_spin(element_type: str) -> bool:
         True if element is a spin type.
     """
     return element_type in SPIN_TYPE_NAMES
+
+
+def get_isu_codes_for_element(element_type: str) -> list[str]:
+    """Get available ISU codes for an element type from SOV data.
+
+    Looks up the element's isu_prefix in the ISU Scale of Values JSON data
+    and returns all matching codes (e.g., for toe_loop with prefix 'T',
+    returns ['1T', '2T', '3T', '4T']).
+
+    Args:
+        element_type: Element identifier (e.g., 'toe_loop').
+
+    Returns:
+        Sorted list of matching ISU codes. Empty list if element not found,
+        has no prefix, or SOV data file missing.
+    """
+    import json
+    from pathlib import Path
+
+    defn = get_element_def(element_type)
+    if not defn or not defn.isu_prefix:
+        return []
+    sov_path = Path(__file__).parent.parent.parent.parent / "data" / "isu" / "sov_2025_26.json"
+    if not sov_path.exists():
+        return []
+    with sov_path.open() as f:
+        sov = json.load(f)
+    prefix = defn.isu_prefix
+    return sorted(
+        code
+        for section in ("jumps", "spins", "step_sequences", "choreo_sequences")
+        for code in sov.get(section, {})
+        if code.endswith(prefix) or code.startswith(prefix)
+    )

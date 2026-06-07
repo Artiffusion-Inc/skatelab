@@ -1,0 +1,15 @@
+{
+  "_meta": { "season": "2025-26", "source": "ISU Communication 2701" },
+  "deductions": [
+    { "id": "fall", "penalty": -1.0, "name_ru": "Падение", "description_ru": "Каждое падение: −1.0 балл. Отдельно от GOE.", "detectable": true },
+    { "id": "time_violation", "penalty": -1.0, "name_ru": "Нарушение времени", "description_ru": "За каждые 5 секунд отклонения от нормы.", "detectable": false },
+    { "id": "music_violation", "penalty": -1.0, "name_ru": "Нарушение музыкальных требований", "description_ru": "", "detectable": false },
+    { "id": "costume_decoration_fall", "penalty": -1.0, "name_ru": "Часть костюма/украшения упала на лёд", "description_ru": "", "detectable": false },
+    { "id": "costume_violation", "penalty": -1.0, "name_ru": "Нарушение требований к костюму", "description_ru": "", "detectable": false },
+    { "id": "interruption_21_30s", "penalty": -1.0, "name_ru": "Прерывание 21-30 сек", "description_ru": "", "detectable": false },
+    { "id": "interruption_31_40s", "penalty": -2.0, "name_ru": "Прерывание 31-40 сек", "description_ru": "", "detectable": false },
+    { "id": "late_start", "penalty": -1.0, "name_ru": "Опоздание на старт", "description_ru": "", "detectable": false },
+    { "id": "illegal_element", "penalty": -2.0, "name_ru": "Запрещённый элемент", "description_ru": "", "detectable": false },
+    { "id": "extra_element", "penalty": -1.0, "name_ru": "Лишний элемент", "description_ru": "", "detectable": false }
+  ]
+}

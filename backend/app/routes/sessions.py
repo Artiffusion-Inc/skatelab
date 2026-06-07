@@ -80,6 +80,7 @@ async def _session_to_response(session: Session) -> SessionResponse:
             "created_at": session.created_at,
             "processed_at": session.processed_at,
             "metrics": session.metrics,
+            "goe_grade": session.goe_grade,
         }
     )
 

@@ -200,6 +200,7 @@ class ProcessRequest(BaseModel):
     tracking: str = "auto"
     ml_flags: dict[str, bool] = {}
     element_type: str | None = None
+    isu_code: str | None = None
     # S3 credentials passed per-request (worker doesn't store them)
     s3_endpoint_url: str = ""
     s3_access_key_id: str = ""
@@ -215,6 +216,7 @@ class ProcessResponse(BaseModel):
     metrics: list | None = None
     phases: object | None = None
     recommendations: list | None = None
+    goe_grade: dict | None = None
     segments: list[dict] | None = None
 
 
@@ -494,8 +496,24 @@ async def process(req: ProcessRequest):
                         analyzer = BiomechanicsAnalyzer(element_def)
                         metrics = analyzer.analyze(prepared.poses_norm, phases, prepared.meta.fps)
 
+                        # ISU GOE grading
+                        goe_grade = None
+                        if req.isu_code:
+                            from src.analysis.goe_grader import GOEGrader
+                            from src.utils.isu_loader import load_sov_entry
+
+                            grader = GOEGrader()
+                            entry = load_sov_entry(req.isu_code)
+                            bv = entry["base_value"] if entry else 0.0
+                            expected_rot = entry.get("rotations", element_def.rotations)
+                            goe_grade = grader.compute_goe_grade(
+                                metrics, base_value=bv, expected_rotations=expected_rot
+                            )
+
                         recommender = Recommender()
-                        recommendations = recommender.recommend(metrics, req.element_type)
+                        recommendations = recommender.recommend_with_goe(
+                            metrics, req.element_type, goe_grade
+                        )
 
                 # --- 3D Lift (TCPFormer) ---
                 if _tcpformer_extractor is not None:
@@ -548,6 +566,19 @@ async def process(req: ProcessRequest):
                     ],
                     "phases": phases.__dict__ if phases else None,
                     "recommendations": recommendations,
+                    "goe_grade": (
+                        {
+                            "grade": goe_grade.grade,
+                            "base_value": goe_grade.base_value,
+                            "estimated_score": goe_grade.estimated_score,
+                            "modifier": goe_grade.modifier,
+                            "positives": goe_grade.positives,
+                            "negatives": goe_grade.negatives,
+                            "confidence": goe_grade.confidence,
+                        }
+                        if goe_grade
+                        else None
+                    ),
                     "element_type": req.element_type,
                 }
                 metrics_json.write_text(_json.dumps(metrics_data, ensure_ascii=False, indent=2))
@@ -564,6 +595,7 @@ async def process(req: ProcessRequest):
                     metrics=metrics_data["metrics"],
                     phases=metrics_data["phases"],
                     recommendations=recommendations,
+                    goe_grade=metrics_data.get("goe_grade"),
                     segments=segments_result,
                 )
     except Exception:

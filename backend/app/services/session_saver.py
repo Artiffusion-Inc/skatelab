@@ -22,6 +22,7 @@ async def save_analysis_results(
     metrics: list[Any],  # list[MetricResult]
     phases: Any,  # ElementPhase
     recommendations: list[str],
+    goe_grade: dict[str, Any] | None = None,
 ) -> None:
     """Save analysis results to Postgres.
 
@@ -80,7 +81,13 @@ async def save_analysis_results(
     in_range_count = sum(1 for m in metric_rows if m["is_in_range"])
     overall_score = in_range_count / len(metric_rows) if metric_rows else None
 
-    # Update session
-    await update(
-        db, session, status="done", overall_score=overall_score, recommendations=recommendations
-    )
+    # Update session with GOE grade if present
+    update_kwargs: dict[str, Any] = {
+        "status": "done",
+        "overall_score": overall_score,
+        "recommendations": recommendations,
+    }
+    if goe_grade is not None:
+        update_kwargs["goe_grade"] = goe_grade
+
+    await update(db, session, **update_kwargs)
