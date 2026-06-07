@@ -410,6 +410,7 @@ class SessionResponse(BaseModel):
     timeline: TimelineData | None = None
     segmentation_status: str = "pending"
     metrics: list[SessionMetricResponse] = []
+    goe_grade: GOEResponse | None = None
 
     model_config = {"from_attributes": True}
 

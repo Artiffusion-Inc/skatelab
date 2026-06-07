@@ -45,6 +45,7 @@ class VastResult:
     metrics: list | None
     phases: object | None
     recommendations: list | None
+    goe_grade: dict | None = None
     segments: list[dict] | None = None
 
 
@@ -105,6 +106,7 @@ async def process_video_remote_async(
     tracking: str = "auto",
     ml_flags: dict[str, bool] | None = None,
     element_type: str | None = None,
+    isu_code: str | None = None,
 ) -> VastResult:
     """Async: send video processing to Vast.ai Serverless GPU.
 
@@ -133,6 +135,7 @@ async def process_video_remote_async(
         "tracking": tracking,
         "ml_flags": ml_flags,
         "element_type": element_type,
+        "isu_code": isu_code,
         "s3_endpoint_url": settings.s3.endpoint_url,
         "s3_access_key_id": settings.s3.access_key_id.get_secret_value(),
         "s3_secret_access_key": settings.s3.secret_access_key.get_secret_value(),
