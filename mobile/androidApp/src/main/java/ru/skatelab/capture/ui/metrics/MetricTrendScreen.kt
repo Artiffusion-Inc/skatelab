@@ -273,10 +273,10 @@ private fun PeriodSelectorRow(
 ) {
     val periods =
         listOf(
-        "30d" to stringResource(R.string.trend_period_30d),
-        "90d" to stringResource(R.string.trend_period_90d),
-        "all" to stringResource(R.string.trend_period_all),
-    )
+            "30d" to stringResource(R.string.trend_period_30d),
+            "90d" to stringResource(R.string.trend_period_90d),
+            "all" to stringResource(R.string.trend_period_all),
+        )
 
     Row(
         modifier = Modifier.fillMaxWidth(),
