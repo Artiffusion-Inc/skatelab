@@ -20,10 +20,6 @@ tags:
 - inputText: Test123456
 - tapOn:
     id: "loginButton"
-# After login attempt: either succeeds (navigates to main screen)
-# or shows network error (expected in emulator without backend)
-- assertVisible:
-    label: "Login response (success or network error)"
-    anyOf:
-      - id: "cameraRecordButton"
-      - text: "network"
+# After login: check for network error (expected without backend)
+# If no error, app navigates to main screen with cameraRecordButton
+- assertVisible: "network"

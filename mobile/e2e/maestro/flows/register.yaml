@@ -24,9 +24,5 @@ tags:
 - inputText: Test123456
 - tapOn:
     id: "registerButton"
-# After register attempt: either succeeds or shows network error
-- assertVisible:
-    label: "Register response (success or network error)"
-    anyOf:
-      - id: "cameraRecordButton"
-      - text: "network"
+# After register: check for network error (expected without backend)
+- assertVisible: "network"
