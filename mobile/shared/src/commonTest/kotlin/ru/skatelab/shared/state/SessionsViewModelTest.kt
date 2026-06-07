@@ -189,8 +189,14 @@ class SessionsViewModelTest {
 
     @Test
     fun loadMore_doesNotCallWhenNoHasMore() = kotlinx.coroutines.test.runTest {
+        val noMoreJson = """{
+            "sessions": [$sessionJson],
+            "total": 1,
+            "next_cursor": null,
+            "has_more": false
+        }"""
         val engine = MockEngine { request ->
-            respond(sessionListJson, status = HttpStatusCode.OK, headers = jsonHeaders)
+            respond(noMoreJson, status = HttpStatusCode.OK, headers = jsonHeaders)
         }
         val api = SessionsApi(client(engine))
         val viewModel = SessionsViewModel(api)
