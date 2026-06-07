@@ -496,6 +496,29 @@ class MetricResult:
 
 
 @dataclass
+class GOEGrade:
+    """ISU GOE grade computed from biomechanical metrics.
+
+    Attributes:
+        grade: ISU GOE grade, -5 to +5.
+        base_value: ISU base value (after modifier adjustment).
+        estimated_score: BV * (1 + grade * 0.10).
+        modifier: ISU modifier string ("", "q", "<", "<<", "e", "!").
+        positives: List of positive bullet IDs met.
+        negatives: List of error reduction IDs applied.
+        confidence: 0-1, fraction of criteria with available metric data.
+    """
+
+    grade: int
+    base_value: float
+    estimated_score: float
+    modifier: str
+    positives: list[str]
+    negatives: list[str]
+    confidence: float
+
+
+@dataclass
 class AnalysisReport:
     """Complete analysis report for a skating element.
 
@@ -516,6 +539,7 @@ class AnalysisReport:
     dtw_distance: float
     recommendations: list[str]
     overall_score: float
+    goe_grade: GOEGrade | None = None
     physics: dict[str, Any] = field(default_factory=dict)
     profiling: dict[str, Any] | None = None
 
@@ -555,6 +579,22 @@ class AnalysisReport:
 
         for i, rec in enumerate(self.recommendations, 1):
             lines.append(f"  {i}. {rec}")
+
+        # GOE grade information
+        if self.goe_grade:
+            g = self.goe_grade
+            lines.extend(
+                [
+                    "",
+                    "--- Оценка ISU GOE ---",
+                    f"  GOE: {g.grade:+d} | Оценка: {g.estimated_score:.2f} баллов "
+                    f"(BV {g.base_value:.2f}"
+                    + (f", модификатор {g.modifier}" if g.modifier else "")
+                    + ")",
+                    f"  Положительные: {len(g.positives)} | Отрицательные: {len(g.negatives)} | "
+                    f"Уверенность: {g.confidence:.0%}",
+                ]
+            )
 
         # Physics information
         if self.physics:
@@ -833,26 +873,3 @@ class RecommendationRule:
     condition: Callable[[float, tuple[float, float]], bool]
     priority: int
     templates: Mapping[str, str]
-
-
-@dataclass
-class GOEGrade:
-    """ISU GOE grade computed from biomechanical metrics.
-
-    Attributes:
-        grade: ISU GOE grade, -5 to +5.
-        base_value: ISU base value (after modifier adjustment).
-        estimated_score: BV * (1 + grade * 0.10).
-        modifier: ISU modifier string ("", "q", "<", "<<", "e", "!").
-        positives: List of positive bullet IDs met.
-        negatives: List of error reduction IDs applied.
-        confidence: 0-1, fraction of criteria with available metric data.
-    """
-
-    grade: int
-    base_value: float
-    estimated_score: float
-    modifier: str
-    positives: list[str]
-    negatives: list[str]
-    confidence: float

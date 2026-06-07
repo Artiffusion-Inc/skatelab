@@ -138,7 +138,7 @@ class TestAnalysisPipelineAnalyze:
 
         # Mock recommender
         mock_recommender = MagicMock()
-        mock_recommender.recommend = MagicMock(return_value=["Test recommendation"])
+        mock_recommender.recommend_with_goe = MagicMock(return_value=["Test recommendation"])
         pipeline._get_recommender = MagicMock(return_value=mock_recommender)
 
         # Mock aligner
