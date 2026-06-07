@@ -27,7 +27,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -94,7 +95,7 @@ fun LoginScreen(
             label = { Text(stringResource(R.string.auth_email)) },
             singleLine = true,
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
-            modifier = Modifier.fillMaxWidth().testTag("emailField"),
+            modifier = Modifier.fillMaxWidth().semantics { contentDescription = "emailField" },
             enabled = uiState !is AuthUiState.Loading,
             isError = uiState is AuthUiState.Error,
         )
@@ -107,7 +108,7 @@ fun LoginScreen(
             singleLine = true,
             visualTransformation = PasswordVisualTransformation(),
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-            modifier = Modifier.fillMaxWidth().testTag("passwordField"),
+            modifier = Modifier.fillMaxWidth().semantics { contentDescription = "passwordField" },
             enabled = uiState !is AuthUiState.Loading,
             isError = uiState is AuthUiState.Error,
         )
@@ -157,7 +158,7 @@ fun LoginScreen(
                 Button(
                     onClick = { onLogin(email.trim(), password) },
                     enabled = email.isNotBlank() && password.isNotBlank(),
-                    modifier = Modifier.fillMaxWidth().testTag("loginButton"),
+                    modifier = Modifier.fillMaxWidth().semantics { contentDescription = "loginButton" },
                 ) {
                     Text(stringResource(R.string.auth_login_button))
                 }
