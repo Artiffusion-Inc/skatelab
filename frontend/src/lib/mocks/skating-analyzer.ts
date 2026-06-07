@@ -1,0 +1,64 @@
+import type {
+  MultiDimensionalScore,
+  PhaseDetectionResult,
+  UserLevel,
+  SkillItem,
+  TrainingPlan,
+} from "@/types"
+
+export const mockScore: MultiDimensionalScore = {
+  subscores: [
+    { name: "takeoff_power", label_ru: "Взлётная мощь", value: 7.2, confidence: 0.85, contributing_metrics: ["airtime", "relative_jump_height"] },
+    { name: "rotation_axis", label_ru: "Ось вращения", value: 5.8, confidence: 0.72, contributing_metrics: ["rotation_speed", "total_rotation_deg"] },
+    { name: "arm_coordination", label_ru: "Координация рук", value: 6.5, confidence: 0.68, contributing_metrics: ["arm_position_score", "symmetry"] },
+    { name: "landing_absorption", label_ru: "Амортизация", value: 4.1, confidence: 0.91, contributing_metrics: ["landing_knee_angle", "hard_landing"] },
+    { name: "core_stability", label_ru: "Стабильность корпуса", value: 8.0, confidence: 0.79, contributing_metrics: ["landing_trunk_recovery", "trunk_lean"] },
+  ],
+  overall: 6.3,
+  data_quality: "good",
+  skeleton_reliability: "reliable",
+}
+
+export const mockPhases: PhaseDetectionResult = {
+  phases: [
+    { name: "approach", start_frame: 30, end_frame: 55, start_time: 1.0, end_time: 1.83, confidence: 0.82, detection_method: "com_parabola" },
+    { name: "takeoff", start_frame: 55, end_frame: 60, start_time: 1.83, end_time: 2.0, confidence: 0.91, detection_method: "com_parabola" },
+    { name: "air", start_frame: 60, end_frame: 85, start_time: 2.0, end_time: 2.83, confidence: 0.88, detection_method: "com_parabola" },
+    { name: "landing", start_frame: 85, end_frame: 92, start_time: 2.83, end_time: 3.07, confidence: 0.85, detection_method: "com_parabola" },
+    { name: "glide_out", start_frame: 92, end_frame: 120, start_time: 3.07, end_time: 4.0, confidence: 0.74, detection_method: "heuristic" },
+  ],
+  overall_confidence: 0.84,
+  element_type: "axel",
+  fallback_used: false,
+}
+
+export const mockUserLevel: UserLevel = {
+  level: 3,
+  total_xp: 340,
+  xp_to_next: 700,
+  title: "Спортсмен",
+}
+
+export const mockSkills: SkillItem[] = [
+  { id: "jumps_bronze", category: "jumps", tier: "bronze", label_ru: "Первый прыжок", unlocked: true, unlocked_at: "2026-05-01T10:00:00Z", consecutive_sessions: 1, best_score: 5.2, xp_reward: 50 },
+  { id: "jumps_silver", category: "jumps", tier: "silver", label_ru: "Три прыжка", unlocked: true, unlocked_at: "2026-05-10T10:00:00Z", consecutive_sessions: 3, best_score: 6.4, xp_reward: 150 },
+  { id: "jumps_gold", category: "jumps", tier: "gold", label_ru: "Пять прыжков", unlocked: false, unlocked_at: null, consecutive_sessions: 0, best_score: 0, xp_reward: 300 },
+  { id: "spins_bronze", category: "spins", tier: "bronze", label_ru: "Первое вращение", unlocked: true, unlocked_at: "2026-05-02T10:00:00Z", consecutive_sessions: 1, best_score: 5.5, xp_reward: 50 },
+  { id: "spins_silver", category: "spins", tier: "silver", label_ru: "Два вращения", unlocked: false, unlocked_at: null, consecutive_sessions: 0, best_score: 0, xp_reward: 150 },
+  { id: "spins_gold", category: "spins", tier: "gold", label_ru: "Три вращения", unlocked: false, unlocked_at: null, consecutive_sessions: 0, best_score: 0, xp_reward: 300 },
+  { id: "control_bronze", category: "control", tier: "bronze", label_ru: "Симметрия 0.6", unlocked: true, unlocked_at: "2026-05-03T10:00:00Z", consecutive_sessions: 1, best_score: 0.62, xp_reward: 50 },
+  { id: "control_silver", category: "control", tier: "silver", label_ru: "Симметрия 0.7", unlocked: true, unlocked_at: "2026-05-15T10:00:00Z", consecutive_sessions: 2, best_score: 0.71, xp_reward: 150 },
+  { id: "control_gold", category: "control", tier: "gold", label_ru: "Симметрия 0.8", unlocked: false, unlocked_at: null, consecutive_sessions: 0, best_score: 0, xp_reward: 300 },
+]
+
+export const mockTrainingPlan: TrainingPlan = {
+  items: [
+    { id: "1", priority: 1, label_ru: "Упражнение на амортизацию приземления", description_ru: "3 подхода по 5 приземлений с фокусом на угол колена ≥ 110°", completed: false },
+    { id: "2", priority: 2, label_ru: "Работа над осью вращения", description_ru: "Вращение на месте с контролем плеч — 2 минуты", completed: true },
+    { id: "3", priority: 3, label_ru: "Усиление взлётной мощи", description_ru: "Прыжки через скакалку — 3x30 сек", completed: false },
+    { id: "4", priority: 4, label_ru: "Растяжка плечевого пояса", description_ru: "Комплекс на раскрытие рук — 5 минут", completed: false },
+  ],
+  generated_at: "2026-06-07T12:00:00Z",
+  completed: false,
+  focus_subscore: "landing_absorption",
+}

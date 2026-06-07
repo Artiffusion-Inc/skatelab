@@ -18,6 +18,11 @@ import { ProcessingBanner } from "@/components/session/processing-banner"
 import { SessionActionMenu } from "@/components/session/session-action-menu"
 import { SessionDownloads } from "@/components/session/session-downloads"
 import { useTabParam } from "@/hooks/use-tab-param"
+import { ScoreBreakdown } from "@/components/analysis/score-breakdown"
+import { PhaseTimelineExtended } from "@/components/analysis/phase-timeline-extended"
+import { GamificationPanel } from "@/components/gamification/gamification-panel"
+import { TrainingPlanComponent } from "@/components/gamification/training-plan"
+import { mockScore, mockPhases, mockUserLevel, mockSkills, mockTrainingPlan } from "@/lib/mocks/skating-analyzer"
 
 const ThreeJSkeletonViewer = lazy(() =>
   import("@/components/analysis/threejs-skeleton-viewer").then(m => ({
@@ -86,6 +91,7 @@ export default function SessionDetailPage() {
   const tabs = [
     { key: "overview" as const, label: tSession("tabOverview") },
     { key: "details" as const, label: tSession("tabDetails") },
+    { key: "analyzer" as const, label: "Анализатор" },
     { key: "export" as const, label: tSession("tabExport") },
   ]
 
@@ -374,6 +380,15 @@ export default function SessionDetailPage() {
 
             {/* Diagnostics */}
             {session.pose_data && <SessionDiagnostics elementType={session.element_type} />}
+          </div>
+        )}
+
+        {activeTab === "analyzer" && (
+          <div className="space-y-4">
+            <ScoreBreakdown score={mockScore} />
+            <PhaseTimelineExtended result={mockPhases} totalFrames={120} />
+            <GamificationPanel level={mockUserLevel} skills={mockSkills} />
+            <TrainingPlanComponent plan={mockTrainingPlan} />
           </div>
         )}
 

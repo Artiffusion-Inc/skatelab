@@ -597,7 +597,18 @@
     "viewSide": "Сбоку",
     "viewTop": "Сверху",
     "wireframe": "Каркас",
-    "solid": "Сплошной"
+    "solid": "Сплошной",
+    "overallScore": "Общая оценка: {score} / 10",
+    "scoreLabel": "Оценка: {value} / 10",
+    "dataQuality": "Качество данных: {quality}",
+    "skeletonReliability": "Скелет: {reliability}",
+    "quality_good": "хорошее",
+    "quality_partial": "частичное",
+    "quality_poor": "низкое",
+    "reliability_reliable": "надёжный",
+    "reliability_uncertain": "неуверенный",
+    "reliability_likely_wrong": "вероятно ошибочный",
+    "noData": "Нет данных"
   },
   "joints": {
     "pelvis": "Таз",
