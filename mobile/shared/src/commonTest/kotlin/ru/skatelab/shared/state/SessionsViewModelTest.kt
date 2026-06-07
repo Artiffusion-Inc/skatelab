@@ -202,3 +202,4 @@ class SessionsViewModelTest {
         // loadMore returns early when hasMore is false — no crash, no extra calls
         viewModel.loadMore()
     }
+}
