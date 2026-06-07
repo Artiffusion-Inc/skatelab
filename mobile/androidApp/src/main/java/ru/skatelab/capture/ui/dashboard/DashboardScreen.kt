@@ -31,8 +31,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import ru.skatelab.capture.R
 import ru.skatelab.shared.models.DiagnosticsFinding
 import ru.skatelab.shared.models.SessionResponse
 import ru.skatelab.shared.models.elementLabelRu
@@ -65,7 +67,7 @@ fun DashboardScreen(
             ) {
                 CircularProgressIndicator(modifier = Modifier.size(48.dp))
                 Spacer(modifier = Modifier.height(12.dp))
-                Text("Загрузка...", style = MaterialTheme.typography.bodyLarge)
+                Text(stringResource(R.string.session_list_loading), style = MaterialTheme.typography.bodyLarge)
             }
         }
         is DashboardState.Error -> {
@@ -76,7 +78,7 @@ fun DashboardScreen(
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
                 Text(
-                    "Ошибка загрузки",
+                    stringResource(R.string.session_list_error),
                     style = MaterialTheme.typography.titleMedium,
                     color = MaterialTheme.colorScheme.error,
                 )
@@ -88,7 +90,7 @@ fun DashboardScreen(
                 )
                 Spacer(modifier = Modifier.height(16.dp))
                 Button(onClick = { viewModel.shared.load() }) {
-                    Text("Повторить")
+                    Text(stringResource(R.string.session_list_retry))
                 }
             }
         }
@@ -130,8 +132,14 @@ private fun DashboardContent(
     ) {
         // Greeting
         val name = data.user?.displayName
+        val greetingText =
+            if (name != null) {
+                stringResource(R.string.dashboard_greeting_name, name)
+            } else {
+                stringResource(R.string.dashboard_greeting)
+            }
         Text(
-            text = if (name != null) "Привет, $name!" else "Привет!",
+            text = greetingText,
             style = MaterialTheme.typography.headlineMedium,
             fontWeight = FontWeight.Bold,
         )
@@ -139,7 +147,7 @@ private fun DashboardContent(
         // Best Results
         if (data.personalRecords.isNotEmpty()) {
             Text(
-                text = "Лучшие результаты",
+                text = stringResource(R.string.dashboard_best_results),
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.SemiBold,
             )
@@ -176,7 +184,7 @@ private fun DashboardContent(
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Text(
-                        text = "Неделя",
+                        text = stringResource(R.string.dashboard_week),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.SemiBold,
                     )
@@ -187,7 +195,7 @@ private fun DashboardContent(
                     ) {
                         Column {
                             Text(
-                                text = "Сессий",
+                                text = stringResource(R.string.dashboard_sessions_count),
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
@@ -200,7 +208,7 @@ private fun DashboardContent(
                         if (avgScore != null) {
                             Column(horizontalAlignment = Alignment.End) {
                                 Text(
-                                    text = "Ср. балл",
+                                    text = stringResource(R.string.dashboard_avg_score),
                                     style = MaterialTheme.typography.bodyMedium,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
@@ -220,7 +228,7 @@ private fun DashboardContent(
         // Top Findings
         if (data.diagnostics.isNotEmpty()) {
             Text(
-                text = "Рекомендации",
+                text = stringResource(R.string.dashboard_recommendations),
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.SemiBold,
             )
@@ -232,7 +240,7 @@ private fun DashboardContent(
         // Recent Sessions
         if (data.recentSessions.isNotEmpty()) {
             Text(
-                text = "Последние сессии",
+                text = stringResource(R.string.dashboard_recent_sessions),
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.SemiBold,
             )
@@ -246,7 +254,7 @@ private fun DashboardContent(
                 onClick = { onNavigateToSessions(null) },
                 modifier = Modifier.align(Alignment.End),
             ) {
-                Text("Все сессии →")
+                Text(stringResource(R.string.dashboard_all_sessions))
             }
         }
     }

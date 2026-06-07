@@ -15,27 +15,29 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.stringResource
 import androidx.navigation.NavDestination.Companion.hasRoute
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import ru.skatelab.capture.R
 import ru.skatelab.capture.navigation.CameraRoute
 import ru.skatelab.capture.navigation.DashboardRoute
 import ru.skatelab.capture.navigation.ProfileRoute
 import ru.skatelab.capture.navigation.SessionsRoute
 
 private data class TabItem(
-    val label: String,
+    val labelRes: Int,
     val icon: ImageVector,
     val route: Any,
 )
 
 private val TABS =
     listOf(
-        TabItem("Камера", Icons.Default.CameraAlt, CameraRoute),
-        TabItem("Прогресс", Icons.Default.Dashboard, DashboardRoute),
-        TabItem("Сессии", Icons.Default.History, SessionsRoute),
-        TabItem("Профиль", Icons.Default.Person, ProfileRoute),
+        TabItem(R.string.tab_camera, Icons.Default.CameraAlt, CameraRoute),
+        TabItem(R.string.tab_progress, Icons.Default.Dashboard, DashboardRoute),
+        TabItem(R.string.tab_sessions, Icons.Default.History, SessionsRoute),
+        TabItem(R.string.tab_profile, Icons.Default.Person, ProfileRoute),
     )
 
 @Composable
@@ -68,8 +70,13 @@ fun MainTabsScreen(
                                 restoreState = true
                             }
                         },
-                        icon = { Icon(tab.icon, contentDescription = tab.label) },
-                        label = { Text(tab.label) },
+                        icon = {
+                            Icon(
+                                tab.icon,
+                                contentDescription = stringResource(tab.labelRes),
+                            )
+                        },
+                        label = { Text(stringResource(tab.labelRes)) },
                     )
                 }
             }

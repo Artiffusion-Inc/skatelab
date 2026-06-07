@@ -1,5 +1,8 @@
 package ru.skatelab.capture.ui.tabs
 
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -38,6 +41,10 @@ fun MainTabsNavHost(
         navController = navController,
         startDestination = CameraRoute,
         modifier = modifier,
+        enterTransition = { fadeIn(animationSpec = tween(300)) },
+        exitTransition = { fadeOut(animationSpec = tween(300)) },
+        popEnterTransition = { fadeIn(animationSpec = tween(300)) },
+        popExitTransition = { fadeOut(animationSpec = tween(300)) },
     ) {
         composable<CameraRoute> {
             val viewModel: CameraViewModel = hiltViewModel()

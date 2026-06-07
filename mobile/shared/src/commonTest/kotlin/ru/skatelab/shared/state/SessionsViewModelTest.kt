@@ -186,4 +186,29 @@ class SessionsViewModelTest {
             assertEquals(false, second.isLoadingMore)
         }
     }
+
+    @Test
+    fun loadMore_doesNotCallWhenNoHasMore() = kotlinx.coroutines.test.runTest {
+        val noMoreJson = """{
+            "sessions": [$sessionJson],
+            "total": 1,
+            "next_cursor": null,
+            "has_more": false
+        }"""
+        val engine = MockEngine { request ->
+            respond(noMoreJson, status = HttpStatusCode.OK, headers = jsonHeaders)
+        }
+        val api = SessionsApi(client(engine))
+        val viewModel = SessionsViewModel(api)
+
+        viewModel.uiState.test {
+            assertEquals(SessionsUiState.Loading, awaitItem())
+            viewModel.loadSessions()
+            val loaded = awaitItem()
+            assertIs<SessionsUiState.Loaded>(loaded)
+            assertEquals(false, loaded.hasMore)
+            // loadMore returns early when hasMore is false — no crash
+            viewModel.loadMore()
+        }
+    }
 }

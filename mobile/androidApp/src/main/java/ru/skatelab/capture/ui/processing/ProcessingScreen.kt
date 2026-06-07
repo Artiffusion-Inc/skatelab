@@ -201,7 +201,7 @@ private fun ProcessingContent(
             )
             Spacer(Modifier.height(16.dp))
             Text(
-                text = state.message.ifBlank { "Processing..." },
+                text = state.message.ifBlank { stringResource(R.string.status_processing) },
                 style = MaterialTheme.typography.bodyLarge,
                 modifier = Modifier.testTag("processingStatus"),
             )
