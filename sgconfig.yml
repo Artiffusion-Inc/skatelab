@@ -9,3 +9,6 @@ languageGlobs:
     - "{backend,ml}/**/*.py"
   dart:
     - "mobile/**/*.dart"
+  kotlin:
+    - "mobile/**/*.kt"
+    - "mobile/**/*.kts"

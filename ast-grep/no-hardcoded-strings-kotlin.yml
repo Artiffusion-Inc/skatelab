@@ -1,0 +1,46 @@
+id: no-hardcoded-strings-kotlin
+language: kotlin
+message: |
+  Don't hardcode user-facing text. Use stringResource(R.string.key) with strings.xml.
+
+  Instead of:  Text("Загрузка...")
+  Use:         Text(stringResource(R.string.loading))
+
+  Instead of:  Text("Profile")
+  Use:         Text(stringResource(R.string.profile_title))
+
+  Instead of:  contentDescription = "Назад"
+  Use:         contentDescription = stringResource(R.string.content_back)
+severity: warning
+note: |
+  Hardcoded strings in UI code break i18n. Use stringResource() for any text
+  the user can see. Allowed: log tags, testTag, intent actions, permission strings,
+  Room table/column names, BLE UUIDs, status constants, enum keys, format strings,
+  debug/diagnostic text, API paths, token keys.
+rule:
+  kind: string_literal
+  regex: '[А-яёA-Za-z]{3,}'
+ignores:
+  - "**/*.gradle.kts"
+  - "**/build-logic/**"
+  - "**/test/**"
+  - "**/androidTest/**"
+  - "**/commonTest/**"
+  - "**/data/**"
+  - "**/domain/**"
+  - "**/di/**"
+  - "**/theme/**"
+  - "**/skeleton/**"
+  - "**/worker/**"
+  - "**/ble/**"
+  - "**/models/**"
+  - "**/api/**"
+  - "**/auth/**"
+  - "**/state/**"
+  - "**/upload/**"
+  - "**/App.kt"
+  - "**/AppLogger.kt"
+  - "**/MainActivity.kt"
+  - "**/SensorRecordingService.kt"
+  - "**/AppNavigation.kt"
+  - "**/MetricTrendViewModel.kt"
