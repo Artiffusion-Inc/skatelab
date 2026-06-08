@@ -8,6 +8,7 @@ import io.ktor.client.plugins.*
 import io.ktor.client.plugins.auth.*
 import io.ktor.client.plugins.auth.providers.*
 import io.ktor.client.plugins.contentnegotiation.*
+import io.ktor.client.plugins.logging.*
 import io.ktor.client.request.*
 import io.ktor.http.*
 import io.ktor.serialization.kotlinx.json.*
@@ -29,6 +30,11 @@ class SkateLabClient(
 
     val httpClient = HttpClient(engine) {
         install(ContentNegotiation) { json(json) }
+
+        install(Logging) {
+            level = LogLevel.ALL
+            logger = Logger.DEFAULT
+        }
 
         defaultRequest { url(baseUrl) }
 
