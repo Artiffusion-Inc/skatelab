@@ -11,18 +11,19 @@ tags:
       - tapOn: "While using the app"
 # Navigate to register screen from login
 - assertVisible: "Log in to your account"
-- tapOn: "Register"
-- assertVisible: "Create account"
-- tapOn:
-    id: "displayNameField"
+- tapOn: "Don't have an account? Register"
+- assertVisible: "Create Account"
+- tapOn: "Display name"
 - inputText: Test User
-- tapOn:
-    id: "emailField"
+- back
+- tapOn: "Email"
 - inputText: test@skatelab.ru
-- tapOn:
-    id: "passwordField"
+- back
+- tapOn: "Password"
 - inputText: Test123456
-- tapOn:
-    id: "registerButton"
-# After register: check for network error (expected without backend)
-- assertVisible: "network"
+- back
+- tapOn: "Register"
+# After register attempt without backend: retry button should appear
+- extendedWaitUntil:
+    visible: "Retry"
+    timeout: 10000

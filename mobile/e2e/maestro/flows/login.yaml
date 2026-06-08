@@ -12,14 +12,14 @@ tags:
       - tapOn: "While using the app"
 # Wait for login screen
 - assertVisible: "Log in to your account"
-- tapOn:
-    id: "emailField"
+- tapOn: "Email"
 - inputText: test@skatelab.ru
-- tapOn:
-    id: "passwordField"
+- back
+- tapOn: "Password"
 - inputText: Test123456
-- tapOn:
-    id: "loginButton"
-# After login: check for network error (expected without backend)
-# If no error, app navigates to main screen with cameraRecordButton
-- assertVisible: "network"
+- back
+- tapOn: "Log in"
+# After login attempt without backend: retry button should appear
+- extendedWaitUntil:
+    visible: "Retry"
+    timeout: 10000
