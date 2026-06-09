@@ -103,17 +103,19 @@ private fun PermissionGate(content: @Composable () -> Unit) {
                 if (requesting) {
                     CircularProgressIndicator(modifier = Modifier.size(24.dp))
                 } else {
-                    Button(onClick = {
-                        val missing = runtimePermissions.filter {
-                            ContextCompat.checkSelfPermission(context, it) != PackageManager.PERMISSION_GRANTED
-                        }
-                        if (missing.isEmpty()) {
-                            runtimeGranted = true
-                        } else {
-                            requesting = true
-                            runtimeLauncher.launch(missing.toTypedArray())
-                        }
-                    }) {
+                    Button(
+                        onClick = {
+                            val missing = runtimePermissions.filter {
+                                ContextCompat.checkSelfPermission(context, it) != PackageManager.PERMISSION_GRANTED
+                            }
+                            if (missing.isEmpty()) {
+                                runtimeGranted = true
+                            } else {
+                                requesting = true
+                                runtimeLauncher.launch(missing.toTypedArray())
+                            }
+                        },
+                    ) {
                         Text(stringResource(R.string.permissions_grant))
                     }
                 }
