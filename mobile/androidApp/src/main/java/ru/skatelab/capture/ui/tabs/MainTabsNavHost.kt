@@ -15,7 +15,6 @@ import ru.skatelab.capture.navigation.CameraRoute
 import ru.skatelab.capture.navigation.DashboardRoute
 import ru.skatelab.capture.navigation.ProfileRoute
 import ru.skatelab.capture.navigation.SessionsRoute
-import ru.skatelab.capture.navigation.UploadQueueRoute
 import ru.skatelab.capture.ui.camera.CameraScreen
 import ru.skatelab.capture.ui.camera.CameraViewModel
 import ru.skatelab.capture.ui.dashboard.AndroidDashboardViewModel
@@ -82,7 +81,7 @@ fun MainTabsNavHost(
             ProfileScreen(
                 viewModel = viewModel,
                 onLogout = onLogout,
-                onNavigateToUploadQueue = { navController.navigate(UploadQueueRoute) },
+                onNavigateToUploadQueue = onNavigateToUploadQueue,
                 pendingCount = pendingCount,
             )
         }

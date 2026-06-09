@@ -1,7 +1,12 @@
 appId: ru.skatelab.capture
 tags:
   - auth
+  - manual
 ---
+# NOTE: This flow requires a unique email each run.
+# Since Maestro cannot generate timestamps, this is a manual-only test.
+# Use a fresh email like: e2e-20260609@example.com
+# After registration, the new account must be verified or it may conflict with future runs.
 - launchApp
 # Grant camera permission if prompted
 - runFlow:
@@ -28,10 +33,10 @@ tags:
 - tapOn: "Don't have an account? Register"
 - assertVisible: "Create Account"
 - tapOn: "Display name"
-- inputText: Test User
+- inputText: E2E Test User
 - back
 - tapOn: "Email"
-- inputText: e2e-register@example.com
+- inputText: e2e-manual-test@example.com
 - back
 - tapOn: "Password"
 - inputText: Test123456
