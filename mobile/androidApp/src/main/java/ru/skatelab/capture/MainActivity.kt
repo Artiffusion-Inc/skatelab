@@ -105,9 +105,13 @@ private fun PermissionGate(content: @Composable () -> Unit) {
                 } else {
                     Button(
                         onClick = {
-                            val missing = runtimePermissions.filter {
-                                ContextCompat.checkSelfPermission(context, it) != PackageManager.PERMISSION_GRANTED
-                            }
+                            val missing =
+                                runtimePermissions.filter {
+                                    ContextCompat.checkSelfPermission(
+                                        context,
+                                        it,
+                                    ) != PackageManager.PERMISSION_GRANTED
+                                }
                             if (missing.isEmpty()) {
                                 runtimeGranted = true
                             } else {
