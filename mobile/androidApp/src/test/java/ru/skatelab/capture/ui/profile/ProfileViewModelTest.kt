@@ -23,6 +23,7 @@ import ru.skatelab.shared.api.SkateLabClient
 import ru.skatelab.shared.api.UsersApi
 import ru.skatelab.shared.auth.AuthRepository
 import ru.skatelab.shared.models.UserResponse
+import ru.skatelab.shared.state.AuthViewModel as SharedAuthViewModel
 
 @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 class ProfileViewModelTest {
@@ -32,6 +33,7 @@ class ProfileViewModelTest {
     private lateinit var client: SkateLabClient
     private lateinit var usersApi: UsersApi
     private lateinit var authRepository: AuthRepository
+    private lateinit var sharedAuthViewModel: SharedAuthViewModel
     private lateinit var viewModel: ProfileViewModel
 
     private val stubUser =
@@ -54,6 +56,7 @@ class ProfileViewModelTest {
         Dispatchers.setMain(testDispatcher)
         usersApi = mockk(relaxed = true)
         authRepository = mockk(relaxed = true)
+        sharedAuthViewModel = SharedAuthViewModel(authRepository, usersApi)
         client = mockk<SkateLabClient>()
         every { client.users } returns usersApi
         coEvery { usersApi.getMe() } returns stubUser
@@ -67,7 +70,7 @@ class ProfileViewModelTest {
     @Test
     fun init_loadsProfile() =
         testScope.runTest {
-            viewModel = ProfileViewModel(client, authRepository)
+            viewModel = ProfileViewModel(client, sharedAuthViewModel)
             advanceUntilIdle()
 
             coVerify { usersApi.getMe() }
@@ -81,7 +84,7 @@ class ProfileViewModelTest {
         testScope.runTest {
             coEvery { usersApi.getMe() } throws RuntimeException("Network error")
 
-            viewModel = ProfileViewModel(client, authRepository)
+            viewModel = ProfileViewModel(client, sharedAuthViewModel)
             advanceUntilIdle()
 
             assertFalse(viewModel.uiState.value.isLoading)
@@ -95,7 +98,7 @@ class ProfileViewModelTest {
             val updated = stubUser.copy(displayName = "Alice Updated")
             coEvery { usersApi.updateProfile(displayName = "Alice Updated") } returns updated
 
-            viewModel = ProfileViewModel(client, authRepository)
+            viewModel = ProfileViewModel(client, sharedAuthViewModel)
             advanceUntilIdle()
 
             viewModel.updateProfile(displayName = "Alice Updated")
@@ -112,7 +115,7 @@ class ProfileViewModelTest {
             coEvery { usersApi.updateProfile(any(), any(), any(), any()) } throws
                 RuntimeException("Save failed")
 
-            viewModel = ProfileViewModel(client, authRepository)
+            viewModel = ProfileViewModel(client, sharedAuthViewModel)
             advanceUntilIdle()
 
             viewModel.updateProfile(displayName = "New")
@@ -128,7 +131,7 @@ class ProfileViewModelTest {
             val updated = stubUser.copy(angularUnit = "rad_per_sec")
             coEvery { usersApi.updateSettings(angularUnit = "rad_per_sec") } returns updated
 
-            viewModel = ProfileViewModel(client, authRepository)
+            viewModel = ProfileViewModel(client, sharedAuthViewModel)
             advanceUntilIdle()
 
             viewModel.updateSettings("rad_per_sec")
@@ -139,9 +142,9 @@ class ProfileViewModelTest {
         }
 
     @Test
-    fun logout_callsAuthRepo() =
+    fun logout_callsSharedAuthViewModel() =
         testScope.runTest {
-            viewModel = ProfileViewModel(client, authRepository)
+            viewModel = ProfileViewModel(client, sharedAuthViewModel)
             advanceUntilIdle()
 
             viewModel.logout()
@@ -156,7 +159,7 @@ class ProfileViewModelTest {
         testScope.runTest {
             coEvery { usersApi.getMe() } throws RuntimeException("err")
 
-            viewModel = ProfileViewModel(client, authRepository)
+            viewModel = ProfileViewModel(client, sharedAuthViewModel)
             advanceUntilIdle()
 
             assertNotNull(viewModel.uiState.value.error)
