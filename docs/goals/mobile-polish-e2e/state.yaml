@@ -1,0 +1,131 @@
+goal:
+  title: "Mobile App: Full E2E Coverage + Polish"
+  slug: mobile-polish-e2e
+  status: active
+  intent: "Покрыть всё приложение E2E-тестами Maestro, отполировать UX, исправить все баги — не останавливаемся пока всё не работает."
+  oracle: "Все Maestro E2E флоу проходят зелёно на Docker Android эмуляторе против api.skatelab.ru. Нет крашей ни на одном экране."
+
+tasks:
+  - id: T001
+    type: scout
+    assignee: PM
+    status: done
+    objective: "Map all app screens and user flows. Identify crashes, bugs, UX issues. Build E2E flow inventory."
+    inputs:
+      - "Mobile app source code"
+      - "Docker Android emulator"
+      - "Real backend api.skatelab.ru"
+    expected_output:
+      - "Complete list of app screens and navigation paths"
+      - "List of crashes, bugs, and UX issues found during manual walkthrough"
+      - "E2E flow inventory with Maestro selectors for each screen"
+    receipt:
+      result: done
+      summary: |
+        Mapped all 14 screens, navigation graph, 6 ViewModels. Key findings:
+
+        BUGS FOUND:
+        1. Permissions screen has no retry button — user gets stuck if they deny BLE
+        2. CameraScreen crashes on emulator (no camera) — need graceful fallback
+        3. Dashboard/Sessions/Profile show empty content after login — may be API errors not shown
+        4. API paths had leading / which replaced baseUrl /v1 prefix (FIXED in previous commit)
+        5. AppError.Unknown now includes exception detail for debugging (FIXED)
+
+        SCREENS (14 total):
+        Auth: Splash, Login, Register
+        Tabs: Camera, Dashboard, Sessions, Profile
+        Sub-screens: SessionDetail, MetricTrend, Processing, UploadQueue
+        BLE: BleScan, Calibration, Recording
+        More: MoreScreen
+
+        MAESTRO FLOWS NEEDED:
+        1. login.yaml (DONE)
+        2. register.yaml (DONE - needs email change to avoid dup)
+        3. dashboard.yaml — verify dashboard loads after login
+        4. sessions.yaml — verify session list loads (empty or with items)
+        5. profile.yaml — verify profile loads and shows user info
+        6. logout.yaml — verify logout returns to login screen
+
+  - id: T002
+    type: worker
+    assignee: Worker
+    status: active
+    objective: "Fix PermissionScreen: add retry button when permissions denied."
+    allowed_files:
+      - "mobile/androidApp/src/main/java/ru/skatelab/capture/MainActivity.kt"
+    verify:
+      - "App shows 'Grant permissions' button when permissions denied, tapping it re-requests"
+    stop_if:
+      - "Need changes outside MainActivity.kt"
+    receipt: null
+
+  - id: T003
+    type: worker
+    assignee: Worker
+    status: queued
+    objective: "Fix CameraScreen: show graceful fallback on emulator/no-camera devices."
+    allowed_files:
+      - "mobile/androidApp/src/main/java/ru/skatelab/capture/ui/camera/CameraScreen.kt"
+      - "mobile/androidApp/src/main/java/ru/skatelab/capture/ui/camera/CameraViewModel.kt"
+    verify:
+      - "App doesn't crash on emulator, shows placeholder or upload-only mode"
+    stop_if:
+      - "Need changes outside camera UI files"
+    receipt: null
+
+  - id: T004
+    type: worker
+    assignee: Worker
+    status: queued
+    objective: "Write Maestro E2E flows: dashboard, sessions, profile, logout."
+    allowed_files:
+      - "mobile/e2e/maestro/flows/*.yaml"
+    verify:
+      - "All new Maestro flows pass on Docker emulator against real backend"
+    stop_if:
+      - "Need code changes to make screens testable"
+    receipt: null
+
+  - id: T005
+    type: worker
+    assignee: Worker
+    status: queued
+    objective: "Polish UX: error states, loading states, empty states on all screens."
+    allowed_files:
+      - "mobile/androidApp/src/main/java/ru/skatelab/capture/ui/**/*.kt"
+      - "mobile/shared/src/commonMain/kotlin/ru/skatelab/shared/state/*.kt"
+    verify:
+      - "No visible UX glitches during manual walkthrough"
+      - "E2E flows still pass after polish"
+    stop_if:
+      - "Need design changes beyond current design system"
+    receipt: null
+
+  - id: T006
+    type: worker
+    assignee: Worker
+    status: queued
+    objective: "Fix Dashboard/Sessions/Profile empty states — verify API calls succeed and data displays."
+    allowed_files:
+      - "mobile/shared/src/commonMain/kotlin/ru/skatelab/shared/**/*.kt"
+      - "mobile/androidApp/src/main/java/ru/skatelab/capture/ui/**/*.kt"
+    verify:
+      - "Dashboard, Sessions, Profile show content (not just empty tabs) after login"
+    stop_if:
+      - "Need backend changes"
+    receipt: null
+
+  - id: T999
+    type: judge
+    assignee: Judge
+    status: queued
+    objective: "Audit: full E2E coverage, no crashes, polished UX. Goal complete?"
+    inputs:
+      - "All done task receipts"
+      - "E2E test results"
+      - "Manual walkthrough verification"
+    expected_output:
+      - "complete | not_complete"
+      - "full_outcome_complete: true | false"
+      - "Missing evidence if not complete"
+    receipt: null

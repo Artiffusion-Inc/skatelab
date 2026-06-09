@@ -54,6 +54,7 @@
     <string name="export_share_title">Отправить сессию</string>
 
     <string name="permissions_required">Разрешения необходимы для работы</string>
+    <string name="permissions_grant">Предоставить разрешения</string>
 
     <string name="session_list_title">Сессии</string>
     <string name="session_date_format">dd.MM.yyyy HH:mm</string>

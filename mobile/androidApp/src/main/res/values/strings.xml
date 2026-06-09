@@ -59,6 +59,7 @@
 
     <!-- Permissions -->
     <string name="permissions_required">Permissions are required for the app to work</string>
+    <string name="permissions_grant">Grant permissions</string>
 
     <!-- Session List -->
     <string name="session_list_title">Sessions</string>
