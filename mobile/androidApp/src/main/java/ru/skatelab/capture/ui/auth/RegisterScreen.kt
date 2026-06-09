@@ -36,6 +36,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import ru.skatelab.capture.R
+import ru.skatelab.shared.models.AppError
 import ru.skatelab.shared.state.AuthUiState
 
 private fun isNetworkError(message: String): Boolean {
@@ -126,9 +127,12 @@ fun RegisterScreen(
 
         if (uiState is AuthUiState.Error) {
             val msg = uiState.error.messageKey
+            val detail = (uiState.error as? AppError.Unknown)?.detail
             val displayMsg =
                 if (isNetworkError(msg)) {
                     stringResource(R.string.auth_no_network)
+                } else if (detail != null) {
+                    "$msg: $detail"
                 } else {
                     msg
                 }

@@ -11,7 +11,7 @@ fun Throwable.toAppError(): AppError = when (this) {
     is SocketTimeoutException, is HttpRequestTimeoutException -> AppError.Timeout()
     is ResponseException -> this.response.status.toAppError()
     is IOException -> AppError.Network()
-    else -> AppError.Unknown()
+    else -> AppError.Unknown(detail = "${this::class.simpleName}: ${this.message}")
 }
 
 fun HttpStatusCode.toAppError(): AppError = when (value) {
