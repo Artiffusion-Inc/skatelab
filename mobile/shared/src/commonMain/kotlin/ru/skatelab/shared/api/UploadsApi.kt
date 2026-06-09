@@ -12,7 +12,7 @@ import kotlinx.serialization.Serializable
 class UploadsApi(private val client: HttpClient) {
     /** Initialize a multipart upload. Backend uses query parameters. */
     suspend fun init(fileName: String, contentType: String, totalSize: Long): UploadInitResponse =
-        client.post("/uploads/init") {
+        client.post("uploads/init") {
             parameter("file_name", fileName)
             parameter("content_type", contentType)
             parameter("total_size", totalSize)
@@ -20,7 +20,7 @@ class UploadsApi(private val client: HttpClient) {
 
     /** Complete a multipart upload after all parts are uploaded to R2. */
     suspend fun complete(uploadId: String, key: String, parts: List<CompletedPart>) {
-        client.post("/uploads/complete") {
+        client.post("uploads/complete") {
             contentType(ContentType.Application.Json)
             setBody(UploadCompleteRequest(uploadId, key, parts))
         }
@@ -28,7 +28,7 @@ class UploadsApi(private val client: HttpClient) {
 
     /** Get a presigned PUT URL for small file direct upload. */
     suspend fun presign(fileName: String, contentType: String = "application/octet-stream"): PresignResponse =
-        client.post("/uploads/presign") {
+        client.post("uploads/presign") {
             parameter("file_name", fileName)
             parameter("content_type", contentType)
         }.body()

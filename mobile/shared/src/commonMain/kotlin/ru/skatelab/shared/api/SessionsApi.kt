@@ -17,14 +17,14 @@ data class BulkDeleteRequest(@SerialName("session_ids") val ids: List<String>)
 
 class SessionsApi(private val client: HttpClient) {
     suspend fun get(id: String): SessionResponse =
-        client.get("/sessions/$id").body()
+        client.get("sessions/$id").body()
 
     suspend fun list(
         limit: Int = 20,
         cursor: String? = null,
         elementType: String? = null,
     ): SessionListResponse =
-        client.get("/sessions") {
+        client.get("sessions") {
             parameter("limit", limit)
             if (cursor != null) parameter("cursor", cursor)
             if (elementType != null) parameter("element_type", elementType)
@@ -36,7 +36,7 @@ class SessionsApi(private val client: HttpClient) {
         imuLeftKey: String? = null,
         imuRightKey: String? = null,
     ): SessionResponse =
-        client.post("/sessions") {
+        client.post("sessions") {
             contentType(ContentType.Application.Json)
             setBody(buildJsonObject {
                 put("element_type", elementType)
@@ -47,17 +47,17 @@ class SessionsApi(private val client: HttpClient) {
         }.body()
 
     suspend fun delete(id: String) {
-        client.delete("/sessions/$id")
+        client.delete("sessions/$id")
     }
 
     suspend fun update(id: String, request: SessionUpdateRequest): SessionResponse =
-        client.patch("/sessions/$id") {
+        client.patch("sessions/$id") {
             contentType(ContentType.Application.Json)
             setBody(request)
         }.body()
 
     suspend fun bulkDelete(ids: List<String>) {
-        client.delete("/sessions/bulk") {
+        client.delete("sessions/bulk") {
             contentType(ContentType.Application.Json)
             setBody(BulkDeleteRequest(ids))
         }

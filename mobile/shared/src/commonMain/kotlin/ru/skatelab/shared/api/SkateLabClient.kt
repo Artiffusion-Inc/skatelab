@@ -48,7 +48,7 @@ class SkateLabClient(
                 refreshTokens {
                     val refreshToken = oldTokens?.refreshToken ?: return@refreshTokens null
                     val result = runCatching {
-                        client.post("/auth/refresh") {
+                        client.post("auth/refresh") {
                             markAsRefreshTokenRequest()
                             contentType(ContentType.Application.Json)
                             setBody(buildJsonObject { put("refresh_token", refreshToken) })
