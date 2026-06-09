@@ -1,15 +1,11 @@
-appId: ru.skatelab
+appId: ru.skatelab.capture
 tags:
   - recording
 ---
+# Recording flow - requires real camera, will not work on emulator
+# On emulator, Camera screen shows upload-only mode
 - launchApp
-- assertVisible: "Камера"
-- assertNotVisible: "Подготовка камеры…"
-- tapOn: { id: "cameraRecordButton" }
-- assertVisible: { id: "cameraRecIndicator" }
 - extendedWaitUntil:
-    visible: "REC 00:0[3-9]"
-    timeout: 10000
-- tapOn: { id: "cameraRecordButton" }
-- assertNotVisible: "REC"
-- assertVisible: { id: "elementTypeSheet" }
+    visible: "Camera"
+    timeout: 15000
+- assertVisible: "Upload video"

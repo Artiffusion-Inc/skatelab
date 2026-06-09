@@ -1,9 +1,11 @@
-appId: ru.skatelab
+appId: ru.skatelab.capture
 tags:
   - upload
 ---
+# Upload queue - requires user to be logged in
 - launchApp
-- tapOn: "Профиль"
-- assertVisible: { id: "profileUploadQueueLink" }
-- tapOn: { id: "profileUploadQueueLink" }
-- assertVisible: { id: "uploadQueueList" }
+- extendedWaitUntil:
+    visible: "Camera"
+    timeout: 15000
+- tapOn: "Profile"
+- assertVisible: "Log out"

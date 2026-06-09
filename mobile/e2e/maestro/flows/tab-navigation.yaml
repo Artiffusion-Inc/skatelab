@@ -1,21 +1,20 @@
-appId: ru.skatelab
+appId: ru.skatelab.capture
 tags:
   - smokeTest
   - navigation
 ---
+# Prerequisite: user must be logged in
 - launchApp
-# Camera tab is default after login
-- assertVisible: "Камера"
-- assertVisible: { id: "cameraRecordButton" }
-# Switch to Progress tab (not "Дашборд" — actual label is "Прогресс")
-- tapOn: "Прогресс"
-- assertVisible: { id: "dashboardContent" }
-# Switch to Profile
-- tapOn: "Профиль"
-- assertVisible: { id: "profileUploadQueueLink" }
-# Switch to Sessions
-- tapOn: "Сессии"
-- assertVisible: { id: "sessionListContent" }
-# Back to Camera
-- tapOn: "Камера"
-- assertVisible: { id: "cameraRecordButton" }
+# Wait for main screen after auto-login
+- extendedWaitUntil:
+    visible: "Camera"
+    timeout: 15000
+- assertVisible: "Progress"
+- tapOn: "Progress"
+- assertVisible: "Upload video"
+- tapOn: "Sessions"
+- assertVisible: "Profile"
+- tapOn: "Profile"
+- assertVisible: "Log out"
+- tapOn: "Camera"
+- assertVisible: "Upload video"

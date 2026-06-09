@@ -1,0 +1,16 @@
+appId: ru.skatelab.capture
+tags:
+  - smokeTest
+  - auth
+---
+# Prerequisite: user must be logged in
+- launchApp
+- extendedWaitUntil:
+    visible: "Camera"
+    timeout: 15000
+- tapOn: "Profile"
+- assertVisible: "Log out"
+- tapOn: "Log out"
+- extendedWaitUntil:
+    visible: "Log in to your account"
+    timeout: 10000

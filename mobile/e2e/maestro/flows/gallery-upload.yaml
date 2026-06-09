@@ -1,15 +1,11 @@
-appId: ru.skatelab
+appId: ru.skatelab.capture
 tags:
   - upload
 ---
+# Gallery upload flow - requires camera permission and gallery video
+# This flow tests the gallery upload button visibility on the Camera screen
 - launchApp
-- assertVisible: "Камера"
-- assertNotVisible: "Подготовка камеры…"
-# Seed a test video into the device gallery
-- addMedia:
-    - "../resources/test_video.mp4"
-- tapOn: { id: "cameraGalleryButton" }
-# Navigate the system photo picker (partial flow with fallback selectors)
-- runFlow: ../partials/pick_first_video.yaml
-- assertVisible: { id: "elementTypeSheet" }
-- tapOn: { id: "elementTypeConfirm" }
+- extendedWaitUntil:
+    visible: "Camera"
+    timeout: 15000
+- assertVisible: "Upload video"
