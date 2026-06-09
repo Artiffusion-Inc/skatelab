@@ -19,7 +19,7 @@ tags:
 - inputText: Test123456
 - back
 - tapOn: "Log in"
-# After login attempt without backend: retry button should appear
+# After successful login: main tabs should appear
 - extendedWaitUntil:
-    visible: "Retry"
-    timeout: 10000
+    visible: "Camera"
+    timeout: 15000
