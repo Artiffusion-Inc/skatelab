@@ -9,8 +9,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import ru.skatelab.shared.api.SkateLabClient
-import ru.skatelab.shared.auth.AuthRepository
 import ru.skatelab.shared.models.UserResponse
+import ru.skatelab.shared.state.AuthViewModel as SharedAuthViewModel
 
 data class ProfileUiState(
     val isLoading: Boolean = true,
@@ -25,7 +25,7 @@ class ProfileViewModel
     @Inject
     constructor(
         private val client: SkateLabClient,
-        private val authRepository: AuthRepository,
+        private val sharedAuthViewModel: SharedAuthViewModel,
     ) : ViewModel() {
         private val usersApi = client.users
 
@@ -116,7 +116,7 @@ class ProfileViewModel
 
         fun logout() {
             viewModelScope.launch {
-                authRepository.logout()
+                sharedAuthViewModel.logout()
                 _isLoggedOut.value = true
             }
         }

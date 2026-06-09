@@ -9,8 +9,10 @@ tags:
     visible: "Camera"
     timeout: 15000
 - tapOn: "Profile"
+- scroll
+- scroll
 - assertVisible: "Log out"
 - tapOn: "Log out"
 - extendedWaitUntil:
     visible: "Log in to your account"
-    timeout: 10000
+    timeout: 15000

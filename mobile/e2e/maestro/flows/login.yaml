@@ -10,8 +10,22 @@ tags:
       visible: "While using the app"
     commands:
       - tapOn: "While using the app"
+# If already logged in, log out first
+- runFlow:
+    when:
+      visible: "Camera"
+    commands:
+      - tapOn: "Profile"
+      - scroll
+      - scroll
+      - tapOn: "Log out"
+      - extendedWaitUntil:
+          visible: "Log in to your account"
+          timeout: 10000
 # Wait for login screen
-- assertVisible: "Log in to your account"
+- extendedWaitUntil:
+    visible: "Log in to your account"
+    timeout: 10000
 - tapOn: "Email"
 - inputText: test@skatelab.ru
 - back

@@ -8,4 +8,6 @@ tags:
     visible: "Camera"
     timeout: 15000
 - tapOn: "Profile"
-- assertVisible: "Log out"
+- scroll
+- scroll
+- assertVisible: "Uploads"

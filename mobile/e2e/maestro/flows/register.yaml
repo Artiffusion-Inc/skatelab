@@ -9,8 +9,22 @@ tags:
       visible: "While using the app"
     commands:
       - tapOn: "While using the app"
+# If already logged in, log out first
+- runFlow:
+    when:
+      visible: "Camera"
+    commands:
+      - tapOn: "Profile"
+      - scroll
+      - scroll
+      - tapOn: "Log out"
+      - extendedWaitUntil:
+          visible: "Log in to your account"
+          timeout: 10000
 # Navigate to register screen from login
-- assertVisible: "Log in to your account"
+- extendedWaitUntil:
+    visible: "Log in to your account"
+    timeout: 10000
 - tapOn: "Don't have an account? Register"
 - assertVisible: "Create Account"
 - tapOn: "Display name"
