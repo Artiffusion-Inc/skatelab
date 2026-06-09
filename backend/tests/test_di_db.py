@@ -33,8 +33,8 @@ async def test_provide_db_rollback_on_any_exception():
 
 
 @pytest.mark.asyncio
-async def test_provide_db_no_auto_commit():
-    """provide_db() must NOT auto-commit."""
+async def test_provide_db_auto_commit_on_success():
+    """provide_db() must auto-commit on success."""
     from app.di import provide_db
 
     mock_session = AsyncMock()
@@ -52,7 +52,7 @@ async def test_provide_db_no_auto_commit():
         with pytest.raises(StopAsyncIteration):
             await gen.__anext__()
 
-        mock_session.commit.assert_not_awaited()
+        mock_session.commit.assert_awaited_once()
 
 
 def test_no_dbsessionproxy_in_di():
