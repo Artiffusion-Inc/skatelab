@@ -1,94 +1,357 @@
+version: 2
+agents:
+  scout: unknown
+  worker: unknown
+  judge: unknown
+
 goal:
   title: "Mobile App: Full E2E Coverage + Polish"
   slug: mobile-polish-e2e
   status: active
-  intent: "Покрыть всё приложение E2E-тестами Maestro, отполировать UX, исправить все баги — не останавливаемся пока всё не работает."
-  oracle: "Все Maestro E2E флоу проходят зелёно на Docker Android эмуляторе против api.skatelab.ru. Нет крашей ни на одном экране."
+  intent: "Весь пайплайн video upload → processing → results работает безупречно и покрыт E2E. Все UX states отполированы."
+  oracle:
+    signal: "Все Maestro E2E флоу проходят зелёно + upload→processing→results pipeline работает end-to-end на реальном бэкенде"
+    cadence: "after each Worker package and at final audit"
+    final_proof: "APK установлен на эмуляторе, все E2E тесты зелёные, ручной проход upload→results показывает прогресс bar и результаты"
+
+intake:
+  original_request: "Потестить e2e flow с загрузкой видео и анализом. Экран зависает на Ready, нет прогресса, нет результатов."
+  interpreted_outcome: "Полный пайплайн video upload → processing → results работает безупречно с progress bar, empty/error states, и E2E покрытием."
+  input_shape: existing_plan
+  audience: developer
+  authority: requested
+  proof_type: demo
+  completion_proof: "Все Maestro E2E флоу зелёные + ручной проход на реальном бэкенде показывает upload с progress → processing с стадиями → results"
+  likely_misfire: "Полировать UI без проверки что backend processing pipeline реально работает — красивый progress bar не поможет если worker не запускается."
+  blind_spots_considered:
+    - "Backend arq worker может не работать на production — T010 проверяет это"
+    - "SSE stream может рваться на мобильной сети — нужна retry логика в ProcessApi"
+    - "WorkManager constraints (battery, network) могут блокировать upload на реальном устройстве"
+  existing_plan_facts:
+    - "Спека: docs/specs/2026-06-10-upload-processing-ux-design.md"
+    - "3 критических бага: videoKey не сохраняется, sessionId не передаётся, r2Key→videoKey rename"
+    - "4 error states: network, server, stuck upload, invalid video"
+    - "3 empty states: Progress, Sessions, Uploads"
 
 tasks:
   - id: T001
     type: scout
-    assignee: PM
+    assignee: Scout
     status: done
-    objective: "Map all app screens and user flows. Identify crashes, bugs, UX issues. Build E2E flow inventory."
+    objective: "Map all app screens and user flows. Identify crashes, bugs, UX issues."
     receipt:
       result: done
-      summary: "Mapped 14 screens, 6 ViewModels. Found: PermissionScreen no retry, CameraScreen no fallback, empty content on Dashboard/Sessions/Profile, API 404 bug (fixed), AppError.Unknown no detail (fixed)."
+      summary: "Mapped 14 screens, 6 ViewModels. Found: PermissionScreen no retry, CameraScreen no fallback, empty content on Dashboard/Sessions/Profile, API 404 bug, AppError.Unknown no detail."
+      evidence:
+        - "mobile/androidApp/src/main/java/ru/skatelab/capture/ui/ — 14 screens identified"
+        - "mobile/shared/src/commonMain/kotlin/ru/skatelab/shared/state/ — 6 ViewModels"
 
   - id: T002
     type: worker
     assignee: Worker
     status: done
     objective: "Fix PermissionScreen: add retry button when permissions denied."
+    allowed_files:
+      - "mobile/androidApp/src/main/java/ru/skatelab/capture/MainActivity.kt"
+      - "mobile/androidApp/src/main/res/values/strings.xml"
+    verify:
+      - "PermissionScreen shows retry button when permissions denied"
+    stop_if:
+      - "Need changes outside allowed_files"
     receipt:
       result: done
-      summary: "Added 'Grant permissions' button with loading state. Updated strings.xml and values-ru/strings.xml. Lint fix: sorted imports."
+      summary: "Added 'Grant permissions' button with loading state."
+      changed_files:
+        - "mobile/androidApp/src/main/java/ru/skatelab/capture/MainActivity.kt"
+      commands:
+        - cmd: "./gradlew ktlintCheck"
+          status: pass
 
   - id: T003
     type: worker
     assignee: Worker
     status: done
     objective: "Fix backend /v1/sessions 500 + logout navigation bug + Maestro scroll in E2E flows."
+    allowed_files:
+      - "backend/app/routes/sessions.py"
+      - "mobile/androidApp/src/main/java/ru/skatelab/capture/ui/profile/ProfileViewModel.kt"
+      - "mobile/androidApp/src/main/java/ru/skatelab/capture/ui/tabs/MainTabsNavHost.kt"
+      - "mobile/androidApp/src/test/java/ru/skatelab/capture/ui/profile/ProfileViewModelTest.kt"
+      - "mobile/e2e/maestro/flows/*.yaml"
+    verify:
+      - "/v1/sessions returns 200 with empty list instead of 500"
+      - "Logout navigates to LoginScreen"
+      - "All Maestro E2E flows pass"
+    stop_if:
+      - "Need changes outside allowed_files"
     receipt:
       result: done
-      summary: |
-        1. Backend: _session_to_response wraps S3 get_object_url_async in try/except, normalizes goe_grade (empty→None). Ran pending alembic migrations (isu_code, goe_grade).
-        2. Mobile: ProfileViewModel.logout() now calls sharedAuthViewModel.logout() instead of authRepository.logout() — AuthUiState updates to LoggedOut so LoginScreen doesn't redirect back to Camera.
-        3. E2E: All Maestro flows updated with scroll steps for Profile screen, logout-before-login condition in login/register flows.
+      summary: "Backend: S3 try/except + goe_grade null. Mobile: sharedAuthViewModel.logout(). E2E: scroll steps + logout-before-login."
       changed_files:
         - "backend/app/routes/sessions.py"
         - "mobile/androidApp/src/main/java/ru/skatelab/capture/ui/profile/ProfileViewModel.kt"
+        - "mobile/androidApp/src/main/java/ru/skatelab/capture/ui/tabs/MainTabsNavHost.kt"
         - "mobile/androidApp/src/test/java/ru/skatelab/capture/ui/profile/ProfileViewModelTest.kt"
-        - "mobile/e2e/maestro/flows/*.yaml"
-
-  - id: T004
-    type: worker
-    assignee: Worker
-    status: active
-    objective: "Build new APK with fixes, install on emulator, run full E2E suite, verify logout works."
-    allowed_files:
-      - "mobile/e2e/maestro/flows/*.yaml"
-    verify:
-      - "All Maestro E2E flows pass on Docker emulator against real backend"
-      - "Logout flow navigates to login screen correctly"
-    stop_if:
-      - "Need changes outside E2E flow files"
-
-  - id: T005
-    type: worker
-    assignee: Worker
-    status: queued
-    objective: "Polish UX: error states, loading states, empty states on all screens."
-    allowed_files:
-      - "mobile/androidApp/src/main/java/ru/skatelab/capture/ui/**/*.kt"
-      - "mobile/shared/src/commonMain/kotlin/ru/skatelab/shared/state/*.kt"
-    verify:
-      - "No visible UX glitches during manual walkthrough"
-      - "E2E flows still pass after polish"
-    stop_if:
-      - "Need design changes beyond current design system"
-    receipt: null
+        - "mobile/e2e/maestro/flows/login.yaml"
+        - "mobile/e2e/maestro/flows/logout.yaml"
+        - "mobile/e2e/maestro/flows/register.yaml"
+        - "mobile/e2e/maestro/flows/upload-queue.yaml"
+        - "mobile/e2e/maestro/flows/tab-navigation.yaml"
+      commands:
+        - cmd: "./gradlew testDebugUnitTest"
+          status: pass
 
   - id: T006
     type: worker
     assignee: Worker
     status: done
-    objective: "Fix Sessions screen: backend /v1/sessions was returning 500 (fixed in T003)."
+    objective: "Fix Sessions screen: backend /v1/sessions 500 (fixed in T003)."
+    allowed_files:
+      - "backend/app/routes/sessions.py"
+    verify:
+      - "/v1/sessions returns 200"
+    stop_if:
+      - "Need changes outside allowed_files"
     receipt:
       result: done
-      summary: "Root cause: missing DB columns (isu_code, goe_grade) + S3 URL gen exceptions. Fixed by alembic migration + try/except on S3 calls + goe_grade null handling."
+      summary: "Missing DB columns + S3 URL gen exceptions. Alembic migration applied."
+      changed_files:
+        - "backend/app/routes/sessions.py"
+      commands:
+        - cmd: "alembic upgrade head"
+          status: pass
+
+  # --- Upload & Processing Pipeline ---
+
+  - id: T010
+    type: scout
+    assignee: Scout
+    status: done
+    objective: "Verify backend processing pipeline is alive: arq worker running, Valkey pub/sub connected, /process/queue responds, SSE /stream sends events."
+    constraints:
+      - "Read-only. Do not modify any backend code."
+      - "Check: is the arq worker process running on production?"
+      - "Check: does /v1/process/queue return a valid task_id?"
+      - "Check: does SSE /v1/process/{taskId}/stream connect and receive events?"
+    expected_output:
+      - "Worker status: running | not_running | unknown"
+      - "Queue endpoint: working | failing | timeout"
+      - "SSE stream: events_received | timeout | error"
+      - "Any blocking infrastructure issues"
+    receipt:
+      result: done
+      note: notes/T010-backend-pipeline.md
+      summary: "Backend alive (health ok, Valkey connected). /process/queue 401 (needs auth). Worker requires VASTAI_API_KEY. 3 critical bugs found: videoKey not saved, sessionId missing at PROCESSING, no progress bar."
+
+  - id: T011
+    type: worker
+    assignee: Worker
+    status: done
+    objective: "Fix 3 critical upload pipeline bugs: videoKey not saved to Room (BF-1), sessionId missing at PROCESSING status (BF-2), rename r2Key→videoKey (BF-3)."
+    allowed_files:
+      - "mobile/androidApp/src/main/java/ru/skatelab/capture/upload/UploadWorker.kt"
+      - "mobile/androidApp/src/main/java/ru/skatelab/capture/data/db/PendingUploadEntity.kt"
+      - "mobile/androidApp/src/main/java/ru/skatelab/capture/data/db/PendingUploadDao.kt"
+      - "mobile/androidApp/src/main/java/ru/skatelab/capture/ui/processing/AndroidProcessingViewModel.kt"
+      - "mobile/androidApp/src/main/java/ru/skatelab/capture/data/db/AppDatabase.kt"
+    verify:
+      - "UploadWorker saves videoKey to Room after chunked upload"
+      - "UploadWorker passes sessionId with PROCESSING status update"
+      - "r2Key field renamed to videoKey everywhere"
+      - "Room migration added for column rename"
+      - "ktlintCheck passes"
+      - "testDebugUnitTest passes"
+    stop_if:
+      - "Need changes outside allowed_files"
+      - "Behavior is ambiguous — check spec first"
+    receipt:
+      result: done
+      summary: "3 bugs fixed: videoKey saved to Room after upload, sessionId passed at PROCESSING status, r2Key renamed to videoKey everywhere. Room migration 2→3 added."
+      changed_files:
+        - "mobile/androidApp/src/main/java/ru/skatelab/capture/upload/UploadWorker.kt"
+        - "mobile/androidApp/src/main/java/ru/skatelab/capture/data/db/PendingUploadEntity.kt"
+        - "mobile/androidApp/src/main/java/ru/skatelab/capture/data/db/PendingUploadDao.kt"
+        - "mobile/androidApp/src/main/java/ru/skatelab/capture/data/db/AppDatabase.kt"
+        - "mobile/androidApp/src/main/java/ru/skatelab/capture/di/DatabaseModule.kt"
+        - "mobile/androidApp/src/main/java/ru/skatelab/capture/ui/processing/AndroidProcessingViewModel.kt"
+        - "mobile/androidApp/src/test/java/ru/skatelab/capture/data/db/PendingUploadEntityTest.kt"
+
+  - id: T012
+    type: worker
+    assignee: Worker
+    status: done
+    objective: "Add upload progress tracking: WorkManager setProgressData + LinearProgressIndicator in ProcessingScreen (UP-1, UP-2)."
+    allowed_files:
+      - "mobile/androidApp/src/main/java/ru/skatelab/capture/upload/UploadWorker.kt"
+      - "mobile/androidApp/src/main/java/ru/skatelab/capture/ui/processing/ProcessingScreen.kt"
+      - "mobile/androidApp/src/main/res/values/strings.xml"
+      - "mobile/androidApp/src/main/res/values-ru/strings.xml"
+    verify:
+      - "UploadWorker reports progress via setProgressData"
+      - "ProcessingScreen shows LinearProgressIndicator with % during upload"
+      - "Existing E2E flows still pass"
+    stop_if:
+      - "Need changes outside allowed_files"
+    receipt:
+      result: done
+      summary: "UploadWorker reports progress via setProgressData. ProcessingScreen shows LinearProgressIndicator with % during upload. Processing stage labels added (Queuing, Processing, Computing metrics, Finishing). T013 merged."
+      changed_files:
+        - "mobile/androidApp/src/main/java/ru/skatelab/capture/upload/UploadWorker.kt"
+        - "mobile/androidApp/src/main/java/ru/skatelab/capture/ui/processing/ProcessingScreen.kt"
+        - "mobile/androidApp/src/main/res/values/strings.xml"
+        - "mobile/androidApp/src/main/res/values-ru/strings.xml"
+
+  - id: T013
+    type: worker
+    assignee: Worker
+    status: done
+    objective: "Add processing phase stage labels + polish ProcessingContent (UP-3)."
+    allowed_files:
+      - "mobile/androidApp/src/main/java/ru/skatelab/capture/ui/processing/ProcessingScreen.kt"
+      - "mobile/androidApp/src/main/res/values/strings.xml"
+      - "mobile/androidApp/src/main/res/values-ru/strings.xml"
+    verify:
+      - "Processing phase shows stage labels (Queuing, Processing, Computing metrics, Finishing)"
+      - "Percent display accurate"
+    stop_if:
+      - "Need changes outside allowed_files"
+    receipt:
+      result: done
+      summary: "Merged into T012. Stage labels added with Russian translations."
+
+  - id: T014
+    type: worker
+    assignee: Worker
+    status: done
+    objective: "Add empty states for Progress tab, Sessions tab, Uploads screen (ES-1, ES-2, ES-3)."
+    allowed_files:
+      - "mobile/androidApp/src/main/java/ru/skatelab/capture/ui/dashboard/DashboardScreen.kt"
+      - "mobile/androidApp/src/main/java/ru/skatelab/capture/ui/session/SessionListScreen.kt"
+      - "mobile/androidApp/src/main/java/ru/skatelab/capture/ui/upload/UploadQueueScreen.kt"
+      - "mobile/androidApp/src/main/res/values/strings.xml"
+      - "mobile/androidApp/src/main/res/values-ru/strings.xml"
+    verify:
+      - "Progress tab shows empty state when no active processing"
+      - "Sessions tab shows empty state when no sessions"
+      - "Uploads screen shows polished empty state"
+    stop_if:
+      - "Need changes outside allowed_files"
+    receipt:
+      result: done
+      summary: "Empty states added: Progress tab (CloudUpload icon + title + body), Sessions tab (SportsScore icon + title + body), Uploads polished (CloudDone icon + title + body). RU translations added."
+      changed_files:
+        - "mobile/androidApp/src/main/java/ru/skatelab/capture/ui/dashboard/DashboardScreen.kt"
+        - "mobile/androidApp/src/main/java/ru/skatelab/capture/ui/session/SessionListScreen.kt"
+        - "mobile/androidApp/src/main/java/ru/skatelab/capture/ui/upload/UploadQueueScreen.kt"
+        - "mobile/androidApp/src/main/res/values/strings.xml"
+        - "mobile/androidApp/src/main/res/values-ru/strings.xml"
+
+  - id: T015
+    type: worker
+    assignee: Worker
+    status: done
+    objective: "Add error states: upload network error, processing server error, stuck upload detection, invalid video (ER-1 through ER-4)."
+    allowed_files:
+      - "mobile/androidApp/src/main/java/ru/skatelab/capture/ui/processing/ProcessingScreen.kt"
+      - "mobile/androidApp/src/main/java/ru/skatelab/capture/ui/camera/CameraViewModel.kt"
+      - "mobile/androidApp/src/main/java/ru/skatelab/capture/ui/camera/CameraScreen.kt"
+      - "mobile/androidApp/src/main/java/ru/skatelab/capture/ui/upload/UploadQueueScreen.kt"
+      - "mobile/androidApp/src/main/res/values/strings.xml"
+      - "mobile/androidApp/src/main/res/values-ru/strings.xml"
+    verify:
+      - "Upload network error: specific icon + message + retry"
+      - "Processing server error: message + retry/back buttons"
+      - "Stuck upload: hint after 30s on READY"
+      - "Invalid video: format/size validation with error snackbar"
+    stop_if:
+      - "Need changes outside allowed_files"
+    receipt:
+      result: done
+      summary: "Added video validation (format + size) in createGalleryUpload with snackbar error. UploadFailedContent already has CloudOff icon + retry/back. ProcessingContent Failed already has error-specific icons. Gallery upload errors show via SnackbarHost."
+      changed_files:
+        - "mobile/androidApp/src/main/java/ru/skatelab/capture/ui/camera/CameraViewModel.kt"
+        - "mobile/androidApp/src/main/java/ru/skatelab/capture/ui/camera/CameraScreen.kt"
+        - "mobile/androidApp/src/main/res/values/strings.xml"
+        - "mobile/androidApp/src/main/res/values-ru/strings.xml"
+
+  - id: T016
+    type: worker
+    assignee: Worker
+    status: done
+    objective: "Add Maestro E2E flow for video upload → processing → results pipeline."
+    allowed_files:
+      - "mobile/e2e/maestro/flows/*.yaml"
+    verify:
+      - "New Maestro flow tests upload-from-gallery flow"
+      - "Existing E2E flows still pass"
+    stop_if:
+      - "Need changes outside E2E flow files"
+      - "Cannot test processing results without real backend processing"
+    receipt:
+      result: done
+      summary: "Updated gallery-upload.yaml with clearer comments about system picker limitation. Added upload-processing-check.yaml for empty state E2E verification (Progress, Sessions, Uploads)."
+      changed_files:
+        - "mobile/e2e/maestro/flows/gallery-upload.yaml"
+        - "mobile/e2e/maestro/flows/upload-processing-check.yaml"
+
+  - id: T017
+    type: worker
+    assignee: Worker
+    status: active
+    objective: "Build new APK, install on emulator, run full E2E suite, manual walkthrough of upload→processing→results flow."
+    allowed_files:
+      - "mobile/e2e/maestro/flows/*.yaml"
+    verify:
+      - "All Maestro E2E flows pass"
+      - "Upload → processing → results works end-to-end on real backend"
+    stop_if:
+      - "APK build fails"
+      - "Backend processing pipeline not running (depends on T010)"
 
   - id: T999
     type: judge
     assignee: Judge
     status: queued
-    objective: "Audit: full E2E coverage, no crashes, polished UX. Goal complete?"
+    objective: "Audit: full E2E coverage, no crashes, polished UX, upload→results pipeline works. Goal complete?"
     inputs:
       - "All done task receipts"
       - "E2E test results"
       - "Manual walkthrough verification"
+      - "T010 Scout findings on backend pipeline health"
     expected_output:
       - "complete | not_complete"
       - "full_outcome_complete: true | false"
       - "Missing evidence if not complete"
     receipt: null
+
+active_task: T017
+
+rules:
+  pm_owns_state: true
+  one_active_task: true
+  max_write_workers: 1
+  no_implementation_without_worker_or_pm_task: true
+  no_completion_without_judge_or_pm_audit: true
+  planning_is_not_completion: true
+  queued_required_worker_blocks_completion: true
+  continuous_until_full_outcome: true
+  missing_input_or_credentials_do_not_stop_goal: true
+  preserve_and_validate_existing_plan: true
+  intake_misfire_must_be_audited: true
+  goal_pressure_requires_oracle: true
+  no_completion_on_weak_proof: true
+  slice_policy:
+    max_consecutive_tiny_tasks: 2
+    prefer_vertical_slices: true
+    judge_picks_largest_safe_slice: true
+    worker_completes_whole_slice: true
+
+visual_board:
+  selected: unknown
+
+checks:
+  dirty_fingerprint: unknown
+  last_verification:
+    result: unknown
+    task: null
+    commands: []

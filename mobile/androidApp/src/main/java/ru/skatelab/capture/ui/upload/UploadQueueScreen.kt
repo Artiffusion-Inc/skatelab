@@ -82,7 +82,12 @@ fun UploadQueueScreen(
                     Spacer(modifier = Modifier.height(12.dp))
                     Text(
                         stringResource(R.string.upload_queue_empty),
-                        style = MaterialTheme.typography.bodyLarge,
+                        style = MaterialTheme.typography.titleMedium,
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        stringResource(R.string.empty_uploads_body),
+                        style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }

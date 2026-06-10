@@ -23,6 +23,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.produceState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -35,9 +36,12 @@ import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
+import androidx.work.WorkInfo
+import androidx.work.WorkManager
 import androidx.hilt.navigation.compose.hiltViewModel
 import ru.skatelab.capture.R
 import ru.skatelab.capture.data.db.PendingUploadEntity
+import ru.skatelab.capture.upload.UploadWorker
 import ru.skatelab.shared.models.AppError
 import ru.skatelab.shared.state.ProcessingUiState
 
@@ -118,23 +122,45 @@ fun ProcessingScreen(
 @Composable
 private fun UploadStatusContent(entity: PendingUploadEntity) {
     val context = LocalContext.current
-    val statusText =
-        when (entity.status) {
-            "READY" -> context.getString(R.string.upload_status_ready)
-            "UPLOADING" -> context.getString(R.string.upload_status_uploading)
-            else -> entity.status
-        }
-    Box(
-        modifier =
-            Modifier.semantics(mergeDescendants = true) {
-                contentDescription = statusText
-                role = Role.ValuePicker
-            },
-    ) {
+    // Observe WorkManager progress for this upload
+    val progress by produceState(0f, entity.id) {
+        WorkManager.getInstance(context)
+            .getWorkInfosForUniqueWorkFlow("upload-${entity.id}")
+            .collect { workInfos ->
+                val info = workInfos.firstOrNull()
+                value = if (info?.state == WorkInfo.State.RUNNING) {
+                    info.progress.getFloat(UploadWorker.KEY_PROGRESS, 0f)
+                } else {
+                    0f
+                }
+            }
+    }
+
+    val statusLabel = when (entity.status) {
+        "READY" -> stringResource(R.string.upload_status_ready)
+        "UPLOADING" -> stringResource(R.string.upload_status_uploading)
+        "PROCESSING" -> stringResource(R.string.upload_status_processing)
+        else -> entity.status
+    }
+
+    if (progress > 0f) {
+        LinearProgressIndicator(
+            progress = { progress },
+            modifier = Modifier.fillMaxWidth().testTag("uploadProgress"),
+        )
+    } else {
         CircularProgressIndicator(modifier = Modifier.size(48.dp))
     }
     Spacer(Modifier.height(16.dp))
-    Text(statusText, style = MaterialTheme.typography.bodyLarge)
+    Text(statusLabel, style = MaterialTheme.typography.bodyLarge)
+    if (progress > 0f) {
+        Spacer(Modifier.height(8.dp))
+        Text(
+            text = "${(progress * 100).toInt()}%",
+            style = MaterialTheme.typography.headlineMedium,
+            color = MaterialTheme.colorScheme.primary,
+        )
+    }
 }
 
 @Composable
@@ -195,13 +221,19 @@ private fun ProcessingContent(
         }
 
         is ProcessingUiState.Progress -> {
+            val stageLabel = when {
+                state.percent < 0.1f -> stringResource(R.string.processing_stage_queuing)
+                state.percent < 0.7f -> stringResource(R.string.processing_stage_processing)
+                state.percent < 0.9f -> stringResource(R.string.processing_stage_metrics)
+                else -> stringResource(R.string.processing_stage_finishing)
+            }
             LinearProgressIndicator(
                 progress = { state.percent },
                 modifier = Modifier.fillMaxWidth(),
             )
             Spacer(Modifier.height(16.dp))
             Text(
-                text = state.message.ifBlank { stringResource(R.string.status_processing) },
+                text = state.message.ifBlank { stageLabel },
                 style = MaterialTheme.typography.bodyLarge,
                 modifier = Modifier.testTag("processingStatus"),
             )

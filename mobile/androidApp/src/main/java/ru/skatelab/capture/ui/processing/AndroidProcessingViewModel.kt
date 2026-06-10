@@ -53,12 +53,12 @@ class AndroidProcessingViewModel
                     when (entity.status) {
                         "PROCESSING" -> {
                             entity.sessionId?.let { sid ->
-                                _uploadPhase.value = UploadPhase.ReadyForProcessing(entity.r2Key ?: "", sid)
+                                _uploadPhase.value = UploadPhase.ReadyForProcessing(entity.videoKey ?: "", sid)
                             }
                         }
                         "COMPLETED" -> {
                             entity.sessionId?.let { sid ->
-                                _uploadPhase.value = UploadPhase.ReadyForProcessing(entity.r2Key ?: "", sid)
+                                _uploadPhase.value = UploadPhase.ReadyForProcessing(entity.videoKey ?: "", sid)
                             }
                         }
                         "FAILED" -> {

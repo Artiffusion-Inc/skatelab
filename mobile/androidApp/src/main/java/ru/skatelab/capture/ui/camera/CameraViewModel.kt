@@ -79,7 +79,7 @@ class CameraViewModel
         private val _galleryUploadError = MutableStateFlow<String?>(null)
         val galleryUploadError: StateFlow<String?> = _galleryUploadError
 
-        fun setGalleryUploadError(message: String) {
+        fun setGalleryUploadError(message: String?) {
             _galleryUploadError.value = message
         }
 
@@ -256,6 +256,12 @@ class CameraViewModel
             elementType: String?,
         ) {
             viewModelScope.launch {
+                val error = validateVideoFile(videoPath)
+                if (error != null) {
+                    _galleryUploadError.value = error
+                    return@launch
+                }
+
                 val uploadId = UUID.randomUUID().toString()
                 val pendingUpload =
                     PendingUploadEntity(
@@ -269,6 +275,21 @@ class CameraViewModel
                 UploadScheduler.enqueue(appContext, uploadId)
                 _navigateToProcessing.value = uploadId
             }
+        }
+
+        private fun validateVideoFile(path: String): String? {
+            val file = File(path)
+            if (!file.exists()) return appContext.getString(R.string.upload_error_file_not_found)
+            val ext = file.extension.lowercase()
+            if (ext !in listOf("mp4", "mov", "3gp", "webm", "mkv")) {
+                return appContext.getString(R.string.upload_error_unsupported_format, ext)
+            }
+            val maxSizeMb = 100
+            if (file.length() > maxSizeMb * 1024L * 1024L) {
+                val sizeMb = file.length() / (1024L * 1024L)
+                return appContext.getString(R.string.upload_error_file_too_large, sizeMb, maxSizeMb)
+            }
+            return null
         }
 
         fun startBatteryPolling() {

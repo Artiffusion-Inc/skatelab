@@ -248,11 +248,17 @@
     <string name="upload_queue_empty">No uploads</string>
     <string name="upload_queue_retry">Retry</string>
     <string name="upload_queue_cancel">Cancel</string>
-    <string name="upload_status_ready">Ready</string>
-    <string name="upload_status_uploading">Uploading</string>
-    <string name="upload_status_processing">Processing</string>
+    <string name="upload_status_ready">Preparing upload…</string>
+    <string name="upload_status_uploading">Uploading video…</string>
+    <string name="upload_status_processing">Starting analysis…</string>
     <string name="upload_status_completed">Completed</string>
     <string name="upload_status_failed">Failed</string>
+
+    <!-- Processing stage labels -->
+    <string name="processing_stage_queuing">Queuing…</string>
+    <string name="processing_stage_processing">Processing video…</string>
+    <string name="processing_stage_metrics">Computing metrics…</string>
+    <string name="processing_stage_finishing">Finishing up…</string>
 
     <!-- Calibration countdown -->
     <string name="calibration_countdown">%1$d s</string>
@@ -326,4 +332,16 @@
     <string name="camera_ble_connected_desc">BLE connected</string>
     <string name="camera_imu_capture_desc">IMU capture</string>
     <string name="camera_rec_timer_format">REC %02d:%02d</string>
+
+    <!-- Empty states -->
+    <string name="empty_progress_title">No active processing</string>
+    <string name="empty_progress_body">Upload a video from the Camera tab to start analysis</string>
+    <string name="empty_sessions_title">No sessions yet</string>
+    <string name="empty_sessions_body">Your analyzed skating sessions will appear here</string>
+    <string name="empty_uploads_body">Videos you upload will appear here for processing</string>
+
+    <!-- Upload error messages -->
+    <string name="upload_error_file_not_found">File not found</string>
+    <string name="upload_error_unsupported_format">Unsupported format: .%1$s. Use MP4 or MOV.</string>
+    <string name="upload_error_file_too_large">File too large (%1$d MB). Max %2$d MB.</string>
 </resources>

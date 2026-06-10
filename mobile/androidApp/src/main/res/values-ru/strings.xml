@@ -227,11 +227,16 @@
     <string name="upload_queue_empty">Нет загрузок</string>
     <string name="upload_queue_retry">Повторить</string>
     <string name="upload_queue_cancel">Отменить</string>
-    <string name="upload_status_ready">Готово к загрузке</string>
-    <string name="upload_status_uploading">Загрузка</string>
-    <string name="upload_status_processing">Обработка</string>
+    <string name="upload_status_ready">Подготовка загрузки…</string>
+    <string name="upload_status_uploading">Загрузка видео…</string>
+    <string name="upload_status_processing">Запуск анализа…</string>
     <string name="upload_status_completed">Завершено</string>
     <string name="upload_status_failed">Ошибка</string>
+
+    <string name="processing_stage_queuing">Очередь…</string>
+    <string name="processing_stage_processing">Обработка видео…</string>
+    <string name="processing_stage_metrics">Вычисление метрик…</string>
+    <string name="processing_stage_finishing">Завершение…</string>
 
     <string name="calibration_countdown">%1$d с</string>
 
@@ -302,4 +307,16 @@
     <string name="camera_ble_connected_desc">BLE подключен</string>
     <string name="camera_imu_capture_desc">Запись IMU</string>
     <string name="camera_rec_timer_format">ЗАП %02d:%02d</string>
+
+    <!-- Empty states -->
+    <string name="empty_progress_title">Нет активных обработок</string>
+    <string name="empty_progress_body">Загрузите видео на вкладке Камера для начала анализа</string>
+    <string name="empty_sessions_title">Пока нет сессий</string>
+    <string name="empty_sessions_body">Здесь появятся результаты анализа ваших тренировок</string>
+    <string name="empty_uploads_body">Загруженные видео появятся здесь для обработки</string>
+
+    <!-- Upload error messages -->
+    <string name="upload_error_file_not_found">Файл не найден</string>
+    <string name="upload_error_unsupported_format">Неподдерживаемый формат: .%1$s. Используйте MP4 или MOV.</string>
+    <string name="upload_error_file_too_large">Файл слишком большой (%1$d МБ). Максимум %2$d МБ.</string>
 </resources>

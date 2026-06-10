@@ -40,6 +40,7 @@ class UploadWorker
     ) : CoroutineWorker(appContext, params) {
         companion object {
             const val KEY_UPLOAD_ID = "upload_id"
+            const val KEY_PROGRESS = "progress"
             private const val TAG = "UploadWorker"
 
             fun inputData(uploadId: String): Data = workDataOf(KEY_UPLOAD_ID to uploadId)
@@ -70,7 +71,14 @@ class UploadWorker
                         file = videoFile,
                         fileName = videoFile.name,
                         contentType = "video/mp4",
+                        onProgress = { uploaded, total ->
+                            val percent = (uploaded.toFloat() / total).coerceIn(0f, 1f)
+                            setProgress(workDataOf(KEY_UPLOAD_ID to uploadId, KEY_PROGRESS to percent))
+                        },
                     )
+
+                // Save video key so ProcessingScreen can pass it to SSE
+                pendingUploadDao.updateVideoKey(entity.id, videoKey)
 
                 // Step 2: Upload IMU files via presigned PUT (left, right)
                 var imuLeftKey: String? = null
@@ -99,7 +107,6 @@ class UploadWorker
                 }
 
                 // Step 4: Create session on backend
-                pendingUploadDao.updateStatus(entity.id, "PROCESSING")
                 val session =
                     skateLabClient.sessions.create(
                         elementType = entity.elementType ?: "axel",
@@ -107,6 +114,9 @@ class UploadWorker
                         imuLeftKey = imuLeftKey,
                         imuRightKey = imuRightKey,
                     )
+
+                // Mark PROCESSING with sessionId so ProcessingScreen can start SSE
+                pendingUploadDao.updateStatus(entity.id, "PROCESSING", session.id)
 
                 // Step 5: Enqueue ML processing
                 skateLabClient.process.queue(

@@ -10,4 +10,5 @@ tags:
 - tapOn: "Profile"
 - scroll
 - scroll
-- assertVisible: "Uploads"
+- tapOn: "Uploads"
+- assertVisible: "No uploads"

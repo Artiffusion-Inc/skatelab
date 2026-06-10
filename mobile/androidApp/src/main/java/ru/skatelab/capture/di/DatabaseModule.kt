@@ -25,7 +25,7 @@ object DatabaseModule {
         val builder =
             Room
                 .databaseBuilder(context, AppDatabase::class.java, "skatelab.db")
-                .addMigrations(AppDatabase.MIGRATION_1_2)
+                .addMigrations(AppDatabase.MIGRATION_1_2, AppDatabase.MIGRATION_2_3)
         if (BuildConfig.DEBUG) {
             builder.fallbackToDestructiveMigration(true)
         }
