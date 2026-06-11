@@ -167,15 +167,15 @@ tasks:
     type: worker
     assignee: Worker
     status: queued
-    objective: "Update CI workflows: tag-based Maestro separation and parallel test execution."
+    objective: "Update Maestro config.yaml with tags and continueOnFailure. Update CI for tag-based separation. Maestro runs locally on Docker emulator, not on GitHub runner."
     allowed_files:
+      - "mobile/e2e/maestro/config.yaml"
       - ".github/workflows/mobile-ci.yml"
       - ".github/workflows/mobile-e2e.yml"
     verify:
-      - "CI YAML is valid"
-      - "smokeTest tag runs on PR"
-      - "Full suite runs on merge to master"
-      - "ADB airplane mode cleanup in always() step"
+      - "config.yaml has continueOnFailure: true and tag structure"
+      - "CI workflows have smokeTest tag for PR, full suite for merge"
+      - "Maestro runs locally via Docker emulator (not GitHub runner)"
     stop_if:
       - "CI workflow structure has changed significantly"
 
