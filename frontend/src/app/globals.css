@@ -23,6 +23,7 @@
   --color-card-foreground: oklch(0.233 0.037 247);
   --color-accent: oklch(0.964 0.013 229);
   --color-link: oklch(0.557 0.1 226);
+  --color-warning: oklch(0.765 0.143 82);
   --color-ink: oklch(0.233 0.037 247);
   --color-ink-mute: oklch(0.519 0.052 233);
   --color-ink-faint: oklch(0.719 0.04 227);

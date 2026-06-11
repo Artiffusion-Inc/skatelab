@@ -41,7 +41,7 @@ function UploadPreview() {
         </div>
         <div className="absolute bottom-2 right-2 flex gap-1">
           <div className="h-6 w-6 rounded-full bg-primary flex items-center justify-center">
-            <Activity className="h-3 w-3 text-white" />
+            <Activity className="h-3 w-3 text-primary-foreground" />
           </div>
         </div>
         {/* Skeleton overlay hint */}
@@ -184,7 +184,7 @@ function InvitePreview() {
         <button
           type="button"
           onClick={handleCopy}
-          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-primary text-white transition-colors hover:bg-primary/90"
+          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-primary text-primary-foreground transition-colors hover:bg-primary-deep"
         >
           {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
         </button>
@@ -238,8 +238,10 @@ function FeedbackPreview() {
         {/* Comment pin */}
         <div className="absolute top-1/3 left-1/2 -translate-x-1/2">
           <div className="flex items-center gap-1.5 rounded-lg bg-primary px-2.5 py-1.5 shadow-lg">
-            <MessageSquare className="h-3 w-3 text-white" />
-            <span className="text-[10px] font-medium text-white">{t("feedbackComment")}</span>
+            <MessageSquare className="h-3 w-3 text-primary-foreground" />
+            <span className="text-[10px] font-medium text-primary-foreground">
+              {t("feedbackComment")}
+            </span>
           </div>
           <div className="mx-auto h-2 w-2 rotate-45 bg-primary -mt-1" />
         </div>
@@ -516,7 +518,7 @@ export function TourSlider({ role, onComplete, onSkip }: TourSliderProps) {
           <button
             type="button"
             onClick={next}
-            className="h-11 rounded-full bg-primary px-8 text-sm font-medium text-white transition-all duration-200 hover:scale-[0.98] active:scale-[0.96]"
+            className="h-11 rounded-full bg-primary px-8 text-sm font-medium text-primary-foreground transition-all duration-200 hover:scale-[0.98] hover:bg-primary-deep active:scale-[0.96]"
           >
             {current < slides.length - 1 ? t("next") : t("start")}
           </button>

@@ -88,7 +88,7 @@ export function RoleSelect({ onSelect, onSkip }: RoleSelectProps) {
                 >
                   {selectedRole === role.id && (
                     <svg
-                      className="h-3 w-3 text-white"
+                      className="h-3 w-3 text-primary-foreground"
                       viewBox="0 0 12 12"
                       fill="currentColor"
                       aria-label="selected"
@@ -126,7 +126,7 @@ export function RoleSelect({ onSelect, onSkip }: RoleSelectProps) {
         <div className="mt-8">
           <Button
             size="lg"
-            className="h-12 w-full rounded-full bg-primary text-base font-medium text-white hover:bg-surface-violet-soft hover:text-foreground"
+            className="h-12 w-full rounded-full bg-primary text-base font-medium text-primary-foreground hover:bg-primary-deep"
             disabled={!selectedRole}
             onClick={handleContinue}
           >

@@ -28,6 +28,7 @@
   --color-score-mid: oklch(0.765 0.143 82); /* #E0A830 */
   --color-score-bad: oklch(0.589 0.173 27); /* #D04840 */
   --color-accent-gold: oklch(0.753 0.127 85); /* #d4a843 */
+  --color-warning: oklch(0.765 0.143 82); /* #E0A830 */
 
   /* Spacing */
   --spacing-xxs: 2px;
@@ -70,6 +71,7 @@
   --accent-foreground: var(--color-primary-deep);
   --destructive: var(--color-destructive);
   --destructive-foreground: var(--color-canvas);
+  --warning: var(--color-warning);
   --border: var(--color-hairline);
   --input: var(--color-hairline);
   --ring: var(--color-ring);

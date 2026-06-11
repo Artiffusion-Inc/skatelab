@@ -10,7 +10,7 @@ export default async function AuthLayout({ children }: { children: React.ReactNo
       <header className="bg-primary pt-[env(safe-area-inset-top)]">
         <div className="flex h-[52px] items-center px-6">
           <Link href="/" className="flex items-center gap-2 font-semibold text-primary-foreground">
-            <Activity className="h-5 w-5 text-surface-violet-soft" />
+            <Activity className="h-5 w-5 text-surface-ice-soft" />
             <span>{t("title")}</span>
           </Link>
         </div>
