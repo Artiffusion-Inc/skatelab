@@ -68,7 +68,14 @@ while ! docker exec skatelab-emulator adb shell getprop sys.boot_completed 2>/de
     echo "  Waiting... (${elapsed}s)"
 done
 
-echo "Emulator booted. Saving named snapshot..."
+echo "Emulator booted. Configuring locale..."
+# Set per-app locale to English for Maestro text selectors
+# Android 14 locale manager service: method 3 = setAppLocale(package, locale)
+docker exec skatelab-emulator adb shell service call locale 3 s16 ru.skatelab.capture s16 en-US 2>/dev/null || true
+docker exec skatelab-emulator adb shell svc wifi enable
+echo "Locale set to en-US, WiFi enabled."
+
+echo "Saving named snapshot..."
 docker exec skatelab-emulator adb shell avd snapshot save with_app_installed
 
 echo ""
