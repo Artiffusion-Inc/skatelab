@@ -28,6 +28,7 @@ import ru.skatelab.capture.domain.usecase.RecordingStartInfo
 import ru.skatelab.capture.domain.usecase.StartRecordingUseCase
 import ru.skatelab.capture.domain.usecase.StopRecordingUseCase
 import ru.skatelab.capture.upload.UploadScheduler
+import ru.skatelab.capture.R
 
 @HiltViewModel
 class CameraViewModel
@@ -277,7 +278,7 @@ class CameraViewModel
             }
         }
 
-        private fun validateVideoFile(path: String): String? {
+        internal fun validateVideoFile(path: String): String? {
             val file = File(path)
             if (!file.exists()) return appContext.getString(R.string.upload_error_file_not_found)
             val ext = file.extension.lowercase()
