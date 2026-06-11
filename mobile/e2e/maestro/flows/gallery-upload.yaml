@@ -4,18 +4,13 @@ tags:
   - e2e
 ---
 # Gallery upload E2E flow
-# Prerequisites: logged in, has a video in gallery
-# Tests: gallery picker → element type selection → upload → processing screen
+# Prerequisites: logged in
+# Uses addMedia to seed device gallery + pick_first_video partial
+- addMedia: ["./assets/test_video.mp4"]
 - launchApp
 - extendedWaitUntil:
     visible: "Camera"
     timeout: 15000
-
-# Navigate to upload
 - tapOn: "Upload video"
-
-# Note: PickVisualMedia system picker cannot be automated by Maestro
-# The gallery picker is a system dialog that Maestro cannot interact with
-# This flow verifies the upload button exists and triggers the picker
-# Full upload flow tested manually or with adb to push a test video
+- runFlow: ../partials/pick_first_video.yaml
 - assertVisible: "Upload video"

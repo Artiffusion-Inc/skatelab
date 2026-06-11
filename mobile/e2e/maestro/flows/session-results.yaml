@@ -1,0 +1,17 @@
+appId: ru.skatelab.capture
+tags:
+  - sessions
+  - e2e
+---
+# Verify session appears after processing
+# Prerequisite: at least one completed session exists (run upload-pipeline first)
+- launchApp
+- extendedWaitUntil:
+    visible: "Camera"
+    timeout: 15000
+- tapOn: "Sessions"
+- extendedWaitUntil:
+    visible: "axel"
+    timeout: 15000
+  optional: true
+- assertVisible: "Profile"

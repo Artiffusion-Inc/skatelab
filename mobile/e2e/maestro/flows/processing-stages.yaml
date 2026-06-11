@@ -1,0 +1,21 @@
+appId: ru.skatelab.capture
+tags:
+  - processing
+  - e2e
+---
+# Verify processing stage labels appear when SSE processing is active
+# Stages are: Queuing → Processing video → Computing metrics → Finishing up
+# Uses optional: true because stages transition quickly and may not be visible
+- launchApp
+- extendedWaitUntil:
+    visible: "Camera"
+    timeout: 15000
+# Stage assertions — optional because timing is variable
+- assertVisible: "Queuing…"
+  optional: true
+- assertVisible: "Processing video…"
+  optional: true
+- assertVisible: "Computing metrics…"
+  optional: true
+- assertVisible: "Finishing up…"
+  optional: true

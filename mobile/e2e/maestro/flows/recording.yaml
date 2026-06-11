@@ -1,5 +1,6 @@
 appId: ru.skatelab.capture
 tags:
+  - smokeTest
   - recording
 ---
 # Recording flow - requires real camera, will not work on emulator

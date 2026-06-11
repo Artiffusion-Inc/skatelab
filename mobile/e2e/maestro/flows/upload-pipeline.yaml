@@ -1,0 +1,30 @@
+appId: ru.skatelab.capture
+tags:
+  - upload
+  - e2e
+  - pipeline
+---
+# Full upload pipeline: addMedia → pick video → element selection → upload → processing → completed
+# Prerequisites: logged in, backend processing pipeline running
+- addMedia: ["./assets/test_video.mp4"]
+- launchApp
+- extendedWaitUntil:
+    visible: "Camera"
+    timeout: 15000
+- tapOn: "Upload video"
+- runFlow: ../partials/pick_first_video.yaml
+# Element type selection (if shown)
+- extendedWaitUntil:
+    visible: "axel"
+    timeout: 10000
+- tapOn: "axel"
+# Processing screen should appear
+- extendedWaitUntil:
+    visible: "Uploading video…"
+    timeout: 30000
+- retry:
+    maxRetries: 2
+    commands:
+      - extendedWaitUntil:
+          visible: "Analysis complete"
+          timeout: 300000

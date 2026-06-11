@@ -1,5 +1,6 @@
 appId: ru.skatelab.capture
 tags:
+  - smokeTest
   - upload
 ---
 # Upload queue - requires user to be logged in

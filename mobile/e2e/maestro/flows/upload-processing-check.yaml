@@ -1,8 +1,8 @@
 appId: ru.skatelab.capture
 tags:
+  - smokeTest
   - upload
   - processing
-  - e2e
 ---
 # Upload queue + processing screen check
 # Verifies empty states and navigation to upload queue
