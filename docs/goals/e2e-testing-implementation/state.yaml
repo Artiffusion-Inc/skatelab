@@ -1,0 +1,228 @@
+version: 2
+agents:
+  scout: bundled_not_installed
+  worker: bundled_not_installed
+  judge: bundled_not_installed
+
+goal:
+  title: "E2E Testing Implementation"
+  slug: e2e-testing-implementation
+  status: active
+  intent: "Implement three-layer E2E testing: Compose UI tests (18), Maestro flows (4 new + 1 updated), debug build FakeProcessApi, test doubles, tag-based CI."
+  oracle:
+    signal: "All Compose UI tests green + Maestro smoke tests pass on CI + manual walkthrough upload→results"
+    cadence: "after each Worker package"
+    final_proof: "18 Compose UI tests pass in JVM, Maestro smokeTest tag passes, upload-pipeline flow works on real backend"
+
+  intake:
+    original_request: "Implement E2E testing per spec"
+    interpreted_outcome: "Full three-layer E2E testing architecture implemented and passing"
+    input_shape: existing_plan
+    audience: developer
+    authority: requested
+    proof_type: test
+    completion_proof: "All Compose UI tests green, Maestro smoke tests pass, CI pipeline configured with tag-based separation"
+    likely_misfire: "Writing tests that pass but don't verify real behavior — tests must assert meaningful UI states, not just check for view existence"
+    blind_spots_considered:
+      - "Robolectric setup may need additional config for Compose + stringResource"
+      - "Maestro addMedia may not work on all Android versions — need to verify on CI emulator"
+      - "FakeProcessApi debug build needs separate Gradle variant configuration"
+      - "private→internal visibility changes may affect non-test consumers"
+    existing_plan_facts:
+      - "Spec: docs/specs/2026-06-11-e2e-testing-design.md"
+      - "Research: docs/specs/2026-06-11-e2e-testing-research-report.md"
+      - "18 Compose UI tests across 5 screens"
+      - "4 new Maestro flows + 1 updated"
+      - "Three-layer architecture: Compose UI (JVM) → Maestro E2E → Debug build E2E"
+      - "Tag-based CI: smokeTest (PR) vs e2e (merge)"
+      - "Test doubles: SseScenarios, FakePendingUploadDao, FakeChunkedUploader"
+      - "Debug build variant with FakeProcessApi via Hilt module"
+
+tasks:
+  - id: T001
+    type: scout
+    assignee: Scout
+    status: queued
+    objective: "Verify current codebase state: which composables are private vs internal, which testTag values exist, which string resources are defined, what FakeProcessApi already exists."
+    expected_output:
+      - "List of private composables that need →internal change"
+      - "List of existing testTag values"
+      - "List of string resources for processing/upload states (EN + RU)"
+      - "Current FakeProcessApi implementation details"
+      - "Current build.gradle.kts test dependencies"
+      - "Current Maestro config.yaml content"
+    receipt: null
+
+  - id: T002
+    type: worker
+    assignee: Worker
+    status: queued
+    objective: "Add Robolectric + Compose UI test dependencies to build.gradle.kts and change private composables to internal."
+    allowed_files:
+      - "mobile/androidApp/build.gradle.kts"
+      - "mobile/androidApp/src/main/java/ru/skatelab/capture/ui/processing/ProcessingScreen.kt"
+      - "mobile/androidApp/src/main/java/ru/skatelab/capture/ui/dashboard/DashboardScreen.kt"
+      - "mobile/androidApp/src/main/java/ru/skatelab/capture/ui/session/SessionListScreen.kt"
+      - "mobile/androidApp/src/main/java/ru/skatelab/capture/ui/upload/UploadQueueScreen.kt"
+    verify:
+      - "./gradlew :androidApp:compileDebugKotlin passes"
+      - "No other files changed outside allowed_files"
+    stop_if:
+      - "Build config changes break existing tests"
+      - "Visibility changes cause compilation errors in non-test code"
+
+  - id: T003
+    type: worker
+    assignee: Worker
+    status: queued
+    objective: "Create ProcessingScreenTest.kt — 9 Compose UI tests for all processing/upload states."
+    allowed_files:
+      - "mobile/androidApp/src/test/java/ru/skatelab/capture/ui/processing/ProcessingScreenTest.kt"
+    verify:
+      - "./gradlew :androidApp:testDebugUnitTest --tests '*.ProcessingScreenTest' passes"
+      - "All 9 test methods present and passing"
+    stop_if:
+      - "stringResource fails in JVM without Robolectric setup"
+      - "Internal composables not accessible from test source set"
+
+  - id: T004
+    type: worker
+    assignee: Worker
+    status: queued
+    objective: "Create DashboardScreenTest.kt, SessionListScreenTest.kt, UploadQueueScreenTest.kt — 6 tests for empty/data states."
+    allowed_files:
+      - "mobile/androidApp/src/test/java/ru/skatelab/capture/ui/dashboard/DashboardScreenTest.kt"
+      - "mobile/androidApp/src/test/java/ru/skatelab/capture/ui/session/SessionListScreenTest.kt"
+      - "mobile/androidApp/src/test/java/ru/skatelab/capture/ui/upload/UploadQueueScreenTest.kt"
+    verify:
+      - "./gradlew :androidApp:testDebugUnitTest passes for these test classes"
+      - "All 6 test methods present and passing"
+    stop_if:
+      - "DashboardContent or SessionListContent not extractable as internal composables"
+
+  - id: T005
+    type: worker
+    assignee: Worker
+    status: queued
+    objective: "Create CameraScreenValidationTest.kt — 3 Snackbar error tests for gallery upload validation."
+    allowed_files:
+      - "mobile/androidApp/src/test/java/ru/skatelab/capture/ui/camera/CameraScreenValidationTest.kt"
+    verify:
+      - "./gradlew :androidApp:testDebugUnitTest --tests '*.CameraScreenValidationTest' passes"
+      - "All 3 test methods present and passing"
+    stop_if:
+      - "Snackbar testing requires non-trivial Compose test setup"
+      - "CameraScreen ViewModel dependencies too complex for JVM test"
+
+  - id: T006
+    type: worker
+    assignee: Worker
+    status: queued
+    objective: "Create test doubles: SseScenarios.kt, FakePendingUploadDao.kt, and expand FakeProcessApi."
+    allowed_files:
+      - "mobile/shared/src/commonTest/kotlin/ru/skatelab/shared/api/FakeProcessApi.kt"
+      - "mobile/shared/src/commonTest/kotlin/ru/skatelab/shared/fixtures/SseScenarios.kt"
+      - "mobile/androidApp/src/test/java/ru/skatelab/capture/data/db/FakePendingUploadDao.kt"
+    verify:
+      - "./gradlew :shared:commonTest passes"
+      - "./gradlew :androidApp:testDebugUnitTest passes"
+    stop_if:
+      - "FakeProcessApi location conflicts with existing test code"
+      - "PendingUploadDao interface doesn't support in-memory implementation"
+
+  - id: T007
+    type: worker
+    assignee: Worker
+    status: queued
+    objective: "Create 4 new Maestro E2E flows + update gallery-upload.yaml + update config.yaml."
+    allowed_files:
+      - "mobile/e2e/maestro/flows/upload-pipeline.yaml"
+      - "mobile/e2e/maestro/flows/upload-network-error.yaml"
+      - "mobile/e2e/maestro/flows/processing-stages.yaml"
+      - "mobile/e2e/maestro/flows/session-results.yaml"
+      - "mobile/e2e/maestro/flows/gallery-upload.yaml"
+      - "mobile/e2e/maestro/config.yaml"
+    verify:
+      - "All YAML files are valid Maestro flow syntax"
+      - "Tag structure: smokeTest vs e2e separation"
+      - "setAirplaneMode before launchApp in network error flow"
+      - "continueOnFailure: true in config.yaml"
+    stop_if:
+      - "Maestro flow syntax has breaking changes in current version"
+
+  - id: T008
+    type: worker
+    assignee: Worker
+    status: queued
+    objective: "Create test_video.mp4 asset and commit to git."
+    allowed_files:
+      - "mobile/e2e/maestro/assets/test_video.mp4"
+    verify:
+      - "File exists and is < 5MB"
+      - "File is valid MP4 (H.264)"
+    stop_if:
+      - "No source video available to extract clip from"
+
+  - id: T009
+    type: worker
+    assignee: Worker
+    status: queued
+    objective: "Update CI workflows: tag-based Maestro separation and parallel test execution."
+    allowed_files:
+      - ".github/workflows/mobile-ci.yml"
+      - ".github/workflows/mobile-e2e.yml"
+    verify:
+      - "CI YAML is valid"
+      - "smokeTest tag runs on PR"
+      - "Full suite runs on merge to master"
+      - "ADB airplane mode cleanup in always() step"
+    stop_if:
+      - "CI workflow structure has changed significantly"
+
+  - id: T999
+    type: judge
+    assignee: Judge
+    status: queued
+    objective: "Audit: all 18 Compose UI tests passing, Maestro flows valid, CI configured, spec fully implemented."
+    inputs:
+      - "All Worker task receipts"
+      - "./gradlew :androidApp:testDebugUnitTest output"
+      - "Maestro flow YAML validation"
+      - "CI workflow diff"
+    expected_output:
+      - "complete | not_complete"
+      - "full_outcome_complete: true | false"
+      - "Missing evidence if not complete"
+    receipt: null
+
+active_task: T001
+
+rules:
+  pm_owns_state: true
+  one_active_task: true
+  max_write_workers: 1
+  no_implementation_without_worker_or_pm_task: true
+  no_completion_without_judge_or_pm_audit: true
+  planning_is_not_completion: true
+  queued_required_worker_blocks_completion: true
+  continuous_until_full_outcome: true
+  missing_input_or_credentials_do_not_stop_goal: true
+  preserve_and_validate_existing_plan: true
+  intake_misfire_must_be_audited: true
+  goal_pressure_requires_oracle: true
+  no_completion_on_weak_proof: true
+  slice_policy:
+    max_consecutive_tiny_tasks: 2
+    prefer_vertical_slices: true
+    judge_picks_largest_safe_slice: true
+    worker_completes_whole_slice: true
+
+visual_board:
+  selected: unknown
+
+checks:
+  dirty_fingerprint: unknown
+  last_verification:
+    result: unknown
+    task: null
+    commands: []
