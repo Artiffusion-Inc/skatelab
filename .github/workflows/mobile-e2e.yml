@@ -71,12 +71,20 @@ jobs:
           MAESTRO_TEST_EMAIL: ${{ secrets.MAESTRO_TEST_EMAIL }}
           MAESTRO_TEST_PASSWORD: ${{ secrets.MAESTRO_TEST_PASSWORD }}
           MAESTRO_TEST_DISPLAY_NAME: ${{ secrets.MAESTRO_TEST_DISPLAY_NAME }}
+          MAESTRO_DRIVER_STARTUP_TIMEOUT: 120
         run: |
           export PATH="$HOME/.maestro/bin:$PATH"
           maestro test \
             --format junit \
-            --output build/reports/maestro/report.xml \
-            e2e/maestro/
+            --format html \
+            --output build/reports/maestro/ \
+            ${{ github.event_name == 'push' && 'e2e/maestro/' || '--include-tags=smokeTest e2e/maestro/' }}
+
+      - name: Disable airplane mode (cleanup)
+        if: always()
+        run: |
+          adb shell settings put global airplane_mode_on 0
+          adb shell am broadcast -a android.intent.action.AIRPLANE_MODE --ez state false
 
       - name: Upload JUnit report
         if: always()
