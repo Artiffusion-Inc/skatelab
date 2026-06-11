@@ -2,7 +2,6 @@ appId: ru.skatelab.capture
 tags:
   - smokeTest
   - auth
-  - smokeTest
   - manual
 ---
 # NOTE: This flow requires a unique email each run.
