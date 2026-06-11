@@ -257,7 +257,7 @@ fun SessionListScreen(
 }
 
 @Composable
-private fun SessionCard(
+internal fun SessionCard(
     session: SessionResponse,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
@@ -316,7 +316,7 @@ private fun SessionCard(
 }
 
 @Composable
-private fun StatusBadge(
+internal fun StatusBadge(
     status: String,
     score: Float?,
 ) {

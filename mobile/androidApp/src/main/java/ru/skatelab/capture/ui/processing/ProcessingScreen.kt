@@ -23,7 +23,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.produceState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -36,12 +35,9 @@ import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
-import androidx.work.WorkInfo
-import androidx.work.WorkManager
 import androidx.hilt.navigation.compose.hiltViewModel
 import ru.skatelab.capture.R
 import ru.skatelab.capture.data.db.PendingUploadEntity
-import ru.skatelab.capture.upload.UploadWorker
 import ru.skatelab.shared.models.AppError
 import ru.skatelab.shared.state.ProcessingUiState
 
@@ -120,22 +116,7 @@ fun ProcessingScreen(
 }
 
 @Composable
-private fun UploadStatusContent(entity: PendingUploadEntity) {
-    val context = LocalContext.current
-    // Observe WorkManager progress for this upload
-    val progress by produceState(0f, entity.id) {
-        WorkManager.getInstance(context)
-            .getWorkInfosForUniqueWorkFlow("upload-${entity.id}")
-            .collect { workInfos ->
-                val info = workInfos.firstOrNull()
-                value = if (info?.state == WorkInfo.State.RUNNING) {
-                    info.progress.getFloat(UploadWorker.KEY_PROGRESS, 0f)
-                } else {
-                    0f
-                }
-            }
-    }
-
+internal fun UploadStatusContent(entity: PendingUploadEntity) {
     val statusLabel = when (entity.status) {
         "READY" -> stringResource(R.string.upload_status_ready)
         "UPLOADING" -> stringResource(R.string.upload_status_uploading)
@@ -143,28 +124,22 @@ private fun UploadStatusContent(entity: PendingUploadEntity) {
         else -> entity.status
     }
 
-    if (progress > 0f) {
-        LinearProgressIndicator(
-            progress = { progress },
-            modifier = Modifier.fillMaxWidth().testTag("uploadProgress"),
-        )
-    } else {
-        CircularProgressIndicator(modifier = Modifier.size(48.dp))
-    }
-    Spacer(Modifier.height(16.dp))
-    Text(statusLabel, style = MaterialTheme.typography.bodyLarge)
-    if (progress > 0f) {
-        Spacer(Modifier.height(8.dp))
-        Text(
-            text = "${(progress * 100).toInt()}%",
-            style = MaterialTheme.typography.headlineMedium,
-            color = MaterialTheme.colorScheme.primary,
-        )
+    when (entity.status) {
+        "UPLOADING" -> {
+            LinearProgressIndicator(modifier = Modifier.fillMaxWidth().testTag("uploadProgress"))
+            Spacer(Modifier.height(16.dp))
+            Text(statusLabel, style = MaterialTheme.typography.bodyLarge)
+        }
+        else -> {
+            CircularProgressIndicator(modifier = Modifier.size(48.dp))
+            Spacer(Modifier.height(16.dp))
+            Text(statusLabel, style = MaterialTheme.typography.bodyLarge)
+        }
     }
 }
 
 @Composable
-private fun UploadFailedContent(
+internal fun UploadFailedContent(
     onRetry: () -> Unit,
     onBack: () -> Unit,
 ) {
@@ -198,7 +173,7 @@ private fun UploadFailedContent(
 }
 
 @Composable
-private fun ProcessingContent(
+internal fun ProcessingContent(
     state: ProcessingUiState,
     onRetry: () -> Unit,
     onCancel: () -> Unit,

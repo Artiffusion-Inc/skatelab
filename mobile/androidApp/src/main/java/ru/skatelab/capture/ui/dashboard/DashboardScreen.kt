@@ -119,7 +119,7 @@ fun DashboardScreen(
 }
 
 @Composable
-private fun DashboardContent(
+internal fun DashboardContent(
     data: DashboardData,
     onNavigateToSessions: (String?) -> Unit,
     onNavigateToSessionDetail: (String) -> Unit,

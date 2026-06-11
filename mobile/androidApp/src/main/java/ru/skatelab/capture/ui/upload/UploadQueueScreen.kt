@@ -111,7 +111,7 @@ fun UploadQueueScreen(
 }
 
 @Composable
-private fun UploadCard(
+internal fun UploadCard(
     entity: PendingUploadEntity,
     onRetry: () -> Unit,
     onCancel: () -> Unit,
@@ -159,7 +159,7 @@ private fun UploadCard(
 }
 
 @Composable
-private fun StatusChip(status: String) {
+internal fun StatusChip(status: String) {
     val (text, color) =
         when (status) {
             "READY" -> stringResource(R.string.upload_status_ready) to MaterialTheme.colorScheme.onSurfaceVariant
