@@ -198,6 +198,7 @@ jobs:
             JWT_SECRET_KEY=${{ secrets.JWT_SECRET_KEY }}
             VASTAI_API_KEY=${{ secrets.VASTAI_API_KEY }}
             RESEND_API_KEY=${{ secrets.RESEND_API_KEY }}
+            APP_DATA_DIR=/app/data
             ENVEOF
             chmod +x /opt/skatelab/deploy.sh
             bash /opt/skatelab/deploy.sh

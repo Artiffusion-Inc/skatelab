@@ -172,6 +172,7 @@ class AppConfig(BaseSettings):
 
     host: str = "127.0.0.1"
     port: int = 8000
+    data_dir: str = str(_PROJECT_ROOT / "data")
     worker_max_jobs: int = 1  # For local GPU processing (removed). Use worker_max_jobs_remote.
     worker_max_jobs_remote: int = 5
     worker_retry_delays: list[int] = [30, 120]

@@ -5,9 +5,10 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
+from app.config import settings
 from app.services.choreography.isu_loader import DeductionDef, ISULoader
 
-DATA_DIR = Path(__file__).parent.parent.parent.parent.parent / "data" / "isu"
+DATA_DIR = Path(settings.app.data_dir) / "isu"
 
 _loader = ISULoader(data_dir=DATA_DIR, season="2025-26")
 ALL_DEDUCTIONS: list[DeductionDef] = _loader.load_deductions()

@@ -8,9 +8,10 @@ from __future__ import annotations
 
 from pathlib import Path  # noqa: TC003
 
+from app.config import settings
 from app.services.choreography.isu_loader import ISULoader, SOVEntry
 
-DATA_DIR = Path(__file__).parent.parent.parent.parent.parent / "data" / "isu"
+DATA_DIR = Path(settings.app.data_dir) / "isu"
 
 _loader = ISULoader(data_dir=DATA_DIR, season="2025-26")
 ELEMENTS: dict[str, SOVEntry] = _loader.load_sov()

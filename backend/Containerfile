@@ -60,6 +60,7 @@ RUN groupadd --gid 1000 appuser \
 
 COPY --from=deps --chown=appuser:appuser /app/.venv /app/.venv
 COPY --chown=appuser:appuser backend/ .
+COPY --chown=appuser:appuser data/isu/ /app/data/isu/
 
 USER appuser
 
