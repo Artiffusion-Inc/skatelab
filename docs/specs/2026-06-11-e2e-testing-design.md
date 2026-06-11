@@ -1,7 +1,7 @@
 # E2E Testing Design: Upload→Processing→Results Pipeline
 
 > **Date:** 2026-06-11
-> **Status:** Draft
+> **Status:** Updated with research findings (Compose patterns, Maestro capabilities, async pipeline architecture)
 > **Scope:** Audit current E2E coverage + plan for Compose UI tests and Maestro E2E flows covering the full upload→processing→results pipeline and all UX states
 
 ---
@@ -40,11 +40,19 @@ No Compose UI tests for ProcessingScreen, DashboardScreen, SessionListScreen, Up
 
 ---
 
-## 2. Architecture: Two-Layer Testing
+## 2. Architecture: Three-Layer Testing
 
-### Layer 1: Compose UI Tests (JVM, no emulator)
+### Layer 1: Compose UI Tests (JVM with Robolectric, no emulator)
 
-Fast, stable tests using `createComposeRule()`. Mock ViewModels/states. Verify rendering of all UI states without backend.
+Fast, stable tests using `createComposeRule()` + Robolectric. Call `internal` composables directly with state parameters. Verify rendering of all UI states without backend.
+
+**Key decisions (from research):**
+- Robolectric is required because `stringResource()` needs Android context — plain JVM tests fail
+- `private` composables changed to `internal` for testability (NiA pattern)
+- Use `hasProgressBarRangeInfo()` for exact progress assertions + `onNodeWithText()` for labels
+- Use `useUnmergedTree = true` for Snackbar assertions
+- Text-first selectors; `testTag` only for elements without unique text
+- One test class per screen: `{ScreenName}Test`
 
 | Screen | Tests | States Verified |
 |--------|-------|----------------|
@@ -56,16 +64,54 @@ Fast, stable tests using `createComposeRule()`. Mock ViewModels/states. Verify r
 
 **Total: 18 Compose UI tests**
 
-### Layer 2: Maestro E2E Flows (emulator/device)
+### Layer 2: Maestro E2E Flows (emulator/device, tag-based suite separation)
 
-Full pipeline tests through real backend, using Maestro capabilities:
+Full pipeline tests through real backend, using Maestro capabilities.
+
+**Tag-based suite separation (from research):**
+- `smokeTest` — fast flows (~2 min), run on every PR
+- `e2e` — slow flows with real backend (~10 min), run on merge to master / nightly
+
+```bash
+# PR: fast smoke tests
+maestro test --include-tags=smokeTest e2e/maestro/
+
+# Merge: full suite
+maestro test e2e/maestro/
+```
+
+**Key decisions (from research):**
+- Sharding (`--shards N`) has Android bugs (gRPC errors, issue #1853) — use tag separation instead
+- `setAirplaneMode: enabled` BEFORE `launchApp` to avoid race condition
+- Always clean up: `setAirplaneMode: disabled` at end + ADB cleanup in CI `always()` step
+- `retry` command (maxRetries 2-3) for transient SSE-driven state changes
+- `continueOnFailure: true` in config.yaml — don't stop suite on first failure
 
 | Flow | What It Tests |
 |------|---------------|
-| `upload-pipeline.yaml` | addMedia → pick video → element selection → upload → processing → completed |
-| `upload-network-error.yaml` | setAirplaneMode → upload → network error state → retry |
-| `processing-stages.yaml` | Upload → assert stage labels appear in order |
-| `session-results.yaml` | After processing → sessions list → session detail with metrics |
+| `upload-pipeline.yaml` | addMedia → pick video → element selection → upload → processing → completed | `e2e` |
+| `upload-network-error.yaml` | setAirplaneMode → upload → network error state → retry | `e2e` |
+| `processing-stages.yaml` | Upload → assert stage labels appear in order | `e2e` |
+| `session-results.yaml` | After processing → sessions list → session detail with metrics | `e2e` |
+
+Existing flows get `smokeTest` tags:
+| `login.yaml` | Login → tabs visible | `smokeTest` |
+| `logout.yaml` | Logout → login screen | `smokeTest` |
+| `register.yaml` | Registration flow | `smokeTest` |
+| `tab-navigation.yaml` | Tab switching | `smokeTest` |
+| `upload-processing-check.yaml` | Empty states on 3 tabs | `smokeTest` |
+| `upload-queue.yaml` | Upload queue empty state | `smokeTest` |
+
+### Layer 3: Debug Build E2E with FakeProcessApi (fast, <1s)
+
+A debug build variant that injects `FakeProcessApi` via Hilt module, returning pre-recorded SSE events instantly. This makes Maestro E2E flows run in <1s instead of 30-120s.
+
+**Test doubles (from research):**
+- `SseScenarios` — pre-recorded SSE event sequences (happy path, network error, slow progress)
+- `FakeProcessApi` — already exists in `ProcessingViewModelTest`, expanded with `SseScenarios`
+- Debug Hilt module: `androidApp/src/debug/java/.../di/FakeApiModule.kt`
+
+**When to use:** CI smoke tests, PR checks. Not a replacement for real-backend E2E (merge to master).
 
 Plus updates to existing flows:
 - `gallery-upload.yaml` — use `addMedia` + `pick_first_video.yaml` partial
@@ -79,20 +125,22 @@ Plus updates to existing flows:
 
 File: `mobile/androidApp/src/test/java/ru/skatelab/capture/ui/processing/ProcessingScreenTest.kt`
 
-Mock approach: Create `FakeAndroidProcessingViewModel` extending `AndroidProcessingViewModel` with controlled `StateFlow` values. Alternatively, test `UploadStatusContent` and `ProcessingContent` composables directly with state parameters.
+**Visibility:** Change `private` → `internal` for `UploadStatusContent`, `ProcessingContent`, `UploadFailedContent`.
+
+**Asserting progress:** Use `hasProgressBarRangeInfo(ProgressBarRangeInfo(current = 0.5f, range = 0f..1f, steps = 0))` for exact progress verification, plus `onNodeWithText("50%")` for label verification.
 
 ```
 UploadStatusContent:
 1. READY → CircularProgressIndicator + "Preparing upload…"
-2. UPLOADING → LinearProgressIndicator + "Uploading video…"
+2. UPLOADING → LinearProgressIndicator(testTag="uploadProgress") + "Uploading video…"
 3. PROCESSING → CircularProgressIndicator + "Starting analysis…"
 
 ProcessingContent:
 4. Idle → CircularProgressIndicator + "Preparing"
-5. Progress(0.05f) → LinearProgressIndicator + "Queuing…" + "5%"
-6. Progress(0.50f) → LinearProgressIndicator + "Processing video…" + "50%"
-7. Progress(0.95f) → LinearProgressIndicator + "Finishing up…" + "95%"
-8. Failed(Network) → CloudOff icon + "No connection" + retry/back buttons
+5. Progress(0.05f) → LinearProgressIndicator + "Queuing…" + "5%" + ProgressBarRangeInfo(0.05f)
+6. Progress(0.50f) → LinearProgressIndicator + "Processing video…" + "50%" + ProgressBarRangeInfo(0.5f)
+7. Progress(0.95f) → LinearProgressIndicator + "Finishing up…" + "95%" + ProgressBarRangeInfo(0.95f)
+8. Failed(Network) → CloudOff icon(contentDescription="Error") + "No connection" + liveRegion=Polite + retry/back buttons
 9. Completed → CircularProgressIndicator + "Analysis complete"
 ```
 
@@ -127,35 +175,72 @@ File: `mobile/androidApp/src/test/java/ru/skatelab/capture/ui/upload/UploadQueue
 
 File: `mobile/androidApp/src/test/java/ru/skatelab/capture/ui/camera/CameraScreenValidationTest.kt`
 
+**Snackbar testing:** Use `onNode(hasText(message), useUnmergedTree = true)` with `waitUntil` for async snackbar. Extract snackbar display logic into testable composable if needed.
+
 ```
-1. Invalid format → snackbar "Unsupported video format"
-2. File too large → snackbar "File too large"
-3. File not found → snackbar "File not found"
+1. Invalid format → snackbar "Unsupported video format" (useUnmergedTree = true)
+2. File too large → snackbar "File too large" (useUnmergedTree = true)
+3. File not found → snackbar "File not found" (useUnmergedTree = true)
 ```
 
 ### Mock Approach
 
-Tests call composable functions directly with state parameters — no ViewModel mocking, no Hilt injection needed. Private composables (`UploadStatusContent`, `ProcessingContent`, `UploadFailedContent`) are tested directly since they accept simple parameters.
+Tests call `internal` composable functions directly with state parameters — no ViewModel mocking, no Hilt injection needed for rendering tests. This is the Now in Android pattern.
+
+**`private` → `internal` visibility changes:**
+- `ProcessingScreen.kt`: `ProcessingContent`, `UploadStatusContent`, `UploadFailedContent`
+- `DashboardScreen.kt`: `DashboardContent` (if exists as separate composable)
+- `SessionListScreen.kt`: Extract empty/loaded content into `internal` composables
 
 ```kotlin
-@Test
-fun progressAt50Percent_showsProcessingStage() {
-    composeRule.setContent {
-        ProcessingContent(
-            state = ProcessingUiState.Progress(0.5f, ""),
-            onRetry = {},
-            onCancel = {},
-            onBack = {},
-        )
+@RunWith(RobolectricTestRunner::class) // Required for stringResource()
+class ProcessingScreenTest {
+    @get:Rule val composeRule = createComposeRule()
+
+    @Test
+    fun progressAt50Percent_showsProcessingStage() {
+        composeRule.setContent {
+            AppTheme {
+                ProcessingContent(
+                    state = ProcessingUiState.Progress(0.5f, ""),
+                    onRetry = {}, onCancel = {}, onBack = {},
+                )
+            }
+        }
+        composeRule.onNodeWithText("Processing video…").assertIsDisplayed()
+        composeRule.onNodeWithText("50%").assertIsDisplayed()
+        composeRule.onNode(
+            hasProgressBarRangeInfo(ProgressBarRangeInfo(current = 0.5f, range = 0f..1f, steps = 0))
+        ).assertIsDisplayed()
     }
-    composeRule.onNodeWithText("Processing video…").assertIsDisplayed()
-    composeRule.onNodeWithText("50%").assertIsDisplayed()
 }
 ```
 
-For screens that require a ViewModel (e.g., `DashboardScreen`, `SessionListScreen`), create minimal fakes that implement the public interface, or test via `hiltViewModel()` with `@HiltAndroidTest` and `UninstallModules` to swap real dependencies with fakes.
+For screens that require a ViewModel (e.g., `DashboardScreen`, `SessionListScreen`), extract stateless content composables into `internal` functions and test them directly. Do NOT use `@HiltAndroidTest` for rendering tests — it adds 2-5s startup per test and ties tests to the DI graph.
+
+**Accessibility assertions within each test:**
+```kotlin
+// Verify error icon has content description
+composeRule.onNodeWithContentDescription("Error").assertIsDisplayed()
+// Verify live region (screen reader announces changes)
+composeRule.onNode(hasLiveRegionMode(LiveRegionMode.Polite) and hasText("No connection")).assertIsDisplayed()
+// Verify role semantics
+composeRule.onNode(hasRole(Role.Button) and hasText("Retry")).assertIsDisplayed()
+```
 
 No backend, no emulator, no network. Millisecond execution for direct composable tests.
+
+### Contract Testing Per Layer
+
+Each layer has a clear testable contract with its own test double:
+
+| Contract | Input | Output | Test Double | Layer |
+|----------|-------|--------|-------------|-------|
+| UploadWorker logic | video file + entity | Room status transitions | FakeDAO + FakeUploader | JVM unit |
+| ProcessingViewModel | IProcessApi events | ProcessingUiState transitions | FakeProcessApi | commonTest |
+| AndroidProcessingViewModel | Room flow + IProcessApi | UploadPhase + ProcessingUiState | MockK DAO + FakeProcessApi | JVM unit |
+| ProcessingContent composable | ProcessingUiState | Correct UI elements | Direct state params | JVM unit |
+| ProcessApi.stream() | HTTP SSE | Flow<ProcessEvent> | Ktor MockEngine | commonTest |
 
 ---
 
@@ -203,17 +288,17 @@ tags:
 
 ### 4.3 upload-network-error.yaml
 
-Network error during upload.
+Network error during upload. **Critical: `setAirplaneMode: enabled` BEFORE `launchApp`** to avoid race condition.
 
 ```yaml
 appId: ru.skatelab.capture
 tags:
   - upload
   - error
+  - e2e
 ---
 - setAirplaneMode: enabled
 - addMedia: ["./assets/test_video.mp4"]
-- launchApp
 - extendedWaitUntil:
     visible: "Camera"
     timeout: 15000
@@ -307,9 +392,10 @@ flows:
 excludeTags:
   - util
   - manual
+continueOnFailure: true
 ```
 
-No changes needed — new flows will be picked up automatically.
+`continueOnFailure: true` ensures the full suite runs even if one flow fails.
 
 ---
 
@@ -357,9 +443,15 @@ mobile/e2e/maestro/
 Add to `mobile/androidApp/build.gradle.kts`:
 
 ```kotlin
-// Compose UI testing (JVM)
-debugImplementation("androidx.compose.ui:ui-test-manifest")
+// Compose UI testing (JVM with Robolectric)
+testImplementation("org.robolectric:robolectric:4.14")
 testImplementation("androidx.compose.ui:ui-test-junit4")
+debugImplementation("androidx.compose.ui:ui-test-manifest")
+
+// Parallel test execution
+tasks.withType<Test>().configureEach {
+    maxParallelForks = Runtime.getRuntime().availableProcessors().div(2).coerceAtLeast(2)
+}
 ```
 
 Already present:
@@ -367,21 +459,68 @@ Already present:
 - `androidTestImplementation("androidx.compose.ui:ui-test-junit4")`
 - `testImplementation("junit:junit")`
 
+**Why Robolectric:** `stringResource(R.string.*)` requires Android context. Without Robolectric, JVM tests fail. With `@RunWith(RobolectricTestRunner::class)`, `stringResource()` resolves correctly in JVM tests. This is the Now in Android pattern.
+
+### Code Changes Required Before Tests
+
+1. **`private` → `internal`** for testable composables:
+   - `ProcessingScreen.kt`: `ProcessingContent`, `UploadStatusContent`, `UploadFailedContent`
+   - `DashboardScreen.kt`: `DashboardContent` (if exists as separate composable)
+   - `SessionListScreen.kt`: Extract empty/loaded content into `internal` composables
+
+2. **Test doubles** (new files):
+   - `shared/src/commonTest/.../fixtures/SseScenarios.kt` — pre-recorded SSE event sequences
+   - `androidApp/src/test/.../data/db/FakePendingUploadDao.kt` — in-memory DAO
+   - `androidApp/src/test/.../upload/FakeChunkedUploader.kt` — fake uploader
+   - `androidApp/src/debug/.../di/FakeApiModule.kt` — debug Hilt module with FakeProcessApi
+
 ---
 
 ## 7. CI Integration
 
-### Existing CI (no changes needed for Compose UI tests)
+### Compose UI Tests (no changes needed)
 
-`mobile-ci.yml` already runs `./gradlew :androidApp:testDebugUnitTest` — new Compose UI tests will be picked up automatically.
+`mobile-ci.yml` already runs `./gradlew :androidApp:testDebugUnitTest` — new tests with Robolectric will be picked up automatically. `maxParallelForks` ensures parallel execution.
 
-### Existing CI (minor changes for Maestro)
+### Maestro E2E (tag-based separation)
 
 `mobile-e2e.yml` needs:
-1. Copy `mobile/e2e/maestro/assets/test_video.mp4` into Maestro workspace
-2. Ensure `test_video.mp4` is in git (or git LFS if > 50MB, which it won't be)
 
-No other CI changes — `addMedia` and `setAirplaneMode` are native Maestro commands that work on CI emulators.
+**PR checks (fast smoke):**
+```yaml
+- name: Run smoke tests
+  run: |
+    maestro test \
+      --format junit --format html \
+      --output build/reports/maestro/ \
+      --include-tags=smokeTest \
+      e2e/maestro/
+```
+
+**Merge to master (full E2E):**
+```yaml
+- name: Run full E2E suite
+  run: |
+    maestro test \
+      --format junit --format html \
+      --output build/reports/maestro/ \
+      e2e/maestro/
+```
+
+**Cleanup after network error tests:**
+```yaml
+- name: Disable airplane mode (cleanup)
+  if: always()
+  run: |
+    adb shell settings put global airplane_mode_on 0
+    adb shell am broadcast -a android.intent.action.AIRPLANE_MODE --ez state false
+```
+
+**Environment variable for slow emulators:**
+```yaml
+env:
+  MAESTRO_DRIVER_STARTUP_TIMEOUT: 120
+```
 
 ---
 
@@ -405,11 +544,17 @@ This file should be committed directly to `mobile/e2e/maestro/assets/test_video.
 - 4 new Maestro E2E flows for upload pipeline, error handling, processing stages, session results
 - Updated `gallery-upload.yaml` with `addMedia`
 - Test asset (`test_video.mp4`)
+- Debug build variant with `FakeProcessApi` for fast E2E
+- Test doubles: `SseScenarios`, `FakePendingUploadDao`, `FakeChunkedUploader`
+- Contract testing per layer (5 contracts)
+- Tag-based suite separation (`smokeTest` vs `e2e`)
+- `private` → `internal` visibility changes for testable composables
+- Robolectric dependency for `stringResource()` in JVM tests
 
 ### Out of Scope
-- Backend mock server (WireMock/MockServer) for Maestro — use real backend
 - Performance/stress testing
 - iOS E2E (iOS app not yet implemented)
-- Accessibility automated testing (already has `AccessibilityTest.kt`)
 - Screenshot comparison baselines (can be added later)
-- `adb push`-based pipeline scripts (Maestro `addMedia` covers this)
+- Maestro sharding (premature for ~13 flows, Android sharding has bugs)
+- WorkManager integration tests with `TestListenableWorkerBuilder` (future task)
+- Room in-memory DAO tests (future task)
