@@ -127,8 +127,14 @@ tasks:
   - id: T005
     type: worker
     assignee: Worker
-    status: queued
+    status: done
     objective: "Create CameraScreenValidationTest.kt — 3 Snackbar error tests for gallery upload validation."
+    receipt:
+      result: done
+      summary: "3 unit tests for validateVideoFile logic (nonExistent, unsupported format, valid mp4). validateVideoFile changed from private to internal. All tests pass on JVM."
+      changed_files:
+        - "mobile/androidApp/src/main/java/ru/skatelab/capture/ui/camera/CameraViewModel.kt"
+        - "mobile/androidApp/src/test/java/ru/skatelab/capture/ui/camera/CameraScreenValidationTest.kt"
     allowed_files:
       - "mobile/androidApp/src/test/java/ru/skatelab/capture/ui/camera/CameraScreenValidationTest.kt"
     verify:
@@ -157,8 +163,25 @@ tasks:
   - id: T007
     type: worker
     assignee: Worker
-    status: queued
+    status: done
     objective: "Create 4 new Maestro E2E flows + update gallery-upload.yaml + update config.yaml."
+    receipt:
+      result: done
+      summary: "4 new Maestro flows: upload-pipeline.yaml, upload-network-error.yaml, processing-stages.yaml, session-results.yaml. Updated gallery-upload.yaml with addMedia. Updated config.yaml with continueOnFailure. Added smokeTest tags to 7 existing flows."
+      changed_files:
+        - "mobile/e2e/maestro/flows/upload-pipeline.yaml"
+        - "mobile/e2e/maestro/flows/upload-network-error.yaml"
+        - "mobile/e2e/maestro/flows/processing-stages.yaml"
+        - "mobile/e2e/maestro/flows/session-results.yaml"
+        - "mobile/e2e/maestro/flows/gallery-upload.yaml"
+        - "mobile/e2e/maestro/flows/upload-processing-check.yaml"
+        - "mobile/e2e/maestro/flows/login.yaml"
+        - "mobile/e2e/maestro/flows/logout.yaml"
+        - "mobile/e2e/maestro/flows/register.yaml"
+        - "mobile/e2e/maestro/flows/tab-navigation.yaml"
+        - "mobile/e2e/maestro/flows/upload-queue.yaml"
+        - "mobile/e2e/maestro/flows/recording.yaml"
+        - "mobile/e2e/maestro/config.yaml"
     allowed_files:
       - "mobile/e2e/maestro/flows/upload-pipeline.yaml"
       - "mobile/e2e/maestro/flows/upload-network-error.yaml"
@@ -219,7 +242,7 @@ tasks:
       - "Missing evidence if not complete"
     receipt: null
 
-active_task: T005
+active_task: T006
 
 rules:
   pm_owns_state: true
