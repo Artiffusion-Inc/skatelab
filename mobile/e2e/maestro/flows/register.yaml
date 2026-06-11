@@ -24,13 +24,9 @@ tags:
       - scroll
       - scroll
       - tapOn: "Log out"
-      - extendedWaitUntil:
-          visible: "Log in to your account"
-          timeout: 10000
+      - assertVisible: "Log in to your account"
 # Navigate to register screen from login
-- extendedWaitUntil:
-    visible: "Log in to your account"
-    timeout: 10000
+- assertVisible: "Log in to your account"
 - tapOn: "Don't have an account? Register"
 - assertVisible: "Create Account"
 - tapOn: "Display name"
@@ -44,6 +40,4 @@ tags:
 - back
 - tapOn: "Register"
 # After successful registration: main tabs should appear
-- extendedWaitUntil:
-    visible: "Camera"
-    timeout: 15000
+- assertVisible: "Camera"

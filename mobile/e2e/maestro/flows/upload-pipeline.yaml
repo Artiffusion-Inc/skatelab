@@ -8,23 +8,15 @@ tags:
 # Prerequisites: logged in, backend processing pipeline running
 - addMedia: ["./assets/test_video.mp4"]
 - launchApp
-- extendedWaitUntil:
-    visible: "Camera"
-    timeout: 15000
+- assertVisible: "Camera"
 - tapOn: "Upload video"
 - runFlow: ../partials/pick_first_video.yaml
 # Element type selection (if shown)
-- extendedWaitUntil:
-    visible: "axel"
-    timeout: 10000
+- assertVisible: "axel"
 - tapOn: "axel"
 # Processing screen should appear
-- extendedWaitUntil:
-    visible: "Uploading video…"
-    timeout: 30000
+- assertVisible: "Uploading video…"
 - retry:
-    maxRetries: 2
+    maxRetries: 30
     commands:
-      - extendedWaitUntil:
-          visible: "Analysis complete"
-          timeout: 300000
+      - assertVisible: "Analysis complete"

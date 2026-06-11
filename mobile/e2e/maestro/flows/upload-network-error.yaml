@@ -9,13 +9,9 @@ tags:
 - setAirplaneMode: enabled
 - addMedia: ["./assets/test_video.mp4"]
 - launchApp
-- extendedWaitUntil:
-    visible: "Camera"
-    timeout: 15000
+- assertVisible: "Camera"
 - tapOn: "Upload video"
 - runFlow: ../partials/pick_first_video.yaml
-- extendedWaitUntil:
-    visible: "No connection"
-    timeout: 30000
+- assertVisible: "No connection"
 - assertVisible: "Retry"
 - setAirplaneMode: disabled

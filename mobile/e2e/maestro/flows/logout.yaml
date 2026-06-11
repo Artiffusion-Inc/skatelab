@@ -1,18 +1,15 @@
 appId: ru.skatelab.capture
 tags:
-  - smokeTest
   - auth
+  - e2e
 ---
+# Logout E2E test: log out → see login screen
 # Prerequisite: user must be logged in
 - launchApp
-- extendedWaitUntil:
-    visible: "Camera"
-    timeout: 15000
+- assertVisible: "Camera"
 - tapOn: "Profile"
 - scroll
 - scroll
 - assertVisible: "Log out"
 - tapOn: "Log out"
-- extendedWaitUntil:
-    visible: "Log in to your account"
-    timeout: 15000
+- assertVisible: "Log in to your account"

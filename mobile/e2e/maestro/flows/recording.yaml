@@ -6,7 +6,5 @@ tags:
 # Recording flow - requires real camera, will not work on emulator
 # On emulator, Camera screen shows upload-only mode
 - launchApp
-- extendedWaitUntil:
-    visible: "Camera"
-    timeout: 15000
+- assertVisible: "Camera"
 - assertVisible: "Upload video"

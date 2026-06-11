@@ -3,6 +3,8 @@ tags:
   - smokeTest
   - auth
 ---
+# Login E2E test: fill credentials → log in → see main screen
+# Prerequisite: app freshly installed or data cleared (on login screen)
 - launchApp
 # Grant camera permission if prompted
 - runFlow:
@@ -10,7 +12,7 @@ tags:
       visible: "While using the app"
     commands:
       - tapOn: "While using the app"
-# If already logged in, log out first
+# If already logged in, log out first to start from login screen
 - runFlow:
     when:
       visible: "Camera"
@@ -19,13 +21,9 @@ tags:
       - scroll
       - scroll
       - tapOn: "Log out"
-      - extendedWaitUntil:
-          visible: "Log in to your account"
-          timeout: 10000
+      - assertVisible: "Log in to your account"
 # Wait for login screen
-- extendedWaitUntil:
-    visible: "Log in to your account"
-    timeout: 10000
+- assertVisible: "Log in to your account"
 - tapOn: "Email"
 - inputText: test@skatelab.ru
 - back
@@ -34,6 +32,4 @@ tags:
 - back
 - tapOn: "Log in"
 # After successful login: main tabs should appear
-- extendedWaitUntil:
-    visible: "Camera"
-    timeout: 15000
+- assertVisible: "Camera"

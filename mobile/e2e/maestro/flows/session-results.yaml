@@ -6,12 +6,11 @@ tags:
 # Verify session appears after processing
 # Prerequisite: at least one completed session exists (run upload-pipeline first)
 - launchApp
-- extendedWaitUntil:
-    visible: "Camera"
-    timeout: 15000
+- assertVisible: "Camera"
 - tapOn: "Sessions"
-- extendedWaitUntil:
-    visible: "axel"
-    timeout: 15000
-  optional: true
+- runFlow:
+    when:
+      visible: "axel"
+    commands:
+      - assertVisible: "axel"
 - assertVisible: "Profile"

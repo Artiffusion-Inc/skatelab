@@ -5,22 +5,16 @@ tags:
 ---
 # Prerequisite: user must be logged in
 - launchApp
-- extendedWaitUntil:
-    visible: "Camera"
-    timeout: 15000
+- assertVisible: "Camera"
 # Switch to Progress tab — verify user name is shown
 - tapOn: "Progress"
-- extendedWaitUntil:
-    visible: "Hello, Test User!"
-    timeout: 10000
+- assertVisible: "Hello, Test User!"
 # Switch to Sessions tab
 - tapOn: "Sessions"
 - assertVisible: "Profile"
 # Switch to Profile tab — verify profile fields are shown
 - tapOn: "Profile"
-- extendedWaitUntil:
-    visible: "Display name"
-    timeout: 10000
+- assertVisible: "Display name"
 # Switch back to Camera tab
 - tapOn: "Camera"
 - assertVisible: "Upload video"

@@ -5,9 +5,7 @@ tags:
 ---
 # Upload queue - requires user to be logged in
 - launchApp
-- extendedWaitUntil:
-    visible: "Camera"
-    timeout: 15000
+- assertVisible: "Camera"
 - tapOn: "Profile"
 - scroll
 - scroll

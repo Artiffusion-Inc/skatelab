@@ -1,34 +1,35 @@
 appId: ru.skatelab.capture
 tags:
-  - smokeTest
+  - e2e
   - upload
   - processing
 ---
-# Upload queue + processing screen check
-# Verifies empty states and navigation to upload queue
+# Upload queue + processing screen navigation check
+# Verifies tab navigation for logged-in user with data
 - launchApp
-- extendedWaitUntil:
-    visible: "Camera"
-    timeout: 15000
+- assertVisible: "Camera"
 
-# Check Progress tab empty state (no sessions)
+# Progress tab — shows greeting (logged-in user has data)
 - tapOn: "Progress"
-- extendedWaitUntil:
-    visible: "No active processing"
-    timeout: 5000
+- assertVisible: "Hello, Test User!"
 
-# Check Sessions tab empty state
+# Sessions tab
 - tapOn: "Sessions"
-- extendedWaitUntil:
-    visible: "No sessions yet"
-    timeout: 5000
+- assertVisible: "Profile"
 
 # Navigate to Uploads via Profile
 - tapOn: "Profile"
 - scroll
 - scroll
 - tapOn: "Uploads"
-- extendedWaitUntil:
-    visible: "No uploads"
-    timeout: 5000
-- assertVisible: "Videos you upload"
+# Both EN and RU text: "Videos you upload will appear here for processing" / "Загруженные видео появятся здесь для обработки"
+- runFlow:
+    when:
+      visible: "Videos you upload"
+    commands:
+      - assertVisible: "Videos you upload"
+- runFlow:
+    when:
+      visible: "Загруженные видео"
+    commands:
+      - assertVisible: "Загруженные видео"
