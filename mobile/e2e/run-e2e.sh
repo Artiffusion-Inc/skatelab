@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Per-run: install APK, run Maestro tests, output JUnit XML
+# Per-run: install APK, set locale, run Maestro tests, output JUnit XML
 # Usage: ./run-e2e.sh --apk-path /tmp/app-debug.apk
 #        ./run-e2e.sh --apk-url https://example.com/app-debug.apk
 #        ./run-e2e.sh --gh-run-id 12345  # download from GitHub Actions
@@ -12,6 +12,7 @@ TIMESTAMP=$(date +%Y%m%d-%H%M%S)
 REPORT_FILE="${REPORTS_DIR}/report-${TIMESTAMP}.xml"
 APK_PATH=""
 MAX_RETRIES=2
+DRIVER_RETRIES=3
 
 while [[ $# -gt 0 ]]; do
     case $1 in
@@ -54,6 +55,12 @@ if ! docker exec skatelab-emulator adb shell getprop sys.boot_completed 2>/dev/n
     done
 fi
 
+# Set English locale (Maestro selectors use English text)
+echo "Setting en-US locale..."
+docker exec skatelab-emulator adb shell "settings put system system_locales en-US" 2>/dev/null || true
+docker exec skatelab-emulator adb shell service call locale 3 s16 ru.skatelab.capture s16 en-US 2>/dev/null || true
+docker exec skatelab-emulator adb shell svc wifi enable 2>/dev/null || true
+
 # Install APK
 echo "Installing APK..."
 docker exec skatelab-emulator adb install -r "$APK_PATH" || {
@@ -61,35 +68,56 @@ docker exec skatelab-emulator adb install -r "$APK_PATH" || {
     docker exec skatelab-emulator adb install -r -t "$APK_PATH"
 }
 
-# Run Maestro with retry
+# Grant permissions
+docker exec skatelab-emulator adb shell pm grant ru.skatelab.capture android.permission.CAMERA 2>/dev/null || true
+
+# Run Maestro with driver retry (dADB flakiness workaround)
 ATTEMPT=0
 while [ $ATTEMPT -le $MAX_RETRIES ]; do
     echo "Running Maestro tests (attempt $((ATTEMPT+1))/$((MAX_RETRIES+1)))..."
-    if maestro test \
-        --device emulator-5554 \
-        --format junit \
-        --output "${REPORT_FILE}" \
-        "${E2E_DIR}/maestro/"; then
-        echo "Maestro tests passed."
-        break
-    fi
+
+    # Try with --no-reinstall-driver first (faster), fall back to full reinstall
+    DRIVER_ATTEMPT=0
+    MAESTRO_CMD="maestro test --device emulator-5554 --format junit --output ${REPORT_FILE}"
+    DRIVER_FLAG="--no-reinstall-driver"
+
+    while [ $DRIVER_ATTEMPT -lt $DRIVER_RETRIES ]; do
+        echo "  Driver attempt $((DRIVER_ATTEMPT+1))/$DRIVER_RETRIES..."
+        if docker exec \
+            -e HOME=/home/androidusr \
+            -e PATH=/home/androidusr/.maestro/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin \
+            -e MAESTRO_DRIVER_STARTUP_TIMEOUT=120 \
+            -e MAESTRO_CLI_ANALYSIS_NOTIFICATION_DISABLED=true \
+            skatelab-emulator \
+            $MAESTRO_CMD $DRIVER_FLAG "${E2E_DIR}/maestro/"; then
+            echo "Maestro tests passed."
+            # Print summary
+            echo ""
+            echo "=== E2E Results ==="
+            if [ -f "${REPORT_FILE}" ]; then
+                TOTAL=$(grep -oP 'tests="\K[0-9]+' "$REPORT_FILE" | head -1)
+                FAILURES=$(grep -oP 'failures="\K[0-9]+' "$REPORT_FILE" | head -1)
+                echo "Tests: ${TOTAL}, Failures: ${FAILURES:-0}"
+                echo "Report: ${REPORT_FILE}"
+            fi
+            exit 0
+        fi
+
+        DRIVER_ATTEMPT=$((DRIVER_ATTEMPT+1))
+        if [ $DRIVER_ATTEMPT -lt $DRIVER_RETRIES ]; then
+            echo "  Driver failed, retrying without --no-reinstall-driver..."
+            DRIVER_FLAG=""
+            sleep 5
+        fi
+    done
+
     ATTEMPT=$((ATTEMPT+1))
     if [ $ATTEMPT -le $MAX_RETRIES ]; then
-        echo "Attempt $ATTEMPT failed, retrying in 5s..."
-        sleep 5
+        echo "Attempt $ATTEMPT failed, retrying in 10s..."
+        sleep 10
     else
         echo "Tests failed after $((MAX_RETRIES+1)) attempts."
         echo "Report: ${REPORT_FILE}"
         exit 1
     fi
 done
-
-# Summary
-echo ""
-echo "=== E2E Results ==="
-if [ -f "${REPORT_FILE}" ]; then
-    TOTAL=$(grep -oP 'tests="\K[0-9]+' "$REPORT_FILE" | head -1)
-    FAILURES=$(grep -oP 'failures="\K[0-9]+' "$REPORT_FILE" | head -1)
-    echo "Tests: ${TOTAL}, Failures: ${FAILURES:-0}"
-    echo "Report: ${REPORT_FILE}"
-fi

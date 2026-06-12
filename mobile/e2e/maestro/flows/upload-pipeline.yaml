@@ -1,17 +1,20 @@
 appId: ru.skatelab.capture
 tags:
+  - smokeTest
   - upload
   - e2e
   - pipeline
 ---
 # Full upload pipeline: addMedia → pick video → element selection → upload → processing → completed
 # Prerequisites: logged in, backend processing pipeline running
+# Note: runFlow with partials causes dADB flakiness (Maestro #1853), so we inline the video pick
 - addMedia: ["./assets/test_video.mp4"]
 - launchApp
 - assertVisible: "Camera"
 - tapOn: "Upload video"
-- runFlow: ../partials/pick_first_video.yaml
-# Element type selection (if shown)
+- tapOn:
+    text: test_video
+# Element type selection
 - assertVisible: "axel"
 - tapOn: "axel"
 # Processing screen should appear

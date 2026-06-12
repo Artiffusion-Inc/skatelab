@@ -1,12 +1,5 @@
-appId: ru.skatelab
+appId: ru.skatelab.capture
 ---
-# Android: try SDK 33/34 photo picker, then fallback to documents UI
+# Pick the first video from gallery / photo picker
 - tapOn:
-    id: 'com.google.android.providers.media.module:id/icon_thumbnail'
-    optional: true
-- tapOn:
-    id: 'com.google.android.documentsui:id/icon_thumbnail'
-    optional: true
-- tapOn:
-    text: 'test_video'
-    optional: true
+    text: test_video
