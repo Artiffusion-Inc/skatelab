@@ -102,7 +102,7 @@ class ProcessingScreenTest {
         composeRule.onNodeWithText("Queuing…").assertIsDisplayed()
         composeRule.onNodeWithText("5%").assertIsDisplayed()
         composeRule.onNode(
-            hasProgressBarRangeInfo(ProgressBarRangeInfo(0.05f, 0f..1f, 0))
+            hasProgressBarRangeInfo(ProgressBarRangeInfo(0.05f, 0f..1f, 0)),
         ).assertIsDisplayed()
     }
 
@@ -119,7 +119,7 @@ class ProcessingScreenTest {
         composeRule.onNodeWithText("Processing video…").assertIsDisplayed()
         composeRule.onNodeWithText("50%").assertIsDisplayed()
         composeRule.onNode(
-            hasProgressBarRangeInfo(ProgressBarRangeInfo(0.5f, 0f..1f, 0))
+            hasProgressBarRangeInfo(ProgressBarRangeInfo(0.5f, 0f..1f, 0)),
         ).assertIsDisplayed()
         composeRule.onNodeWithText("Cancel").assertHasClickAction()
     }
