@@ -3,6 +3,8 @@
 # Triggered by GitHub Actions after build+push to GHCR
 set -euo pipefail
 
+echo "Deploy running as: $(id) ($(whoami))"
+
 cd /opt/skatelab
 
 # Load secrets
