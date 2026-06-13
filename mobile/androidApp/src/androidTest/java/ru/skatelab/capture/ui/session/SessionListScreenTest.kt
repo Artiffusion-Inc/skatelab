@@ -13,24 +13,25 @@ class SessionListScreenTest {
 
     @Test
     fun sessionList_empty_showsNoSessions() {
-        val session = SessionResponse(
-            id = "s1",
-            userId = "u1",
-            elementType = "axel",
-            videoUrl = null,
-            processedVideoUrl = null,
-            poseData = null,
-            frameMetrics = null,
-            status = "completed",
-            errorMessage = null,
-            phases = null,
-            recommendations = null,
-            overallScore = 85f,
-            processTaskId = null,
-            createdAt = "2026-06-01T10:00:00Z",
-            processedAt = null,
-            metrics = emptyList(),
-        )
+        val session =
+            SessionResponse(
+                id = "s1",
+                userId = "u1",
+                elementType = "axel",
+                videoUrl = null,
+                processedVideoUrl = null,
+                poseData = null,
+                frameMetrics = null,
+                status = "completed",
+                errorMessage = null,
+                phases = null,
+                recommendations = null,
+                overallScore = 85f,
+                processTaskId = null,
+                createdAt = "2026-06-01T10:00:00Z",
+                processedAt = null,
+                metrics = emptyList(),
+            )
         composeRule.setContent {
             SessionCard(
                 session = session,
@@ -42,24 +43,25 @@ class SessionListScreenTest {
 
     @Test
     fun sessionCard_showsElementTypeAndScore() {
-        val session = SessionResponse(
-            id = "s2",
-            userId = "u1",
-            elementType = "lutz",
-            videoUrl = null,
-            processedVideoUrl = null,
-            poseData = null,
-            frameMetrics = null,
-            status = "completed",
-            errorMessage = null,
-            phases = null,
-            recommendations = null,
-            overallScore = 92f,
-            processTaskId = null,
-            createdAt = "2026-06-01T10:00:00Z",
-            processedAt = null,
-            metrics = emptyList(),
-        )
+        val session =
+            SessionResponse(
+                id = "s2",
+                userId = "u1",
+                elementType = "lutz",
+                videoUrl = null,
+                processedVideoUrl = null,
+                poseData = null,
+                frameMetrics = null,
+                status = "completed",
+                errorMessage = null,
+                phases = null,
+                recommendations = null,
+                overallScore = 92f,
+                processTaskId = null,
+                createdAt = "2026-06-01T10:00:00Z",
+                processedAt = null,
+                metrics = emptyList(),
+            )
         composeRule.setContent {
             SessionCard(
                 session = session,

@@ -6,18 +6,41 @@ tags:
   - pipeline
 ---
 # Full upload pipeline: addMedia → pick video → element selection → upload → processing → completed
-# Prerequisites: logged in, backend processing pipeline running
-# Note: runFlow with partials causes dADB flakiness (Maestro #1853), so we inline the video pick
-- addMedia: ["./assets/test_video.mp4"]
+# Starts from fresh install by logging in first, then runs the upload flow in the same Maestro session.
+# This avoids dADB flakiness caused by launching multiple Maestro flows sequentially.
+
+# --- Login prerequisite ---
 - launchApp
+- runFlow:
+    when:
+      visible: "While using the app"
+    commands:
+      - tapOn: "While using the app"
+- runFlow:
+    when:
+      visible: "Camera"
+    commands:
+      - tapOn: "Profile"
+      - scroll
+      - scroll
+      - tapOn: "Log out"
+      - assertVisible: "Log in to your account"
+- assertVisible: "Log in to your account"
+- tapOn: "Email"
+- inputText: test@skatelab.ru
+- back
+- tapOn: "Password"
+- inputText: Test123456
+- back
+- tapOn: "Log in"
 - assertVisible: "Camera"
+
+# --- Upload pipeline ---
+- addMedia: ["./assets/test_video.mp4"]
 - tapOn: "Upload video"
-- tapOn:
-    text: test_video
-# Element type selection
+- tapOn: "00:12"
 - assertVisible: "axel"
 - tapOn: "axel"
-# Processing screen should appear
 - assertVisible: "Uploading video…"
 - retry:
     maxRetries: 30

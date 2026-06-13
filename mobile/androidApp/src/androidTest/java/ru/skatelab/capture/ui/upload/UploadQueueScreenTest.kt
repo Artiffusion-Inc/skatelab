@@ -13,11 +13,12 @@ class UploadQueueScreenTest {
 
     @Test
     fun uploadCard_ready_showsPreparingUpload() {
-        val entity = PendingUploadEntity(
-            id = "test-1",
-            videoPath = "/data/test.mp4",
-            status = "READY",
-        )
+        val entity =
+            PendingUploadEntity(
+                id = "test-1",
+                videoPath = "/data/test.mp4",
+                status = "READY",
+            )
         composeRule.setContent {
             UploadCard(
                 entity = entity,
@@ -30,11 +31,12 @@ class UploadQueueScreenTest {
 
     @Test
     fun uploadCard_uploading_showsUploadingVideo() {
-        val entity = PendingUploadEntity(
-            id = "test-1",
-            videoPath = "/data/test.mp4",
-            status = "UPLOADING",
-        )
+        val entity =
+            PendingUploadEntity(
+                id = "test-1",
+                videoPath = "/data/test.mp4",
+                status = "UPLOADING",
+            )
         composeRule.setContent {
             UploadCard(
                 entity = entity,

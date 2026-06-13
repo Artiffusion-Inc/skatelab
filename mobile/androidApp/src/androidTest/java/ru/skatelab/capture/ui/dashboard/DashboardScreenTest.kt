@@ -16,13 +16,14 @@ class DashboardScreenTest {
 
     @Test
     fun dashboard_empty_showsNoActiveProcessing() {
-        val data = DashboardData(
-            user = null,
-            personalRecords = emptyList(),
-            diagnostics = emptyList(),
-            recentSessions = emptyList(),
-            weeklySessions = emptyList(),
-        )
+        val data =
+            DashboardData(
+                user = null,
+                personalRecords = emptyList(),
+                diagnostics = emptyList(),
+                recentSessions = emptyList(),
+                weeklySessions = emptyList(),
+            )
         composeRule.setContent {
             DashboardContent(
                 data = data,
@@ -36,34 +37,37 @@ class DashboardScreenTest {
 
     @Test
     fun dashboard_withData_showsDashboardContent() {
-        val data = DashboardData(
-            user = null,
-            personalRecords = listOf(
-                PersonalRecord(elementType = "axel", value = 0.85, sessionId = "s1"),
-            ),
-            diagnostics = emptyList(),
-            recentSessions = emptyList(),
-            weeklySessions = listOf(
-                SessionResponse(
-                    id = "s1",
-                    userId = "u1",
-                    elementType = "axel",
-                    videoUrl = null,
-                    processedVideoUrl = null,
-                    poseData = null,
-                    frameMetrics = null,
-                    status = "completed",
-                    errorMessage = null,
-                    phases = null,
-                    recommendations = null,
-                    overallScore = 85f,
-                    processTaskId = null,
-                    createdAt = "2026-06-01T10:00:00Z",
-                    processedAt = null,
-                    metrics = emptyList(),
+        val data =
+            DashboardData(
+                user = null,
+                personalRecords =
+                listOf(
+                    PersonalRecord(elementType = "axel", value = 0.85, sessionId = "s1"),
                 ),
-            ),
-        )
+                diagnostics = emptyList(),
+                recentSessions = emptyList(),
+                weeklySessions =
+                listOf(
+                    SessionResponse(
+                        id = "s1",
+                        userId = "u1",
+                        elementType = "axel",
+                        videoUrl = null,
+                        processedVideoUrl = null,
+                        poseData = null,
+                        frameMetrics = null,
+                        status = "completed",
+                        errorMessage = null,
+                        phases = null,
+                        recommendations = null,
+                        overallScore = 85f,
+                        processTaskId = null,
+                        createdAt = "2026-06-01T10:00:00Z",
+                        processedAt = null,
+                        metrics = emptyList(),
+                    ),
+                ),
+            )
         composeRule.setContent {
             DashboardContent(
                 data = data,

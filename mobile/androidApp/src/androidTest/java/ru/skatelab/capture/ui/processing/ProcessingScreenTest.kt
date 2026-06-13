@@ -33,11 +33,12 @@ class ProcessingScreenTest {
 
     @Test
     fun uploadStatus_ready_showsPreparingUpload() {
-        val entity = PendingUploadEntity(
-            id = "test-1",
-            videoPath = "/data/test.mp4",
-            status = "READY",
-        )
+        val entity =
+            PendingUploadEntity(
+                id = "test-1",
+                videoPath = "/data/test.mp4",
+                status = "READY",
+            )
         composeRule.setContent {
             UploadStatusContent(entity = entity)
         }
@@ -46,11 +47,12 @@ class ProcessingScreenTest {
 
     @Test
     fun uploadStatus_uploading_showsLinearProgress() {
-        val entity = PendingUploadEntity(
-            id = "test-1",
-            videoPath = "/data/test.mp4",
-            status = "UPLOADING",
-        )
+        val entity =
+            PendingUploadEntity(
+                id = "test-1",
+                videoPath = "/data/test.mp4",
+                status = "UPLOADING",
+            )
         composeRule.setContent {
             UploadStatusContent(entity = entity)
         }
@@ -60,11 +62,12 @@ class ProcessingScreenTest {
 
     @Test
     fun uploadStatus_processing_showsStartingAnalysis() {
-        val entity = PendingUploadEntity(
-            id = "test-1",
-            videoPath = "/data/test.mp4",
-            status = "PROCESSING",
-        )
+        val entity =
+            PendingUploadEntity(
+                id = "test-1",
+                videoPath = "/data/test.mp4",
+                status = "PROCESSING",
+            )
         composeRule.setContent {
             UploadStatusContent(entity = entity)
         }
