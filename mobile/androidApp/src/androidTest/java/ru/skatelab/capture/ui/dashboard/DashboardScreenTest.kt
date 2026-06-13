@@ -6,7 +6,6 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import org.junit.Rule
 import org.junit.Test
-import ru.skatelab.shared.models.DiagnosticsFinding
 import ru.skatelab.shared.models.PersonalRecord
 import ru.skatelab.shared.models.SessionResponse
 import ru.skatelab.shared.state.DashboardData
