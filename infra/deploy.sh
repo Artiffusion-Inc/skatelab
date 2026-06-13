@@ -30,9 +30,7 @@ cp /opt/skatelab/compose.prod.yaml /opt/skatelab/compose.yaml
 /usr/bin/docker compose up -d --remove-orphans --no-deps prometheus
 
 # Update Caddy config (zero-downtime reload, restart as fallback)
-# Copy Caddyfile via alpine container to avoid /opt/infra ownership issues
-# (Caddy bind mount is read-only, host dir owned by uid 1000, admin=1001 can't write directly)
-/usr/bin/docker run --rm -v /opt/skatelab/Caddyfile:/src:ro -v /opt/infra/services/caddy:/dst alpine cp /src /dst/Caddyfile
+cp /opt/skatelab/Caddyfile /opt/infra/services/caddy/Caddyfile
 /usr/bin/docker exec infra-caddy-1 caddy reload --config /etc/caddy/Caddyfile 2>/dev/null \
   || /usr/bin/docker restart infra-caddy-1
 
