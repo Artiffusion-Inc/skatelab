@@ -26,7 +26,6 @@ import ru.skatelab.shared.state.ProcessingUiState
  * ProcessingViewModelTest in shared/commonTest.
  */
 class ProcessingScreenTest {
-
     @get:Rule
     val composeRule = createComposeRule()
 

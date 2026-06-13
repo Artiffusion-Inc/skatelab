@@ -8,7 +8,6 @@ import org.junit.Test
 import ru.skatelab.capture.data.db.PendingUploadEntity
 
 class UploadQueueScreenTest {
-
     @get:Rule
     val composeRule = createComposeRule()
 
