@@ -182,7 +182,7 @@ jobs:
           port: 43210
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
-          command_timeout: 5m
+          command_timeout: 10m
           request_pty: true
           script: |
             cat > /opt/skatelab/.env <<ENVEOF
