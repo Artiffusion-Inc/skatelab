@@ -30,8 +30,8 @@ cp /opt/skatelab/compose.prod.yaml /opt/skatelab/compose.yaml
 /usr/bin/docker compose up -d --remove-orphans --no-deps prometheus
 
 # Update Caddy config (zero-downtime reload, restart as fallback)
-mkdir -p /opt/infra/services/caddy
-cp /opt/skatelab/Caddyfile /opt/infra/services/caddy/Caddyfile
+sudo mkdir -p /opt/infra/services/caddy
+sudo cp /opt/skatelab/Caddyfile /opt/infra/services/caddy/Caddyfile
 /usr/bin/docker exec infra-caddy-1 caddy reload --config /etc/caddy/Caddyfile 2>/dev/null \
   || /usr/bin/docker restart infra-caddy-1
 
