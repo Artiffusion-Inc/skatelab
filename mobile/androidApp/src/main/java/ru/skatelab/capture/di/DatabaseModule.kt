@@ -13,6 +13,7 @@ import ru.skatelab.capture.data.db.AppDatabase
 import ru.skatelab.capture.data.db.CachedSessionDao
 import ru.skatelab.capture.data.db.PendingUploadDao
 import ru.skatelab.capture.upload.ChunkedUploader
+import ru.skatelab.shared.api.SkateLabClient
 
 @Module
 @InstallIn(SingletonComponent::class)
@@ -40,7 +41,5 @@ object DatabaseModule {
 
     @Provides
     @Singleton
-    fun provideChunkedUploader(
-        skateLabClient: ru.skatelab.shared.api.SkateLabClient,
-    ): ChunkedUploader = ChunkedUploader(skateLabClient.uploads, skateLabClient.httpClient)
+    fun provideChunkedUploader(skateLabClient: SkateLabClient): ChunkedUploader = ChunkedUploader(skateLabClient.uploads, skateLabClient.httpClient)
 }
