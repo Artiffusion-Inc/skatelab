@@ -1,9 +1,9 @@
 package ru.skatelab.capture.ui.camera
 
+import java.io.File
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
-import java.io.File
 
 /**
  * Unit tests for CameraViewModel.validateVideoFile logic.
