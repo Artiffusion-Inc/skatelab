@@ -38,7 +38,7 @@ class FakePendingUploadDao : PendingUploadDao {
         return entities[id]
     }
 
-    override suspend fun getByIdFlow(id: String): Flow<PendingUploadEntity?> {
+    override fun getByIdFlow(id: String): Flow<PendingUploadEntity?> {
         // Simplified: returns current value, not reactive
         return MutableStateFlow(entities[id])
     }
@@ -63,11 +63,11 @@ class FakePendingUploadDao : PendingUploadDao {
         entities[id] = entity.copy(retryCount = entity.retryCount + 1)
     }
 
-    override suspend fun getAll(): Flow<List<PendingUploadEntity>> {
+    override fun getAll(): Flow<List<PendingUploadEntity>> {
         return allFlow
     }
 
-    override suspend fun countPending(): Flow<Int> {
+    override fun countPending(): Flow<Int> {
         return countFlow
     }
 
