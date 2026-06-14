@@ -91,7 +91,7 @@ export default function SessionDetailPage() {
   const tabs = [
     { key: "overview" as const, label: tSession("tabOverview") },
     { key: "details" as const, label: tSession("tabDetails") },
-    { key: "analyzer" as const, label: "Анализатор" },
+    { key: "analyzer" as const, label: tSession("tabAnalyzer") },
     { key: "export" as const, label: tSession("tabExport") },
   ]
 

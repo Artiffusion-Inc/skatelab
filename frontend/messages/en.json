@@ -541,6 +541,7 @@
     "tabOverview": "Overview",
     "tabDetails": "Details",
     "tabExport": "Export",
+    "tabAnalyzer": "Analyzer",
     "showAllMetrics": "Show all metrics",
     "tourTabs": "Switch tabs for details",
     "tourActions": "Click for more actions",
