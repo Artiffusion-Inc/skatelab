@@ -67,8 +67,9 @@ class PendingUploadEntityTest {
 
     @Test
     fun dataClassEquality() {
-        val e1 = PendingUploadEntity(id = "1", videoPath = "/v.mp4")
-        val e2 = PendingUploadEntity(id = "1", videoPath = "/v.mp4")
+        val ts = System.currentTimeMillis()
+        val e1 = PendingUploadEntity(id = "1", videoPath = "/v.mp4", createdAt = ts)
+        val e2 = PendingUploadEntity(id = "1", videoPath = "/v.mp4", createdAt = ts)
         assertEquals(e1, e2)
     }
 
