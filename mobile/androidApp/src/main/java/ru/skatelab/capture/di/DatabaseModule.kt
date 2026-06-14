@@ -41,5 +41,9 @@ object DatabaseModule {
 
     @Provides
     @Singleton
-    fun provideChunkedUploader(skateLabClient: SkateLabClient): ChunkedUploader = ChunkedUploader(skateLabClient.uploads, skateLabClient.httpClient)
+    fun provideChunkedUploader(skateLabClient: SkateLabClient): ChunkedUploader =
+        ChunkedUploader(
+            skateLabClient.uploads,
+            skateLabClient.httpClient,
+        )
 }
