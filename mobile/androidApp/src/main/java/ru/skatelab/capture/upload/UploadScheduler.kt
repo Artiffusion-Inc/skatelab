@@ -20,7 +20,8 @@ object UploadScheduler {
         policy: ExistingWorkPolicy = ExistingWorkPolicy.KEEP,
     ) {
         val constraints =
-            Constraints.Builder()
+            Constraints
+                .Builder()
                 .setRequiredNetworkType(NetworkType.CONNECTED)
                 .setRequiresBatteryNotLow(true)
                 .build()
@@ -32,7 +33,8 @@ object UploadScheduler {
                 .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 30, TimeUnit.SECONDS)
                 .build()
 
-        WorkManager.getInstance(context)
+        WorkManager
+            .getInstance(context)
             .enqueueUniqueWork(
                 "upload-$uploadId",
                 policy,

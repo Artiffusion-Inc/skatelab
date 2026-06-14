@@ -16,11 +16,19 @@ import kotlinx.serialization.Serializable
 
 @Serializable object SessionsRoute
 
-@Serializable data class ResultDetailRoute(val sessionId: String)
+@Serializable data class ResultDetailRoute(
+    val sessionId: String,
+)
 
-@Serializable data class MetricTrendRoute(val metricName: String, val elementType: String)
+@Serializable data class MetricTrendRoute(
+    val metricName: String,
+    val elementType: String,
+)
 
-@Serializable data class ProcessingRoute(val uploadId: String? = null, val sessionId: String? = null)
+@Serializable data class ProcessingRoute(
+    val uploadId: String? = null,
+    val sessionId: String? = null,
+)
 
 @Serializable object UploadQueueRoute
 

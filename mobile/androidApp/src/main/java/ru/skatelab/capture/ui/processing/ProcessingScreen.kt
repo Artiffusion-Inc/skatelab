@@ -117,12 +117,13 @@ fun ProcessingScreen(
 
 @Composable
 internal fun UploadStatusContent(entity: PendingUploadEntity) {
-    val statusLabel = when (entity.status) {
-        "READY" -> stringResource(R.string.upload_status_ready)
-        "UPLOADING" -> stringResource(R.string.upload_status_uploading)
-        "PROCESSING" -> stringResource(R.string.upload_status_processing)
-        else -> entity.status
-    }
+    val statusLabel =
+        when (entity.status) {
+            "READY" -> stringResource(R.string.upload_status_ready)
+            "UPLOADING" -> stringResource(R.string.upload_status_uploading)
+            "PROCESSING" -> stringResource(R.string.upload_status_processing)
+            else -> entity.status
+        }
 
     when (entity.status) {
         "UPLOADING" -> {
@@ -196,12 +197,13 @@ internal fun ProcessingContent(
         }
 
         is ProcessingUiState.Progress -> {
-            val stageLabel = when {
-                state.percent < 0.1f -> stringResource(R.string.processing_stage_queuing)
-                state.percent < 0.7f -> stringResource(R.string.processing_stage_processing)
-                state.percent < 0.9f -> stringResource(R.string.processing_stage_metrics)
-                else -> stringResource(R.string.processing_stage_finishing)
-            }
+            val stageLabel =
+                when {
+                    state.percent < 0.1f -> stringResource(R.string.processing_stage_queuing)
+                    state.percent < 0.7f -> stringResource(R.string.processing_stage_processing)
+                    state.percent < 0.9f -> stringResource(R.string.processing_stage_metrics)
+                    else -> stringResource(R.string.processing_stage_finishing)
+                }
             LinearProgressIndicator(
                 progress = { state.percent },
                 modifier = Modifier.fillMaxWidth(),

@@ -164,8 +164,18 @@ class ChunkedUploaderTest {
     fun completedPart_serialization_roundTrip() {
         val json = kotlinx.serialization.json.Json
         val original = CompletedPart(5, "etag-xyz")
-        val encoded = json.encodeToString(ru.skatelab.shared.models.CompletedPart.serializer(), original)
-        val decoded = json.decodeFromString(ru.skatelab.shared.models.CompletedPart.serializer(), encoded)
+        val encoded =
+            json.encodeToString(
+                ru.skatelab.shared.models.CompletedPart
+                    .serializer(),
+                original,
+            )
+        val decoded =
+            json.decodeFromString(
+                ru.skatelab.shared.models.CompletedPart
+                    .serializer(),
+                encoded,
+            )
         assertEquals(original, decoded)
     }
 

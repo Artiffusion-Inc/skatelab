@@ -46,5 +46,8 @@ interface PendingUploadDao {
     suspend fun delete(id: String)
 
     @Query("UPDATE pending_uploads SET videoKey = :videoKey WHERE id = :id")
-    suspend fun updateVideoKey(id: String, videoKey: String)
+    suspend fun updateVideoKey(
+        id: String,
+        videoKey: String,
+    )
 }

@@ -15,6 +15,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
+import ru.skatelab.capture.R
 import ru.skatelab.capture.data.db.PendingUploadDao
 import ru.skatelab.capture.data.db.PendingUploadEntity
 import ru.skatelab.capture.domain.model.SensorId
@@ -28,7 +29,6 @@ import ru.skatelab.capture.domain.usecase.RecordingStartInfo
 import ru.skatelab.capture.domain.usecase.StartRecordingUseCase
 import ru.skatelab.capture.domain.usecase.StopRecordingUseCase
 import ru.skatelab.capture.upload.UploadScheduler
-import ru.skatelab.capture.R
 
 @HiltViewModel
 class CameraViewModel
@@ -114,12 +114,12 @@ class CameraViewModel
             preparedImuRightFile = File(outputDir, "${timestamp}_right.binpb")
 
             viewModelScope.launch {
-                cameraRepository.bindToLifecycle(lifecycleOwner)
+                cameraRepository
+                    .bindToLifecycle(lifecycleOwner)
                     .onSuccess {
                         _isPreviewReady.value = true
                         appLogger.i(TAG, "Camera bound to lifecycle")
-                    }
-                    .onFailure {
+                    }.onFailure {
                         _error.value = "Camera prepare failed: ${it.message}"
                         appLogger.e(TAG, "Camera prepare failed: ${it.message}")
                     }
@@ -166,8 +166,7 @@ class CameraViewModel
                         startReconnectWatch()
                         startTimer()
                         appLogger.i(TAG, "Recording started: t0=${startInfo.t0Ns}")
-                    }
-                    .onFailure {
+                    }.onFailure {
                         _error.value = "Recording start failed: ${it.message}"
                         appLogger.e(TAG, "Recording start failed: ${it.message}")
                     }
@@ -365,7 +364,8 @@ class CameraViewModel
             excludeDir: File,
         ) {
             if (parentDir == null || !parentDir.exists()) return
-            parentDir.listFiles()
+            parentDir
+                .listFiles()
                 ?.filter { it.isDirectory && it.name.startsWith("skatelab_capture_") && it != excludeDir }
                 ?.forEach { dir ->
                     val hasVideo = dir.listFiles()?.any { it.extension == "mp4" } ?: false

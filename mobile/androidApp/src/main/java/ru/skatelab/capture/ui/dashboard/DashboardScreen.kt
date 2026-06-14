@@ -374,16 +374,15 @@ private fun RecentSessionRow(
 }
 
 @Composable
-private fun scoreColor(score: Float): androidx.compose.ui.graphics.Color {
-    return when {
+private fun scoreColor(score: Float): androidx.compose.ui.graphics.Color =
+    when {
         score >= 0.7f -> MaterialTheme.colorScheme.primary
         score >= 0.4f -> MaterialTheme.colorScheme.tertiary
         else -> MaterialTheme.colorScheme.error
     }
-}
 
-private fun formatDate(isoDate: String): String {
-    return try {
+private fun formatDate(isoDate: String): String =
+    try {
         val instant = java.time.Instant.parse(isoDate)
         val formatter =
             java.time.format.DateTimeFormatter
@@ -393,4 +392,3 @@ private fun formatDate(isoDate: String): String {
     } catch (_: Exception) {
         isoDate
     }
-}

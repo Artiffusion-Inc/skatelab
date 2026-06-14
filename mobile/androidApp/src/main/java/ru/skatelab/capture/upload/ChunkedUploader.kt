@@ -93,15 +93,14 @@ class ChunkedUploader(
         file: File,
         start: Long,
         end: Long,
-    ): ByteArray {
-        return RandomAccessFile(file, "r").use { raf ->
+    ): ByteArray =
+        RandomAccessFile(file, "r").use { raf ->
             raf.seek(start)
             val size = (end - start).toInt()
             val buffer = ByteArray(size)
             raf.readFully(buffer, 0, size)
             buffer
         }
-    }
 
     private suspend fun uploadPart(
         presignedUrl: String,
@@ -120,4 +119,6 @@ class ChunkedUploader(
     }
 }
 
-class UploadException(message: String) : Exception(message)
+class UploadException(
+    message: String,
+) : Exception(message)

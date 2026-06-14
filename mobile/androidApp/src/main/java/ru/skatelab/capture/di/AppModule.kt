@@ -129,7 +129,9 @@ abstract class AppModule {
             usersApi: UsersApi,
             client: SkateLabClient,
         ): ru.skatelab.shared.state.AuthViewModel {
-            val vm = ru.skatelab.shared.state.AuthViewModel(authRepo, usersApi)
+            val vm =
+                ru.skatelab.shared.state
+                    .AuthViewModel(authRepo, usersApi)
             client.onAuthFailure = {
                 kotlinx.coroutines.GlobalScope.launch {
                     vm.onAuthFailure()
