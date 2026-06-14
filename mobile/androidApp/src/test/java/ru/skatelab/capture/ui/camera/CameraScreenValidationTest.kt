@@ -11,7 +11,6 @@ import java.io.File
  * Compose or Android context — validates the business logic only.
  */
 class CameraScreenValidationTest {
-
     private val tempDir = System.getProperty("java.io.tmpdir")
 
     @Test

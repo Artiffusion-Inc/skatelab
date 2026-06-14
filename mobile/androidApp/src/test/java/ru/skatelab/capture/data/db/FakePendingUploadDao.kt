@@ -2,15 +2,12 @@ package ru.skatelab.capture.data.db
 
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
-import ru.skatelab.capture.data.db.PendingUploadDao
-import ru.skatelab.capture.data.db.PendingUploadEntity
 
 /**
  * In-memory fake of PendingUploadDao for JVM tests.
  * Implements all DAO methods against a mutable map.
  */
 class FakePendingUploadDao : PendingUploadDao {
-
     private val entities = mutableMapOf<String, PendingUploadEntity>()
     private val allFlow = MutableStateFlow<List<PendingUploadEntity>>(emptyList())
     private val countFlow = MutableStateFlow(0)
@@ -51,7 +48,11 @@ class FakePendingUploadDao : PendingUploadDao {
         updateFlows()
     }
 
-    override suspend fun updateStatus(id: String, status: String, sessionId: String?) {
+    override suspend fun updateStatus(
+        id: String,
+        status: String,
+        sessionId: String?,
+    ) {
         val entity = entities[id] ?: return
         entities[id] = entity.copy(status = status, sessionId = sessionId ?: entity.sessionId)
         updateFlows()
@@ -81,7 +82,10 @@ class FakePendingUploadDao : PendingUploadDao {
         updateFlows()
     }
 
-    override suspend fun updateVideoKey(id: String, videoKey: String) {
+    override suspend fun updateVideoKey(
+        id: String,
+        videoKey: String,
+    ) {
         val entity = entities[id] ?: return
         entities[id] = entity.copy(videoKey = videoKey)
         updateFlows()
