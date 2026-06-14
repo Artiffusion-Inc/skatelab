@@ -48,7 +48,7 @@ class ChunkedUploader(
         file: File,
         fileName: String = file.name,
         contentType: String = "video/mp4",
-        onProgress: ((uploaded: Long, total: Long) -> Unit)? = null,
+        onProgress: (suspend (uploaded: Long, total: Long) -> Unit)? = null,
     ): String =
         withContext(Dispatchers.IO) {
             val totalSize = file.length()
