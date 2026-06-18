@@ -17,6 +17,6 @@ describe("GamificationPanel", () => {
 
   it("renders 9 skill cards", () => {
     render(<GamificationPanel level={mockUserLevel} skills={mockSkills} />)
-    expect(document.querySelectorAll('[title]')).toHaveLength(9)
+    expect(document.querySelectorAll("[title]")).toHaveLength(9)
   })
 })

@@ -16,7 +16,7 @@ vi.mock("next/navigation", () => ({
 
 // Mock @/i18n for components that use useTranslations
 vi.mock("@/i18n", () => ({
-  useTranslations: vi.fn((namespace: string) => {
+  useTranslations: vi.fn((_namespace: string) => {
     // Return a translation function that returns the key (identity) or interpolated string
     return vi.fn((key: string, params?: Record<string, string>) => {
       // Simple interpolation for common patterns
