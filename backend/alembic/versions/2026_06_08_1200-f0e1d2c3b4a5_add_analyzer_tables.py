@@ -1,6 +1,6 @@
 """add analyzer tables (user_levels, skill_progress, session_scores, session_phases, training_plans)
 
-Revision ID: c3d4e5f6a7b8
+Revision ID: f0e1d2c3b4a5
 Revises: b1c2d3e4f5a6
 Create Date: 2026-06-08 12:00:00.000000
 
@@ -9,7 +9,7 @@ Create Date: 2026-06-08 12:00:00.000000
 import sqlalchemy as sa
 from alembic import op
 
-revision = "c3d4e5f6a7b8"
+revision = "f0e1d2c3b4a5"
 down_revision = "b1c2d3e4f5a6"
 branch_labels = None
 depends_on = None
