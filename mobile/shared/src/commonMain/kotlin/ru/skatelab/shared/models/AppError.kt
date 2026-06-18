@@ -8,5 +8,5 @@ sealed interface AppError {
     data class NotFound(override val messageKey: String = "error_not_found") : AppError
     data class Server(override val messageKey: String = "error_server") : AppError
     data class Timeout(override val messageKey: String = "error_timeout") : AppError
-    data class Unknown(override val messageKey: String = "error_unknown") : AppError
+    data class Unknown(override val messageKey: String = "error_unknown", val detail: String? = null) : AppError
 }

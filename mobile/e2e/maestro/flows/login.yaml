@@ -1,14 +1,35 @@
-appId: ru.skatelab
+appId: ru.skatelab.capture
 tags:
   - smokeTest
   - auth
 ---
+# Login E2E test: fill credentials → log in → see main screen
+# Prerequisite: app freshly installed or data cleared (on login screen)
 - launchApp
-- assertVisible: "Войдите в аккаунт"
+# Grant camera permission if prompted
+- runFlow:
+    when:
+      visible: "While using the app"
+    commands:
+      - tapOn: "While using the app"
+# If already logged in, log out first to start from login screen
+- runFlow:
+    when:
+      visible: "Camera"
+    commands:
+      - tapOn: "Profile"
+      - scroll
+      - scroll
+      - tapOn: "Log out"
+      - assertVisible: "Log in to your account"
+# Wait for login screen
+- assertVisible: "Log in to your account"
 - tapOn: "Email"
-- inputText: ${MAESTRO_TEST_EMAIL}
-- tapOn: "Пароль"
-- inputText: ${MAESTRO_TEST_PASSWORD}
-- tapOn: { id: "loginButton" }
-# After login, user lands on MainTabs (Camera tab by default)
-- assertVisible: "Камера"
+- inputText: test@skatelab.ru
+- back
+- tapOn: "Password"
+- inputText: Test123456
+- back
+- tapOn: "Log in"
+# After successful login: main tabs should appear
+- assertVisible: "Camera"

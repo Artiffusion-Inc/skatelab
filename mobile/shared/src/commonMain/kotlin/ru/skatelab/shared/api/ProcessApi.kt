@@ -27,7 +27,7 @@ class ProcessApi(private val client: HttpClient) : IProcessApi {
         frameSkip: Int,
         tracking: String,
     ): QueueProcessResponse =
-        client.post("/process/queue") {
+        client.post("process/queue") {
             contentType(ContentType.Application.Json)
             setBody(QueueProcessRequest(
                 videoKey = videoKey,
@@ -40,10 +40,10 @@ class ProcessApi(private val client: HttpClient) : IProcessApi {
         }.body()
 
     override suspend fun status(taskId: String): TaskStatusResponse =
-        client.get("/process/$taskId/status").body()
+        client.get("process/$taskId/status").body()
 
     override suspend fun cancel(taskId: String) {
-        client.post("/process/$taskId/cancel")
+        client.post("process/$taskId/cancel")
     }
 
     override fun stream(taskId: String): Flow<ProcessEvent> = flow {
@@ -51,7 +51,7 @@ class ProcessApi(private val client: HttpClient) : IProcessApi {
         val maxRetries = 3
         while (retries <= maxRetries) {
             try {
-                val response: HttpResponse = client.get("/process/$taskId/stream")
+                val response: HttpResponse = client.get("process/$taskId/stream")
                 val channel: ByteReadChannel = response.body()
                 val buffer = StringBuilder()
                 var receivedEvent = false

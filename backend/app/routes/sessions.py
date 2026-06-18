@@ -47,14 +47,26 @@ def _decode_cursor(cursor: str) -> tuple[datetime, str]:
 
 async def _session_to_response(session: Session) -> SessionResponse:
     """Convert ORM Session to response schema with presigned URLs."""
-    video_url = (
-        await get_object_url_async(session.video_key) if session.video_key else session.video_url
-    )
-    processed_video_url = (
-        await get_object_url_async(session.processed_video_key)
-        if session.processed_video_key
-        else session.processed_video_url
-    )
+    try:
+        video_url = (
+            await get_object_url_async(session.video_key)
+            if session.video_key
+            else session.video_url
+        )
+    except Exception:
+        video_url = session.video_url
+
+    try:
+        processed_video_url = (
+            await get_object_url_async(session.processed_video_key)
+            if session.processed_video_key
+            else session.processed_video_url
+        )
+    except Exception:
+        processed_video_url = session.processed_video_url
+
+    goe_grade = session.goe_grade if session.goe_grade else None
+
     return SessionResponse.model_validate(
         {
             "id": session.id,
@@ -80,7 +92,7 @@ async def _session_to_response(session: Session) -> SessionResponse:
             "created_at": session.created_at,
             "processed_at": session.processed_at,
             "metrics": session.metrics,
-            "goe_grade": session.goe_grade,
+            "goe_grade": goe_grade,
         }
     )
 

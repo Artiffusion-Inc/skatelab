@@ -7,7 +7,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 
 @Database(
     entities = [PendingUploadEntity::class, CachedSessionEntity::class],
-    version = 2,
+    version = 3,
     exportSchema = true,
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -20,6 +20,14 @@ abstract class AppDatabase : RoomDatabase() {
             object : Migration(1, 2) {
                 override fun migrate(db: SupportSQLiteDatabase) {
                     db.execSQL("ALTER TABLE pending_uploads ADD COLUMN elementType TEXT DEFAULT NULL")
+                }
+            }
+
+        val MIGRATION_2_3 =
+            object : Migration(2, 3) {
+                override fun migrate(db: SupportSQLiteDatabase) {
+                    db.execSQL("ALTER TABLE pending_uploads ADD COLUMN videoKey TEXT DEFAULT NULL")
+                    db.execSQL("UPDATE pending_uploads SET videoKey = r2Key WHERE r2Key IS NOT NULL")
                 }
             }
     }

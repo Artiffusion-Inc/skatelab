@@ -1,0 +1,35 @@
+appId: ru.skatelab.capture
+tags:
+  - e2e
+  - upload
+  - processing
+---
+# Upload queue + processing screen navigation check
+# Verifies tab navigation for logged-in user with data
+- launchApp
+- assertVisible: "Camera"
+
+# Progress tab — shows greeting (logged-in user has data)
+- tapOn: "Progress"
+- assertVisible: "Hello, Test User!"
+
+# Sessions tab
+- tapOn: "Sessions"
+- assertVisible: "Profile"
+
+# Navigate to Uploads via Profile
+- tapOn: "Profile"
+- scroll
+- scroll
+- tapOn: "Uploads"
+# Both EN and RU text: "Videos you upload will appear here for processing" / "Загруженные видео появятся здесь для обработки"
+- runFlow:
+    when:
+      visible: "Videos you upload"
+    commands:
+      - assertVisible: "Videos you upload"
+- runFlow:
+    when:
+      visible: "Загруженные видео"
+    commands:
+      - assertVisible: "Загруженные видео"

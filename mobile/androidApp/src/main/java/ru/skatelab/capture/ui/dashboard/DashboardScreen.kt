@@ -12,10 +12,13 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.CloudUpload
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -116,7 +119,7 @@ fun DashboardScreen(
 }
 
 @Composable
-private fun DashboardContent(
+internal fun DashboardContent(
     data: DashboardData,
     onNavigateToSessions: (String?) -> Unit,
     onNavigateToSessionDetail: (String) -> Unit,
@@ -257,6 +260,28 @@ private fun DashboardContent(
                 Text(stringResource(R.string.dashboard_all_sessions))
             }
         }
+
+        // Empty state: no data at all
+        if (data.personalRecords.isEmpty() && data.weeklySessions.isEmpty() && data.recentSessions.isEmpty()) {
+            Spacer(modifier = Modifier.height(32.dp))
+            Icon(
+                imageVector = Icons.Outlined.CloudUpload,
+                contentDescription = null,
+                modifier = Modifier.size(64.dp),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Spacer(modifier = Modifier.height(16.dp))
+            Text(
+                text = stringResource(R.string.empty_progress_title),
+                style = MaterialTheme.typography.titleMedium,
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = stringResource(R.string.empty_progress_body),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
     }
 }
 
@@ -349,16 +374,15 @@ private fun RecentSessionRow(
 }
 
 @Composable
-private fun scoreColor(score: Float): androidx.compose.ui.graphics.Color {
-    return when {
+private fun scoreColor(score: Float): androidx.compose.ui.graphics.Color =
+    when {
         score >= 0.7f -> MaterialTheme.colorScheme.primary
         score >= 0.4f -> MaterialTheme.colorScheme.tertiary
         else -> MaterialTheme.colorScheme.error
     }
-}
 
-private fun formatDate(isoDate: String): String {
-    return try {
+private fun formatDate(isoDate: String): String =
+    try {
         val instant = java.time.Instant.parse(isoDate)
         val formatter =
             java.time.format.DateTimeFormatter
@@ -368,4 +392,3 @@ private fun formatDate(isoDate: String): String {
     } catch (_: Exception) {
         isoDate
     }
-}

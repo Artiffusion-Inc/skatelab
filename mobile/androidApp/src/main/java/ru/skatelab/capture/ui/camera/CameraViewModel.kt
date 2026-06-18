@@ -15,6 +15,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
+import ru.skatelab.capture.R
 import ru.skatelab.capture.data.db.PendingUploadDao
 import ru.skatelab.capture.data.db.PendingUploadEntity
 import ru.skatelab.capture.domain.model.SensorId
@@ -79,7 +80,7 @@ class CameraViewModel
         private val _galleryUploadError = MutableStateFlow<String?>(null)
         val galleryUploadError: StateFlow<String?> = _galleryUploadError
 
-        fun setGalleryUploadError(message: String) {
+        fun setGalleryUploadError(message: String?) {
             _galleryUploadError.value = message
         }
 
@@ -113,12 +114,12 @@ class CameraViewModel
             preparedImuRightFile = File(outputDir, "${timestamp}_right.binpb")
 
             viewModelScope.launch {
-                cameraRepository.bindToLifecycle(lifecycleOwner)
+                cameraRepository
+                    .bindToLifecycle(lifecycleOwner)
                     .onSuccess {
                         _isPreviewReady.value = true
                         appLogger.i(TAG, "Camera bound to lifecycle")
-                    }
-                    .onFailure {
+                    }.onFailure {
                         _error.value = "Camera prepare failed: ${it.message}"
                         appLogger.e(TAG, "Camera prepare failed: ${it.message}")
                     }
@@ -165,8 +166,7 @@ class CameraViewModel
                         startReconnectWatch()
                         startTimer()
                         appLogger.i(TAG, "Recording started: t0=${startInfo.t0Ns}")
-                    }
-                    .onFailure {
+                    }.onFailure {
                         _error.value = "Recording start failed: ${it.message}"
                         appLogger.e(TAG, "Recording start failed: ${it.message}")
                     }
@@ -256,6 +256,12 @@ class CameraViewModel
             elementType: String?,
         ) {
             viewModelScope.launch {
+                val error = validateVideoFile(videoPath)
+                if (error != null) {
+                    _galleryUploadError.value = error
+                    return@launch
+                }
+
                 val uploadId = UUID.randomUUID().toString()
                 val pendingUpload =
                     PendingUploadEntity(
@@ -269,6 +275,21 @@ class CameraViewModel
                 UploadScheduler.enqueue(appContext, uploadId)
                 _navigateToProcessing.value = uploadId
             }
+        }
+
+        internal fun validateVideoFile(path: String): String? {
+            val file = File(path)
+            if (!file.exists()) return appContext.getString(R.string.upload_error_file_not_found)
+            val ext = file.extension.lowercase()
+            if (ext !in listOf("mp4", "mov", "3gp", "webm", "mkv")) {
+                return appContext.getString(R.string.upload_error_unsupported_format, ext)
+            }
+            val maxSizeMb = 100
+            if (file.length() > maxSizeMb * 1024L * 1024L) {
+                val sizeMb = file.length() / (1024L * 1024L)
+                return appContext.getString(R.string.upload_error_file_too_large, sizeMb, maxSizeMb)
+            }
+            return null
         }
 
         fun startBatteryPolling() {
@@ -343,7 +364,8 @@ class CameraViewModel
             excludeDir: File,
         ) {
             if (parentDir == null || !parentDir.exists()) return
-            parentDir.listFiles()
+            parentDir
+                .listFiles()
                 ?.filter { it.isDirectory && it.name.startsWith("skatelab_capture_") && it != excludeDir }
                 ?.forEach { dir ->
                     val hasVideo = dir.listFiles()?.any { it.extension == "mp4" } ?: false

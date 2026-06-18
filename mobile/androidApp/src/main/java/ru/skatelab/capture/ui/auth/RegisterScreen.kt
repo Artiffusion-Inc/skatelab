@@ -27,7 +27,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -37,6 +36,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import ru.skatelab.capture.R
+import ru.skatelab.shared.models.AppError
 import ru.skatelab.shared.state.AuthUiState
 
 private fun isNetworkError(message: String): Boolean {
@@ -94,7 +94,7 @@ fun RegisterScreen(
             onValueChange = { displayName = it },
             label = { Text(stringResource(R.string.auth_display_name)) },
             singleLine = true,
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier.fillMaxWidth().semantics { contentDescription = "displayNameField" },
             enabled = uiState !is AuthUiState.Loading,
             isError = uiState is AuthUiState.Error,
         )
@@ -106,7 +106,7 @@ fun RegisterScreen(
             label = { Text(stringResource(R.string.auth_email)) },
             singleLine = true,
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier.fillMaxWidth().semantics { contentDescription = "emailField" },
             enabled = uiState !is AuthUiState.Loading,
             isError = uiState is AuthUiState.Error,
         )
@@ -119,7 +119,7 @@ fun RegisterScreen(
             singleLine = true,
             visualTransformation = PasswordVisualTransformation(),
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier.fillMaxWidth().semantics { contentDescription = "passwordField" },
             enabled = uiState !is AuthUiState.Loading,
             isError = uiState is AuthUiState.Error,
         )
@@ -127,9 +127,12 @@ fun RegisterScreen(
 
         if (uiState is AuthUiState.Error) {
             val msg = uiState.error.messageKey
+            val detail = (uiState.error as? AppError.Unknown)?.detail
             val displayMsg =
                 if (isNetworkError(msg)) {
                     stringResource(R.string.auth_no_network)
+                } else if (detail != null) {
+                    "$msg: $detail"
                 } else {
                     msg
                 }
@@ -169,7 +172,7 @@ fun RegisterScreen(
                 Button(
                     onClick = { onRegister(email.trim(), password, displayName.trim()) },
                     enabled = email.isNotBlank() && password.isNotBlank() && displayName.isNotBlank(),
-                    modifier = Modifier.fillMaxWidth().testTag("registerButton"),
+                    modifier = Modifier.fillMaxWidth().semantics { contentDescription = "registerButton" },
                 ) {
                     Text(stringResource(R.string.auth_register_button))
                 }

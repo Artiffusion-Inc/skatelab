@@ -8,7 +8,7 @@ plugins {
 android {
     namespace = "ru.skatelab.capture"
     defaultConfig {
-        buildConfigField("String", "API_BASE_URL", "\"${System.getenv("API_BASE_URL") ?: "https://api.skatelab.ru/v1"}\"")
+        buildConfigField("String", "API_BASE_URL", "\"${System.getenv("API_BASE_URL") ?: "https://api.skatelab.ru/v1/"}\"")
         applicationId = "ru.skatelab.capture"
         versionCode = 1
         versionName = "1.0.0"
@@ -138,6 +138,9 @@ dependencies {
     testImplementation(libs.mockk)
     testImplementation(libs.turbine)
     testImplementation(libs.json)
+    testImplementation("org.robolectric:robolectric:4.14")
+    testImplementation("androidx.compose.ui:ui-test-junit4")
+    debugImplementation("androidx.compose.ui:ui-test-manifest")
     androidTestImplementation(composeBom)
     androidTestImplementation(libs.test.ext.junit)
     androidTestImplementation(libs.espresso.core)

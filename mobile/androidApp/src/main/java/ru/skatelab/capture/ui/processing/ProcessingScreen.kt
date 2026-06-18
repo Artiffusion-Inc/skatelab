@@ -116,29 +116,31 @@ fun ProcessingScreen(
 }
 
 @Composable
-private fun UploadStatusContent(entity: PendingUploadEntity) {
-    val context = LocalContext.current
-    val statusText =
+internal fun UploadStatusContent(entity: PendingUploadEntity) {
+    val statusLabel =
         when (entity.status) {
-            "READY" -> context.getString(R.string.upload_status_ready)
-            "UPLOADING" -> context.getString(R.string.upload_status_uploading)
+            "READY" -> stringResource(R.string.upload_status_ready)
+            "UPLOADING" -> stringResource(R.string.upload_status_uploading)
+            "PROCESSING" -> stringResource(R.string.upload_status_processing)
             else -> entity.status
         }
-    Box(
-        modifier =
-            Modifier.semantics(mergeDescendants = true) {
-                contentDescription = statusText
-                role = Role.ValuePicker
-            },
-    ) {
-        CircularProgressIndicator(modifier = Modifier.size(48.dp))
+
+    when (entity.status) {
+        "UPLOADING" -> {
+            LinearProgressIndicator(modifier = Modifier.fillMaxWidth().testTag("uploadProgress"))
+            Spacer(Modifier.height(16.dp))
+            Text(statusLabel, style = MaterialTheme.typography.bodyLarge)
+        }
+        else -> {
+            CircularProgressIndicator(modifier = Modifier.size(48.dp))
+            Spacer(Modifier.height(16.dp))
+            Text(statusLabel, style = MaterialTheme.typography.bodyLarge)
+        }
     }
-    Spacer(Modifier.height(16.dp))
-    Text(statusText, style = MaterialTheme.typography.bodyLarge)
 }
 
 @Composable
-private fun UploadFailedContent(
+internal fun UploadFailedContent(
     onRetry: () -> Unit,
     onBack: () -> Unit,
 ) {
@@ -172,7 +174,7 @@ private fun UploadFailedContent(
 }
 
 @Composable
-private fun ProcessingContent(
+internal fun ProcessingContent(
     state: ProcessingUiState,
     onRetry: () -> Unit,
     onCancel: () -> Unit,
@@ -195,13 +197,20 @@ private fun ProcessingContent(
         }
 
         is ProcessingUiState.Progress -> {
+            val stageLabel =
+                when {
+                    state.percent < 0.1f -> stringResource(R.string.processing_stage_queuing)
+                    state.percent < 0.7f -> stringResource(R.string.processing_stage_processing)
+                    state.percent < 0.9f -> stringResource(R.string.processing_stage_metrics)
+                    else -> stringResource(R.string.processing_stage_finishing)
+                }
             LinearProgressIndicator(
                 progress = { state.percent },
                 modifier = Modifier.fillMaxWidth(),
             )
             Spacer(Modifier.height(16.dp))
             Text(
-                text = state.message.ifBlank { stringResource(R.string.status_processing) },
+                text = state.message.ifBlank { stageLabel },
                 style = MaterialTheme.typography.bodyLarge,
                 modifier = Modifier.testTag("processingStatus"),
             )

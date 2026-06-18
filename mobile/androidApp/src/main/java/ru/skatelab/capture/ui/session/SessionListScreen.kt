@@ -17,6 +17,7 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.outlined.SportsScore
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -199,9 +200,21 @@ fun SessionListScreen(
                                 verticalArrangement = Arrangement.Center,
                                 horizontalAlignment = Alignment.CenterHorizontally,
                             ) {
+                                Icon(
+                                    imageVector = Icons.Outlined.SportsScore,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(64.dp),
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                                Spacer(modifier = Modifier.height(16.dp))
                                 Text(
-                                    emptyLabel,
-                                    style = MaterialTheme.typography.bodyLarge,
+                                    text = stringResource(R.string.empty_sessions_title),
+                                    style = MaterialTheme.typography.titleMedium,
+                                )
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Text(
+                                    text = stringResource(R.string.empty_sessions_body),
+                                    style = MaterialTheme.typography.bodyMedium,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
                             }
@@ -244,7 +257,7 @@ fun SessionListScreen(
 }
 
 @Composable
-private fun SessionCard(
+internal fun SessionCard(
     session: SessionResponse,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
@@ -303,7 +316,7 @@ private fun SessionCard(
 }
 
 @Composable
-private fun StatusBadge(
+internal fun StatusBadge(
     status: String,
     score: Float?,
 ) {

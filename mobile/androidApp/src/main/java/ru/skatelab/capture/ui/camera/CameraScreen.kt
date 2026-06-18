@@ -27,6 +27,8 @@ import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -68,6 +70,7 @@ fun CameraScreen(
     val navigateToProcessing by viewModel.navigateToProcessing.collectAsState()
     val pendingElementType by viewModel.pendingElementType.collectAsState()
     val pendingUploadId by viewModel.pendingUploadId.collectAsState()
+    val galleryUploadError by viewModel.galleryUploadError.collectAsState()
 
     var recordingElementType by remember { mutableStateOf("axel") }
     var showGalleryElementType by remember { mutableStateOf(false) }
@@ -286,6 +289,16 @@ fun CameraScreen(
                 },
             )
         }
+
+        // Gallery upload error snackbar
+        val snackbarHostState = remember { SnackbarHostState() }
+        LaunchedEffect(galleryUploadError) {
+            galleryUploadError?.let { message ->
+                snackbarHostState.showSnackbar(message)
+                viewModel.setGalleryUploadError(null)
+            }
+        }
+        SnackbarHost(hostState = snackbarHostState)
     }
 }
 

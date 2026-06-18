@@ -1,0 +1,17 @@
+appId: ru.skatelab.capture
+tags:
+  - upload
+  - error
+  - e2e
+---
+# Network error during upload
+# IMPORTANT: setAirplaneMode BEFORE launchApp to avoid race condition
+- setAirplaneMode: enabled
+- addMedia: ["./assets/test_video.mp4"]
+- launchApp
+- assertVisible: "Camera"
+- tapOn: "Upload video"
+- runFlow: ../partials/pick_first_video.yaml
+- assertVisible: "No connection"
+- assertVisible: "Retry"
+- setAirplaneMode: disabled

@@ -19,7 +19,7 @@ class PendingUploadEntityTest {
         assertEquals(null, entity.elementType)
         assertEquals("READY", entity.status)
         assertEquals(null, entity.uploadId)
-        assertEquals(null, entity.r2Key)
+        assertEquals(null, entity.videoKey)
         assertEquals(null, entity.sessionId)
         assertEquals(0, entity.retryCount)
     }
@@ -35,7 +35,7 @@ class PendingUploadEntityTest {
                 manifestPath = "/tmp/manifest.json",
                 status = "UPLOADING",
                 uploadId = "up-456",
-                r2Key = "sessions/123/video.mp4",
+                videoKey = "sessions/123/video.mp4",
                 sessionId = "sess-789",
                 retryCount = 2,
             )
@@ -47,7 +47,7 @@ class PendingUploadEntityTest {
         assertEquals(null, entity.elementType)
         assertEquals("UPLOADING", entity.status)
         assertEquals("up-456", entity.uploadId)
-        assertEquals("sessions/123/video.mp4", entity.r2Key)
+        assertEquals("sessions/123/video.mp4", entity.videoKey)
         assertEquals("sess-789", entity.sessionId)
         assertEquals(2, entity.retryCount)
     }
@@ -67,8 +67,9 @@ class PendingUploadEntityTest {
 
     @Test
     fun dataClassEquality() {
-        val e1 = PendingUploadEntity(id = "1", videoPath = "/v.mp4")
-        val e2 = PendingUploadEntity(id = "1", videoPath = "/v.mp4")
+        val ts = System.currentTimeMillis()
+        val e1 = PendingUploadEntity(id = "1", videoPath = "/v.mp4", createdAt = ts)
+        val e2 = PendingUploadEntity(id = "1", videoPath = "/v.mp4", createdAt = ts)
         assertEquals(e1, e2)
     }
 

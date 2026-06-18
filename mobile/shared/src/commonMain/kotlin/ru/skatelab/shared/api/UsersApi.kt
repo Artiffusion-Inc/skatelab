@@ -10,7 +10,7 @@ import ru.skatelab.shared.models.UserResponse
 
 class UsersApi(private val client: HttpClient) {
     suspend fun getMe(): UserResponse =
-        client.get("/users/me").body()
+        client.get("users/me").body()
 
     suspend fun updateProfile(
         displayName: String? = null,
@@ -18,7 +18,7 @@ class UsersApi(private val client: HttpClient) {
         heightCm: Int? = null,
         weightKg: Double? = null,
     ): UserResponse =
-        client.patch("/users/me") {
+        client.patch("users/me") {
             contentType(ContentType.Application.Json)
             setBody(buildJsonObject {
                 displayName?.let { put("display_name", it) }
@@ -34,7 +34,7 @@ class UsersApi(private val client: HttpClient) {
         timezone: String? = null,
         theme: String? = null,
     ): UserResponse =
-        client.patch("/users/me/settings") {
+        client.patch("users/me/settings") {
             contentType(ContentType.Application.Json)
             setBody(buildJsonObject {
                 angularUnit?.let { put("angular_unit", it) }

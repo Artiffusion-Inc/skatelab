@@ -2,3 +2,5 @@ flows:
   - flows/*
 excludeTags:
   - util
+  - manual
+continueOnFailure: true

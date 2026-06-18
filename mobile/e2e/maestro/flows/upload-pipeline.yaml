@@ -1,0 +1,48 @@
+appId: ru.skatelab.capture
+tags:
+  - smokeTest
+  - upload
+  - e2e
+  - pipeline
+---
+# Full upload pipeline: addMedia → pick video → element selection → upload → processing → completed
+# Starts from fresh install by logging in first, then runs the upload flow in the same Maestro session.
+# This avoids dADB flakiness caused by launching multiple Maestro flows sequentially.
+
+# --- Login prerequisite ---
+- launchApp
+- runFlow:
+    when:
+      visible: "While using the app"
+    commands:
+      - tapOn: "While using the app"
+- runFlow:
+    when:
+      visible: "Camera"
+    commands:
+      - tapOn: "Profile"
+      - scroll
+      - scroll
+      - tapOn: "Log out"
+      - assertVisible: "Log in to your account"
+- assertVisible: "Log in to your account"
+- tapOn: "Email"
+- inputText: test@skatelab.ru
+- back
+- tapOn: "Password"
+- inputText: Test123456
+- back
+- tapOn: "Log in"
+- assertVisible: "Camera"
+
+# --- Upload pipeline ---
+- addMedia: ["./assets/test_video.mp4"]
+- tapOn: "Upload video"
+- tapOn: "00:12"
+- assertVisible: "axel"
+- tapOn: "axel"
+- assertVisible: "Uploading video…"
+- retry:
+    maxRetries: 30
+    commands:
+      - assertVisible: "Analysis complete"

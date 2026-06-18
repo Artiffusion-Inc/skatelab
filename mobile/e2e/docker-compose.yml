@@ -1,13 +1,9 @@
 services:
   emulator:
-    image: budtmo/docker-android:emulator_34.0
+    image: budtmo/docker-android:emulator_14.0
     container_name: skatelab-emulator
     devices:
       - /dev/kvm
-    cap_drop:
-      - ALL
-    security_opt:
-      - no-new-privileges=true
     ports:
       - "127.0.0.1:5555:5555"
       - "127.0.0.1:5554:5554"

@@ -73,7 +73,8 @@ class SensorRecordingService : Service() {
                 Intent(this, MainActivity::class.java),
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
             )
-        return NotificationCompat.Builder(this, CHANNEL_ID)
+        return NotificationCompat
+            .Builder(this, CHANNEL_ID)
             .setContentTitle(getString(R.string.recording_notification_title))
             .setSmallIcon(R.drawable.ic_notification)
             .setContentIntent(pendingIntent)

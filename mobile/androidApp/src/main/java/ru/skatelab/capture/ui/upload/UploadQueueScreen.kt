@@ -82,7 +82,12 @@ fun UploadQueueScreen(
                     Spacer(modifier = Modifier.height(12.dp))
                     Text(
                         stringResource(R.string.upload_queue_empty),
-                        style = MaterialTheme.typography.bodyLarge,
+                        style = MaterialTheme.typography.titleMedium,
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        stringResource(R.string.empty_uploads_body),
+                        style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
@@ -106,7 +111,7 @@ fun UploadQueueScreen(
 }
 
 @Composable
-private fun UploadCard(
+internal fun UploadCard(
     entity: PendingUploadEntity,
     onRetry: () -> Unit,
     onCancel: () -> Unit,
@@ -154,7 +159,7 @@ private fun UploadCard(
 }
 
 @Composable
-private fun StatusChip(status: String) {
+internal fun StatusChip(status: String) {
     val (text, color) =
         when (status) {
             "READY" -> stringResource(R.string.upload_status_ready) to MaterialTheme.colorScheme.onSurfaceVariant

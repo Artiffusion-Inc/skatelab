@@ -1,9 +1,13 @@
-appId: ru.skatelab
+appId: ru.skatelab.capture
 tags:
+  - smokeTest
   - upload
 ---
+# Upload queue - requires user to be logged in
 - launchApp
-- tapOn: "Профиль"
-- assertVisible: { id: "profileUploadQueueLink" }
-- tapOn: { id: "profileUploadQueueLink" }
-- assertVisible: { id: "uploadQueueList" }
+- assertVisible: "Camera"
+- tapOn: "Profile"
+- scroll
+- scroll
+- tapOn: "Uploads"
+- assertVisible: "No uploads"

@@ -1,0 +1,15 @@
+appId: ru.skatelab.capture
+tags:
+  - auth
+  - e2e
+---
+# Logout E2E test: log out → see login screen
+# Prerequisite: user must be logged in
+- launchApp
+- assertVisible: "Camera"
+- tapOn: "Profile"
+- scroll
+- scroll
+- assertVisible: "Log out"
+- tapOn: "Log out"
+- assertVisible: "Log in to your account"

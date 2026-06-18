@@ -7,25 +7,25 @@ import ru.skatelab.shared.models.*
 
 class MetricsApi(private val client: HttpClient) {
     suspend fun getRegistry(): MetricsRegistryResponse =
-        client.get("/metrics/registry").body()
+        client.get("metrics/registry").body()
 
     suspend fun getTrend(metricName: String, elementType: String, period: String? = null): TrendResponse =
-        client.get("/metrics/trend") {
+        client.get("metrics/trend") {
             parameter("metric_name", metricName)
             parameter("element_type", elementType)
             if (period != null) parameter("period", period)
         }.body()
 
     suspend fun getPersonalRecords(): PRsResponse =
-        client.get("/metrics/prs").body()
+        client.get("metrics/prs").body()
 
     suspend fun getDiagnostics(sessionId: String? = null): DiagnosticsResponse =
-        client.get("/metrics/diagnostics") {
+        client.get("metrics/diagnostics") {
             if (sessionId != null) parameter("session_id", sessionId)
         }.body()
 
     suspend fun getSummary(elementType: String, period: String): SummaryResponse =
-        client.get("/metrics/element-summary") {
+        client.get("metrics/element-summary") {
             parameter("element_type", elementType)
             parameter("period", period)
         }.body()

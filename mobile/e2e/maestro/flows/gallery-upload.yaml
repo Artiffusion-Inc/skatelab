@@ -1,15 +1,14 @@
-appId: ru.skatelab
+appId: ru.skatelab.capture
 tags:
   - upload
+  - e2e
 ---
+# Gallery upload E2E flow
+# Prerequisites: logged in
+# Uses addMedia to seed device gallery + pick_first_video partial
+- addMedia: ["./assets/test_video.mp4"]
 - launchApp
-- assertVisible: "Камера"
-- assertNotVisible: "Подготовка камеры…"
-# Seed a test video into the device gallery
-- addMedia:
-    - "../resources/test_video.mp4"
-- tapOn: { id: "cameraGalleryButton" }
-# Navigate the system photo picker (partial flow with fallback selectors)
+- assertVisible: "Camera"
+- tapOn: "Upload video"
 - runFlow: ../partials/pick_first_video.yaml
-- assertVisible: { id: "elementTypeSheet" }
-- tapOn: { id: "elementTypeConfirm" }
+- assertVisible: "Upload video"

@@ -13,6 +13,7 @@ import ru.skatelab.capture.data.db.AppDatabase
 import ru.skatelab.capture.data.db.CachedSessionDao
 import ru.skatelab.capture.data.db.PendingUploadDao
 import ru.skatelab.capture.upload.ChunkedUploader
+import ru.skatelab.shared.api.SkateLabClient
 
 @Module
 @InstallIn(SingletonComponent::class)
@@ -25,7 +26,7 @@ object DatabaseModule {
         val builder =
             Room
                 .databaseBuilder(context, AppDatabase::class.java, "skatelab.db")
-                .addMigrations(AppDatabase.MIGRATION_1_2)
+                .addMigrations(AppDatabase.MIGRATION_1_2, AppDatabase.MIGRATION_2_3)
         if (BuildConfig.DEBUG) {
             builder.fallbackToDestructiveMigration(true)
         }
@@ -40,6 +41,9 @@ object DatabaseModule {
 
     @Provides
     @Singleton
-    fun provideChunkedUploader(skateLabClient: ru.skatelab.shared.api.SkateLabClient): ChunkedUploader =
-        ChunkedUploader(skateLabClient.uploads, skateLabClient.httpClient)
+    fun provideChunkedUploader(skateLabClient: SkateLabClient): ChunkedUploader =
+        ChunkedUploader(
+            skateLabClient.uploads,
+            skateLabClient.httpClient,
+        )
 }
