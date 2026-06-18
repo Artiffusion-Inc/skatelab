@@ -27,6 +27,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -41,11 +42,16 @@ import ru.skatelab.shared.state.AuthUiState
 
 private fun isNetworkError(message: String): Boolean {
     val lower = message.lowercase()
-    return lower.contains("network") || lower.contains("connection") ||
-        lower.contains("timeout") || lower.contains("socket") ||
-        lower.contains("unreachable") || lower.contains("resolve") ||
-        lower.contains("connectexception") || lower.contains("ioexception") ||
-        lower.contains("unable to resolve host") || lower.contains("connection reset") ||
+    return lower.contains("network") ||
+        lower.contains("connection") ||
+        lower.contains("timeout") ||
+        lower.contains("socket") ||
+        lower.contains("unreachable") ||
+        lower.contains("resolve") ||
+        lower.contains("connectexception") ||
+        lower.contains("ioexception") ||
+        lower.contains("unable to resolve host") ||
+        lower.contains("connection reset") ||
         lower.contains("connection refused")
 }
 
@@ -94,7 +100,7 @@ fun LoginScreen(
             label = { Text(stringResource(R.string.auth_email)) },
             singleLine = true,
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
-            modifier = Modifier.fillMaxWidth().semantics { contentDescription = "emailField" },
+            modifier = Modifier.fillMaxWidth().testTag("emailField"),
             enabled = uiState !is AuthUiState.Loading,
             isError = uiState is AuthUiState.Error,
         )
@@ -107,22 +113,20 @@ fun LoginScreen(
             singleLine = true,
             visualTransformation = PasswordVisualTransformation(),
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-            modifier = Modifier.fillMaxWidth().semantics { contentDescription = "passwordField" },
+            modifier = Modifier.fillMaxWidth().testTag("passwordField"),
             enabled = uiState !is AuthUiState.Loading,
             isError = uiState is AuthUiState.Error,
         )
         Spacer(Modifier.height(8.dp))
 
         if (uiState is AuthUiState.Error) {
-            val msg = uiState.error.messageKey
-            val detail = (uiState.error as? AppError.Unknown)?.detail
+            val error = uiState.error
             val displayMsg =
-                if (isNetworkError(msg)) {
-                    stringResource(R.string.auth_no_network)
-                } else if (detail != null) {
-                    "$msg: $detail"
-                } else {
-                    msg
+                when {
+                    isNetworkError(error.messageKey) -> stringResource(R.string.auth_no_network)
+                    error is AppError.Unknown && error.detail != null ->
+                        "${stringResource(id = error.messageKey)}: ${error.detail}"
+                    else -> stringResource(id = error.messageKey)
                 }
             Text(
                 text = displayMsg,
@@ -160,7 +164,7 @@ fun LoginScreen(
                 Button(
                     onClick = { onLogin(email.trim(), password) },
                     enabled = email.isNotBlank() && password.isNotBlank(),
-                    modifier = Modifier.fillMaxWidth().semantics { contentDescription = "loginButton" },
+                    modifier = Modifier.fillMaxWidth().testTag("loginButton"),
                 ) {
                     Text(stringResource(R.string.auth_login_button))
                 }
