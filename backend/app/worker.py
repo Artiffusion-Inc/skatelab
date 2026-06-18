@@ -805,11 +805,11 @@ async def compute_gamification_task(
             await db.commit()
 
         logger.info(
-            "Gamification computed",
-            session_id=session_id,
-            user_id=user_id,
-            xp_earned=xp_result["xp_earned"],
-            unlocked=unlocked_skills,
+            "Gamification computed for session=%s user=%s xp=%d unlocked=%s",
+            session_id,
+            user_id,
+            xp_result["xp_earned"],
+            unlocked_skills,
         )
         return {
             "session_id": session_id,

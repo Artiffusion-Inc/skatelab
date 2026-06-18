@@ -741,7 +741,7 @@ class SessionScoreResponse(BaseModel):
 
     @field_validator("created_at", "updated_at", mode="before")
     @classmethod
-    def validate_datetime(cls, v):
+    def validate_datetime(cls, v: Any) -> str | None:
         if isinstance(v, datetime):
             return v.isoformat()
         return str(v)
@@ -761,7 +761,7 @@ class SessionPhaseResponse(BaseModel):
 
     @field_validator("created_at", "updated_at", mode="before")
     @classmethod
-    def validate_datetime(cls, v):
+    def validate_datetime(cls, v: Any) -> str | None:
         if isinstance(v, datetime):
             return v.isoformat()
         return str(v)
@@ -781,7 +781,7 @@ class UserLevelResponse(BaseModel):
 
     @field_validator("created_at", "updated_at", mode="before")
     @classmethod
-    def validate_datetime(cls, v):
+    def validate_datetime(cls, v: Any) -> str | None:
         if isinstance(v, datetime):
             return v.isoformat()
         return str(v)
@@ -803,7 +803,7 @@ class SkillProgressResponse(BaseModel):
 
     @field_validator("unlocked_at", mode="before")
     @classmethod
-    def validate_optional_datetime(cls, v):
+    def validate_optional_datetime(cls, v: Any) -> str | None:
         if v is None:
             return None
         if isinstance(v, datetime):
@@ -834,7 +834,7 @@ class TrainingPlanResponse(BaseModel):
 
     @field_validator("generated_at", "created_at", "updated_at", mode="before")
     @classmethod
-    def validate_datetime(cls, v):
+    def validate_datetime(cls, v: Any) -> str | None:
         if isinstance(v, datetime):
             return v.isoformat()
         return str(v)
