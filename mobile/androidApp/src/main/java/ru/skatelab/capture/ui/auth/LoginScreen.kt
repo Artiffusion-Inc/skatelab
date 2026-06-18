@@ -125,8 +125,8 @@ fun LoginScreen(
                 when {
                     isNetworkError(error.messageKey) -> stringResource(R.string.auth_no_network)
                     error is AppError.Unknown && error.detail != null ->
-                        "${stringResource(id = error.messageKey)}: ${error.detail}"
-                    else -> stringResource(id = error.messageKey)
+                        "${stringResource(R.string.error_unknown)}: ${error.detail}"
+                    else -> stringResource(R.string.error_unknown)
                 }
             Text(
                 text = displayMsg,
