@@ -2,8 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Sequence
-from typing import ClassVar
+from typing import TYPE_CHECKING, ClassVar
 
 from litestar import Controller, get, post
 from litestar.exceptions import ClientException
@@ -11,16 +10,20 @@ from litestar.status_codes import HTTP_201_CREATED, HTTP_404_NOT_FOUND
 
 from app.auth.deps import CurrentUser, DbDep, VerifiedUser
 from app.crud.session_score import get_by_session_id
-from app.crud.training_plan import create as create_plan, get_by_id
+from app.crud.training_plan import create as create_plan
+from app.crud.training_plan import get_by_id
 from app.schemas import GenerateTrainingPlanRequest, SubScoreSchema, TrainingPlanResponse
 from app.services.training_plan import generate_training_plan
+
+if TYPE_CHECKING:
+    from collections.abc import Sequence
 
 
 class TrainingPlansController(Controller):
     path = ""
     tags: ClassVar[Sequence[str]] = ["training-plans"]
 
-    @post("/training-plans/generate", status_code=HTTP_201_CREATED)
+    @post("/generate", status_code=HTTP_201_CREATED)
     async def generate_plan(
         self, data: GenerateTrainingPlanRequest, user: VerifiedUser, db: DbDep
     ) -> TrainingPlanResponse:
@@ -38,7 +41,7 @@ class TrainingPlansController(Controller):
         )
         return TrainingPlanResponse.model_validate(plan)
 
-    @get("/training-plans/{plan_id:str}")
+    @get("/{plan_id:str}")
     async def get_plan(self, plan_id: str, user: CurrentUser, db: DbDep) -> TrainingPlanResponse:
         plan = await get_by_id(db, plan_id)
         if not plan:
