@@ -7,16 +7,19 @@ import io.ktor.http.HttpStatusCode
 import kotlinx.io.IOException
 import ru.skatelab.shared.models.AppError
 
-fun Throwable.toAppError(): AppError = when (this) {
-    is SocketTimeoutException, is HttpRequestTimeoutException -> AppError.Timeout()
-    is ResponseException -> this.response.status.toAppError()
-    is IOException -> AppError.Network()
-    else -> AppError.Unknown(detail = "${this::class.simpleName}: ${this.message}")
-}
+fun Throwable.toAppError(): AppError =
+    when (this) {
+        is SocketTimeoutException, is HttpRequestTimeoutException -> AppError.Timeout()
+        is ResponseException -> this.response.status.toAppError()
+        is IOException -> AppError.Network()
+        else -> AppError.Unknown(detail = message)
+    }
 
-fun HttpStatusCode.toAppError(): AppError = when (value) {
-    401 -> AppError.Auth()
-    404 -> AppError.NotFound()
-    in 500..599 -> AppError.Server()
-    else -> AppError.Unknown()
-}
+fun HttpStatusCode.toAppError(): AppError =
+    when (value) {
+        400, 422 -> AppError.Auth()
+        401, 403 -> AppError.Auth()
+        404 -> AppError.NotFound()
+        in 500..599 -> AppError.Server()
+        else -> AppError.Unknown()
+    }
