@@ -560,7 +560,21 @@
     "viewSide": "Side",
     "viewTop": "Top",
     "wireframe": "Wireframe",
-    "solid": "Solid"
+    "solid": "Solid",
+    "overallScore": "Overall Score: {score} / 10",
+    "scoreLabel": "Score: {value} / 10",
+    "dataQuality": "Data quality: {quality}",
+    "skeletonReliability": "Skeleton: {reliability}",
+    "quality_good": "good",
+    "quality_partial": "partial",
+    "quality_poor": "poor",
+    "reliability_reliable": "reliable",
+    "reliability_uncertain": "uncertain",
+    "reliability_likely_wrong": "likely wrong",
+    "noData": "No data",
+    "generatePlan": "Generate plan",
+    "generatingPlan": "Generating...",
+    "planError": "Failed to generate plan"
   },
   "joints": {
     "pelvis": "Pelvis",

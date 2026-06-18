@@ -609,7 +609,10 @@
     "reliability_reliable": "надёжный",
     "reliability_uncertain": "неуверенный",
     "reliability_likely_wrong": "вероятно ошибочный",
-    "noData": "Нет данных"
+    "noData": "Нет данных",
+    "generatePlan": "Сгенерировать план",
+    "generatingPlan": "Генерация...",
+    "planError": "Не удалось создать план"
   },
   "joints": {
     "pelvis": "Таз",
