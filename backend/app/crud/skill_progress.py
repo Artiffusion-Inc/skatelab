@@ -19,15 +19,15 @@ SKILL_DEFINITIONS = [
 
 
 async def list_by_user_id(db: AsyncSession, user_id: str) -> list[SkillProgress]:
-    result = await db.execute(
-        select(SkillProgress).where(SkillProgress.user_id == user_id)
-    )
+    result = await db.execute(select(SkillProgress).where(SkillProgress.user_id == user_id))
     return list(result.scalars().all())
 
 
 async def get_or_create(db: AsyncSession, user_id: str, skill_id: str) -> SkillProgress:
     result = await db.execute(
-        select(SkillProgress).where(SkillProgress.user_id == user_id, SkillProgress.skill_id == skill_id)
+        select(SkillProgress).where(
+            SkillProgress.user_id == user_id, SkillProgress.skill_id == skill_id
+        )
     )
     progress = result.scalar_one_or_none()
     if progress is None:

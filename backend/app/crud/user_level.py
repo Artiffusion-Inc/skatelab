@@ -15,9 +15,7 @@ LEVEL_THRESHOLDS = [
 
 
 async def get_by_user_id(db: AsyncSession, user_id: str) -> UserLevel:
-    result = await db.execute(
-        select(UserLevel).where(UserLevel.user_id == user_id)
-    )
+    result = await db.execute(select(UserLevel).where(UserLevel.user_id == user_id))
     level = result.scalar_one_or_none()
     if level is None:
         level = UserLevel(user_id=user_id, level=1, total_xp=0, xp_to_next=100, title="Новичок")
