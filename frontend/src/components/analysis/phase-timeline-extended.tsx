@@ -29,7 +29,7 @@ export function PhaseTimelineExtended({ totalFrames, result }: PhaseTimelineExte
   const { currentFrame, setCurrentFrame } = useAnalysisStore()
 
   const handleSeek = useCallback(
-    (e: React.MouseEvent<HTMLDivElement>) => {
+    (e: { currentTarget: HTMLElement; clientX: number }) => {
       const rect = e.currentTarget.getBoundingClientRect()
       const x = e.clientX - rect.left
       const seekPercentage = x / rect.width
@@ -39,7 +39,7 @@ export function PhaseTimelineExtended({ totalFrames, result }: PhaseTimelineExte
     [totalFrames, setCurrentFrame],
   )
 
-  if (!result || !result.phases || result.phases.length === 0) return null
+  if (!result?.phases || result.phases.length === 0) return null
 
   const percentage = (currentFrame / totalFrames) * 100
 
@@ -47,6 +47,15 @@ export function PhaseTimelineExtended({ totalFrames, result }: PhaseTimelineExte
     <div
       className="relative w-full h-12 bg-muted rounded-lg overflow-hidden cursor-pointer"
       onClick={handleSeek}
+      onKeyDown={e => {
+        if (e.key === "ArrowLeft") {
+          e.preventDefault()
+          setCurrentFrame(Math.max(0, currentFrame - 1))
+        } else if (e.key === "ArrowRight") {
+          e.preventDefault()
+          setCurrentFrame(Math.min(totalFrames - 1, currentFrame + 1))
+        }
+      }}
       role="slider"
       aria-valuemin={0}
       aria-valuemax={totalFrames}
@@ -55,14 +64,14 @@ export function PhaseTimelineExtended({ totalFrames, result }: PhaseTimelineExte
       tabIndex={0}
     >
       {/* Phase zones */}
-      {result.phases.map((phase, index) => {
+      {result.phases.map((phase, _index) => {
         const startPercent = (phase.start_frame / totalFrames) * 100
         const endPercent = (phase.end_frame / totalFrames) * 100
         const isLowConfidence = phase.confidence < 0.5
 
         return (
           <div
-            key={`${phase.name}-${index}`}
+            key={phase.name}
             className="absolute top-0 bottom-0 group"
             style={{
               left: `${startPercent}%`,
@@ -86,7 +95,8 @@ export function PhaseTimelineExtended({ totalFrames, result }: PhaseTimelineExte
             {/* Tooltip on hover */}
             <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 hidden group-hover:block z-10">
               <div className="bg-popover text-popover-foreground text-xs rounded-md px-2 py-1 shadow-lg whitespace-nowrap">
-                {PHASE_LABELS_RU[phase.name]}: {phase.start_time.toFixed(2)}s - {phase.end_time.toFixed(2)}s
+                {PHASE_LABELS_RU[phase.name]}: {phase.start_time.toFixed(2)}s -{" "}
+                {phase.end_time.toFixed(2)}s
                 <br />
                 Confidence: {(phase.confidence * 100).toFixed(0)}%
               </div>

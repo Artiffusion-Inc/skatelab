@@ -1,7 +1,8 @@
 """Tests for training plan generation."""
 
 import pytest
-from ml.src.analysis.training_plan import generate_training_plan, EXERCISE_RECOMMENDATIONS
+
+from ml.src.analysis.training_plan import EXERCISE_RECOMMENDATIONS, generate_training_plan
 from ml.src.analysis.types import SubScore
 
 
@@ -36,6 +37,12 @@ class TestGenerateTrainingPlan:
         assert plan.generated_at != ""
 
     def test_all_subscores_have_recommendations(self):
-        for key in ["takeoff_power", "rotation_axis", "arm_coordination", "landing_absorption", "core_stability"]:
+        for key in [
+            "takeoff_power",
+            "rotation_axis",
+            "arm_coordination",
+            "landing_absorption",
+            "core_stability",
+        ]:
             assert key in EXERCISE_RECOMMENDATIONS
             assert len(EXERCISE_RECOMMENDATIONS[key]) >= 1

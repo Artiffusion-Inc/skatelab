@@ -2,14 +2,21 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-from sqlalchemy.ext.asyncio import AsyncSession
+if TYPE_CHECKING:
+    from sqlalchemy.ext.asyncio import AsyncSession
 
 
 def _metrics_to_dict(metrics: list[Any]) -> dict[str, float]:
-    """Convert list of MetricResult (with .name, .value) to a dict."""
-    return {m.name: float(m.value) for m in metrics}
+    """Convert list of MetricResult (with .name/.value) or dicts to a dict."""
+    result: dict[str, float] = {}
+    for m in metrics:
+        if isinstance(m, dict):
+            result[m["name"]] = float(m["value"])
+        else:
+            result[m.name] = float(m.value)
+    return result
 
 
 def _build_subscores_dict(metrics_dict: dict[str, float]) -> tuple[list[dict], float, str, str]:

@@ -443,31 +443,44 @@ async def process_video_task(
                         # Single commit for metrics + segments + status
                         await db.commit()
 
-                        # SkateLab analyzer: compute multi-score + save scores/phases
-                        from app.services.analyzer_save import save_analyzer_results
-
-                        analyzer = await save_analyzer_results(
-                            db,
-                            session_id=session_id,
-                            metrics=vast_result.metrics or [],
-                            phases=vast_result.phases,
-                            fps=vast_result.stats.get("fps", 30.0),
-                            total_frames=len(vast_result.segments) if vast_result.segments else 0,
-                        )
-                        await db.commit()
-
-                        # Enqueue gamification task to fast queue
+                        # SkateLab analyzer: compute multi-score + save scores/phases,
+                        # then enqueue gamification task. Non-critical: failures here
+                        # must not break the main analysis result already committed.
                         try:
-                            await ctx["redis"].enqueue_job(
-                                "compute_gamification_task",
+                            from app.services.analyzer_save import save_analyzer_results
+
+                            analyzer = await save_analyzer_results(
+                                db,
                                 session_id=session_id,
-                                user_id=str(session_obj.user_id) if session_obj else (user_id or ""),
-                                overall_score=analyzer["overall_score"],
-                                element_type=analyzer["element_type"],
-                                _queue_name="skatelab:queue:fast",
+                                metrics=vast_result.metrics or [],
+                                phases=vast_result.phases,
+                                fps=vast_result.stats.get("fps", 30.0),
+                                total_frames=len(vast_result.segments)
+                                if vast_result.segments
+                                else 0,
                             )
-                        except (OSError, RuntimeError, ValueError) as gam_err:
-                            logger.warning("Failed to enqueue gamification task: %s", gam_err)
+                            await db.commit()
+
+                            # Enqueue gamification task to fast queue (if redis pool available)
+                            redis = ctx.get("redis")
+                            if redis is not None and hasattr(redis, "enqueue_job"):
+                                await redis.enqueue_job(
+                                    "compute_gamification_task",
+                                    session_id=session_id,
+                                    user_id=str(session_obj.user_id)
+                                    if session_obj
+                                    else (user_id or ""),
+                                    overall_score=analyzer["overall_score"],
+                                    element_type=analyzer["element_type"],
+                                    _queue_name="skatelab:queue:fast",
+                                )
+                        except Exception as analyzer_err:  # noqa: BLE001
+                            logger.warning(
+                                "Skating analyzer post-processing failed for %s: %s",
+                                session_id,
+                                analyzer_err,
+                            )
+                            await db.rollback()
                     except Exception:
                         await db.rollback()
                         raise

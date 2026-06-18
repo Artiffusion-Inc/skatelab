@@ -380,7 +380,10 @@ export default function SessionDetailPage() {
         )}
 
         {activeTab === "analyzer" && (
-          <AnalyzerTab sessionId={session.id} totalFrames={session.pose_data?.frames?.length ?? 120} />
+          <AnalyzerTab
+            sessionId={session.id}
+            totalFrames={session.pose_data?.frames?.length ?? 120}
+          />
         )}
 
         {activeTab === "export" && (

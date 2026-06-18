@@ -1,7 +1,8 @@
 """Tests for multi-dimensional scoring."""
 
 import pytest
-from ml.src.analysis.multi_score import compute_subscores, _normalize
+
+from ml.src.analysis.multi_score import _normalize, compute_subscores
 
 
 class TestNormalize:
@@ -50,7 +51,13 @@ class TestComputeSubscores:
     def test_subscore_names(self, sample_metrics):
         result = compute_subscores(sample_metrics)
         names = [s.name for s in result.subscores]
-        assert names == ["takeoff_power", "rotation_axis", "arm_coordination", "landing_absorption", "core_stability"]
+        assert names == [
+            "takeoff_power",
+            "rotation_axis",
+            "arm_coordination",
+            "landing_absorption",
+            "core_stability",
+        ]
 
     def test_subscore_values_in_range(self, sample_metrics):
         result = compute_subscores(sample_metrics)

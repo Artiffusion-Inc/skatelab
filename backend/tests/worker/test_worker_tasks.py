@@ -250,7 +250,8 @@ class TestProcessVideoTask:
 
         assert result["status"] == "Analysis complete!"
         mock_save.assert_called_once()
-        mock_db.commit.assert_called_once()
+        # commit called at least once (once for metrics/segments, again for analyzer scores)
+        mock_db.commit.assert_called()
 
     @pytest.mark.asyncio
     async def test_with_poses_key_downloads_and_samples(self, mock_valkey):

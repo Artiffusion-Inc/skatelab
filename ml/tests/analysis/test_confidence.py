@@ -1,8 +1,9 @@
 """Tests for confidence scoring."""
 
 import pytest
-from ml.src.analysis.confidence import compute_phase_confidence, compute_overall_confidence
-from ml.src.analysis.types import PhaseExtended, PhaseDetectionResultV2
+
+from ml.src.analysis.confidence import compute_overall_confidence, compute_phase_confidence
+from ml.src.analysis.types import PhaseDetectionResultV2, PhaseExtended
 
 
 class TestComputePhaseConfidence:

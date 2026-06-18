@@ -29,7 +29,7 @@ export function ScoreBreakdown({ score }: Props) {
   const t = useTranslations("analysis")
 
   const data = useMemo(() => {
-    return score.subscores.map((s) => ({
+    return score.subscores.map(s => ({
       label: s.label_ru,
       value: s.value,
     }))
@@ -81,12 +81,12 @@ export function ScoreBreakdown({ score }: Props) {
                   fontSize: 12,
                 }}
                 labelStyle={{ color: "oklch(var(--foreground))" }}
-                formatter={(value) => [t("scoreLabel", { value: Number(value ?? 0).toFixed(1) }), ""]}
+                formatter={value => [t("scoreLabel", { value: Number(value ?? 0).toFixed(1) }), ""]}
               />
               <ReferenceLine y={5} stroke="oklch(var(--foreground))" strokeDasharray="4 4" />
               <Bar dataKey="value" radius={[4, 4, 0, 0]} maxBarSize={48}>
-                {data.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={getBarColor(entry.value)} />
+                {data.map(entry => (
+                  <Cell key={entry.label} fill={getBarColor(entry.value)} />
                 ))}
               </Bar>
             </BarChart>

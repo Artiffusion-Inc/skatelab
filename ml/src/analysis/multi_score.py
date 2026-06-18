@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from .types import SubScore, MultiDimensionalScore
+from .types import MultiDimensionalScore, SubScore
 
 
 def _normalize(value: float, min_val: float = 0.0, max_val: float = 1.0) -> float:
@@ -26,7 +26,7 @@ def compute_subscores(metrics: dict[str, float]) -> MultiDimensionalScore:
         + (1 - abs(metrics.get("approach_consistency", 0)) / 90) * 0.2
     )
 
-    # rotation_axis: rot_speed + rotation_quality + under_rotation
+    # rotation_axis — combines rotation speed, total rotation, and under-rotation
     rotation = _normalize(
         min(metrics.get("rotation_speed", 0) / 720, 1.0) * 0.4
         + min(metrics.get("total_rotation_deg", 0) / 1620, 1.0) * 0.3
@@ -34,10 +34,7 @@ def compute_subscores(metrics: dict[str, float]) -> MultiDimensionalScore:
     )
 
     # arm_coordination: arm position + symmetry
-    arms = _normalize(
-        metrics.get("arm_position_score", 0) * 0.6
-        + metrics.get("symmetry", 0) * 0.4
-    )
+    arms = _normalize(metrics.get("arm_position_score", 0) * 0.6 + metrics.get("symmetry", 0) * 0.4)
 
     # landing_absorption: knee angle + stability + smoothness + hard_landing
     landing = _normalize(
@@ -55,15 +52,45 @@ def compute_subscores(metrics: dict[str, float]) -> MultiDimensionalScore:
     )
 
     subscores = [
-        SubScore("takeoff_power", "Взлётная мощь", takeoff * 10, 0.85, ["airtime", "relative_jump_height"]),
-        SubScore("rotation_axis", "Ось вращения", rotation * 10, 0.72, ["rotation_speed", "total_rotation_deg"]),
-        SubScore("arm_coordination", "Координация рук", arms * 10, 0.68, ["arm_position_score", "symmetry"]),
-        SubScore("landing_absorption", "Амортизация", landing * 10, 0.91, ["landing_knee_angle", "hard_landing"]),
-        SubScore("core_stability", "Стабильность корпуса", core * 10, 0.79, ["landing_trunk_recovery", "trunk_lean"]),
+        SubScore(
+            "takeoff_power",
+            "Взлётная мощь",
+            takeoff * 10,
+            0.85,
+            ["airtime", "relative_jump_height"],
+        ),
+        SubScore(
+            "rotation_axis",
+            "Ось вращения",
+            rotation * 10,
+            0.72,
+            ["rotation_speed", "total_rotation_deg"],
+        ),
+        SubScore(
+            "arm_coordination",
+            "Координация рук",
+            arms * 10,
+            0.68,
+            ["arm_position_score", "symmetry"],
+        ),
+        SubScore(
+            "landing_absorption",
+            "Амортизация",
+            landing * 10,
+            0.91,
+            ["landing_knee_angle", "hard_landing"],
+        ),
+        SubScore(
+            "core_stability",
+            "Стабильность корпуса",
+            core * 10,
+            0.79,
+            ["landing_trunk_recovery", "trunk_lean"],
+        ),
     ]
 
     weights = [0.30, 0.25, 0.15, 0.25, 0.10]
-    overall = sum(s.value * w for s, w in zip(subscores, weights))
+    overall = sum(s.value * w for s, w in zip(subscores, weights, strict=True))
 
     return MultiDimensionalScore(
         subscores=subscores,

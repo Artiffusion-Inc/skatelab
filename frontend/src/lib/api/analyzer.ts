@@ -121,7 +121,8 @@ function toPhaseDetectionResult(s: z.infer<typeof SessionPhaseSchema>): PhaseDet
       start_time: p.start_time,
       end_time: p.end_time,
       confidence: p.confidence,
-      detection_method: p.detection_method as PhaseDetectionResult["phases"][number]["detection_method"],
+      detection_method:
+        p.detection_method as PhaseDetectionResult["phases"][number]["detection_method"],
     })),
     overall_confidence: s.overall_confidence,
     element_type: s.element_type,
@@ -163,7 +164,8 @@ function toTrainingPlan(s: z.infer<typeof TrainingPlanSchema>): TrainingPlan {
 export function useSessionScores(sessionId: string) {
   return useQuery<MultiDimensionalScore, Error>({
     queryKey: ["analyzer", "scores", sessionId],
-    queryFn: async () => toMultiDimensionalScore(await apiFetch(`/sessions/${sessionId}/scores`, SessionScoreSchema)),
+    queryFn: async () =>
+      toMultiDimensionalScore(await apiFetch(`/sessions/${sessionId}/scores`, SessionScoreSchema)),
     enabled: !!sessionId,
   })
 }
@@ -171,7 +173,8 @@ export function useSessionScores(sessionId: string) {
 export function useSessionPhases(sessionId: string) {
   return useQuery<PhaseDetectionResult, Error>({
     queryKey: ["analyzer", "phases", sessionId],
-    queryFn: async () => toPhaseDetectionResult(await apiFetch(`/sessions/${sessionId}/phases`, SessionPhaseSchema)),
+    queryFn: async () =>
+      toPhaseDetectionResult(await apiFetch(`/sessions/${sessionId}/phases`, SessionPhaseSchema)),
     enabled: !!sessionId,
   })
 }
@@ -195,7 +198,8 @@ export function useUserLevel(userId: string) {
 export function useUserSkills(userId: string) {
   return useQuery<SkillItem[], Error>({
     queryKey: ["analyzer", "skills", userId],
-    queryFn: async () => toSkillItems(await apiFetch(`/users/${userId}/skills`, z.array(SkillProgressSchema))),
+    queryFn: async () =>
+      toSkillItems(await apiFetch(`/users/${userId}/skills`, z.array(SkillProgressSchema))),
     enabled: !!userId,
   })
 }
@@ -204,7 +208,9 @@ export function useGenerateTrainingPlan(sessionId: string | undefined) {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: async () => {
-      const data = await apiPost("/training-plans/generate", TrainingPlanSchema, { session_id: sessionId })
+      const data = await apiPost("/training-plans/generate", TrainingPlanSchema, {
+        session_id: sessionId,
+      })
       return toTrainingPlan(data)
     },
     onSuccess: () => {
@@ -216,7 +222,8 @@ export function useGenerateTrainingPlan(sessionId: string | undefined) {
 export function useTrainingPlan(planId: string | undefined) {
   return useQuery<TrainingPlan, Error>({
     queryKey: ["analyzer", "plan", planId],
-    queryFn: async () => toTrainingPlan(await apiFetch(`/training-plans/${planId}`, TrainingPlanSchema)),
+    queryFn: async () =>
+      toTrainingPlan(await apiFetch(`/training-plans/${planId}`, TrainingPlanSchema)),
     enabled: !!planId,
   })
 }

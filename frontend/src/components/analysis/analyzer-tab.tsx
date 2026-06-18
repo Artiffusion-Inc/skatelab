@@ -1,7 +1,13 @@
 "use client"
 
 import { useTranslations } from "@/i18n"
-import { useSessionScores, useSessionPhases, useUserLevel, useUserSkills, useGenerateTrainingPlan } from "@/lib/api/analyzer"
+import {
+  useSessionScores,
+  useSessionPhases,
+  useUserLevel,
+  useUserSkills,
+  useGenerateTrainingPlan,
+} from "@/lib/api/analyzer"
 import { ScoreBreakdown } from "@/components/analysis/score-breakdown"
 import { PhaseTimelineExtended } from "@/components/analysis/phase-timeline-extended"
 import { GamificationPanel } from "@/components/gamification/gamification-panel"
@@ -56,7 +62,9 @@ export function AnalyzerTab({ sessionId, totalFrames }: Props) {
           <Button onClick={() => generatePlan.mutate()} disabled={generatePlan.isPending}>
             {generatePlan.isPending ? t("generatingPlan") : t("generatePlan")}
           </Button>
-          {generatePlan.isError ? <p className="text-sm text-destructive">{t("planError")}</p> : null}
+          {generatePlan.isError ? (
+            <p className="text-sm text-destructive">{t("planError")}</p>
+          ) : null}
         </div>
       )}
     </div>

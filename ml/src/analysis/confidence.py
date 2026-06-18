@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
-from .types import PhaseExtended, PhaseDetectionResultV2
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from .types import PhaseDetectionResultV2, PhaseExtended
 
 
 def compute_phase_confidence(
@@ -48,7 +51,9 @@ def compute_phase_confidence(
     return max(0.0, min(1.0, confidence))
 
 
-def compute_overall_confidence(result: PhaseDetectionResultV2, total_frames: int, fps: float) -> float:
+def compute_overall_confidence(
+    result: PhaseDetectionResultV2, total_frames: int, fps: float
+) -> float:
     """Compute overall confidence across all phases.
 
     Weighted average with emphasis on key phases (takeoff, air, landing).
@@ -56,7 +61,13 @@ def compute_overall_confidence(result: PhaseDetectionResultV2, total_frames: int
     if not result.phases:
         return 0.0
 
-    phase_weights = {"approach": 0.10, "takeoff": 0.25, "air": 0.30, "landing": 0.25, "glide_out": 0.10}
+    phase_weights = {
+        "approach": 0.10,
+        "takeoff": 0.25,
+        "air": 0.30,
+        "landing": 0.25,
+        "glide_out": 0.10,
+    }
 
     total_weight = 0.0
     weighted_sum = 0.0
