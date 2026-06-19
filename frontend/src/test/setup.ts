@@ -14,6 +14,24 @@ vi.mock("next/navigation", () => ({
   usePathname: vi.fn(() => "/"),
 }))
 
+// Mock @/i18n for components that use useTranslations
+vi.mock("@/i18n", () => ({
+  useTranslations: vi.fn((_namespace: string) => {
+    // Return a translation function that returns the key (identity) or interpolated string
+    return vi.fn((key: string, params?: Record<string, string>) => {
+      // Simple interpolation for common patterns
+      if (params) {
+        let result = key
+        for (const [k, v] of Object.entries(params)) {
+          result = result.replace(new RegExp(`{${k}}`, "g"), String(v))
+        }
+        return result
+      }
+      return key
+    })
+  }),
+}))
+
 // Mock @sentry/nextjs (optional dep, may not be installed in CI)
 vi.mock("@sentry/nextjs", () => ({
   captureException: vi.fn(),

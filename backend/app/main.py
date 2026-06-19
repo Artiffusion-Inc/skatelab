@@ -40,6 +40,7 @@ from app.routes import (
     models,
     process,
     sessions,
+    training_plans,
     uploads,
     users,
     workspaces,
@@ -103,6 +104,7 @@ def create_app(
             uploads,
             choreography,
             workspaces,
+            training_plans,
         ],
     )
 

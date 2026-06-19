@@ -442,6 +442,45 @@ async def process_video_task(
 
                         # Single commit for metrics + segments + status
                         await db.commit()
+
+                        # SkateLab analyzer: compute multi-score + save scores/phases,
+                        # then enqueue gamification task. Non-critical: failures here
+                        # must not break the main analysis result already committed.
+                        try:
+                            from app.services.analyzer_save import save_analyzer_results
+
+                            analyzer = await save_analyzer_results(
+                                db,
+                                session_id=session_id,
+                                metrics=vast_result.metrics or [],
+                                phases=vast_result.phases,
+                                fps=vast_result.stats.get("fps", 30.0),
+                                total_frames=len(vast_result.segments)
+                                if vast_result.segments
+                                else 0,
+                            )
+                            await db.commit()
+
+                            # Enqueue gamification task to fast queue (if redis pool available)
+                            redis = ctx.get("redis")
+                            if redis is not None and hasattr(redis, "enqueue_job"):
+                                await redis.enqueue_job(
+                                    "compute_gamification_task",
+                                    session_id=session_id,
+                                    user_id=str(session_obj.user_id)
+                                    if session_obj
+                                    else (user_id or ""),
+                                    overall_score=analyzer["overall_score"],
+                                    element_type=analyzer["element_type"],
+                                    _queue_name="skatelab:queue:fast",
+                                )
+                        except Exception as analyzer_err:  # noqa: BLE001
+                            logger.warning(
+                                "Skating analyzer post-processing failed for %s: %s",
+                                session_id,
+                                analyzer_err,
+                            )
+                            await db.rollback()
                     except Exception:
                         await db.rollback()
                         raise
@@ -733,6 +772,55 @@ async def cleanup_expired_tokens(ctx: dict) -> int:
         return n1 + n2
 
 
+async def compute_gamification_task(
+    ctx: dict[str, Any],
+    *,
+    session_id: str,
+    user_id: str,
+    overall_score: float,
+    element_type: str | None = None,
+) -> dict[str, Any]:
+    """arq task: award XP and check skill unlocks after session analysis."""
+    from app.database import async_session_factory  # type: ignore[import-untyped]
+    from app.services.gamification import award_session_xp, check_skill_unlocks
+
+    try:
+        async with async_session_factory() as db:
+            xp_result = await award_session_xp(db, user_id, overall_score)
+
+            category: str | None = None
+            if element_type:
+                et = element_type.lower()
+                if "spin" in et:
+                    category = "spins"
+                elif "step" in et or "turn" in et or "spiral" in et:
+                    category = "control"
+                else:
+                    category = "jumps"
+
+            unlocked_skills: list[str] = []
+            if category:
+                unlocked_skills = await check_skill_unlocks(db, user_id, category, overall_score)
+
+            await db.commit()
+
+        logger.info(
+            "Gamification computed for session=%s user=%s xp=%d unlocked=%s",
+            session_id,
+            user_id,
+            xp_result["xp_earned"],
+            unlocked_skills,
+        )
+        return {
+            "session_id": session_id,
+            "xp_earned": xp_result["xp_earned"],
+            "unlocked_skills": unlocked_skills,
+        }
+    except (OSError, ValueError, RuntimeError) as e:
+        logger.exception("Gamification task failed for session %s", session_id)
+        raise
+
+
 class FastWorkerSettings:
     """arq worker for lightweight detection tasks."""
 
@@ -744,7 +832,7 @@ class FastWorkerSettings:
 
     on_startup = startup
     on_shutdown = shutdown
-    functions: ClassVar[list] = [detect_video_task, analyze_music_task]
+    functions: ClassVar[list] = [detect_video_task, analyze_music_task, compute_gamification_task]
     cron_jobs: ClassVar[list] = [
         cron(cleanup_expired_tokens, minute=7),
     ]

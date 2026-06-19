@@ -1,0 +1,152 @@
+"""Save skating analyzer results (scores + phases) to DB from VastResult metrics."""
+
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from sqlalchemy.ext.asyncio import AsyncSession
+
+
+def _metrics_to_dict(metrics: list[Any]) -> dict[str, float]:
+    """Convert list of MetricResult (with .name/.value) or dicts to a dict."""
+    result: dict[str, float] = {}
+    for m in metrics:
+        if isinstance(m, dict):
+            result[m["name"]] = float(m["value"])
+        else:
+            result[m.name] = float(m.value)
+    return result
+
+
+def _build_subscores_dict(metrics_dict: dict[str, float]) -> tuple[list[dict], float, str, str]:
+    """Compute subscores and return as list of plain dicts for JSONB storage.
+
+    Returns:
+        (subscores_list, overall, data_quality, skeleton_reliability)
+    """
+    from app.services.ml_bridge import compute_subscores_safe
+
+    score = compute_subscores_safe(metrics_dict)
+    subscores = [
+        {
+            "name": s.name,
+            "label_ru": s.label_ru,
+            "value": round(s.value, 2),
+            "confidence": s.confidence,
+            "contributing_metrics": s.contributing_metrics,
+        }
+        for s in score.subscores
+    ]
+    return subscores, score.overall, score.data_quality, score.skeleton_reliability
+
+
+async def save_analyzer_results(
+    db: AsyncSession,
+    session_id: str,
+    metrics: list[Any],
+    phases: Any,
+    fps: float = 30.0,
+    total_frames: int = 0,
+) -> dict[str, Any]:
+    """Compute multi-dimensional score and save SessionScore + SessionPhase.
+
+    Args:
+        db: Async session.
+        session_id: Session ID.
+        metrics: List of MetricResult from analysis.
+        phases: ElementPhase (old 3-phase model) or None.
+        fps: Frame rate for time conversion.
+        total_frames: Total frame count for phase coverage calc.
+
+    Returns:
+        Dict with overall_score and element_type for gamification.
+    """
+    from app.crud.session_phase import create as create_phase
+    from app.crud.session_score import create as create_score
+
+    metrics_dict = _metrics_to_dict(metrics)
+    subscores, overall, data_quality, skeleton_reliability = _build_subscores_dict(metrics_dict)
+
+    # Save score
+    await create_score(
+        db,
+        session_id=session_id,
+        subscores=subscores,
+        overall=overall,
+        data_quality=data_quality,
+        skeleton_reliability=skeleton_reliability,
+    )
+
+    # Convert old ElementPhase (3-phase) to extended PhaseExtended list (5-phase)
+    phase_dicts: list[dict] = []
+    element_type: str | None = None
+    if phases is not None:
+        element_type = getattr(phases, "name", None)
+        start = getattr(phases, "start", 0) or 0
+        takeoff = getattr(phases, "takeoff", 0) or 0
+        peak = getattr(phases, "peak", 0) or 0
+        landing = getattr(phases, "landing", 0) or 0
+        end = getattr(phases, "end", 0) or 0
+
+        if takeoff > 0 and landing > 0:
+            landing_mid = landing + max(1, (end - landing) // 2)
+            phase_dicts = [
+                {
+                    "name": "approach",
+                    "start_frame": start,
+                    "end_frame": takeoff,
+                    "start_time": start / fps,
+                    "end_time": takeoff / fps,
+                    "confidence": 0.7,
+                    "detection_method": "heuristic",
+                },
+                {
+                    "name": "takeoff",
+                    "start_frame": takeoff,
+                    "end_frame": peak,
+                    "start_time": takeoff / fps,
+                    "end_time": peak / fps,
+                    "confidence": 0.85,
+                    "detection_method": "com_parabola",
+                },
+                {
+                    "name": "air",
+                    "start_frame": peak,
+                    "end_frame": landing,
+                    "start_time": peak / fps,
+                    "end_time": landing / fps,
+                    "confidence": 0.85,
+                    "detection_method": "com_parabola",
+                },
+                {
+                    "name": "landing",
+                    "start_frame": landing,
+                    "end_frame": landing_mid,
+                    "start_time": landing / fps,
+                    "end_time": landing_mid / fps,
+                    "confidence": 0.8,
+                    "detection_method": "com_parabola",
+                },
+                {
+                    "name": "glide_out",
+                    "start_frame": landing_mid,
+                    "end_frame": end,
+                    "start_time": landing_mid / fps,
+                    "end_time": end / fps,
+                    "confidence": 0.6,
+                    "detection_method": "heuristic",
+                },
+            ]
+
+    overall_conf = 0.7 if phase_dicts else 0.0
+    await create_phase(
+        db,
+        session_id=session_id,
+        phases=phase_dicts,
+        overall_confidence=overall_conf,
+        element_type=element_type,
+        fallback_used=phase_dicts == [],
+    )
+
+    return {"overall_score": overall, "element_type": element_type}

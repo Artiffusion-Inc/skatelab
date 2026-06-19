@@ -688,3 +688,157 @@ class GOEResponse(BaseModel):
     negatives: list[str]
     confidence: float
     deductions: list[dict]
+
+
+# ---------------------------------------------------------------------------
+# Skating Analyzer Schemas
+# ---------------------------------------------------------------------------
+
+
+class SubScoreSchema(BaseModel):
+    name: str
+    label_ru: str
+    value: float = Field(ge=0, le=10)
+    confidence: float = Field(ge=0, le=1)
+    contributing_metrics: list[str]
+
+
+class MultiDimensionalScoreSchema(BaseModel):
+    subscores: list[SubScoreSchema]
+    overall: float = Field(ge=0, le=10)
+    data_quality: str = "good"
+    skeleton_reliability: str = "reliable"
+
+
+class PhaseExtendedSchema(BaseModel):
+    name: str
+    start_frame: int = Field(ge=0)
+    end_frame: int = Field(ge=0)
+    start_time: float = Field(ge=0)
+    end_time: float = Field(ge=0)
+    confidence: float = Field(ge=0, le=1)
+    detection_method: str
+
+
+class PhaseDetectionResultSchema(BaseModel):
+    phases: list[PhaseExtendedSchema]
+    overall_confidence: float = Field(ge=0, le=1)
+    element_type: str | None = None
+    fallback_used: bool = False
+
+
+class SessionScoreResponse(BaseModel):
+    id: str
+    session_id: str
+    subscores: list[SubScoreSchema]
+    overall: float
+    data_quality: str
+    skeleton_reliability: str
+    created_at: str
+    updated_at: str
+
+    model_config = {"from_attributes": True}
+
+    @field_validator("created_at", "updated_at", mode="before")
+    @classmethod
+    def validate_datetime(cls, v: Any) -> str | None:
+        if isinstance(v, datetime):
+            return v.isoformat()
+        return str(v)
+
+
+class SessionPhaseResponse(BaseModel):
+    id: str
+    session_id: str
+    phases: list[PhaseExtendedSchema]
+    overall_confidence: float
+    element_type: str | None
+    fallback_used: bool
+    created_at: str
+    updated_at: str
+
+    model_config = {"from_attributes": True}
+
+    @field_validator("created_at", "updated_at", mode="before")
+    @classmethod
+    def validate_datetime(cls, v: Any) -> str | None:
+        if isinstance(v, datetime):
+            return v.isoformat()
+        return str(v)
+
+
+class UserLevelResponse(BaseModel):
+    id: str
+    user_id: str
+    level: int
+    total_xp: int
+    xp_to_next: int
+    title: str
+    created_at: str
+    updated_at: str
+
+    model_config = {"from_attributes": True}
+
+    @field_validator("created_at", "updated_at", mode="before")
+    @classmethod
+    def validate_datetime(cls, v: Any) -> str | None:
+        if isinstance(v, datetime):
+            return v.isoformat()
+        return str(v)
+
+
+class SkillProgressResponse(BaseModel):
+    id: str
+    user_id: str
+    skill_id: str
+    category: str
+    tier: str
+    unlocked: bool
+    unlocked_at: str | None
+    consecutive_sessions: int
+    best_score: float
+    xp_reward: int
+
+    model_config = {"from_attributes": True}
+
+    @field_validator("unlocked_at", mode="before")
+    @classmethod
+    def validate_optional_datetime(cls, v: Any) -> str | None:
+        if v is None:
+            return None
+        if isinstance(v, datetime):
+            return v.isoformat()
+        return str(v)
+
+
+class TrainingPlanItemSchema(BaseModel):
+    id: str
+    priority: int
+    label_ru: str
+    description_ru: str
+    completed: bool
+
+
+class TrainingPlanResponse(BaseModel):
+    id: str
+    user_id: str
+    session_id: str | None
+    items: list[TrainingPlanItemSchema]
+    generated_at: str
+    completed: bool
+    focus_subscore: str | None
+    created_at: str
+    updated_at: str
+
+    model_config = {"from_attributes": True}
+
+    @field_validator("generated_at", "created_at", "updated_at", mode="before")
+    @classmethod
+    def validate_datetime(cls, v: Any) -> str | None:
+        if isinstance(v, datetime):
+            return v.isoformat()
+        return str(v)
+
+
+class GenerateTrainingPlanRequest(BaseModel):
+    session_id: str

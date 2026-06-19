@@ -89,6 +89,76 @@ export interface TimelineData {
 }
 
 // ---------------------------------------------------------------------------
+// Skating Analyzer Integration Types
+// ---------------------------------------------------------------------------
+
+export interface SubScore {
+  name: string
+  label_ru: string
+  value: number // 0-10
+  confidence: number // 0-1
+  contributing_metrics: string[]
+}
+
+export interface MultiDimensionalScore {
+  subscores: SubScore[]
+  overall: number
+  data_quality: "good" | "partial" | "poor"
+  skeleton_reliability: "reliable" | "uncertain" | "likely_wrong"
+}
+
+export interface PhaseExtended {
+  name: "approach" | "takeoff" | "air" | "landing" | "glide_out"
+  start_frame: number
+  end_frame: number
+  start_time: number
+  end_time: number
+  confidence: number
+  detection_method: "com_parabola" | "tas_segment" | "heuristic"
+}
+
+export interface PhaseDetectionResult {
+  phases: PhaseExtended[]
+  overall_confidence: number
+  element_type: string | null
+  fallback_used: boolean
+}
+
+export interface UserLevel {
+  level: number // 1-5
+  total_xp: number
+  xp_to_next: number
+  title: string
+}
+
+export interface SkillItem {
+  id: string
+  category: "jumps" | "spins" | "control"
+  tier: "bronze" | "silver" | "gold"
+  label_ru: string
+  unlocked: boolean
+  unlocked_at: string | null
+  consecutive_sessions: number
+  best_score: number
+  xp_reward: number
+}
+
+export interface TrainingPlanItem {
+  id: string
+  priority: number
+  label_ru: string
+  description_ru: string
+  completed: boolean
+}
+
+export interface TrainingPlan {
+  items: TrainingPlanItem[]
+  generated_at: string
+  completed: boolean
+  focus_subscore: string | null
+}
+
+// ---------------------------------------------------------------------------
 // Sessions
 // ---------------------------------------------------------------------------
 

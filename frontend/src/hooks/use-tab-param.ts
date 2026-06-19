@@ -4,7 +4,7 @@
 import { useSearchParams } from "next/navigation"
 import { useCallback, useState } from "react"
 
-const VALID_TABS = ["overview", "details", "export"] as const
+const VALID_TABS = ["overview", "details", "analyzer", "export"] as const
 type Tab = (typeof VALID_TABS)[number]
 
 export function useTabParam(defaultTab: Tab = "overview") {

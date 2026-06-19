@@ -18,6 +18,7 @@ import { ProcessingBanner } from "@/components/session/processing-banner"
 import { SessionActionMenu } from "@/components/session/session-action-menu"
 import { SessionDownloads } from "@/components/session/session-downloads"
 import { useTabParam } from "@/hooks/use-tab-param"
+import { AnalyzerTab } from "@/components/analysis/analyzer-tab"
 
 const ThreeJSkeletonViewer = lazy(() =>
   import("@/components/analysis/threejs-skeleton-viewer").then(m => ({
@@ -86,6 +87,7 @@ export default function SessionDetailPage() {
   const tabs = [
     { key: "overview" as const, label: tSession("tabOverview") },
     { key: "details" as const, label: tSession("tabDetails") },
+    { key: "analyzer" as const, label: tSession("tabAnalyzer") },
     { key: "export" as const, label: tSession("tabExport") },
   ]
 
@@ -375,6 +377,13 @@ export default function SessionDetailPage() {
             {/* Diagnostics */}
             {session.pose_data && <SessionDiagnostics elementType={session.element_type} />}
           </div>
+        )}
+
+        {activeTab === "analyzer" && (
+          <AnalyzerTab
+            sessionId={session.id}
+            totalFrames={session.pose_data?.frames?.length ?? 120}
+          />
         )}
 
         {activeTab === "export" && (

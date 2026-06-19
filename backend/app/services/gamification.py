@@ -1,0 +1,32 @@
+"""Gamification service: XP, levels, skill unlock logic."""
+
+from datetime import UTC
+
+from app.crud.skill_progress import get_or_create
+from app.crud.user_level import add_xp
+from sqlalchemy.ext.asyncio import AsyncSession
+
+
+async def award_session_xp(db: AsyncSession, user_id: str, overall_score: float) -> dict:
+    """Award XP based on session score. 1 XP per 0.1 score point."""
+    xp_earned = int(overall_score * 10)
+    level = await add_xp(db, user_id, xp_earned)
+    return {"xp_earned": xp_earned, "level": level}
+
+
+async def check_skill_unlocks(db: AsyncSession, user_id: str, category: str, score: float) -> list:
+    """Check and unlock skills based on score thresholds."""
+    unlocked = []
+    for tier, threshold in [("bronze", 5.0), ("silver", 6.5), ("gold", 8.0)]:
+        skill_id = f"{category}_{tier}"
+        progress = await get_or_create(db, user_id, skill_id)
+        if not progress.unlocked and score >= threshold:
+            progress.unlocked = True
+            from datetime import datetime
+
+            progress.unlocked_at = datetime.now(UTC)
+            progress.best_score = max(progress.best_score, score)
+            db.add(progress)
+            unlocked.append(skill_id)
+    await db.flush()
+    return unlocked
