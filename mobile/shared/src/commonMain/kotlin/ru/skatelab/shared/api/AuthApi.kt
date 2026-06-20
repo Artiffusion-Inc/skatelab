@@ -56,7 +56,7 @@ class AuthApi(
         password: String,
     ): TokenResponse {
         val response =
-            client.post("/auth/login") {
+            client.post("auth/login") {
                 contentType(ContentType.Application.Json)
                 setBody(LoginRequest(email, password))
             }
@@ -72,7 +72,7 @@ class AuthApi(
         displayName: String? = null,
     ): TokenResponse {
         val response =
-            client.post("/auth/register") {
+            client.post("auth/register") {
                 contentType(ContentType.Application.Json)
                 setBody(RegisterRequest(email, password, displayName))
             }
@@ -83,28 +83,28 @@ class AuthApi(
     }
 
     suspend fun logout(refreshToken: String) {
-        client.post("/auth/logout") {
+        client.post("auth/logout") {
             contentType(ContentType.Application.Json)
             setBody(LogoutRequest(refreshToken))
         }
     }
 
     suspend fun verifyEmail(token: String) {
-        client.post("/auth/verify-email") {
+        client.post("auth/verify-email") {
             contentType(ContentType.Application.Json)
             setBody(VerifyEmailRequest(token))
         }
     }
 
     suspend fun resendVerification(email: String) {
-        client.post("/auth/resend-verification") {
+        client.post("auth/resend-verification") {
             contentType(ContentType.Application.Json)
             setBody(ResendVerificationRequest(email))
         }
     }
 
     suspend fun forgotPassword(email: String) {
-        client.post("/auth/forgot-password") {
+        client.post("auth/forgot-password") {
             contentType(ContentType.Application.Json)
             setBody(ForgotPasswordRequest(email))
         }
@@ -114,7 +114,7 @@ class AuthApi(
         token: String,
         newPassword: String,
     ) {
-        client.post("/auth/reset-password") {
+        client.post("auth/reset-password") {
             contentType(ContentType.Application.Json)
             setBody(ResetPasswordRequest(token, newPassword))
         }
