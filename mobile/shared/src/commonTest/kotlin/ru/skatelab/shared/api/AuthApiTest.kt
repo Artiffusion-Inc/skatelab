@@ -42,7 +42,7 @@ class AuthApiTest {
             )
         }
         val client = HttpClient(engine) {
-            install(ContentNegotiation { json(Json { ignoreUnknownKeys = true }) })
+            install(ContentNegotiation) { json(Json { ignoreUnknownKeys = true }) }
             defaultRequest { url("https://api.skatelab.ru/v1/") }
         }
         val api = AuthApi(client)
