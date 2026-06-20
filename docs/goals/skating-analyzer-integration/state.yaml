@@ -1,0 +1,30 @@
+goal:
+  slug: skating-analyzer-integration
+  title: "SkateLab — Skate Analyzer Integration"
+  status: merged
+  tranche: "Waves 1-5 merged to master (1f2e3d84), deployed"
+  completion_proof: "PR #295 merged, master CI green (code tests), Deploy success. Container GPU Worker pre-existing failure unrelated."
+
+tasks:
+  - id: T003
+    status: done
+    receipt: {result: done, summary: "Wave 1 frontend components + session tab"}
+  - id: T004
+    status: done
+    receipt: {result: done, summary: "Wave 2 backend: 5 models, migration, schemas, CRUD, services, routes"}
+  - id: T005
+    status: done
+    receipt: {result: done, summary: "Wave 3 ML analysis layer + 19 tests"}
+  - id: T006
+    status: done
+    receipt: {result: done, summary: "Wave 4 worker gamification integration"}
+  - id: T006b
+    status: done
+    receipt: {result: done, summary: "Wave 5 frontend API hookup"}
+  - id: T999
+    status: done
+    receipt: {result: done, summary: "Merged to master 1f2e3d84, CI green, deployed. Container GPU Worker pre-existing failure (model secret URLs) unrelated to PR."}
+  - id: T007
+    status: queued
+    receipt: null
+    objective: "Parallel GPU track: MCFS + BiGRUTASRefiner training (separate, not blocking)"
