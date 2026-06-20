@@ -96,17 +96,20 @@ async def _background_init():
             opts.inter_op_num_threads = 2
             logger.info("GPU warmup: CUDA initialized")
 
-        # Load TAS segmenter if model exists
-        try:
-            from src.tas.inference import TASElementSegmenter
+        # Load TAS segmenter if the model file exists. The TAS package imports torch
+        # (src.tas.classifier), which is NOT installed in the serverless GPU image (it
+        # ships onnxruntime only). Skip the import entirely when the model is absent so
+        # we never raise ModuleNotFoundError → Traceback → PyWorker fatal error.
+        if not TAS_MODEL_PATH.exists():
+            logger.warning("TAS model not found at %s — timeline unavailable", TAS_MODEL_PATH)
+        else:
+            try:
+                from src.tas.inference import TASElementSegmenter
 
-            if TAS_MODEL_PATH.exists():
                 _tas_segmenter = TASElementSegmenter(model_path=str(TAS_MODEL_PATH))
                 logger.info("TAS segmenter loaded at startup (ONNX)")
-            else:
-                logger.warning("TAS model not found at %s — timeline unavailable", TAS_MODEL_PATH)
-        except (ValueError, RuntimeError, OSError):
-            logger.warning("TAS segmenter not loaded — timeline unavailable", exc_info=True)
+            except (ImportError, ValueError, RuntimeError, OSError):
+                logger.warning("TAS segmenter not loaded — timeline unavailable", exc_info=True)
 
         # Load TCPFormer 3D lifter if model exists
         _tcpformer_extractor = None
