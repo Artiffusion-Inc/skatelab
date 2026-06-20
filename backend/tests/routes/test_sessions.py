@@ -169,6 +169,35 @@ async def test_list_sessions(client, auth_headers, authed_user, db_session: Asyn
 
 
 @pytest.mark.asyncio
+async def test_list_sessions_processed_at_null_not_string_none(
+    client, auth_headers, authed_user, db_session: AsyncSession
+):
+    """A queued (unprocessed) session must serialize processed_at as JSON null.
+
+    Regression: the created_at/processed_at field_validator did str(v), so
+    None became the string "None" (processed_at: "None") — not JSON null.
+    Clients expecting Optional<datetime>/String? then got a literal "None"
+    string instead of an absent value, confusing consumers.
+    """
+    from app.crud.session import create as crud_create
+
+    await crud_create(db_session, user_id=authed_user.id, element_type="waltz_jump")
+
+    with patch(
+        "app.routes.sessions.get_object_url_async",
+        new_callable=AsyncMock,
+        return_value="https://fake.url",
+    ):
+        response = await client.get("/v1/sessions", headers=auth_headers)
+
+    assert response.status_code == 200
+    sessions = response.json()["sessions"]
+    assert len(sessions) == 1
+    assert sessions[0]["processed_at"] is None
+    assert sessions[0]["processed_at"] != "None"
+
+
+@pytest.mark.asyncio
 async def test_list_sessions_filter_element_type(
     client, auth_headers, authed_user, db_session: AsyncSession
 ):
