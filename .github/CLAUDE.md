@@ -70,6 +70,8 @@ Triggered by `ml/gpu_server/**` changes. Generates S3 pre-signed URLs for model 
 
 Blacksmith (useblacksmith) for CPU-heavy jobs. ubuntu-latest for lightweight (actionlint, secrets, mobile). All use `actions/checkout@v6` + `fetch-depth: 1`.
 
+> **Runner labels fixed (2026-06-20).** `ci-reusable.yml` jobs were on `blacksmith-*-ubuntu-2404[-arm]` labels that Blacksmith stopped provisioning — every CI run hit `startup_failure` (0 jobs created, runner never spawned). Replaced with the labels registered in `.github/actionlint.yaml`: `blacksmith-2vcpu-ubuntu-2204` (light jobs: changes, lint, typecheck, coverage, design-ci, fe-check, fe-test, ci-passed) and `blacksmith-4vcpu-ubuntu-2204` (heavy jobs: test, smoke, fe-build, docker-backend, docker-frontend). vCPU tier preserved per job.
+
 ## Secrets
 
 | Secret | Used by | Purpose |
