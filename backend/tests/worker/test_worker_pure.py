@@ -209,3 +209,31 @@ class TestComputeFrameMetrics:
         for key in result:
             assert len(result[key]) == 1
             assert isinstance(result[key][0], float) or result[key][0] is None
+
+    def test_compute_frame_metrics_2d_poses_no_crash(self):
+        """2D-only poses (N, 17, 2) — e.g. lift_3d=False — must not crash on trunk_lean.
+
+        trunk_lean uses spine_vec[:, 2] (z-component) which is out of bounds for a
+        2D array. The function returns None for every trunk_lean frame and still
+        computes the 2D-compatible metrics (knee/hip angles, com_height).
+        """
+        poses = np.random.rand(8, 17, 2).astype(np.float32)
+
+        result = _compute_frame_metrics(poses)
+
+        # All 6 keys present, correct frame count
+        assert set(result.keys()) == {
+            "knee_angles_r",
+            "knee_angles_l",
+            "hip_angles_r",
+            "hip_angles_l",
+            "trunk_lean",
+            "com_height",
+        }
+        for key in result:
+            assert len(result[key]) == 8
+        # trunk_lean is None for every frame (no z → metric unavailable, not a crash)
+        assert all(v is None for v in result["trunk_lean"])
+        # 2D-compatible metrics still produce values
+        assert any(v is not None for v in result["knee_angles_r"])
+        assert any(v is not None for v in result["com_height"])

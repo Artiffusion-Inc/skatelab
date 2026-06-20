@@ -165,20 +165,26 @@ def _compute_frame_metrics(poses: np.ndarray) -> dict:
     hip_angles_r = compute_angles_batch(thorax, r_hip, r_knee)
     hip_angles_l = compute_angles_batch(thorax, l_hip, l_knee)
 
-    # Trunk lean (spine angle from vertical)
-    spine_vec = neck - spine  # (N, 3)
-    spine_vec[:, 1] = 0  # Project to horizontal plane (set y to 0)
+    # Trunk lean (spine angle from vertical) — requires 3D poses (x, y, z):
+    # the projection zeroes y and takes arctan2(x, z). 2D-only poses (N, 17, 2)
+    # have no z, so return None for every frame rather than crash on spine_vec[:, 2].
+    if poses.shape[-1] < 3:
+        n_frames = poses.shape[0]
+        trunk_lean = np.full(n_frames, np.nan)
+    else:
+        spine_vec = neck - spine  # (N, 3)
+        spine_vec[:, 1] = 0  # Project to horizontal plane (set y to 0)
 
-    # Compute lean angle: arctan2(x, z)
-    trunk_lean = np.degrees(np.arctan2(spine_vec[:, 0], spine_vec[:, 2]))
+        # Compute lean angle: arctan2(x, z)
+        trunk_lean = np.degrees(np.arctan2(spine_vec[:, 0], spine_vec[:, 2]))
 
-    # Handle division by zero (when z=0)
-    z_zero = spine_vec[:, 2] == 0
-    trunk_lean[z_zero] = 0.0
+        # Handle division by zero (when z=0)
+        z_zero = spine_vec[:, 2] == 0
+        trunk_lean[z_zero] = 0.0
 
-    # Mark invalid frames
-    valid_spine = ~(np.isnan(spine).any(axis=1) | np.isnan(neck).any(axis=1))
-    trunk_lean[~valid_spine] = np.nan
+        # Mark invalid frames
+        valid_spine = ~(np.isnan(spine).any(axis=1) | np.isnan(neck).any(axis=1))
+        trunk_lean[~valid_spine] = np.nan
 
     # CoM height (hip center y-coordinate)
     com_height = hip_center[:, 1].copy()
