@@ -72,10 +72,26 @@ def _build_auth_data(route: dict, endpoint_name: str) -> dict:
     }
 
 
+# When Vast.ai has no ready worker (endpoint stopped, or workers still
+# loading/warming) the route response comes back with HTTP 200 and NO "url"
+# field — raise_for_status won't catch it, and a naive data["url"] lookup
+# crashes with KeyError. Detect the missing url and raise a retryable error so
+# the worker defers the task while the autoscaler spins a worker up.
+
+
+class NoReadyWorkerError(RuntimeError):
+    """Vast.ai has no ready worker for this endpoint right now.
+
+    Recoverable: the endpoint may be stopped or workers still loading/warming.
+    The caller should retry with a delay rather than fail the task outright.
+    """
+
+
 @retry(
     stop=stop_after_attempt(3),
     wait=wait_exponential(multiplier=1, min=2, max=10),
-    retry=retry_if_exception_type((httpx.TimeoutException, httpx.ConnectError)),
+    retry=retry_if_exception_type((httpx.TimeoutException, httpx.ConnectError, NoReadyWorkerError)),
+    reraise=True,
 )
 async def _async_route_request(endpoint_name: str, api_key: str) -> dict:
     """Get route + auth data from Vast.ai. Each call returns fresh signature."""
@@ -90,6 +106,12 @@ async def _async_route_request(endpoint_name: str, api_key: str) -> dict:
     data = resp.json()
     if "error_msg" in data:
         raise RuntimeError(f"Vast.ai route error: {data['error_msg']}")
+    # No "url" → no worker assigned. Vast.ai reports why in the "status" field.
+    if "url" not in data:
+        status = str(data.get("status", "")).strip().lower()
+        raise NoReadyWorkerError(
+            f"Vast.ai endpoint '{endpoint_name}' has no ready worker (status: {status or 'unknown'})."
+        )
     return {
         "url": data["url"],
         "signature": data["signature"],

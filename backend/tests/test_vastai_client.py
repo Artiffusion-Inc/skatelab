@@ -6,6 +6,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from app.vastai.client import (
+    NoReadyWorkerError,
     VastDetectResult,
     VastResult,
     _build_auth_data,
@@ -177,3 +178,97 @@ async def test_detect_video_remote_async_wraps_in_auth_data():
     assert len(result.persons) == 1
     assert result.auto_click == {"x": 500, "y": 1000}
     assert result.video_key == "uploads/test/video.mp4"
+
+
+@pytest.mark.asyncio
+async def test_async_route_request_endpoint_stopped_raises_no_ready_worker():
+    """Route returning 'endpoint stopped' (no url) → NoReadyWorkerError, not KeyError.
+
+    Vast.ai returns HTTP 200 with status:"endpoint stopped" and no url field when the
+    serverless endpoint is stopped. Previously this raised a bare KeyError("url"); now
+    it must raise a descriptive NoReadyWorkerError so the worker can retry with a delay.
+    """
+    from app.vastai.client import _async_route_request
+
+    mock_resp = MagicMock()
+    mock_resp.status_code = 200
+    mock_resp.raise_for_status = MagicMock()
+    mock_resp.json.return_value = {
+        "__request_id": "abc",
+        "endpoint": "skatelab-workers",
+        "request_idx": 0,
+        "status": "endpoint stopped",
+    }
+
+    mock_client = AsyncMock()
+    mock_client.post.return_value = mock_resp
+
+    with patch("app.vastai.client.get_async_client", return_value=mock_client):
+        # retry (3 attempts) exhausts then re-raises NoReadyWorkerError
+        with pytest.raises(NoReadyWorkerError, match="endpoint stopped"):
+            await _async_route_request("skatelab-workers", "test-key")
+
+
+@pytest.mark.asyncio
+async def test_async_route_request_workers_loading_raises_no_ready_worker():
+    """Route with workers still loading (no url) → NoReadyWorkerError.
+
+    Real Vast.ai response when an endpoint is active but no worker is ready yet:
+    {"status": "total workers: 1 loading workers: 1 standby workers: 0 error workers: 0"}.
+    No url → retryable NoReadyWorkerError, not a crash.
+    """
+    from app.vastai.client import _async_route_request
+
+    mock_resp = MagicMock()
+    mock_resp.status_code = 200
+    mock_resp.raise_for_status = MagicMock()
+    mock_resp.json.return_value = {
+        "endpoint": "skatelab-workers",
+        "request_idx": 182,
+        "status": "total workers: 1 loading workers: 1 standby workers: 0 error workers: 0",
+    }
+
+    mock_client = AsyncMock()
+    mock_client.post.return_value = mock_resp
+
+    with patch("app.vastai.client.get_async_client", return_value=mock_client):
+        with pytest.raises(NoReadyWorkerError, match="has no ready worker"):
+            await _async_route_request("skatelab-workers", "test-key")
+
+
+@pytest.mark.asyncio
+async def test_async_route_request_recovers_after_loading():
+    """NoReadyWorkerError is retried: a later route response with url succeeds.
+
+    First attempt: workers loading (no url). Second attempt: worker ready (has url).
+    The tenacity @retry on NoReadyWorkerError means the call eventually succeeds.
+    """
+    from app.vastai.client import _async_route_request
+
+    loading_resp = MagicMock()
+    loading_resp.status_code = 200
+    loading_resp.raise_for_status = MagicMock()
+    loading_resp.json.return_value = {
+        "endpoint": "skatelab-workers",
+        "request_idx": 1,
+        "status": "total workers: 1 loading workers: 1 standby workers: 0 error workers: 0",
+    }
+    ready_resp = MagicMock()
+    ready_resp.status_code = 200
+    ready_resp.raise_for_status = MagicMock()
+    ready_resp.json.return_value = {
+        "url": "https://worker-1.vast.ai:5000",
+        "signature": "sig",
+        "reqnum": 1,
+        "request_idx": 1,
+        "cost": 0.0,
+    }
+
+    mock_client = AsyncMock()
+    mock_client.post.side_effect = [loading_resp, ready_resp]
+
+    with patch("app.vastai.client.get_async_client", return_value=mock_client):
+        route = await _async_route_request("skatelab-workers", "test-key")
+
+    assert route["url"] == "https://worker-1.vast.ai:5000"
+    assert mock_client.post.await_count == 2

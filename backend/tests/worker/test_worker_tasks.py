@@ -211,6 +211,47 @@ class TestProcessVideoTask:
                 )
 
     @pytest.mark.asyncio
+    async def test_no_ready_worker_triggers_retry_queued(self, mock_valkey):
+        """NoReadyWorkerError (endpoint stopped / workers loading) → Retry + 'queued' event.
+
+        Previously a stopped endpoint caused a bare KeyError('url') which escaped the
+        worker's except tuple and crashed the task without a stored error or retry. Now
+        it must raise arq.Retry (so the autoscaler gets time to spin a worker up) and
+        publish a 'queued'/'warming up' event rather than 'failed'.
+        """
+        from app.vastai.client import NoReadyWorkerError
+        from app.worker import process_video_task
+        from arq import Retry
+
+        with (
+            patch(
+                "app.vastai.client.process_video_remote_async", new_callable=AsyncMock
+            ) as mock_remote,
+            patch("app.worker.store_error", new_callable=AsyncMock),
+            patch("app.worker.publish_task_event", new_callable=AsyncMock) as mock_publish,
+            patch("app.database.async_session_factory", create=True),
+        ):
+            mock_remote.side_effect = NoReadyWorkerError(
+                "Vast.ai endpoint 'skatelab-workers' has no ready worker "
+                "(status: endpoint stopped)."
+            )
+
+            with pytest.raises(Retry):
+                await process_video_task(
+                    ctx={"job_try": 1},
+                    task_id="proc_no_worker",
+                    video_key="input/video.mp4",
+                    person_click={"x": 100, "y": 200},
+                )
+
+        # The published event must be 'queued' (retryable), not 'failed'.
+        statuses = [
+            call.args[1].get("status") for call in mock_publish.call_args_list if len(call.args) > 1
+        ]
+        assert "failed" not in statuses
+        assert "queued" in statuses
+
+    @pytest.mark.asyncio
     async def test_with_session_id_saves_results(self, mock_valkey):
         """When session_id is provided, results are saved to DB."""
         from app.worker import process_video_task

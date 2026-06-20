@@ -39,6 +39,7 @@ from app.task_manager import (
     store_result,
     update_progress,
 )
+from app.vastai.client import NoReadyWorkerError
 from src.types import H36Key  # pyright: ignore[reportMissingImports]
 
 logger = logging.getLogger(__name__)
@@ -332,6 +333,9 @@ async def process_video_task(
                 element_type=element_type,
                 isu_code=isu_code,
             )
+        # NoReadyWorkerError is retryable in _async_route_request (3 attempts), so
+        # reaching here means the endpoint stayed workerless across all retries —
+        # re-raise as a Retry so arq defers it and the autoscaler gets more time.
         logger.info("Vast.ai processing complete for task %s", task_id)
         await update_progress(task_id, 0.7, "GPU processing complete")
         await publish_task_event(
@@ -509,6 +513,11 @@ async def process_video_task(
         return response_data
 
     except (OSError, ValueError, RuntimeError, ConnectionError, TimeoutError) as e:
+        # NoReadyWorkerError is retryable: the Vast.ai endpoint had no ready worker
+        # across route retries (workers still loading/warming, or endpoint stopped).
+        # Defer via Retry so the autoscaler gets time to spin a worker up — don't
+        # mark the task failed, just requeue it.
+        is_no_ready_worker = isinstance(e, NoReadyWorkerError)
         logger.exception("Pipeline task %s failed", task_id)
         await store_error(task_id, str(e))
 
@@ -521,14 +530,20 @@ async def process_video_task(
             retry_count=ctx.get("job_try", 1),
         )
 
+        error_msg = str(e).lower()
+        retryable = is_no_ready_worker or any(
+            term in error_msg for term in ["timeout", "connection", "network"]
+        )
         try:
+            event_status = "queued" if retryable else "failed"
+            event_message = "GPU worker warming up, retrying..." if is_no_ready_worker else str(e)
             await publish_task_event(
-                task_id, {"status": "failed", "progress": 0.0, "message": str(e)}
+                task_id,
+                {"status": event_status, "progress": 0.1, "message": event_message},
             )
         except (OSError, RuntimeError):
             logger.warning("Failed to publish error event for task %s", task_id)
-        error_msg = str(e).lower()
-        if any(term in error_msg for term in ["timeout", "connection", "network"]):
+        if retryable:
             raise Retry(defer=ctx.get("job_try", 1) * 10) from e
         raise
 
@@ -600,12 +615,27 @@ async def detect_video_task(
         )
         return result_data
 
-    except (httpx.TimeoutException, httpx.ConnectError, ConnectionError, TimeoutError) as e:
-        logger.warning("Vast.ai connection error for detect task %s: %s", task_id, e)
+    except (
+        NoReadyWorkerError,
+        httpx.TimeoutException,
+        httpx.ConnectError,
+        ConnectionError,
+        TimeoutError,
+    ) as e:
+        logger.warning("Vast.ai connection/no-worker error for detect task %s: %s", task_id, e)
         await store_error(task_id, str(e))
         with contextlib.suppress(OSError, RuntimeError):
             await publish_task_event(
-                task_id, {"status": "failed", "progress": 0.0, "message": str(e)}
+                task_id,
+                {
+                    "status": "queued",
+                    "progress": 0.1,
+                    "message": (
+                        "GPU worker warming up, retrying..."
+                        if isinstance(e, NoReadyWorkerError)
+                        else str(e)
+                    ),
+                },
             )
         raise Retry(defer=ctx.get("job_try", 1) * 10) from e
     except (OSError, ValueError, RuntimeError) as e:
