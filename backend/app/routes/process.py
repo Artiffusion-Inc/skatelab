@@ -17,7 +17,6 @@ from litestar.status_codes import HTTP_404_NOT_FOUND
 from app.auth.deps import CurrentUser
 from app.middleware.rate_limit import check_rate_limit
 from app.schemas import (
-    MLModelFlags,
     ProcessRequest,
     ProcessResponse,
     QueueProcessResponse,
@@ -54,14 +53,14 @@ class ProcessController(Controller):
 
         await create_task_state(task_id, video_key=data.video_key, user_id=str(user.id))
 
-        ml_flags = MLModelFlags(
-            lift_3d=data.lift_3d,
-            optical_flow=data.optical_flow,
-            segment=data.segment,
-            foot_track=data.foot_track,
-            matting=data.matting,
-            inpainting=data.inpainting,
-        )
+        ml_flags = {
+            "lift_3d": data.lift_3d,
+            "optical_flow": data.optical_flow,
+            "segment": data.segment,
+            "foot_track": data.foot_track,
+            "matting": data.matting,
+            "inpainting": data.inpainting,
+        }
 
         await request.app.state.arq_pool.enqueue_job(
             "process_video_task",

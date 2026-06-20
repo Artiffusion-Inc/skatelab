@@ -47,14 +47,14 @@ async def test_enqueue_process(client, auth_headers):
     assert call_kwargs["session_id"] == "sess_123"
     assert call_kwargs["_queue_name"] == "skatelab:queue:heavy"
 
-    # Verify MLModelFlags are passed correctly
+    # Verify ML model flags are passed as a dict to the arq job
     ml_flags = call_kwargs["ml_flags"]
-    assert ml_flags.lift_3d is False
-    assert ml_flags.optical_flow is False
-    assert ml_flags.segment is False
-    assert ml_flags.foot_track is False
-    assert ml_flags.matting is False
-    assert ml_flags.inpainting is False
+    assert ml_flags["lift_3d"] is False
+    assert ml_flags["optical_flow"] is False
+    assert ml_flags["segment"] is False
+    assert ml_flags["foot_track"] is False
+    assert ml_flags["matting"] is False
+    assert ml_flags["inpainting"] is False
 
 
 @pytest.mark.asyncio
@@ -78,12 +78,12 @@ async def test_enqueue_process_with_ml_flags(client, auth_headers):
 
     call_kwargs = client.app.state.arq_pool.enqueue_job.call_args.kwargs
     ml_flags = call_kwargs["ml_flags"]
-    assert ml_flags.lift_3d is True
-    assert ml_flags.optical_flow is True
-    assert ml_flags.segment is True
-    assert ml_flags.foot_track is True
-    assert ml_flags.matting is False
-    assert ml_flags.inpainting is False
+    assert ml_flags["lift_3d"] is True
+    assert ml_flags["optical_flow"] is True
+    assert ml_flags["segment"] is True
+    assert ml_flags["foot_track"] is True
+    assert ml_flags["matting"] is False
+    assert ml_flags["inpainting"] is False
 
 
 @pytest.mark.asyncio
