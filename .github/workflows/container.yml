@@ -42,13 +42,14 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Generate pre-signed R2 URLs for models
+      - name: Generate pre-signed S3 URLs for models
         id: presign
         run: |
           pip install boto3
           python ml/scripts/generate_model_presigned_urls.py --output /tmp/model_urls.json
           echo "moganet_url=$(jq -r .moganet /tmp/model_urls.json)" >> "$GITHUB_OUTPUT"
-          echo "yolo_url=$(jq -r .yolo /tmp/model_urls.json)" >> "$GITHUB_OUTPUT"
+          echo "rf_detr_url=$(jq -r .rf_detr /tmp/model_urls.json)" >> "$GITHUB_OUTPUT"
+          echo "tcpformer_url=$(jq -r .tcpformer /tmp/model_urls.json)" >> "$GITHUB_OUTPUT"
         env:
           S3_ENDPOINT_URL: ${{ secrets.S3_ENDPOINT_URL }}
           S3_ACCESS_KEY_ID: ${{ secrets.S3_ACCESS_KEY_ID }}
@@ -71,7 +72,8 @@ jobs:
             ghcr.io/${{ steps.ghcr.outputs.owner }}/skatelab-worker:${{ github.sha }}
           secrets: |
             moganet_url=${{ steps.presign.outputs.moganet_url }}
-            yolo_url=${{ steps.presign.outputs.yolo_url }}
+            rf_detr_url=${{ steps.presign.outputs.rf_detr_url }}
+            tcpformer_url=${{ steps.presign.outputs.tcpformer_url }}
 
       - name: Build summary
         if: always()
