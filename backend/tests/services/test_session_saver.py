@@ -121,6 +121,45 @@ async def test_save_analysis_happy_path():
     assert call_kwargs["overall_score"] == 1.0
 
 
+@pytest.mark.asyncio
+async def test_save_analysis_accepts_dict_metrics():
+    """Vast.ai returns metrics as dicts {"name","value"} — saver must accept that too.
+
+    Previously session_saver did `mr.name`/`mr.value`, which raised
+    AttributeError: 'dict' object has no attribute 'name' on dict metrics.
+    """
+    from app.services.session_saver import save_analysis_results
+
+    db = AsyncMock()
+    session = _make_session()
+
+    metrics = [
+        {"name": "airtime", "value": 0.5},
+        {"name": "max_height", "value": 0.3},
+    ]
+
+    with (
+        patch("app.services.session_saver.get_by_id", return_value=session),
+        patch("app.services.session_saver.get_current_best_batch", return_value={}),
+        patch("app.services.session_saver.bulk_create") as mock_bulk,
+        patch("app.services.session_saver.update"),
+    ):
+        await save_analysis_results(
+            db,
+            session_id="sess-1",
+            metrics=metrics,
+            phases=MagicMock(),
+            recommendations=[],
+        )
+
+    rows = mock_bulk.call_args[0][1]
+    assert len(rows) == 2
+    assert rows[0]["metric_name"] == "airtime"
+    assert rows[0]["metric_value"] == 0.5
+    assert rows[1]["metric_name"] == "max_height"
+    assert rows[1]["metric_value"] == 0.3
+
+
 # ---------------------------------------------------------------------------
 # save_analysis_results — metric outside range
 # ---------------------------------------------------------------------------

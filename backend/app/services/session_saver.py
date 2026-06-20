@@ -37,11 +37,18 @@ async def save_analysis_results(
     if not session:
         return
 
+    # Vast.ai delivers metrics as a list of dicts {"name", "value", ...}; local
+    # pipeline produces MetricResult dataclasses with .name/.value. Normalize to a
+    # list of dicts so this saver works with either shape.
+    metric_items = [
+        m if isinstance(m, dict) else {"name": m.name, "value": m.value} for m in metrics
+    ]
+
     # Build metric rows with PR tracking
     metric_rows = []
 
     # Batch-fetch all current bests in one query (N+1 fix)
-    metric_names = [mr.name for mr in metrics]
+    metric_names = [m["name"] for m in metric_items]
     bests = await get_current_best_batch(
         db,
         user_id=session.user_id,
@@ -49,25 +56,25 @@ async def save_analysis_results(
         metric_names=metric_names,
     )
 
-    for mr in metrics:
-        mdef = METRIC_REGISTRY.get(mr.name)
+    for m in metric_items:
+        mdef = METRIC_REGISTRY.get(m["name"])
         ref_value = mdef.ideal_range[0] if mdef else None
         ref_max = mdef.ideal_range[1] if mdef else None
 
         is_in_range = None
         if mdef and ref_value is not None and ref_max is not None:
-            is_in_range = ref_value <= mr.value <= ref_max
+            is_in_range = ref_value <= m["value"] <= ref_max
 
         # Check PR using batch-fetched best
-        current_best = bests.get(mr.name)
+        current_best = bests.get(m["name"])
         direction = mdef.direction if mdef else "higher"
-        is_pr, prev_best = check_pr(direction, current_best, mr.value)
+        is_pr, prev_best = check_pr(direction, current_best, m["value"])
 
         metric_rows.append(
             {
                 "session_id": session_id,
-                "metric_name": mr.name,
-                "metric_value": mr.value,
+                "metric_name": m["name"],
+                "metric_value": m["value"],
                 "is_pr": is_pr,
                 "prev_best": prev_best,
                 "reference_value": ref_value,
