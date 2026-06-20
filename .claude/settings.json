@@ -15,8 +15,8 @@
     "DISABLE_AUTOUPDATER": "1",
     "API_TIMEOUT_MS": "3000000",
     "CLAUDE_AUTOCOMPACT_PCT_OVERRIDE": "80",
-    "ANTHROPIC_DEFAULT_HAIKU_MODEL": "qwen3-coder-next",
-    "ANTHROPIC_DEFAULT_SONNET_MODEL": "glm-5.1",
+    "ANTHROPIC_DEFAULT_HAIKU_MODEL": "kimi-k2.7-code",
+    "ANTHROPIC_DEFAULT_SONNET_MODEL": "glm-5.2",
     "ANTHROPIC_DEFAULT_OPUS_MODEL": "kimi-k2.6"
   },
   "attribution": {
@@ -27,14 +27,11 @@
     "deny": [
       "WebSearch",
       "WebFetch",
-      "mcp__web_reader__webReader",
-      "EnterPlanMode",
-      "NotebookEdit",
-      "NotebookRead"
+      "EnterPlanMode"
     ],
     "defaultMode": "bypassPermissions"
   },
-  "model": "glm-5.1",
+  "model": "glm-5.2",
   "outputStyle": "caveman",
   "language": "russian",
   "spinnerVerbs": {
