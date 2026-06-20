@@ -416,7 +416,9 @@ class SessionResponse(BaseModel):
 
     @field_validator("created_at", "processed_at", mode="before")
     @classmethod
-    def validate_datetime(cls, v: Any) -> str:
+    def validate_datetime(cls, v: Any) -> str | None:
+        if v is None:
+            return None
         if isinstance(v, datetime):
             return v.isoformat()
         return str(v)
