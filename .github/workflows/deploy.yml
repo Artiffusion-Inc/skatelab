@@ -124,6 +124,53 @@ jobs:
 
           EOF
 
+  build-arq-worker:
+    name: Build ARQ Worker Image
+    needs: ci
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Lowercase GHCR owner
+        id: ghcr
+        run: echo "owner=${GITHUB_REPOSITORY_OWNER,,}" >> "$GITHUB_OUTPUT"
+
+      - name: Login to GHCR
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Blacksmith Builder
+        uses: useblacksmith/setup-docker-builder@v1
+
+      - name: Build & push ARQ Worker
+        id: build
+        uses: useblacksmith/build-push-action@v2
+        with:
+          context: .
+          file: backend/Containerfile.worker
+          push: true
+          tags: |
+            ghcr.io/${{ steps.ghcr.outputs.owner }}/skatelab-arq-worker:latest
+            ghcr.io/${{ steps.ghcr.outputs.owner }}/skatelab-arq-worker:${{ github.sha }}
+          cache-from: type=registry,ref=ghcr.io/${{ steps.ghcr.outputs.owner }}/skatelab-arq-worker:latest
+          cache-to: type=inline
+
+      - name: ARQ Worker build summary
+        if: always()
+        run: |
+          cat >> "$GITHUB_STEP_SUMMARY" <<EOF
+          ## ARQ Worker Build
+
+          | Metric | Value |
+          |--------|-------|
+          | Status | \`${{ steps.build.outcome }}\` |
+          | Image | \`ghcr.io/${{ steps.ghcr.outputs.owner }}/skatelab-arq-worker:${{ github.sha }}\` |
+
+          EOF
+
   deploy-files:
     name: Deploy Files to VPS
     needs: ci
@@ -158,7 +205,7 @@ jobs:
 
   deploy:
     name: Deploy to VPS
-    needs: [build-frontend, build-backend, deploy-files]
+    needs: [build-frontend, build-backend, build-arq-worker, deploy-files]
     runs-on: blacksmith-4vcpu-ubuntu-2404
     environment: production
     steps:
@@ -216,7 +263,7 @@ jobs:
 
   deploy-summary:
     name: Pipeline Summary
-    needs: [ci, build-frontend, build-backend, deploy-files, deploy]
+    needs: [ci, build-frontend, build-backend, build-arq-worker, deploy-files, deploy]
     runs-on: blacksmith-4vcpu-ubuntu-2404
     if: always()
     steps:

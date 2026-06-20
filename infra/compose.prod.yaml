@@ -38,6 +38,64 @@ services:
     networks:
       - infra
 
+  # ── arq worker: heavy queue (process_video_task → Vast.ai dispatch) ──
+  # Runs in prod on this host (no GPU needed — dispatches to Vast.ai Serverless).
+  # Image = backend deps + ml/src overlay (for src.types.H36Key at result-parse time).
+  worker-heavy:
+    image: ghcr.io/artiffusion-inc/skatelab-arq-worker:latest
+    restart: unless-stopped
+    command: ["arq", "app.worker.HeavyWorkerSettings"]
+    environment:
+      DATABASE_URL: postgresql+asyncpg://skatelab:${POSTGRES_PASSWORD}@infra-postgres-1/skatelab
+      VALKEY_URL: redis://infra-valkey-1:6379/3
+      S3_ENDPOINT_URL: ${S3_ENDPOINT_URL:-}
+      S3_PUBLIC_ENDPOINT_URL: ${S3_PUBLIC_ENDPOINT_URL:-}
+      S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:-}
+      S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:-}
+      S3_BUCKET: ${S3_BUCKET:-skatelab-pipeline}
+      S3_REGION: ${S3_REGION:-us-east-1}
+      S3_PATH_STYLE: ${S3_PATH_STYLE:-true}
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY}
+      VASTAI_API_KEY: ${VASTAI_API_KEY:-}
+      RESEND_API_KEY: ${RESEND_API_KEY:-}
+      POSTHOG_API_KEY: ${POSTHOG_API_KEY:-}
+      POSTHOG_HOST: ${POSTHOG_HOST:-https://us.i.posthog.com}
+      APP_DATA_DIR: ${APP_DATA_DIR:-/app/data}
+    deploy:
+      resources:
+        limits:
+          memory: 1g
+    networks:
+      - infra
+
+  # ── arq worker: fast queue (detect, music analysis, gamification, token cleanup cron) ──
+  worker-fast:
+    image: ghcr.io/artiffusion-inc/skatelab-arq-worker:latest
+    restart: unless-stopped
+    command: ["arq", "app.worker.FastWorkerSettings"]
+    environment:
+      DATABASE_URL: postgresql+asyncpg://skatelab:${POSTGRES_PASSWORD}@infra-postgres-1/skatelab
+      VALKEY_URL: redis://infra-valkey-1:6379/3
+      S3_ENDPOINT_URL: ${S3_ENDPOINT_URL:-}
+      S3_PUBLIC_ENDPOINT_URL: ${S3_PUBLIC_ENDPOINT_URL:-}
+      S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:-}
+      S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:-}
+      S3_BUCKET: ${S3_BUCKET:-skatelab-pipeline}
+      S3_REGION: ${S3_REGION:-us-east-1}
+      S3_PATH_STYLE: ${S3_PATH_STYLE:-true}
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY}
+      VASTAI_API_KEY: ${VASTAI_API_KEY:-}
+      RESEND_API_KEY: ${RESEND_API_KEY:-}
+      POSTHOG_API_KEY: ${POSTHOG_API_KEY:-}
+      POSTHOG_HOST: ${POSTHOG_HOST:-https://us.i.posthog.com}
+      APP_DATA_DIR: ${APP_DATA_DIR:-/app/data}
+    deploy:
+      resources:
+        limits:
+          memory: 512m
+    networks:
+      - infra
+
   frontend:
     image: ghcr.io/artiffusion-inc/skatelab-frontend:latest
     restart: unless-stopped
