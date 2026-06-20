@@ -379,7 +379,6 @@ jobs:
           DOCKER_BACKEND: ${{ needs.docker-backend.result }}
           DOCKER_FRONTEND: ${{ needs.docker-frontend.result }}
           DESIGN_CI: ${{ needs.design-ci.result }}
-          DANGER: ${{ needs.danger.result }}
           CHANGES: ${{ needs.changes.result }}
         run: |
           FAILED=0
@@ -406,7 +405,6 @@ jobs:
           check_job "Tests (Vitest)" "$FE_TEST"
           check_job "Docker Build (Backend)" "$DOCKER_BACKEND"
           check_job "Docker Build (Frontend)" "$DOCKER_FRONTEND"
-          echo "| :information_source: Danger (PR checks) | \`${DANGER}\` (informational) |" >> "$GITHUB_STEP_SUMMARY"
           check_job "Design Lint + Drift" "$DESIGN_CI"
 
           if [[ "$CHANGES" != "success" ]]; then

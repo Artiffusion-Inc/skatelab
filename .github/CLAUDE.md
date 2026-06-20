@@ -14,6 +14,8 @@
 | `renovate.yml` | Weekly (Mon 04:00) | Auto dependency updates |
 | `claude.yml` | Issue/PR comments with `@claude` mention | Claude Code via Ollama Cloud (open models) |
 
+> **Danger CI removed (2026-06-20).** Was failing on every PR due to `ERR_STREAM_PREMATURE_CLOSE` on the GitHub API fetch (ARM64 runner + node-fetch gzip), and even if fixed, its branch-naming rule conflicted with the worktree mandate (`worktree-*` branches). Commit/branch/PR-size conventions are now enforced solely by lefthook (`.commit-conventions` is the single source of truth).
+
 ## Composite Actions
 
 | Action | Purpose |
