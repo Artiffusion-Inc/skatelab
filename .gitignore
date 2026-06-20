@@ -149,3 +149,13 @@ runs/
 node_modules/
 scripts/design/build.log
 docs/design-audit.json
+
+# Nested external git clones (recoverable from their own remotes)
+/skating_repo/
+/skreate/
+
+# CocoIndex local index (large, machine-generated)
+.cocoindex_code/
+
+# TypeScript incremental build cache
+frontend/tsconfig.tsbuildinfo
