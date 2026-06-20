@@ -6,7 +6,6 @@ import contextlib
 import logging
 from contextlib import asynccontextmanager
 from typing import TYPE_CHECKING
-from urllib.parse import urlparse
 
 import redis.asyncio as aioredis
 from arq import create_pool
@@ -23,16 +22,6 @@ if TYPE_CHECKING:
     from litestar import Litestar
 
 logger = logging.getLogger(__name__)
-
-
-def _parse_redis_url(url: str) -> dict:
-    parsed = urlparse(url)
-    return {
-        "host": parsed.hostname or "localhost",
-        "port": parsed.port or 6379,
-        "database": int((parsed.path or "/0").lstrip("/") or 0),
-        "password": parsed.password or None,
-    }
 
 
 @asynccontextmanager
@@ -71,15 +60,7 @@ async def app_lifespan(app: Litestar) -> AsyncGenerator[None, None]:
     app.stores = StoreRegistry(default_factory=root_store.with_namespace)
 
     # 4. arq pool
-    arq_cfg = _parse_redis_url(url)
-    app.state.arq_pool = await create_pool(
-        RedisSettings(
-            host=arq_cfg["host"],
-            port=arq_cfg["port"],
-            database=arq_cfg["database"],
-            password=arq_cfg["password"],
-        )
-    )
+    app.state.arq_pool = await create_pool(RedisSettings(**settings.valkey.redis_kwargs()))
 
     try:
         yield

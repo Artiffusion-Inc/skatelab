@@ -1,0 +1,76 @@
+# syntax=docker/dockerfile:1.7
+# ============================================
+# Backend ARQ Worker Containerfile
+#
+# Runs the arq dispatch workers (HeavyWorkerSettings / FastWorkerSettings)
+# in production. These workers enqueue jobs to Vast.ai Serverless GPU and
+# persist results — they do NOT run the ML pipeline locally.
+#
+# Image = backend deps (no heavy ML) + ml/src overlay.
+# ml/src is needed only for lightweight ML types (src.types.H36Key) used
+# at result-parsing time. onnxruntime/torch are imported lazily inside ml
+# and are never triggered by the arq worker (no CUDA on the host).
+# ============================================
+
+FROM docker.io/library/python:3.11-slim AS base
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1
+
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    gcc \
+    libc6-dev \
+    libpq-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# ---------------------------------------------------------
+# Build dependencies (same venv as backend — no heavy ML deps)
+# ---------------------------------------------------------
+FROM base AS deps
+
+ENV UV_LINK_MODE=copy \
+    UV_COMPILE_BYTECODE=1 \
+    PATH="/app/.venv/bin:$PATH"
+
+COPY pyproject.toml uv.lock ./
+COPY backend/pyproject.toml ./backend/
+WORKDIR /app
+
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv venv /app/.venv \
+    && uv sync --frozen --no-dev --package backend --no-install-project
+
+# ---------------------------------------------------------
+# Runtime
+# ---------------------------------------------------------
+FROM docker.io/library/python:3.11-slim AS runner
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PATH="/app/.venv/bin:$PATH" \
+    PYTHONPATH="/app"
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libpq5 \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app/backend
+
+RUN groupadd --gid 1000 appuser \
+    && useradd --uid 1000 --gid appuser --create-home --shell /usr/sbin/nologin appuser
+
+COPY --from=deps --chown=appuser:appuser /app/.venv /app/.venv
+COPY --chown=appuser:appuser backend/ .
+COPY --chown=appuser:appuser ml/src/ /app/src/
+COPY --chown=appuser:appuser data/isu/ /app/data/isu/
+
+USER appuser
+
+# WORKER_SETTINGS injected per-service via compose command override.
+# arq logs to stdout; container restart policy handles crashes.
+CMD ["arq", "app.worker.HeavyWorkerSettings"]

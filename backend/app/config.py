@@ -18,7 +18,8 @@ Env Prefixes:
 
 from functools import lru_cache
 from pathlib import Path
-from typing import Literal
+from typing import Any, Literal
+from urllib.parse import urlparse
 
 from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings as _BaseSettings
@@ -63,6 +64,23 @@ class ValkeyConfig(BaseSettings):
             return self.url
         auth = f":{self.password.get_secret_value()}@" if self.password.get_secret_value() else ""
         return f"redis://{auth}{self.host}:{self.port}/{self.db}"
+
+    def redis_kwargs(self) -> dict[str, Any]:
+        """Parse VALKEY_URL (or host/port/db) into arq RedisSettings kwargs.
+
+        arq's RedisSettings has no `url` field — it needs host/port/database/
+        password parsed from the URL. Both the API lifespan and the arq workers
+        must resolve the same way, so the queue they enqueue to and the queue
+        the workers consume from match.
+        """
+        parsed = urlparse(self.build_url())
+        password = parsed.password
+        return {
+            "host": parsed.hostname or "localhost",
+            "port": parsed.port or 6379,
+            "database": int((parsed.path or "/0").lstrip("/") or 0),
+            "password": password,
+        }
 
     class Config:
         env_prefix = "VALKEY_"

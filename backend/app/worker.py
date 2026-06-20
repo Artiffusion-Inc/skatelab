@@ -837,12 +837,7 @@ class FastWorkerSettings:
         cron(cleanup_expired_tokens, minute=7),
     ]
 
-    redis_settings = RedisSettings(
-        host=_settings.valkey.host,
-        port=_settings.valkey.port,
-        database=_settings.valkey.db,
-        password=_settings.valkey.password.get_secret_value(),
-    )
+    redis_settings = RedisSettings(**_settings.valkey.redis_kwargs())
 
 
 class HeavyWorkerSettings:
@@ -859,9 +854,4 @@ class HeavyWorkerSettings:
     functions: ClassVar[list] = [process_video_task]
     cron_jobs: ClassVar[list] = []
 
-    redis_settings = RedisSettings(
-        host=_settings.valkey.host,
-        port=_settings.valkey.port,
-        database=_settings.valkey.db,
-        password=_settings.valkey.password.get_secret_value(),
-    )
+    redis_settings = RedisSettings(**_settings.valkey.redis_kwargs())

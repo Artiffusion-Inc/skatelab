@@ -22,11 +22,17 @@ echo "$GHCR_PAT" | /usr/bin/docker login ghcr.io -u "$GHCR_OWNER" --password-std
 cp /opt/skatelab/compose.prod.yaml /opt/skatelab/compose.yaml
 
 # Pull new images
-/usr/bin/docker compose pull backend frontend
+/usr/bin/docker compose pull backend frontend worker-heavy worker-fast
+# worker-* use skatelab-arq-worker image (compose maps service→image); pull by service name
 
 # Zero-downtime rollout for app services
 /usr/bin/docker rollout --timeout 60 backend
 /usr/bin/docker rollout --timeout 30 frontend
+
+# arq workers have no HTTP healthcheck — recreate directly (jobs persist in Valkey,
+# a restart just reconnects to the queue). Use --no-deps so worker startup never
+# blocks on backend/frontend health.
+/usr/bin/docker compose up -d --no-deps worker-heavy worker-fast
 
 # Update non-rollout services (prometheus etc)
 /usr/bin/docker compose up -d --remove-orphans --no-deps prometheus
