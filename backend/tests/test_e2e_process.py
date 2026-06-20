@@ -71,7 +71,7 @@ async def test_e2e_presign_enqueue_poll(client, auth_headers, mock_s3_client):
     assert enqueue_call.kwargs["frame_skip"] == 2
     assert enqueue_call.kwargs["tracking"] == "auto"
     ml_flags = enqueue_call.kwargs["ml_flags"]
-    assert ml_flags.lift_3d is True
+    assert ml_flags["lift_3d"] is True
 
     # 3. Poll status — running
     fake_running = {
@@ -270,5 +270,5 @@ async def test_e2e_multipart_upload_enqueue(client, auth_headers, mock_s3_client
     assert process_resp.status_code == 200
     enqueue_kwargs = client.app.state.arq_pool.enqueue_job.call_args.kwargs
     assert enqueue_kwargs["video_key"] == video_key
-    assert enqueue_kwargs["ml_flags"].lift_3d is True
-    assert enqueue_kwargs["ml_flags"].segment is True
+    assert enqueue_kwargs["ml_flags"]["lift_3d"] is True
+    assert enqueue_kwargs["ml_flags"]["segment"] is True
