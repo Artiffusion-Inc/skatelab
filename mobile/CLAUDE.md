@@ -28,7 +28,7 @@ Flutter → native Kotlin (05-09) → KMP shared module (05-22). Camera2 removed
 | **Charts** | Vico (Compose + Material 3) |
 | **Background** | WorkManager (chunked upload), Foreground Service (sensor recording) |
 | **Protobuf** | protobuf-javalite (IMU data serialization) |
-| **Testing** | kotlin-test, coroutines-test, MockK, Turbine, Mokkery (commonTest), Kover |
+| **Testing** | kotlin-test, coroutines-test, Mokkery (commonTest), Turbine, Kover |
 | **Lint** | ktlint |
 | **Build** | Gradle + build-logic conventions, configuration cache, KSP isolation |
 
@@ -108,17 +108,114 @@ Shared module: API client + auth + models — переиспользуется A
 
 Unified with frontend: OKLCH colors, Inter Variable font, same border-radius tokens. Style Dictionary generates CSS/Android/iOS tokens.
 
-## Build Policy
+## Build & Local Run
 
-**Remote build only.** Gradle full builds (`assembleDebug`, `assembleRelease`) require 4+ GB RAM — local machines risk OOM. Build only on:
+Полная сборка работает локально (машина с 62 Gi RAM). Debug APK для прогона в эмуляторе собираем локально; release/CI-верификацию — на GitHub Actions.
 
-1. **GitHub Actions** — `mobile.yml` workflow: shared tests, Android lint/test, debug APK build. Path-filtered, triggered on PR/push to master.
-2. **Dedic** — no Android build container exists yet. Could add one later if needed.
+```bash
+cd mobile
+./gradlew :androidApp:assembleDebug     # → androidApp/build/outputs/apk/debug/androidApp-debug.apk
+./gradlew :androidApp:assembleRelease    # нужен signing config
+./gradlew :androidApp:lint                # android lint
+./gradlew :androidApp:test                # unit-тесты
+```
 
-Locally allowed: `ktlintCheck`, `testDebugUnitTest`, `compileDebugKotlin` (lightweight, no full APK). Do NOT run `assembleDebug`/`assembleRelease` locally.
+GitHub Actions — `mobile.yml` (path-filtered): shared tests, Android lint/test, debug APK build, тирья lint/test/build. Код-чеки (ktlint, android lint, unit/Android tests, iOS tests) должны быть зелёными до мёрджа — часть `finishing-a-development-branch`.
+
+## Docker-эмулятор (основной способ прогона)
+
+Эмулятор **в контейнере**, не на хосте. Хостовый ADB конфликтует по порту 5037/правам — не используем. Всё через `docker exec skatelab-emulator ...`.
+
+- Образ `budtmo/docker-android:emulator_14.0` (Android 14, API 34), требует KVM (`/dev/kvm`).
+- Контейнер `skatelab-emulator`, управляется systemd-юнитом `skatelab-emulator.service` (compose + юнит в `mobile/e2e/systemd/`).
+- Healthcheck: `adb shell getprop sys.boot_completed` → `1`.
+- Maestro CLI стоит **внутри** контейнера: `/home/androidusr/.maestro/bin/maestro`.
+
+### Жизненный цикл
+
+```bash
+# Один раз (ставит Maestro CLI, gh, копирует compose/flows, стартует эмулятор):
+cd mobile/e2e && ./setup-emulator.sh
+
+# Дальше под systemd:
+systemctl status | start | stop skatelab-emulator.service
+```
+
+### Подготовка перед прогоном (после рестарта контейнера)
+
+```bash
+docker exec skatelab-emulator adb shell getprop sys.boot_completed                        # дождаться "1"
+docker exec skatelab-emulator adb shell service call locale 3 s16 ru.skatelab.capture s16 en-US  # локаль en-US для Maestro-селекторов
+docker exec skatelab-emulator adb shell svc wifi enable                                     # WiFi (после рестарта сбрасывается)
+docker exec skatelab-emulator adb shell pm grant ru.skatelab.capture android.permission.CAMERA
+```
+
+### Установка APK в эмулятор
+
+```bash
+docker cp androidApp/build/outputs/apk/debug/androidApp-debug.apk skatelab-emulator:/tmp/app-debug.apk
+docker exec skatelab-emulator adb install -r /tmp/app-debug.apk
+# Или из CI: mobile/e2e/run-e2e.sh --gh-run-id <run-id>  (тянет артефакт apk-debug)
+```
+
+## Maestro E2E
+
+Флоу: `mobile/e2e/maestro/flows/` — login, register, logout, tab-navigation, recording, upload-pipeline, session-detail, session-results, upload-queue, upload-processing-check, upload-network-error, processing-stages, gallery-upload.
+
+Скрипт `mobile/e2e/run-e2e.sh` прогоняет весь suite с retry-логикой и пишет JUnit XML в `/opt/skatelab-e2e/reports/`:
+```bash
+./run-e2e.sh --gh-run-id 12345         # скачать APK из CI и прогнать
+./run-e2e.sh --apk-path /tmp/app-debug.apk
+```
+
+Один флоу вручную:
+```bash
+docker exec -e HOME=/home/androidusr \
+  -e PATH=/home/androidusr/.maestro/bin:/usr/bin:/bin \
+  skatelab-emulator \
+  maestro test --device emulator-5554 /home/androidusr/flows/login.yaml
+```
+
+Перед копированием флоу в контейнер: `docker cp mobile/e2e/maestro/flows/. skatelab-emulator:/home/androidusr/flows/`
+
+**Тестовый аккаунт** (создан в backend, `is_verified=true`, живой на `api.skatelab.ru`): `test@skatelab.ru` / `Test123456`. login/register проходят против реального API.
+
+### Грабли Maestro 2.6.x (зашито в скрипты, но помнить)
+- **dADB-флакинг** (Maestro #1853): первая сессия ок, последующие `AndroidDriverTimeoutException`. Обход — retry: сначала `--no-reinstall-driver`, потом полный реинсталл драйвера. **Никогда** `pm clear` — убивает драйвер APK.
+- **Compose `testTag`** невидим для UI Automator → селекторы **по видимому тексту** (`"Email"`, `"Password"`, `"Log in"`), не по `testTag`/`contentDescription`.
+- **Мягкая клавиатура** перекрывает тапы → после каждого `inputText` делать `back`, потом тап по следующему полю.
+- Перед login-флоу: `adb shell pm clear ru.skatelab.capture` (чистый логин), заново грант камеру.
+
+## Ручное тыканье (ADB)
+
+Для UI-автоматации по подключённому ADB — навык `adb-device-testing`. Через контейнер:
+```bash
+# Запустить приложение
+docker exec skatelab-emulator adb shell am start -n ru.skatelab.capture/.MainActivity
+
+# Скриншот — основной «глаз»: прочитать как картинку (Read /tmp/shot.png)
+docker exec skatelab-emulator adb shell screencap -p /sdcard/shot.png
+docker cp skatelab-emulator:/sdcard/shot.png /tmp/shot.png
+
+# Логи / краши
+docker exec skatelab-emulator adb logcat -d -t 200 | grep -iE 'skatelab|AndroidRuntime|FATAL'
+
+# Ввод текста / тапы (когда Maestro избыточен)
+docker exec skatelab-emulator adb shell input text "test@skatelab.ru"
+docker exec skatelab-emulator adb shell input tap <x> <y>
+```
+
+Скриншоты — основной способ увидеть состояние UI. Воспроизводимые сценарии → Maestro-flow (не ручные тыки).
 
 ## Before Committing
 
 1. **Lint**: `./gradlew ktlintCheck`
 2. **Tests**: `./gradlew testDebugUnitTest`
 3. **Build verification**: push to PR — GitHub Actions runs full build + APK assembly
+
+## Документация
+
+- `docs/specs/2026-06-11-e2e-testing-design.md` — дизайн E2E
+- `docs/specs/2026-06-11-e2e-testing-research-report.md` — ресёрч E2E
+- `docs/plans/2026-05-28-e2e-maestro.md` — план реализации E2E
+- `mobile/e2e/maestro/assets/README.md`, `mobile/e2e/maestro/resources/README.md`
