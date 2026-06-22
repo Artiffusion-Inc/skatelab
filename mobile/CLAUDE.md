@@ -110,7 +110,7 @@ Unified with frontend: OKLCH colors, Inter Variable font, same border-radius tok
 
 ## Build & Local Run
 
-Полная сборка работает локально (машина с 62 Gi RAM). Debug APK для прогона в эмуляторе собираем локально; release/CI-верификацию — на GitHub Actions.
+Debug APK для прогона в эмуляторе собираем локально (машина 62 Gi RAM). Прямой путь `./gradlew :androidApp:assembleDebug` обычно работает, но локальный Gradle daemon нестабилен — периодически падает (OOM / порт-конфликты). Если прямой вызов упал, используй Docker-контейнер (ниже). Release и CI-верификацию — на GitHub Actions.
 
 ```bash
 cd mobile
@@ -120,9 +120,9 @@ cd mobile
 ./gradlew :androidApp:test                # unit-тесты
 ```
 
-### Сборка APK через Docker-контейнер
+### Сборка APK через Docker-контейнер (fallback при падении daemon'а)
 
-Локальный Gradle daemon падает (OOM / порт-конфликты). Сборка через Docker-образ `android-apk-builder:local` (JDK 17 + Android SDK 35):
+Когда локальный Gradle daemon падает (OOM / порт-конфликты) — собирай через Docker-образ `android-apk-builder:local` (JDK 17 + Android SDK 35), `--no-daemon`:
 
 ```bash
 docker run --rm -v "$(pwd)/..:/work" -w /work/mobile android-apk-builder:local \
