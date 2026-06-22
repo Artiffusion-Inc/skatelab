@@ -13,10 +13,13 @@ fun Throwable.toAppError(): AppError =
         is ResponseException -> this.response.status.toAppError()
         is IOException -> AppError.Network()
         else -> {
+            val throwable = this
             val detail = buildString {
-                append(this::class.simpleName ?: "Unknown")
-                if (!message.isNullOrEmpty()) append(": $message")
-                cause?.let { append(" | caused by: ${it::class.simpleName ?: "?"}: ${it.message ?: ""}") }
+                append(throwable::class.simpleName ?: "Unknown")
+                if (!throwable.message.isNullOrEmpty()) append(": ${throwable.message}")
+                throwable.cause?.let {
+                    append(" | caused by: ${it::class.simpleName ?: "?"}: ${it.message ?: ""}")
+                }
             }
             AppError.Unknown(detail = detail)
         }

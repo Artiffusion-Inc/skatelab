@@ -45,7 +45,14 @@ class AppErrorTest {
     fun toAppError_mapsUnknownToUnknownWithDetail() {
         val err = RuntimeException("boom").toAppError()
         assertIs<AppError.Unknown>(err)
-        assertEquals("boom", err.detail)
+        assertEquals("RuntimeException: boom", err.detail)
+    }
+
+    @Test
+    fun toAppError_unknownDetailIncludesCause() {
+        val err = RuntimeException("boom", IllegalStateException("root")).toAppError()
+        assertIs<AppError.Unknown>(err)
+        assertEquals("RuntimeException: boom | caused by: IllegalStateException: root", err.detail)
     }
 
     @Test

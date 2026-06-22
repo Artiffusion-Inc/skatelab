@@ -94,19 +94,27 @@ abstract class AppModule {
 
         @Provides
         @Singleton
-        fun provideSkateLabClient(tokenStorage: TokenStorage): SkateLabClient =
-            SkateLabClient(
-                baseUrl = BuildConfig.API_BASE_URL,
-                engine = OkHttp.create {
-                    config {
-                        val logging = okhttp3.logging.HttpLoggingInterceptor().apply {
-                            level = okhttp3.logging.HttpLoggingInterceptor.Level.BODY
+        fun provideSkateLabClient(tokenStorage: TokenStorage): SkateLabClient {
+            val logging =
+                okhttp3.logging.HttpLoggingInterceptor().apply {
+                    level =
+                        if (BuildConfig.DEBUG) {
+                            okhttp3.logging.HttpLoggingInterceptor.Level.BODY
+                        } else {
+                            okhttp3.logging.HttpLoggingInterceptor.Level.NONE
                         }
-                        addInterceptor(logging)
-                    }
-                },
+                }
+            return SkateLabClient(
+                baseUrl = BuildConfig.API_BASE_URL,
+                engine =
+                    OkHttp.create {
+                        config {
+                            addInterceptor(logging)
+                        }
+                    },
                 tokenStorage = tokenStorage,
             )
+        }
 
         @Provides
         @Singleton

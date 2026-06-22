@@ -39,16 +39,6 @@ import ru.skatelab.capture.R
 import ru.skatelab.shared.models.AppError
 import ru.skatelab.shared.state.AuthUiState
 
-private fun isNetworkError(message: String): Boolean {
-    val lower = message.lowercase()
-    return lower.contains("network") || lower.contains("connection") ||
-        lower.contains("timeout") || lower.contains("socket") ||
-        lower.contains("unreachable") || lower.contains("resolve") ||
-        lower.contains("connectexception") || lower.contains("ioexception") ||
-        lower.contains("unable to resolve host") || lower.contains("connection reset") ||
-        lower.contains("connection refused")
-}
-
 @Composable
 fun RegisterScreen(
     uiState: AuthUiState,
