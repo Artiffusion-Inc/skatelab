@@ -12,7 +12,14 @@ fun Throwable.toAppError(): AppError =
         is SocketTimeoutException, is HttpRequestTimeoutException -> AppError.Timeout()
         is ResponseException -> this.response.status.toAppError()
         is IOException -> AppError.Network()
-        else -> AppError.Unknown(detail = message)
+        else -> {
+            val detail = buildString {
+                append(this::class.simpleName ?: "Unknown")
+                if (!message.isNullOrEmpty()) append(": $message")
+                cause?.let { append(" | caused by: ${it::class.simpleName ?: "?"}: ${it.message ?: ""}") }
+            }
+            AppError.Unknown(detail = detail)
+        }
     }
 
 fun HttpStatusCode.toAppError(): AppError =

@@ -55,15 +55,25 @@ class AuthApi(
         email: String,
         password: String,
     ): TokenResponse {
-        val response =
-            client.post("auth/login") {
-                contentType(ContentType.Application.Json)
-                setBody(LoginRequest(email, password))
+        println("SKATELAB_DEBUG: login() called, email=$email, url=auth/login, baseUrl set in client")
+        return try {
+            val response =
+                client.post("auth/login") {
+                    contentType(ContentType.Application.Json)
+                    setBody(LoginRequest(email, password))
+                }
+            println("SKATELAB_DEBUG: response status=${response.status}")
+            if (!response.status.isSuccess()) {
+                throw ResponseException(response, response.status.description)
             }
-        if (!response.status.isSuccess()) {
-            throw ResponseException(response, response.status.description)
+            val body = response.body<TokenResponse>()
+            println("SKATELAB_DEBUG: login OK, got tokens")
+            body
+        } catch (e: Exception) {
+            println("SKATELAB_DEBUG: login FAILED: ${e::class.simpleName}: ${e.message}")
+            e.printStackTrace()
+            throw e
         }
-        return response.body()
     }
 
     suspend fun register(
