@@ -40,21 +40,6 @@ import ru.skatelab.capture.R
 import ru.skatelab.shared.models.AppError
 import ru.skatelab.shared.state.AuthUiState
 
-private fun isNetworkError(message: String): Boolean {
-    val lower = message.lowercase()
-    return lower.contains("network") ||
-        lower.contains("connection") ||
-        lower.contains("timeout") ||
-        lower.contains("socket") ||
-        lower.contains("unreachable") ||
-        lower.contains("resolve") ||
-        lower.contains("connectexception") ||
-        lower.contains("ioexception") ||
-        lower.contains("unable to resolve host") ||
-        lower.contains("connection reset") ||
-        lower.contains("connection refused")
-}
-
 @Composable
 fun LoginScreen(
     uiState: AuthUiState,
@@ -123,9 +108,13 @@ fun LoginScreen(
             val error = uiState.error
             val displayMsg =
                 when {
-                    isNetworkError(error.messageKey) -> stringResource(R.string.auth_no_network)
                     error is AppError.Unknown && error.detail != null ->
                         "${stringResource(R.string.error_unknown)}: ${error.detail}"
+                    error is AppError.Network -> stringResource(R.string.error_network)
+                    error is AppError.Auth -> stringResource(R.string.error_auth)
+                    error is AppError.Timeout -> stringResource(R.string.error_timeout)
+                    error is AppError.Server -> stringResource(R.string.error_server)
+                    error is AppError.NotFound -> stringResource(R.string.error_not_found)
                     else -> stringResource(R.string.error_unknown)
                 }
             Text(
