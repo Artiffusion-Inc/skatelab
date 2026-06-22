@@ -110,7 +110,7 @@ Unified with frontend: OKLCH colors, Inter Variable font, same border-radius tok
 
 ## Build & Local Run
 
-Полная сборка работает локально (машина с 62 Gi RAM). Debug APK для прогона в эмуляторе собираем локально; release/CI-верификацию — на GitHub Actions.
+Debug APK для прогона в эмуляторе собираем локально (машина 62 Gi RAM). Прямой путь `./gradlew :androidApp:assembleDebug` обычно работает, но локальный Gradle daemon нестабилен — периодически падает (OOM / порт-конфликты). Если прямой вызов упал, используй Docker-контейнер (ниже). Release и CI-верификацию — на GitHub Actions.
 
 ```bash
 cd mobile
@@ -119,6 +119,35 @@ cd mobile
 ./gradlew :androidApp:lint                # android lint
 ./gradlew :androidApp:test                # unit-тесты
 ```
+
+### Сборка APK через Docker-контейнер (fallback при падении daemon'а)
+
+Когда локальный Gradle daemon падает (OOM / порт-конфликты) — собирай через Docker-образ `android-apk-builder:local` (JDK 17 + Android SDK 35), `--no-daemon`:
+
+```bash
+docker run --rm -v "$(pwd)/..:/work" -w /work/mobile android-apk-builder:local \
+  bash -c 'chmod +x gradlew && ./gradlew :androidApp:assembleDebug --no-daemon --no-configuration-cache'
+```
+
+Docker создаёт build-файлы с правами root — `rm -rf shared/build androidApp/build` с хоста не работает. Очистка:
+
+```bash
+docker run --rm -v "$(pwd)/..:/work" android-apk-builder:local rm -rf /work/mobile/shared/build /work/mobile/androidApp/build
+```
+
+### ⚠️ Проверяй md5 после сборки
+
+**ВСЕГДА** проверяй md5 APK после сборки и перед отправкой/установкой. Gradle может **не пересобрать** APK при ошибке компиляции (`BUILD FAILED`), но старый APK остаётся в `build/outputs/apk/`. Несколько раз отправляли старый APK, не заметив что пересборка не произошла.
+
+```bash
+md5sum androidApp/build/outputs/apk/debug/androidApp-debug.apk   # сравни с предыдущим — должен отличаться
+```
+
+Также проверяй `BUILD SUCCESSFUL` в выводе — не `BUILD FAILED`. Если FAILED — читай `e: file://...` строки (ошибки компиляции Kotlin).
+
+### Ktor 3.x: response.request — функция, не property
+
+В Ktor 3.x `HttpResponse.request` — это **функция** (invoke), не property. `response.request.url` в некоторых контекстах вызывает `Function invocation 'request(...)' expected`. Избегай прямого доступа к `response.request` в println/строках — используй `response.status` только.
 
 GitHub Actions — `mobile.yml` (path-filtered): shared tests, Android lint/test, debug APK build, тирья lint/test/build. Код-чеки (ktlint, android lint, unit/Android tests, iOS tests) должны быть зелёными до мёрджа — часть `finishing-a-development-branch`.
 
