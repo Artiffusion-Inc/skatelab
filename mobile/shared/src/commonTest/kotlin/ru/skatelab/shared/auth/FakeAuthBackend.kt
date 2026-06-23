@@ -139,14 +139,15 @@ class FakeAuthBackend(
             path.endsWith("auth/refresh") -> {
                 val refreshIn = extractRefreshToken(body) ?: return@MockEngine respondError(
                     HttpStatusCode.Unauthorized, """{"detail":"Refresh token required"}""",
+                    headers = jsonHeaders(),
                 )
                 refreshCallCount += 1
                 val accountId = refreshTokenToAccount[refreshIn]
                 when {
                     accountId == null || refreshAlive[accountId] != true ->
-                        respondError(HttpStatusCode.Unauthorized, """{"detail":"Invalid or expired refresh token"}""")
+                        respondError(HttpStatusCode.Unauthorized, """{"detail":"Invalid or expired refresh token"}""", headers = jsonHeaders())
                     usedRefreshTokens.contains(refreshIn) ->
-                        respondError(HttpStatusCode.Unauthorized, """{"detail":"Token reuse detected. All sessions revoked."}""")
+                        respondError(HttpStatusCode.Unauthorized, """{"detail":"Token reuse detected. All sessions revoked."}""", headers = jsonHeaders())
                     else -> {
                         usedRefreshTokens.add(refreshIn)
                         val (newAccess, newRefresh) = issueTokensFor(accountId)
@@ -162,7 +163,7 @@ class FakeAuthBackend(
             path.endsWith("users/me") -> {
                 val acc = accountForAccessToken(authHeader)
                 if (acc == null || accessAlive[acc.id] != true) {
-                    respondError(HttpStatusCode.Unauthorized, """{"detail":"Unauthorized"}""")
+                    respondError(HttpStatusCode.Unauthorized, """{"detail":"Unauthorized"}""", headers = jsonHeaders())
                 } else {
                     respond(profileJson(acc), status = HttpStatusCode.OK, headers = jsonHeaders())
                 }
@@ -173,7 +174,7 @@ class FakeAuthBackend(
             path.endsWith("users/me/settings") -> {
                 val acc = accountForAccessToken(authHeader)
                 if (acc == null || accessAlive[acc.id] != true) {
-                    respondError(HttpStatusCode.Unauthorized, """{"detail":"Unauthorized"}""")
+                    respondError(HttpStatusCode.Unauthorized, """{"detail":"Unauthorized"}""", headers = jsonHeaders())
                 } else {
                     respond(profileJson(acc), status = HttpStatusCode.OK, headers = jsonHeaders())
                 }
@@ -182,7 +183,7 @@ class FakeAuthBackend(
             path.endsWith("sessions") && request.method.value == "GET" -> {
                 val acc = accountForAccessToken(authHeader)
                 if (acc == null || accessAlive[acc.id] != true) {
-                    respondError(HttpStatusCode.Unauthorized, """{"detail":"Unauthorized"}""")
+                    respondError(HttpStatusCode.Unauthorized, """{"detail":"Unauthorized"}""", headers = jsonHeaders())
                 } else {
                     respond(sessionsListJson(acc), status = HttpStatusCode.OK, headers = jsonHeaders())
                 }
@@ -191,18 +192,18 @@ class FakeAuthBackend(
             path.startsWith("/v1/sessions/") && request.method.value == "GET" -> {
                 val acc = accountForAccessToken(authHeader)
                 if (acc == null || accessAlive[acc.id] != true) {
-                    respondError(HttpStatusCode.Unauthorized, """{"detail":"Unauthorized"}""")
+                    respondError(HttpStatusCode.Unauthorized, """{"detail":"Unauthorized"}""", headers = jsonHeaders())
                 } else {
                     val sid = path.removePrefix("/v1/sessions/").removeSuffix("/")
                     if (acc.sessions.contains(sid)) {
                         respond(sessionJson(acc, sid), status = HttpStatusCode.OK, headers = jsonHeaders())
                     } else {
-                        respondError(HttpStatusCode.NotFound, """{"detail":"Not Found"}""")
+                        respondError(HttpStatusCode.NotFound, """{"detail":"Not Found"}""", headers = jsonHeaders())
                     }
                 }
             }
 
-            else -> respondError(HttpStatusCode.NotFound, """{"detail":"Not Found"}""")
+            else -> respondError(HttpStatusCode.NotFound, """{"detail":"Not Found"}""", headers = jsonHeaders())
         }
     }
 

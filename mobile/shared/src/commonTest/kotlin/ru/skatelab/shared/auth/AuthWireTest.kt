@@ -11,6 +11,7 @@ import io.ktor.client.request.post
 import io.ktor.client.request.setBody
 import io.ktor.http.ContentType
 import io.ktor.http.contentType
+import io.ktor.serialization.ContentConvertException
 import io.ktor.serialization.kotlinx.json.json
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
@@ -199,8 +200,10 @@ class AuthWireTest {
         try {
             usersApi.getMe()
             org.junit.Assert.fail("expected unauthorized")
-        } catch (e: io.ktor.client.plugins.ResponseException) {
-            // expected
+        } catch (e: io.ktor.serialization.ContentConvertException) {
+            // After a dead refresh the Auth plugin returns the original 401 to getMe().body(),
+            // which fails deserializing the error body into UserResponse — matches production's
+            // MissingFieldException on a 401 error body with required UserResponse fields.
         }
         // After a dead refresh, the refreshTokens block cleared tokenStorage.
         // NOTE: the harness wires the HttpClient directly (not via SkateLabClient),
@@ -279,8 +282,10 @@ class AuthWireTest {
         try {
             users.getMe()
             org.junit.Assert.fail("expected unauthorized")
-        } catch (e: io.ktor.client.plugins.ResponseException) {
-            // expected
+        } catch (e: io.ktor.serialization.ContentConvertException) {
+            // After a dead refresh the Auth plugin returns the original 401 to getMe().body(),
+            // which fails deserializing the error body into UserResponse — matches production's
+            // MissingFieldException on a 401 error body with required UserResponse fields.
         }
         assertEquals(1, backend.refreshCallCount())
 
