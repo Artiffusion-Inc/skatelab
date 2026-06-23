@@ -3,8 +3,6 @@ package ru.skatelab.shared.auth
 import io.ktor.client.engine.mock.MockEngine
 import io.ktor.client.engine.mock.respond
 import io.ktor.client.engine.mock.respondError
-import io.ktor.client.request.HttpRequestData
-import io.ktor.client.request.HttpResponseData
 import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
@@ -38,9 +36,8 @@ class FakeAuthBackend(
     private val accounts = mutableMapOf<String, Account>()            // id -> account
     private val accessTokenToAccount = mutableMapOf<String, String>() // accessToken -> accountId
     private val refreshTokenToAccount = mutableMapOf<String, String>() // refreshToken -> accountId
-    private var accessAlive = mutableMapOf<String, Boolean>()          // accountId -> access valid
-    private var refreshAlive = mutableMapOf<String, Boolean>()         // accountId -> refresh valid
-    private val issuedRefreshTokens = mutableSetOf<String>()           // tokens handed out by login
+    private val accessAlive = mutableMapOf<String, Boolean>()          // accountId -> access valid
+    private val refreshAlive = mutableMapOf<String, Boolean>()         // accountId -> refresh valid
     private val usedRefreshTokens = mutableSetOf<String>()             // rotated-away (single-use)
     private var refreshCallCount = 0
 
@@ -56,7 +53,19 @@ class FakeAuthBackend(
     }
 
     fun expireAccessToken(accountId: String) { accessAlive[accountId] = false }
-    fun revokeRefreshToken(accountId: String) { refreshAlive[accountId] = false }
+    fun revokeRefreshToken(accountId: String) {
+        refreshAlive[accountId] = false
+        // Mark ALL currently-issued refresh tokens for this account as used so they
+        // can never refresh again, even after a re-login re-enables refresh issuance.
+        val toRevoke = refreshTokenToAccount.filterValues { it == accountId }.keys.toList()
+        toRevoke.forEach { tok ->
+            usedRefreshTokens.add(tok)
+            refreshTokenToAccount.remove(tok)
+        }
+    }
+
+    /** Number of refresh-endpoint calls that presented a refresh token (successful or
+     *  rejected; does not count malformed/empty-body attempts). */
     fun refreshCallCount(): Int = refreshCallCount
 
     private fun jsonHeaders() =
@@ -69,7 +78,6 @@ class FakeAuthBackend(
         val refresh = "ref-$accountId-$n"
         accessTokenToAccount[access] = accountId
         refreshTokenToAccount[refresh] = accountId
-        issuedRefreshTokens.add(refresh)
         accessAlive[accountId] = true
         refreshAlive[accountId] = true
         return access to refresh
@@ -101,8 +109,9 @@ class FakeAuthBackend(
 
         when {
             path.endsWith("auth/login") -> {
-                val accountId = if (body.contains("b@skatelab.ru")) "b" else "a"
-                require(accounts.containsKey(accountId)) { "account $accountId not added" }
+                val email = extractEmail(body) ?: error("login body missing email")
+                val accountId = accounts.values.firstOrNull { it.email == email }?.id
+                    ?: error("no account registered for email $email")
                 val (access, refresh) = issueTokensFor(accountId)
                 respond(
                     """{"access_token":"$access","refresh_token":"$refresh","token_type":"bearer"}""",
@@ -114,10 +123,10 @@ class FakeAuthBackend(
             path.endsWith("auth/logout") -> respond("{}", status = HttpStatusCode.OK, headers = jsonHeaders())
 
             path.endsWith("auth/refresh") -> {
-                refreshCallCount += 1
                 val refreshIn = extractRefreshToken(body) ?: return@MockEngine respondError(
                     HttpStatusCode.Unauthorized, """{"detail":"Refresh token required"}""",
                 )
+                refreshCallCount += 1
                 val accountId = refreshTokenToAccount[refreshIn]
                 when {
                     accountId == null || refreshAlive[accountId] != true ->
@@ -145,6 +154,8 @@ class FakeAuthBackend(
                 }
             }
 
+            // Settings endpoint is only exercised for auth gating in this suite;
+            // deliberately returns the profile body (suite doesn't deserialize settings fields).
             path.endsWith("users/me/settings") -> {
                 val acc = accountForAccessToken(authHeader)
                 if (acc == null || accessAlive[acc.id] != true) {
@@ -183,6 +194,11 @@ class FakeAuthBackend(
 
     private fun extractRefreshToken(body: String): String? {
         val match = """"refresh_token"\s*:\s*"([^"]+)"""".toRegex().find(body)
+        return match?.groupValues?.get(1)
+    }
+
+    private fun extractEmail(body: String): String? {
+        val match = """"email"\s*:\s*"([^"]+)"""".toRegex().find(body)
         return match?.groupValues?.get(1)
     }
 
