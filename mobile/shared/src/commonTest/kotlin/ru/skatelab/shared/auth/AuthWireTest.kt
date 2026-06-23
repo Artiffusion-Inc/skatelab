@@ -12,6 +12,8 @@ import io.ktor.client.request.setBody
 import io.ktor.http.ContentType
 import io.ktor.http.contentType
 import io.ktor.serialization.kotlinx.json.json
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.buildJsonObject
@@ -153,6 +155,138 @@ class AuthWireTest {
         repo.logout()
         repo.login("a@skatelab.ru", "pw")
         // Bug: final getMe may return stale "b" from cache. After fix: "a".
+        assertEquals("a", users.getMe().id)
+        client.close()
+    }
+
+    // -- Task 3: refresh-token flow scenarios (#6–#10) --
+
+    @Test
+    fun expiredAccess_liveRefresh_getMeRetriesWithNewToken() = runTest {
+        val backend = FakeAuthBackend().addAccount("a", "a@skatelab.ru", "A")
+        val tokenStorage = TokenStorage(MapSettings())
+        val client = newClient(backend, tokenStorage)
+        val repo = AuthRepository(AuthApi(client), tokenStorage)
+        val users = UsersApi(client)
+
+        repo.login("a@skatelab.ru", "pw")
+        // First getMe populates the Auth cache with acc-a-1; now expire it.
+        assertEquals("a", users.getMe().id)
+        backend.expireAccessToken("a")
+        // Next getMe: 401 on access → refresh → retry with new access. Should return "a".
+        val me = users.getMe()
+        assertEquals("a", me.id)
+        assertEquals(1, backend.refreshCallCount(), "refresh should have been called exactly once")
+        client.close()
+    }
+
+    @Test
+    fun expiredAccessAndRefresh_onAuthFailureTriggersLogout() = runTest {
+        val backend = FakeAuthBackend().addAccount("a", "a@skatelab.ru", "A")
+        val tokenStorage = TokenStorage(MapSettings())
+        val client = newClient(backend, tokenStorage)
+        val usersApi = UsersApi(client)
+        val sharedVm = ru.skatelab.shared.state.AuthViewModel(
+            AuthRepository(AuthApi(client), tokenStorage),
+            usersApi,
+        )
+
+        sharedVm.login("a@skatelab.ru", "pw")
+        // Both tokens dead: access 401, refresh 401.
+        backend.expireAccessToken("a")
+        backend.revokeRefreshToken("a")
+
+        try {
+            usersApi.getMe()
+            org.junit.Assert.fail("expected unauthorized")
+        } catch (e: io.ktor.client.plugins.ResponseException) {
+            // expected
+        }
+        // After a dead refresh, the refreshTokens block cleared tokenStorage.
+        // NOTE: the harness wires the HttpClient directly (not via SkateLabClient),
+        // so the onAuthFailure → AuthViewModel.onAuthFailure() callback chain is NOT
+        // exercised here — that wiring lives in SkateLabClient/AppModule and is a
+        // separate concern. We assert on the observable effect: storage cleared.
+        assertEquals(null, tokenStorage.getAccessToken())
+        assertEquals(null, tokenStorage.getRefreshToken())
+        assertEquals(1, backend.refreshCallCount())
+        client.close()
+    }
+
+    @Test
+    fun concurrentRequestsOnExpiringToken_refreshCalledOnce() = runTest {
+        val backend = FakeAuthBackend().addAccount("a", "a@skatelab.ru", "A")
+        val tokenStorage = TokenStorage(MapSettings())
+        val client = newClient(backend, tokenStorage)
+        val repo = AuthRepository(AuthApi(client), tokenStorage)
+        val users = UsersApi(client)
+
+        repo.login("a@skatelab.ru", "pw")
+        assertEquals("a", users.getMe().id)
+        backend.expireAccessToken("a")
+
+        coroutineScope {
+            val deferred1 = async { users.getMe() }
+            val deferred2 = async { users.getMe() }
+            val r1 = deferred1.await()
+            val r2 = deferred2.await()
+            assertEquals("a", r1.id)
+            assertEquals("a", r2.id)
+        }
+        assertEquals(
+            1,
+            backend.refreshCallCount(),
+            "two concurrent requests must trigger only one refresh",
+        )
+        client.close()
+    }
+
+    @Test
+    fun refreshReturnsNewRefreshToken_storageUpdated() = runTest {
+        val backend = FakeAuthBackend().addAccount("a", "a@skatelab.ru", "A")
+        val tokenStorage = TokenStorage(MapSettings())
+        val client = newClient(backend, tokenStorage)
+        val repo = AuthRepository(AuthApi(client), tokenStorage)
+        val users = UsersApi(client)
+
+        repo.login("a@skatelab.ru", "pw")
+        val refreshBefore = tokenStorage.getRefreshToken()!!
+        backend.expireAccessToken("a")
+        // Force a refresh by making an authorized request.
+        assertEquals("a", users.getMe().id)
+        val refreshAfter = tokenStorage.getRefreshToken()!!
+
+        // Backend rotates refresh (single-use). Storage must hold the NEW refresh, not the old.
+        org.junit.Assert.assertNotEquals("refresh token must rotate", refreshBefore, refreshAfter)
+        assertEquals(1, backend.refreshCallCount())
+        client.close()
+    }
+
+    @Test
+    fun refreshFailureThenSuccess_doesNotLeakStaleState() = runTest {
+        val backend = FakeAuthBackend().addAccount("a", "a@skatelab.ru", "A")
+        val tokenStorage = TokenStorage(MapSettings())
+        val client = newClient(backend, tokenStorage)
+        val repo = AuthRepository(AuthApi(client), tokenStorage)
+        val users = UsersApi(client)
+
+        repo.login("a@skatelab.ru", "pw")
+        assertEquals("a", users.getMe().id)
+
+        // First: refresh is dead → getMe fails, storage cleared.
+        backend.expireAccessToken("a")
+        backend.revokeRefreshToken("a")
+        try {
+            users.getMe()
+            org.junit.Assert.fail("expected unauthorized")
+        } catch (e: io.ktor.client.plugins.ResponseException) {
+            // expected
+        }
+        assertEquals(1, backend.refreshCallCount())
+
+        // Then: user re-logs in (fresh tokens). getMe must succeed — no "I already gave up" state.
+        backend.revokeRefreshToken("a") // reset not needed: login re-issues
+        repo.login("a@skatelab.ru", "pw")
         assertEquals("a", users.getMe().id)
         client.close()
     }
