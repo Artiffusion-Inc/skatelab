@@ -120,6 +120,20 @@ class FakeAuthBackend(
                 )
             }
 
+            path.endsWith("auth/register") -> {
+                // Mirrors login: the account is pre-registered via addAccount(); register
+                // just issues a fresh token pair for it. Body carries email + display_name.
+                val email = extractEmail(body) ?: error("register body missing email")
+                val accountId = accounts.values.firstOrNull { it.email == email }?.id
+                    ?: error("no account registered for email $email")
+                val (access, refresh) = issueTokensFor(accountId)
+                respond(
+                    """{"access_token":"$access","refresh_token":"$refresh","token_type":"bearer"}""",
+                    status = HttpStatusCode.OK,
+                    headers = jsonHeaders(),
+                )
+            }
+
             path.endsWith("auth/logout") -> respond("{}", status = HttpStatusCode.OK, headers = jsonHeaders())
 
             path.endsWith("auth/refresh") -> {
