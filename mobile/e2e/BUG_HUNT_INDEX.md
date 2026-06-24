@@ -24,7 +24,7 @@ Bug-hunt E2E-набор гоняет полный цикл пользовате�
 | s4-cold-start-read-race | cold-start read race | **PASS** | — | Cold-start race не даёт stale/inconsistent; Profile показывает A корректно. Поверхность холодного старта здорова. |
 | s7-sessions-cross-account | sessions read-path leak | **FAIL** | **#327** | Login form не очищает email-поле / error-message после logout/failed-login → malformed email → 401. Новая находка (UI-state leak, не token-cache). |
 | s6-rate-limit-login | rate-limit edge | **FAIL (dup of #327)** | #327 | Та же болезнь #327: после failed login кнопка "Log in" → "Retry", email-поле не очищено → `tapOn: "Log in"` не находит элемент на 2-й итерации. Не отдельный баг — проявление #327. (Rate-limit handling как таковой не верифицирован из-за этого блокера — отдельный прогон после фикса #327.) |
-| s2-register-immediate-read | register → immediate read (manual, unique email) | **SKIP** | — | Manual flow, требует уникальный email каждый прогон. Не прогонялся в этом suite — следующая итерация. |
+| s2-register-immediate-read | register → immediate read (manual, unique email) | **PASS** | — | Manual прогон 2026-06-24 с уникальным email `e2e-20260624-s2b@skatelab.ru`: register → немедленный Profile показывает свежий аккаунт корректно. Register→read здоров (нет stale-кэша после register — register выдаёт свежие токены, в отличие от logout→login). |
 
 ## Найденные недоработки (новые / подтверждённые)
 
@@ -49,8 +49,8 @@ Bug-hunt E2E-набор гоняет полный цикл пользовате�
 
 ## Не верифицировано
 
-- **S2** (register → immediate read) — manual flow, нужен уникальный email. Следующая итерация.
 - **S6 rate-limit handling** — блокирован #327 (не дошёл до проверки rate-limit-обработки). Повторить после фикса #327.
+- **S2** верифицирован 2026-06-24 (PASS) — см. таблицу выше.
 
 ## Triage legend
 
@@ -59,4 +59,4 @@ Bug-hunt E2E-набор гоняет полный цикл пользовате�
 - **FLAKY** — единичный красный, не воспроизводится → не баг
 - **SKIP** — пропуск с причиной
 
-Порядок прогона: S5 (baseline) → S1 → S3 → S4 → S7 → S6 (последним — загрязняет rate-limit счётчик; заблокирован #327 до проверки). S2 — manual, отдельный прогон с уникальным email.
+Порядок прогона: S5 (baseline) → S1 → S3 → S4 → S7 → S6 (последним — загрязняет rate-limit счётчик; заблокирован #327 до проверки). S2 — manual, отдельный прогон с уникальным email (верифицирован 2026-06-24, PASS).
