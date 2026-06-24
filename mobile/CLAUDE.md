@@ -170,13 +170,36 @@ cd mobile/e2e && ./setup-emulator.sh
 systemctl status | start | stop skatelab-emulator.service
 ```
 
+### Второй эмулятор для параллельных прогонов (два тестировщика)
+
+Если два человека гоняют Maestro-флоу одновременно на одном хосте — единственный `skatelab-emulator` даёт конфликты (dADB, driver, порт 5554). Подними второй изолированный контейнер:
+
+```bash
+docker run -d --name skatelab-emulator-2 --device /dev/kvm \
+  -p 127.0.0.1:5556:5554 -p 127.0.0.1:5557:5555 \
+  -e EMULATOR_FLAGS="-no-window -no-audio -no-boot-anim -gpu swiftshader_indirect -memory 2048 -netfast -accel on -partition-size 1024 -no-snapshot-save" \
+  -e DATAPARTITION="1024m" --tmpfs /data:size=2G \
+  -v skatelab_emulator2_data:/root/.android --cpus=4 --memory=16G --restart=unless-stopped \
+  budtmo/docker-android:emulator_14.0
+```
+
+**Грабли второго эмулятора (важно):**
+- **НЕ** передавай `-port 5556` в `EMULATOR_FLAGS` — `budtmo/docker-android` v3.4.2 жёстко проверяет `emulator-5554` для boot; кастомный порт ломает boot-check (`RuntimeError: booted is checked 59 times`). Эмулятор внутри **обоих** контейнеров остаётся `emulator-5554`; изоляция — через remap хост-портов (`5556:5554`, `5557:5555`), у каждого контейнера своё adb-пространство.
+- **Boot МЕДЛЕННЫЙ (~8 мин)** когда два эмулятора делят `/dev/kvm` (`-accel on` + swiftshader software-render). supervisord-процесс `device` сдаётся через ~2 мин (`RuntimeError: booted is checked 59 times!`), но **QEMU продолжает работать** и `sys.boot_completed` становится `1` позже (~8 мин). RuntimeError supervisord игнорируй — полли `adb shell getprop sys.boot_completed` напрямую.
+- После boot: `adb shell svc wifi enable` + ~12s (свежий эмулятор без сети; проверка `ping 8.8.8.8`).
+- Maestro CLI не персистится между рестартами — ставь в контейнер (`wget maestro.zip` → `/home/androidusr/.maestro`), см. memory `second-android-emulator-setup`.
+- Прогон на втором эмуляторе: `docker exec -e HOME=/home/androidusr -e PATH=/home/androidusr/.maestro/bin:/usr/bin:/bin skatelab-emulator-2 maestro test --device emulator-5554 /home/androidusr/flows/<flow>.yaml`.
+
 ### Подготовка перед прогоном (после рестарта контейнера)
 
 ```bash
 docker exec skatelab-emulator adb shell getprop sys.boot_completed                        # дождаться "1"
 docker exec skatelab-emulator adb shell service call locale 3 s16 ru.skatelab.capture s16 en-US  # локаль en-US для Maestro-селекторов
 docker exec skatelab-emulator adb shell svc wifi enable                                     # WiFi (после рестарта сбрасывается)
-docker exec skatelab-emulator adb shell pm grant ru.skatelab.capture android.permission.CAMERA
+# ВСЕ dangerous-разрешения после pm clear (одно CAMERA недостаточно — иначе BLE "nearby devices" dialog блокирует flow):
+for p in android.permission.CAMERA android.permission.BLUETOOTH_SCAN android.permission.BLUETOOTH_CONNECT; do
+  docker exec skatelab-emulator adb shell pm grant ru.skatelab.capture $p
+done
 ```
 
 ### Установка APK в эмулятор
@@ -213,7 +236,9 @@ docker exec -e HOME=/home/androidusr \
 - **dADB-флакинг** (Maestro #1853): первая сессия ок, последующие `AndroidDriverTimeoutException`. Обход — retry: сначала `--no-reinstall-driver`, потом полный реинсталл драйвера. **Никогда** `pm clear` — убивает драйвер APK.
 - **Compose `testTag`** невидим для UI Automator → селекторы **по видимому тексту** (`"Email"`, `"Password"`, `"Log in"`), не по `testTag`/`contentDescription`.
 - **Мягкая клавиатура** перекрывает тапы → после каждого `inputText` делать `back`, потом тап по следующему полю.
-- Перед login-флоу: `adb shell pm clear ru.skatelab.capture` (чистый логин), заново грант камеру.
+- Перед login-флоу: `adb shell pm clear ru.skatelab.capture` (чистый логин), заново грант **все** dangerous-разрешения (CAMERA + BLUETOOTH_SCAN + BLUETOOTH_CONNECT — `pm clear` сбрасывает гранты; одно CAMERA недостаточно, иначе BLE "find nearby devices" dialog блокирует flow и login падает с "Network error").
+- **`addMedia`** резолвит `./assets/...` **относительно flow-файла**, не CWD. Assets должны лежать рядом с flow: `/home/androidusr/flows/assets/` (а не только `/home/androidusr/assets/`). Иначе `Media File Not Found` при одиночном прогоне flow. В `flows/` (UID 1002) для mkdir используй `docker exec -u 0` или `docker cp` напрямую.
+- **Airplane-mode тогглинг** (Maestro `setAirplaneMode`) может сбросить WiFi эмулятора. Если login показывает "Network error. Check your connection." mid-suite — `adb shell svc wifi enable` + проверить `settings get global wifi_on` (= 2).
 
 ## Ручное тыканье (ADB)
 
