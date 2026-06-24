@@ -32,24 +32,57 @@ class MetricDef:
     ideal_range: tuple[float, float]
 
 
-# Element type groups
+# Element type groups — ISU code families (canonical).
+# Replaces the legacy slug vocabulary (waltz_jump, three_turn, upright_spin, ...).
+AXEL_FAMILY = ("1A", "2A", "3A", "4A")
+TOE_LOOP_FAMILY = ("1T", "2T", "3T", "4T")
+SALCHOW_FAMILY = ("1S", "2S", "3S", "4S")
+LOOP_FAMILY = ("1Lo", "2Lo", "3Lo", "4Lo")
+FLIP_FAMILY = ("1F", "2F", "3F", "4F")
+LUTZ_FAMILY = ("1Lz", "2Lz", "3Lz", "4Lz")
+EULER = ("1Eu",)
+
 JUMP_ELEMENTS = (
-    "waltz_jump",
-    "toe_loop",
-    "flip",
-    "salchow",
-    "loop",
-    "lutz",
-    "axel",
+    *AXEL_FAMILY,
+    *TOE_LOOP_FAMILY,
+    *SALCHOW_FAMILY,
+    *LOOP_FAMILY,
+    *FLIP_FAMILY,
+    *LUTZ_FAMILY,
+    *EULER,
 )
 
 SPIN_ELEMENTS = (
-    "upright_spin",
-    "one_foot_spin",
-    "scratch_spin",
+    "CSp1",
+    "CSp2",
+    "CSp3",
+    "CSp4",
+    "FSp1",
+    "FSp2",
+    "FSp3",
+    "FSp4",
+    "LSp1",
+    "LSp2",
+    "LSp3",
+    "LSp4",
+    "USp1",
+    "USp2",
+    "USp3",
+    "USp4",
+    "CSpB1",
+    "CSpB2",
+    "CSpB3",
+    "CSpB4",
 )
 
-ALL_ELEMENTS = (*JUMP_ELEMENTS, "three_turn", *SPIN_ELEMENTS)
+STEP_ELEMENTS = ("StSq1", "StSq2", "StSq3", "StSq4")
+CHOREO_ELEMENTS = ("ChSq1",)
+
+# Metrics formerly under the "three_turn" slug (turn/edge technique) now apply
+# to step sequences — the closest ISU element family for turn technique.
+TURN_METRIC_ELEMENTS = STEP_ELEMENTS
+
+ALL_ELEMENTS = JUMP_ELEMENTS + SPIN_ELEMENTS + STEP_ELEMENTS + CHOREO_ELEMENTS
 
 
 # Metric registry
@@ -163,14 +196,14 @@ METRIC_REGISTRY: dict[str, MetricDef] = {
         element_types=JUMP_ELEMENTS,
         ideal_range=(0.5, 1.0),
     ),
-    # Step-specific metrics
+    # Step/turn technique metrics (formerly under "three_turn")
     "knee_angle": MetricDef(
         name="knee_angle",
         label_ru="Угол колена",
         unit="deg",
         format=".0f",
         direction="lower",
-        element_types=("three_turn",),
+        element_types=TURN_METRIC_ELEMENTS,
         ideal_range=(100, 140),
     ),
     "trunk_lean": MetricDef(
@@ -179,7 +212,7 @@ METRIC_REGISTRY: dict[str, MetricDef] = {
         unit="deg",
         format=".1f",
         direction="lower",
-        element_types=("three_turn",),
+        element_types=TURN_METRIC_ELEMENTS,
         ideal_range=(-15, 20),
     ),
     "edge_change_smoothness": MetricDef(
@@ -188,7 +221,7 @@ METRIC_REGISTRY: dict[str, MetricDef] = {
         unit="score",
         format=".2f",
         direction="higher",
-        element_types=("three_turn",),
+        element_types=TURN_METRIC_ELEMENTS,
         ideal_range=(0.1, 0.5),
     ),
     # Spin-specific metrics
@@ -236,7 +269,7 @@ METRIC_REGISTRY: dict[str, MetricDef] = {
         unit="deg",
         format=".0f",
         direction="higher",
-        element_types=("three_turn",),
+        element_types=TURN_METRIC_ELEMENTS,
         ideal_range=(150, 180),
     ),
     "ina_bauer_score": MetricDef(
@@ -245,7 +278,7 @@ METRIC_REGISTRY: dict[str, MetricDef] = {
         unit="score",
         format=".2f",
         direction="higher",
-        element_types=("three_turn",),
+        element_types=TURN_METRIC_ELEMENTS,
         ideal_range=(0.7, 1.0),
     ),
     "spiral_indicator": MetricDef(
@@ -254,7 +287,7 @@ METRIC_REGISTRY: dict[str, MetricDef] = {
         unit="norm",
         format=".3f",
         direction="lower",
-        element_types=("three_turn",),
+        element_types=TURN_METRIC_ELEMENTS,
         ideal_range=(0, 0.05),
     ),
     # GOE-derived metrics
@@ -264,7 +297,7 @@ METRIC_REGISTRY: dict[str, MetricDef] = {
         unit="score",
         format=".2f",
         direction="higher",
-        element_types=(*JUMP_ELEMENTS, *SPIN_ELEMENTS, "three_turn"),
+        element_types=(*JUMP_ELEMENTS, *SPIN_ELEMENTS, *STEP_ELEMENTS),
         ideal_range=(0.0, 20.0),
     ),
 }
@@ -274,13 +307,15 @@ def get_metrics_for_element(element_type: str) -> dict[str, MetricDef]:
     """Return metrics applicable to a given element type.
 
     Args:
-        element_type: Element type identifier (e.g., "waltz_jump", "three_turn")
+        element_type: ISU element code (e.g., "3A", "CSp4", "StSq1", "ChSq1")
 
     Returns:
         Dictionary mapping metric names to MetricDef objects
 
     Raises:
-        ValueError: If element_type is not recognized
+        ValueError: If element_type is not a recognized ISU code. Legacy
+            slug vocabulary ("waltz_jump", "three_turn", "axel", ...) is
+            rejected — callers must pass canonical ISU codes.
     """
     if element_type not in ALL_ELEMENTS:
         raise ValueError(f"Unknown element type: {element_type}. Valid options: {ALL_ELEMENTS}")
