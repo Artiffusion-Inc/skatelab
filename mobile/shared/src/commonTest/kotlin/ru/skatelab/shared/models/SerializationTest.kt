@@ -9,7 +9,7 @@ import ru.skatelab.shared.models.PhasesData
 import ru.skatelab.shared.models.FrameMetrics
 import ru.skatelab.shared.models.Phase
 import ru.skatelab.shared.models.phaseForFrame
-import ru.skatelab.shared.models.elementLabelRu
+import ru.skatelab.shared.models.elementTypes
 import ru.skatelab.shared.models.MetricsRegistryResponse
 import ru.skatelab.shared.models.MetricDefinition
 import ru.skatelab.shared.models.TrendResponse
@@ -22,6 +22,7 @@ import ru.skatelab.shared.models.SummaryResponse
 import ru.skatelab.shared.models.SessionUpdateRequest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 
 class SerializationTest {
     private val json = Json { ignoreUnknownKeys = true }
@@ -74,15 +75,27 @@ class SerializationTest {
     }
 
     @Test
-    fun elementLabelRu_returnsRussianLabel() {
-        assertEquals("Аксель", "axel".elementLabelRu())
-        assertEquals("Флип", "flip".elementLabelRu())
-        assertEquals("Тулуп", "toe_loop".elementLabelRu())
+    fun elementTypes_containsExpectedCatalog() {
+        // Canonical element keys are the backend contract (metrics_registry.py);
+        // display strings are resolved per-locale in the UI layer (#331). The list
+        // must keep the picker catalog stable and in the same order across builds.
+        assertEquals(
+            listOf("waltz_jump", "toe_loop", "flip", "lutz", "salchow", "loop", "axel", "three_turn", "spin"),
+            elementTypes,
+        )
     }
 
     @Test
-    fun elementLabelRu_fallbackCapitalizes() {
-        assertEquals("Unknown_element", "unknown_element".elementLabelRu())
+    fun elementTypes_coversBackendJumpAndSpinVocabulary() {
+        // Every backend jump element and the spin/three-turn markers must be
+        // representable in the UI catalog (no element the backend can return is
+        // unmappable). Drift here is the bug class #331 guards against.
+        val backendJumps = listOf("waltz_jump", "toe_loop", "flip", "salchow", "loop", "lutz", "axel")
+        val backendOthers = listOf("three_turn", "spin")
+        // assertTrue (kotlin.test) instead of built-in assert(): Kotlin/Native requires
+        // ExperimentalNativeApi opt-in for assert, which breaks iOS test compilation.
+        backendJumps.forEach { assertTrue(it in elementTypes, "missing jump element key: $it") }
+        backendOthers.forEach { assertTrue(it in elementTypes, "missing non-jump element key: $it") }
     }
 
     @Test

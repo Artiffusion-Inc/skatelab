@@ -52,9 +52,9 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import ru.skatelab.capture.R
+import ru.skatelab.capture.ui.elements.elementLabel
 import ru.skatelab.shared.models.SessionResponse
-import ru.skatelab.shared.models.elementLabelRu
-import ru.skatelab.shared.models.elementLabelsRu
+import ru.skatelab.shared.models.elementTypes
 import ru.skatelab.shared.state.SessionsUiState
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -182,14 +182,14 @@ fun SessionListScreen(
                                 },
                                 label = { Text(stringResource(R.string.filter_all)) },
                             )
-                            elementLabelsRu.forEach { (key, label) ->
+                            elementTypes.forEach { key ->
                                 FilterChip(
                                     selected = selectedElementType == key,
                                     onClick = {
                                         selectedElementType = key
                                         viewModel.loadSessions(elementType = key)
                                     },
-                                    label = { Text(label) },
+                                    label = { Text(elementLabel(key)) },
                                 )
                             }
                         }
@@ -277,7 +277,7 @@ internal fun SessionCard(
         ) {
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = session.elementType.elementLabelRu(),
+                    text = elementLabel(session.elementType),
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.SemiBold,
                 )

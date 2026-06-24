@@ -214,6 +214,9 @@
     <string name="element_toe_loop">Toe loop</string>
     <string name="element_toe_loop_flip">Toe loop (flip)</string>
     <string name="element_cascade">Cascade</string>
+    <string name="element_waltz_jump">Waltz jump</string>
+    <string name="element_three_turn">Three turn</string>
+    <string name="element_spin">Spin</string>
 
     <!-- Recording -->
     <string name="recording_left_battery">L: %1$d%%</string>

@@ -38,9 +38,9 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import ru.skatelab.capture.R
+import ru.skatelab.capture.ui.elements.elementLabel
 import ru.skatelab.shared.models.DiagnosticsFinding
 import ru.skatelab.shared.models.SessionResponse
-import ru.skatelab.shared.models.elementLabelRu
 import ru.skatelab.shared.state.DashboardData
 import ru.skatelab.shared.state.DashboardState
 
@@ -297,7 +297,7 @@ private fun PrCard(
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Text(
-                text = elementType.elementLabelRu(),
+                text = elementLabel(elementType),
                 style = MaterialTheme.typography.labelLarge,
                 fontWeight = FontWeight.SemiBold,
             )
@@ -350,7 +350,7 @@ private fun RecentSessionRow(
         ) {
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = session.elementType.elementLabelRu(),
+                    text = elementLabel(session.elementType),
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.SemiBold,
                 )

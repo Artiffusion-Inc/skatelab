@@ -38,7 +38,7 @@ class SessionListScreenTest {
                 onClick = {},
             )
         }
-        composeRule.onNodeWithText("axel").assertIsDisplayed()
+        composeRule.onNodeWithText("Axel").assertIsDisplayed()
     }
 
     @Test
@@ -68,6 +68,6 @@ class SessionListScreenTest {
                 onClick = {},
             )
         }
-        composeRule.onNodeWithText("lutz").assertIsDisplayed()
+        composeRule.onNodeWithText("Lutz").assertIsDisplayed()
     }
 }
