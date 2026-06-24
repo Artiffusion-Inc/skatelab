@@ -1,0 +1,13 @@
+appId: ru.skatelab.capture
+---
+# Reusable login partial. Expects login screen visible.
+# Usage: runFlow: { file: ../partials/login_as.yaml, env: { EMAIL: "x@y", PASSWORD: "z" } }
+- assertVisible: "Log in to your account"
+- tapOn: "Email"
+- inputText: ${EMAIL}
+- back
+- tapOn: "Password"
+- inputText: ${PASSWORD}
+- back
+- tapOn: "Log in"
+- assertVisible: "Camera"
