@@ -199,6 +199,9 @@
     <string name="element_toe_loop">Тулуп</string>
     <string name="element_toe_loop_flip">Тулуп (флип)</string>
     <string name="element_cascade">Каскад</string>
+    <string name="element_waltz_jump">Вальсовый прыжок</string>
+    <string name="element_three_turn">Тройной</string>
+    <string name="element_spin">Вращение</string>
 
     <string name="recording_left_battery">Л: %1$d%%</string>
     <string name="recording_right_battery">П: %1$d%%</string>

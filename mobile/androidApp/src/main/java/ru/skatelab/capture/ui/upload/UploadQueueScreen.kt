@@ -40,7 +40,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import ru.skatelab.capture.R
 import ru.skatelab.capture.data.db.PendingUploadEntity
-import ru.skatelab.shared.models.elementLabelRu
+import ru.skatelab.capture.ui.elements.elementLabel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -130,7 +130,7 @@ internal fun UploadCard(
                         fontWeight = FontWeight.Medium,
                     )
                     Text(
-                        text = (entity.elementType ?: "axel").elementLabelRu(),
+                        text = elementLabel(entity.elementType ?: "axel"),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )

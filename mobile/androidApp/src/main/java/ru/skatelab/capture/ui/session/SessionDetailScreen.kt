@@ -57,8 +57,8 @@ import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.PlayerView
 import kotlinx.coroutines.isActive
 import ru.skatelab.capture.R
+import ru.skatelab.capture.ui.elements.elementLabel
 import ru.skatelab.capture.ui.skeleton.DynamicSkeletonOverlay
-import ru.skatelab.shared.models.elementLabelRu
 import ru.skatelab.shared.state.SessionDetailState
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
@@ -81,7 +81,7 @@ fun SessionDetailScreen(
                 title = {
                     val title =
                         (uiState as? SessionDetailState.Loaded)
-                            ?.session?.elementType?.elementLabelRu()
+                            ?.session?.elementType?.let { elementLabel(it) }
                             ?: stringResource(R.string.session_detail_result_fallback)
                     Text(title)
                 },
@@ -265,7 +265,7 @@ private fun SessionDetailContent(
                         color = MaterialTheme.colorScheme.primary,
                     )
                     Text(
-                        text = session.elementType.elementLabelRu(),
+                        text = elementLabel(session.elementType),
                         style = MaterialTheme.typography.labelLarge,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(bottom = 8.dp),

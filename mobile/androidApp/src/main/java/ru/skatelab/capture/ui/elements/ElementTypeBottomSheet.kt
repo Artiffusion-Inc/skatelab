@@ -26,7 +26,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import ru.skatelab.capture.R
-import ru.skatelab.shared.models.elementLabelsRu
+import ru.skatelab.shared.models.elementTypes
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -53,7 +53,7 @@ fun ElementTypeBottomSheet(
             Spacer(modifier = Modifier.height(16.dp))
 
             Column(modifier = Modifier.selectableGroup()) {
-                elementLabelsRu.forEach { (key, label) ->
+                elementTypes.forEach { key ->
                     Row(
                         modifier =
                             Modifier
@@ -74,7 +74,7 @@ fun ElementTypeBottomSheet(
                             onClick = null,
                         )
                         Text(
-                            text = label,
+                            text = elementLabel(key),
                             modifier = Modifier.padding(start = 12.dp),
                             style = androidx.compose.material3.MaterialTheme.typography.bodyLarge,
                         )
