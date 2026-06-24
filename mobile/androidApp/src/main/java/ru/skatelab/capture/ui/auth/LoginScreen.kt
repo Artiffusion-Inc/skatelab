@@ -55,6 +55,13 @@ fun LoginScreen(
         if (uiState is AuthUiState.LoggedIn) {
             onNavigateToCamera()
         }
+        // After logout (or any transition back to LoggedOut), clear the form so the
+        // next login attempt starts from a fresh state — not a stale email/error
+        // left over from the previous session (#327).
+        if (uiState is AuthUiState.LoggedOut) {
+            email = ""
+            password = ""
+        }
     }
 
     Column(

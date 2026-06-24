@@ -131,6 +131,7 @@ abstract class AppModule {
             AuthRepository(
                 client.auth,
                 tokenStorage,
+                client::clearAuthCache,
             )
 
         @Provides
