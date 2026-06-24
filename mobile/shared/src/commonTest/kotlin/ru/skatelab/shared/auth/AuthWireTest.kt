@@ -26,6 +26,8 @@ import ru.skatelab.shared.api.UsersApi
 import ru.skatelab.shared.models.TokenResponse
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNotEquals
+import kotlin.test.fail
 
 class AuthWireTest {
     private val json = Json { ignoreUnknownKeys = true; isLenient = true }
@@ -131,7 +133,7 @@ class AuthWireTest {
         // Bug: Auth plugin reuses cached acc -> returns "a" instead of 401.
         try {
             val me = users.getMe()
-            org.junit.Assert.fail("expected unauthorized after logout, got profile id=${me.id}")
+            fail("expected unauthorized after logout, got profile id=${me.id}")
         } catch (e: io.ktor.client.plugins.ResponseException) {
             // expected: 401
         }
@@ -214,7 +216,7 @@ class AuthWireTest {
 
         try {
             usersApi.getMe()
-            org.junit.Assert.fail("expected unauthorized")
+            fail("expected unauthorized")
         } catch (e: io.ktor.client.plugins.ResponseException) {
             // Dead refresh: Auth plugin returns the original 401; UsersApi.expectSuccess() now
             // surfaces it as ResponseException (mapped by toAppError to AppError.Auth) instead
@@ -275,7 +277,7 @@ class AuthWireTest {
         val refreshAfter = tokenStorage.getRefreshToken()!!
 
         // Backend rotates refresh (single-use). Storage must hold the NEW refresh, not the old.
-        org.junit.Assert.assertNotEquals("refresh token must rotate", refreshBefore, refreshAfter)
+        assertNotEquals(refreshBefore, refreshAfter, "refresh token must rotate")
         assertEquals(1, backend.refreshCallCount())
         client.close()
     }
@@ -296,7 +298,7 @@ class AuthWireTest {
         backend.revokeRefreshToken("a")
         try {
             users.getMe()
-            org.junit.Assert.fail("expected unauthorized")
+            fail("expected unauthorized")
         } catch (e: io.ktor.client.plugins.ResponseException) {
             // Dead refresh: Auth plugin returns the original 401; UsersApi.expectSuccess() now
             // surfaces it as ResponseException (#321 fix) instead of JsonConvertException.

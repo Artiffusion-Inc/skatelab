@@ -26,6 +26,7 @@ import ru.skatelab.shared.auth.TokenStorage
 import ru.skatelab.shared.models.TokenResponse
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNotNull
 
 /**
  * Session read-path integration scenarios (#11–#14).
@@ -179,10 +180,10 @@ class SessionReadAuthTest {
         // error. It must NOT silently return the previous account's sessions. Bug: the Auth
         // plugin's cached bearer token survives logout, so this succeeds with a-sess-1.
         val err = runCatching { sessions.list() }.exceptionOrNull()
-        org.junit.Assert.assertNotNull(
+        assertNotNull(
+            err,
             "expected sessions.list() to FAIL after logout, but it silently returned a list " +
                 "(Auth plugin reused the cached token for account A — auth-cache leak class #314)",
-            err,
         )
         client.close()
     }
