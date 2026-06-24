@@ -17,6 +17,8 @@ def test_family_to_isu_composes_jump_code():
     assert family_to_isu("A", 3) == "3A"
     assert family_to_isu("T", 1) == "1T"
     assert family_to_isu("Eu", 1) == "1Eu"
+    assert family_to_isu("1A", 0) == "1A"  # waltz = single axel, rotations ignored
+    assert family_to_isu(ML_TYPE_TO_FAMILY["waltz_jump"], 3) == "1A"
 
 
 def test_ml_type_to_family_covers_tas_vocabulary():
