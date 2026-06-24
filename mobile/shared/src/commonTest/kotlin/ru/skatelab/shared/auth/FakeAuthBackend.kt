@@ -189,12 +189,15 @@ class FakeAuthBackend(
                 }
             }
 
-            path.startsWith("/v1/sessions/") && request.method.value == "GET" -> {
+            // sessions/{id} detail — match with or without the /v1/ API prefix, so the
+            // harness's bare HttpClient (no baseUrl defaultRequest) routes identically to
+            // a SkateLabClient with the production /v1 baseUrl.
+            path.contains(Regex("/sessions/[^/]+/?$")) && request.method.value == "GET" -> {
                 val acc = accountForAccessToken(authHeader)
                 if (acc == null || accessAlive[acc.id] != true) {
                     respondError(HttpStatusCode.Unauthorized, """{"detail":"Unauthorized"}""", headers = jsonHeaders())
                 } else {
-                    val sid = path.removePrefix("/v1/sessions/").removeSuffix("/")
+                    val sid = path.substringAfterLast("/sessions/").removeSuffix("/")
                     if (acc.sessions.contains(sid)) {
                         respond(sessionJson(acc, sid), status = HttpStatusCode.OK, headers = jsonHeaders())
                     } else {

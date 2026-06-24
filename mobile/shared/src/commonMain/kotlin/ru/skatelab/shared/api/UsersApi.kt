@@ -7,10 +7,11 @@ import io.ktor.http.*
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import ru.skatelab.shared.models.UserResponse
+import ru.skatelab.shared.utils.expectSuccess
 
 class UsersApi(private val client: HttpClient) {
     suspend fun getMe(): UserResponse =
-        client.get("users/me").body()
+        client.get("users/me").expectSuccess().body()
 
     suspend fun updateProfile(
         displayName: String? = null,
@@ -26,7 +27,7 @@ class UsersApi(private val client: HttpClient) {
                 heightCm?.let { put("height_cm", it) }
                 weightKg?.let { put("weight_kg", it) }
             })
-        }.body()
+        }.expectSuccess().body()
 
     suspend fun updateSettings(
         angularUnit: String? = null,
@@ -42,5 +43,5 @@ class UsersApi(private val client: HttpClient) {
                 timezone?.let { put("timezone", it) }
                 theme?.let { put("theme", it) }
             })
-        }.body()
+        }.expectSuccess().body()
 }

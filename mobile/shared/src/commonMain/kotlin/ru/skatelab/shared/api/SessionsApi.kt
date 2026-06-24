@@ -11,13 +11,14 @@ import kotlinx.serialization.json.put
 import ru.skatelab.shared.models.SessionResponse
 import ru.skatelab.shared.models.SessionListResponse
 import ru.skatelab.shared.models.SessionUpdateRequest
+import ru.skatelab.shared.utils.expectSuccess
 
 @Serializable
 data class BulkDeleteRequest(@SerialName("session_ids") val ids: List<String>)
 
 class SessionsApi(private val client: HttpClient) {
     suspend fun get(id: String): SessionResponse =
-        client.get("sessions/$id").body()
+        client.get("sessions/$id").expectSuccess().body()
 
     suspend fun list(
         limit: Int = 20,
@@ -28,7 +29,7 @@ class SessionsApi(private val client: HttpClient) {
             parameter("limit", limit)
             if (cursor != null) parameter("cursor", cursor)
             if (elementType != null) parameter("element_type", elementType)
-        }.body()
+        }.expectSuccess().body()
 
     suspend fun create(
         elementType: String,
@@ -44,22 +45,22 @@ class SessionsApi(private val client: HttpClient) {
                 imuLeftKey?.let { put("imu_left_key", it) }
                 imuRightKey?.let { put("imu_right_key", it) }
             })
-        }.body()
+        }.expectSuccess().body()
 
     suspend fun delete(id: String) {
-        client.delete("sessions/$id")
+        client.delete("sessions/$id").expectSuccess()
     }
 
     suspend fun update(id: String, request: SessionUpdateRequest): SessionResponse =
         client.patch("sessions/$id") {
             contentType(ContentType.Application.Json)
             setBody(request)
-        }.body()
+        }.expectSuccess().body()
 
     suspend fun bulkDelete(ids: List<String>) {
         client.delete("sessions/bulk") {
             contentType(ContentType.Application.Json)
             setBody(BulkDeleteRequest(ids))
-        }
+        }.expectSuccess()
     }
 }

@@ -8,6 +8,7 @@ import ru.skatelab.shared.models.UploadInitResponse
 import ru.skatelab.shared.models.UploadCompleteRequest
 import ru.skatelab.shared.models.CompletedPart
 import kotlinx.serialization.Serializable
+import ru.skatelab.shared.utils.expectSuccess
 
 class UploadsApi(private val client: HttpClient) {
     /** Initialize a multipart upload. Backend uses query parameters. */
@@ -16,7 +17,7 @@ class UploadsApi(private val client: HttpClient) {
             parameter("file_name", fileName)
             parameter("content_type", contentType)
             parameter("total_size", totalSize)
-        }.body()
+        }.expectSuccess().body()
 
     /** Complete a multipart upload after all parts are uploaded to R2. */
     suspend fun complete(uploadId: String, key: String, parts: List<CompletedPart>) {
@@ -31,7 +32,7 @@ class UploadsApi(private val client: HttpClient) {
         client.post("uploads/presign") {
             parameter("file_name", fileName)
             parameter("content_type", contentType)
-        }.body()
+        }.expectSuccess().body()
 }
 
 @Serializable

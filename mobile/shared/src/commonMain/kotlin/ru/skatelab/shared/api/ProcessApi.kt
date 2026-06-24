@@ -15,6 +15,7 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import ru.skatelab.shared.models.ProcessEvent
 import ru.skatelab.shared.models.ProcessStatus
+import ru.skatelab.shared.utils.expectSuccess
 
 private val sseJson = Json { ignoreUnknownKeys = true }
 
@@ -37,10 +38,10 @@ class ProcessApi(private val client: HttpClient) : IProcessApi {
                 personClick = if (personClickX != null && personClickY != null)
                     PersonClick(personClickX, personClickY) else null,
             ))
-        }.body()
+        }.expectSuccess().body()
 
     override suspend fun status(taskId: String): TaskStatusResponse =
-        client.get("process/$taskId/status").body()
+        client.get("process/$taskId/status").expectSuccess().body()
 
     override suspend fun cancel(taskId: String) {
         client.post("process/$taskId/cancel")
@@ -52,7 +53,7 @@ class ProcessApi(private val client: HttpClient) : IProcessApi {
         while (retries <= maxRetries) {
             try {
                 val response: HttpResponse = client.get("process/$taskId/stream")
-                val channel: ByteReadChannel = response.body()
+                val channel: ByteReadChannel = response.expectSuccess().body()
                 val buffer = StringBuilder()
                 var receivedEvent = false
                 while (!channel.isClosedForRead) {
