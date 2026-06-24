@@ -116,6 +116,34 @@ async def test_registry_returns_metric_definitions(client):
 
 
 # ---------------------------------------------------------------------------
+# GET /metrics/elements — ISU element registry (public, no auth)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_elements_returns_full_registry(client):
+    """GET /metrics/elements returns the full ISU element registry (public)."""
+    from app.services.choreography.elements_db import ELEMENTS
+
+    response = await client.get("/v1/metrics/elements")
+    assert response.status_code == 200
+    body = response.json()
+
+    assert "registry_version" in body
+    assert isinstance(body["elements"], list)
+
+    codes = {e["code"] for e in body["elements"]}
+    assert set(ELEMENTS.keys()) <= codes
+    assert len(body["elements"]) == len(ELEMENTS)
+
+    # Spot-check the 3A entry
+    axel3 = next(e for e in body["elements"] if e["code"] == "3A")
+    assert axel3["name_en"] == "Triple Axel"
+    assert axel3["name_ru"]  # localized, non-empty
+    assert axel3["family"] == "A"
+
+
+# ---------------------------------------------------------------------------
 # GET /metrics/trend
 # ---------------------------------------------------------------------------
 

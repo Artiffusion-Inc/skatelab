@@ -844,3 +844,20 @@ class TrainingPlanResponse(BaseModel):
 
 class GenerateTrainingPlanRequest(BaseModel):
     session_id: str
+
+
+# ---------------------------------------------------------------------------
+# ISU element registry
+# ---------------------------------------------------------------------------
+
+
+class ElementResponse(BaseModel):
+    """ISU element registry entry — canonical code + localized names."""
+
+    code: str
+    name_ru: str
+    name_en: str
+    type: str
+    family: str
+    rotations: float
+    base_value: float

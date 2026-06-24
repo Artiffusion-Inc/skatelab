@@ -21,9 +21,11 @@ from app.models.session import Session, SessionMetric
 from app.schemas import (
     DiagnosticsFinding,
     DiagnosticsResponse,
+    ElementResponse,
     TrendDataPoint,
     TrendResponse,
 )
+from app.services.choreography.elements_db import ELEMENTS
 from app.services.diagnostics import (
     check_consistently_below_range,
     check_declining_trend,
@@ -31,6 +33,9 @@ from app.services.diagnostics import (
     check_new_pr,
     check_stagnation,
 )
+
+# Bumped when the ISU element registry changes shape. Clients cache by this.
+REGISTRY_VERSION = 1
 
 
 class MetricsController(Controller):
@@ -51,6 +56,25 @@ class MetricsController(Controller):
                 "ideal_range": list(m.ideal_range),
             }
             for name, m in METRIC_REGISTRY.items()
+        }
+
+    @get("/elements")
+    async def get_elements(self) -> dict:
+        """ISU element registry — canonical codes + localized names."""
+        return {
+            "registry_version": REGISTRY_VERSION,
+            "elements": [
+                ElementResponse(
+                    code=e.code,
+                    name_ru=e.name_ru,
+                    name_en=e.name_en,
+                    type=e.type.value,
+                    family=e.family,
+                    rotations=e.rotations,
+                    base_value=e.base_value,
+                ).model_dump()
+                for e in ELEMENTS.values()
+            ],
         }
 
     @get("/trend")
