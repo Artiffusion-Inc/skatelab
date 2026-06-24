@@ -22,6 +22,7 @@ import ru.skatelab.shared.models.SummaryResponse
 import ru.skatelab.shared.models.SessionUpdateRequest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 
 class SerializationTest {
     private val json = Json { ignoreUnknownKeys = true }
@@ -91,8 +92,10 @@ class SerializationTest {
         // unmappable). Drift here is the bug class #331 guards against.
         val backendJumps = listOf("waltz_jump", "toe_loop", "flip", "salchow", "loop", "lutz", "axel")
         val backendOthers = listOf("three_turn", "spin")
-        backendJumps.forEach { assert(it in elementTypes) { "missing jump element key: $it" } }
-        backendOthers.forEach { assert(it in elementTypes) { "missing non-jump element key: $it" } }
+        // assertTrue (kotlin.test) instead of built-in assert(): Kotlin/Native requires
+        // ExperimentalNativeApi opt-in for assert, which breaks iOS test compilation.
+        backendJumps.forEach { assertTrue(it in elementTypes, "missing jump element key: $it") }
+        backendOthers.forEach { assertTrue(it in elementTypes, "missing non-jump element key: $it") }
     }
 
     @Test
