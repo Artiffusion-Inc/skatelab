@@ -5,6 +5,8 @@ import io.ktor.client.HttpClient
 import io.ktor.client.engine.mock.MockEngine
 import io.ktor.client.engine.mock.respond
 import io.ktor.client.plugins.auth.Auth
+import io.ktor.client.plugins.auth.AuthConfig
+import io.ktor.client.plugins.auth.providers.BearerAuthProvider
 import io.ktor.client.plugins.auth.providers.BearerTokens
 import io.ktor.client.plugins.auth.providers.bearer
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
@@ -77,10 +79,16 @@ class AuthRepositoryCacheBugReproTest {
             }
         }
 
+        // Capture the Auth plugin config during install so we can reach its
+        // `providers` later — the public Ktor API does not expose them via
+        // `plugin(Auth)` (returns ClientPluginInstance, not the config).
+        lateinit var authConfig: AuthConfig
+
         val client =
             HttpClient(engine) {
                 install(ContentNegotiation) { json(json) }
                 install(Auth) {
+                    authConfig = this
                     bearer {
                         loadTokens {
                             val access = tokenStorage.getAccessToken() ?: return@loadTokens null
@@ -95,7 +103,14 @@ class AuthRepositoryCacheBugReproTest {
                 }
             }
 
-        val repo = AuthRepository(AuthApi(client), tokenStorage)
+        // Mirror SkateLabClient.clearAuthCache(): clear the Auth plugin's in-memory
+        // cache so logout/login forces loadTokens to re-read storage.
+        val clearCache: () -> Unit = {
+            authConfig.providers
+                .filterIsInstance<BearerAuthProvider>()
+                .forEach { it.clearToken() }
+        }
+        val repo = AuthRepository(AuthApi(client), tokenStorage, clearCache)
         val users = UsersApi(client)
 
         // 1) Login as user A, fetch profile → A
