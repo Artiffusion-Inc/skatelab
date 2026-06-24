@@ -139,6 +139,7 @@ dependencies {
     testImplementation(libs.turbine)
     testImplementation(libs.json)
     testImplementation("org.robolectric:robolectric:4.14")
+    testImplementation(libs.work.runtime.ktx)
     testImplementation("androidx.compose.ui:ui-test-junit4")
     debugImplementation("androidx.compose.ui:ui-test-manifest")
     androidTestImplementation(composeBom)
