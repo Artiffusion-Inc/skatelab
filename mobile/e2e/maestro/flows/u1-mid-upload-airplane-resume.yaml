@@ -1,0 +1,50 @@
+appId: ru.skatelab.capture
+tags:
+  - bug-hunt
+  - upload
+---
+# U1: upload starts → airplane ON mid-upload (~2s after "Uploading video…") → wait → airplane OFF → resume → complete.
+# Bug-hunt: expects upload resumes (reuses uploadId, not restart) after mid-upload break. RED = hang/restart/broken complete.
+- addMedia: ["./assets/test_video.mp4"]
+- launchApp
+- runFlow:
+    when:
+      visible: "While using the app"
+    commands:
+      - tapOn: "While using the app"
+- runFlow:
+    when:
+      visible: "Camera"
+    commands:
+      - tapOn: "Profile"
+      - scroll
+      - scroll
+      - tapOn: "Log out"
+      - assertVisible: "Log in to your account"
+- assertVisible: "Log in to your account"
+- tapOn: "Email"
+- inputText: test@skatelab.ru
+- back
+- tapOn: "Password"
+- inputText: Test123456
+- back
+- tapOn: "Log in"
+- assertVisible: "Camera"
+# Start upload
+- tapOn: "Upload video"
+- tapOn: "00:12"
+- assertVisible: "axel"
+- tapOn: "axel"
+- assertVisible: "Uploading video…"
+# Break mid-upload: airplane ON shortly after upload starts
+- setAirplaneMode: enabled
+- extendedWaitUntil:
+    visible: "Retry"
+    timeout: 15000
+- setAirplaneMode: disabled
+# Retry / resume — upload must resume (not restart from scratch)
+- tapOn: "Retry"
+- retry:
+    maxRetries: 40
+    commands:
+      - assertVisible: "Analysis complete"

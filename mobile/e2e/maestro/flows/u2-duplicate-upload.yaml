@@ -1,0 +1,52 @@
+appId: ru.skatelab.capture
+tags:
+  - bug-hunt
+  - upload
+---
+# U2: complete upload → re-upload the same video → expect second session or meaningful duplicate handling.
+# Bug-hunt: re-upload same file must not create broken session / multipart conflict / silent duplicate.
+- addMedia: ["./assets/test_video.mp4"]
+- launchApp
+- runFlow:
+    when:
+      visible: "While using the app"
+    commands:
+      - tapOn: "While using the app"
+- runFlow:
+    when:
+      visible: "Camera"
+    commands:
+      - tapOn: "Profile"
+      - scroll
+      - scroll
+      - tapOn: "Log out"
+      - assertVisible: "Log in to your account"
+- assertVisible: "Log in to your account"
+- tapOn: "Email"
+- inputText: test@skatelab.ru
+- back
+- tapOn: "Password"
+- inputText: Test123456
+- back
+- tapOn: "Log in"
+- assertVisible: "Camera"
+# First upload — complete
+- tapOn: "Upload video"
+- tapOn: "00:12"
+- assertVisible: "axel"
+- tapOn: "axel"
+- assertVisible: "Uploading video…"
+- retry:
+    maxRetries: 30
+    commands:
+      - assertVisible: "Analysis complete"
+# Re-upload the same video (asset already seeded in gallery)
+- tapOn: "Upload video"
+- tapOn: "00:12"
+- assertVisible: "axel"
+- tapOn: "axel"
+- assertVisible: "Uploading video…"
+- retry:
+    maxRetries: 30
+    commands:
+      - assertVisible: "Analysis complete"
