@@ -28,6 +28,14 @@ class SkateLabClient(
 
     val json = Json { ignoreUnknownKeys = true; isLenient = true }
 
+    /**
+     * The `Auth` plugin's config, captured during `install(Auth)`. Its `providers`
+     * list holds the `BearerAuthProvider` whose in-memory token cache we must
+     * invalidate on logout / account switch — the public Ktor API exposes the
+     * providers only through this config instance, not via `plugin(Auth)`.
+     */
+    private lateinit var authConfig: AuthConfig
+
     val httpClient = HttpClient(engine) {
         install(ContentNegotiation) { json(json) }
 
@@ -39,6 +47,7 @@ class SkateLabClient(
         defaultRequest { url(baseUrl) }
 
         install(Auth) {
+            authConfig = this
             bearer {
                 loadTokens {
                     val access = tokenStorage.getAccessToken() ?: return@loadTokens null
@@ -96,4 +105,20 @@ class SkateLabClient(
     val uploads = UploadsApi(httpClient)
     val process = ProcessApi(httpClient)
     val metrics = MetricsApi(httpClient)
+
+    /**
+     * Clear the Ktor `Auth` plugin's in-memory bearer-token cache.
+     *
+     * The plugin caches the loaded token in memory (`BearerAuthProvider` →
+     * `AuthTokenHolder.value`) and only reloads from storage once per process
+     * lifetime. After logout or login as a different account, the cache holds a
+     * stale token, so authorized requests reuse it and hit the wrong user.
+     * Call this whenever the session owner changes so the next authorized
+     * request forces `loadTokens` to re-read storage.
+     */
+    fun clearAuthCache() {
+        authConfig.providers
+            .filterIsInstance<BearerAuthProvider>()
+            .forEach { it.clearToken() }
+    }
 }

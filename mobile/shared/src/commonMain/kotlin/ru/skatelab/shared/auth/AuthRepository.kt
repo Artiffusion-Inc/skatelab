@@ -5,17 +5,20 @@ import ru.skatelab.shared.api.AuthApi
 class AuthRepository(
     private val authApi: AuthApi,
     private val tokenStorage: TokenStorage,
+    private val clearAuthCache: () -> Unit = {},
 ) {
     suspend fun getAccessToken(): String? = tokenStorage.getAccessToken()
 
     suspend fun login(email: String, password: String): Result<Unit> = runCatching {
         val tokens = authApi.login(email, password)
         tokenStorage.saveTokens(tokens.accessToken, tokens.refreshToken)
+        clearAuthCache()
     }
 
     suspend fun register(email: String, password: String, displayName: String): Result<Unit> = runCatching {
         val tokens = authApi.register(email, password, displayName)
         tokenStorage.saveTokens(tokens.accessToken, tokens.refreshToken)
+        clearAuthCache()
     }
 
     suspend fun isLoggedIn(): Boolean = tokenStorage.getAccessToken() != null
@@ -26,6 +29,7 @@ class AuthRepository(
             runCatching { authApi.logout(refreshToken) }
         }
         tokenStorage.clearTokens()
+        clearAuthCache()
     }
 
     suspend fun verifyEmail(token: String): Result<Unit> = runCatching { authApi.verifyEmail(token) }
