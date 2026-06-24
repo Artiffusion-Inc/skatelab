@@ -1,0 +1,31 @@
+appId: ru.skatelab.capture
+tags:
+  - bug-hunt
+  - auth
+---
+# S4: login A → cold relaunch → quickly open Sessions + Profile → both consistent (A).
+# Bug-hunt: cold-start race must not produce stale/inconsistent state.
+- launchApp
+- runFlow:
+    when:
+      visible: "Camera"
+    commands:
+      - tapOn: "Profile"
+      - scroll
+      - scroll
+      - tapOn: "Log out"
+      - assertVisible: "Log in to your account"
+- runFlow:
+    file: ../partials/login_as.yaml
+    env:
+      EMAIL: test@skatelab.ru
+      PASSWORD: Test123456
+# Cold relaunch
+- killApp
+- launchApp
+- assertVisible: "Camera"
+# Quickly open Sessions, then Profile — both must reflect A consistently
+- tapOn: "Sessions"
+- assertVisible: "Profile"
+- tapOn: "Profile"
+- assertVisible: "test@skatelab.ru"

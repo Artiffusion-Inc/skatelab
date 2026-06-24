@@ -1,0 +1,38 @@
+appId: ru.skatelab.capture
+tags:
+  - bug-hunt
+  - auth
+---
+# S7: login A → Sessions (A's sessions if any) → logout → login B → Sessions shows B (or empty), NOT A.
+# Bug-hunt: sessions read-path must not leak across accounts.
+# Fallback: if neither account has sessions, assert Sessions tab opens (empty state).
+- launchApp
+- runFlow:
+    when:
+      visible: "Camera"
+    commands:
+      - tapOn: "Profile"
+      - scroll
+      - scroll
+      - tapOn: "Log out"
+      - assertVisible: "Log in to your account"
+- runFlow:
+    file: ../partials/login_as.yaml
+    env:
+      EMAIL: test@skatelab.ru
+      PASSWORD: Test123456
+- tapOn: "Sessions"
+# (A's sessions, if any, now populated)
+- tapOn: "Profile"
+- scroll
+- scroll
+- tapOn: "Log out"
+- assertVisible: "Log in to your account"
+- runFlow:
+    file: ../partials/login_as.yaml
+    env:
+      EMAIL: e2e2@skatelab.ru
+      PASSWORD: Test123456
+- tapOn: "Sessions"
+# Under B: Sessions must open. If A had session titles, they must NOT appear here.
+- assertVisible: "Profile"

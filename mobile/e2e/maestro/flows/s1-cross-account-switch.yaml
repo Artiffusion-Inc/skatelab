@@ -1,0 +1,40 @@
+appId: ru.skatelab.capture
+tags:
+  - bug-hunt
+  - auth
+---
+# S1: login A → Profile shows A → logout → login B → Profile shows B (NOT A).
+# Bug-hunt: expects correct cross-account switch. RED = new defect beyond #314.
+- launchApp
+- runFlow:
+    when:
+      visible: "Camera"
+    commands:
+      - tapOn: "Profile"
+      - scroll
+      - scroll
+      - tapOn: "Log out"
+      - assertVisible: "Log in to your account"
+# Login A
+- runFlow:
+    file: ../partials/login_as.yaml
+    env:
+      EMAIL: test@skatelab.ru
+      PASSWORD: Test123456
+- tapOn: "Profile"
+- assertVisible: "test@skatelab.ru"
+# Logout
+- scroll
+- scroll
+- tapOn: "Log out"
+- assertVisible: "Log in to your account"
+# Login B
+- runFlow:
+    file: ../partials/login_as.yaml
+    env:
+      EMAIL: e2e2@skatelab.ru
+      PASSWORD: Test123456
+- tapOn: "Profile"
+- assertVisible: "e2e2@skatelab.ru"
+# B's email must show; A's must NOT leak
+- assertNotVisible: "test@skatelab.ru"

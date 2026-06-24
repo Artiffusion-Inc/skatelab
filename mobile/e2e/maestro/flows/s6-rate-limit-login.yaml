@@ -1,0 +1,35 @@
+appId: ru.skatelab.capture
+tags:
+  - bug-hunt
+  - auth
+---
+# S6: 6 failed logins (wrong password) → app stays on login screen (no crash/hang).
+# Bug-hunt: backend rate-limit (login_email max 5 / 300s) must surface correctly in mobile.
+# NOTE: pollutes rate-limit counter for the email — run LAST in suite.
+- launchApp
+- runFlow:
+    when:
+      visible: "Camera"
+    commands:
+      - tapOn: "Profile"
+      - scroll
+      - scroll
+      - tapOn: "Log out"
+      - assertVisible: "Log in to your account"
+- assertVisible: "Log in to your account"
+# 6 wrong-password attempts (rate limit triggers after 5 within 300s on backend)
+- repeat:
+    times: 6
+    commands:
+      - tapOn: "Email"
+      - inputText: test@skatelab.ru
+      - back
+      - tapOn: "Password"
+      - inputText: WrongPassword123
+      - back
+      - tapOn: "Log in"
+      - extendedWaitUntil:
+          visible: "Log in to your account"
+          timeout: 5000
+# After rate-limit: app must still be on login screen (no crash/hang).
+- assertVisible: "Log in to your account"

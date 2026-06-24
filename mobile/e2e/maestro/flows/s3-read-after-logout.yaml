@@ -1,0 +1,37 @@
+appId: ru.skatelab.capture
+tags:
+  - bug-hunt
+  - auth
+---
+# S3: login A → open Sessions → logout → relaunch → login screen (NOT sessions A).
+# Bug-hunt: logout must clear UI state. RED = UI data leak after logout.
+- launchApp
+- runFlow:
+    when:
+      visible: "Camera"
+    commands:
+      - tapOn: "Profile"
+      - scroll
+      - scroll
+      - tapOn: "Log out"
+      - assertVisible: "Log in to your account"
+# Login A
+- runFlow:
+    file: ../partials/login_as.yaml
+    env:
+      EMAIL: test@skatelab.ru
+      PASSWORD: Test123456
+# Open Sessions tab (populate UI state)
+- tapOn: "Sessions"
+- assertVisible: "Profile"
+# Logout
+- tapOn: "Profile"
+- scroll
+- scroll
+- tapOn: "Log out"
+- assertVisible: "Log in to your account"
+# Relaunch app — must show login screen, NOT sessions of A
+- killApp
+- launchApp
+- assertVisible: "Log in to your account"
+- assertNotVisible: "Profile"

@@ -1,0 +1,38 @@
+appId: ru.skatelab.capture
+tags:
+  - bug-hunt
+  - auth
+---
+# S5 baseline: login A → logout → login A → Profile shows A.
+# Control GREEN scenario — confirms infra works. If RED = infra broken, not product.
+- launchApp
+- runFlow:
+    when:
+      visible: "Camera"
+    commands:
+      - tapOn: "Profile"
+      - scroll
+      - scroll
+      - tapOn: "Log out"
+      - assertVisible: "Log in to your account"
+# Login A
+- runFlow:
+    file: ../partials/login_as.yaml
+    env:
+      EMAIL: test@skatelab.ru
+      PASSWORD: Test123456
+- tapOn: "Profile"
+- assertVisible: "test@skatelab.ru"
+# Logout
+- scroll
+- scroll
+- tapOn: "Log out"
+- assertVisible: "Log in to your account"
+# Re-login A
+- runFlow:
+    file: ../partials/login_as.yaml
+    env:
+      EMAIL: test@skatelab.ru
+      PASSWORD: Test123456
+- tapOn: "Profile"
+- assertVisible: "test@skatelab.ru"

@@ -1,0 +1,37 @@
+appId: ru.skatelab.capture
+tags:
+  - bug-hunt
+  - auth
+  - manual
+---
+# S2: register new account → immediately read profile → shows new account (not empty/other).
+# MANUAL: replace REGISTER_EMAIL below with a fresh unique email each run
+# (e.g. e2e-20260624-1@skatelab.ru). Register issues tokens directly (no verification needed
+# for same-session read; later login would require is_verified).
+- launchApp
+- runFlow:
+    when:
+      visible: "Camera"
+    commands:
+      - tapOn: "Profile"
+      - scroll
+      - scroll
+      - tapOn: "Log out"
+      - assertVisible: "Log in to your account"
+- assertVisible: "Log in to your account"
+- tapOn: "Don't have an account? Register"
+- assertVisible: "Create Account"
+- tapOn: "Display name"
+- inputText: E2E BugHunt
+- back
+- tapOn: "Email"
+- inputText: e2e-20260624-1@skatelab.ru
+- back
+- tapOn: "Password"
+- inputText: Test123456
+- back
+- tapOn: "Register"
+- assertVisible: "Camera"
+# Immediate read: Profile must show the new account's email
+- tapOn: "Profile"
+- assertVisible: "e2e-20260624-1@skatelab.ru"
