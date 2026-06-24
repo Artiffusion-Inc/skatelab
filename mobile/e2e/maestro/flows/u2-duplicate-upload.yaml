@@ -33,8 +33,9 @@ tags:
 # First upload — complete
 - tapOn: "Upload video"
 - tapOn: "00:12"
-- assertVisible: "axel"
-- tapOn: "axel"
+- assertVisible: "Аксель"
+- tapOn: "Аксель"
+- tapOn: "Next"
 - assertVisible: "Uploading video…"
 - retry:
     maxRetries: 30
@@ -43,8 +44,9 @@ tags:
 # Re-upload the same video (asset already seeded in gallery)
 - tapOn: "Upload video"
 - tapOn: "00:12"
-- assertVisible: "axel"
-- tapOn: "axel"
+- assertVisible: "Аксель"
+- tapOn: "Аксель"
+- tapOn: "Next"
 - assertVisible: "Uploading video…"
 - retry:
     maxRetries: 30

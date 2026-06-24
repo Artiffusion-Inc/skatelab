@@ -3,17 +3,25 @@ tags:
   - bug-hunt
   - upload
 ---
-# U4 baseline: airplane ON before launch → upload attempt → "No connection"/"Retry" → airplane OFF → retry → complete.
+# U4 baseline: login online → airplane ON → upload attempt (pick video + select element) → "No connection"/"Retry" → airplane OFF → retry → complete.
 # Control GREEN: confirms pre-upload retry path healthy. If RED = infra/basic retry broken.
-- setAirplaneMode: enabled
+# Requires en-US locale (Maestro selectors): adb shell service call locale 3 s16 ru.skatelab.capture s16 en-US
 - addMedia: ["./assets/test_video.mp4"]
 - launchApp
-# Login (inline — fresh session, airplane was on before launch)
 - runFlow:
     when:
       visible: "While using the app"
     commands:
       - tapOn: "While using the app"
+- runFlow:
+    when:
+      visible: "Camera"
+    commands:
+      - tapOn: "Profile"
+      - scroll
+      - scroll
+      - tapOn: "Log out"
+      - assertVisible: "Log in to your account"
 - assertVisible: "Log in to your account"
 - tapOn: "Email"
 - inputText: test@skatelab.ru
@@ -23,9 +31,14 @@ tags:
 - back
 - tapOn: "Log in"
 - assertVisible: "Camera"
-# Attempt upload while offline
+# Go offline, then walk the upload flow up to the network call (upload init happens after element selection)
+- setAirplaneMode: enabled
 - tapOn: "Upload video"
 - runFlow: ../partials/pick_first_video.yaml
+- assertVisible: "Аксель"
+- tapOn: "Аксель"
+- tapOn: "Next"
+# upload init (network) should now fail offline → offline handling
 - assertVisible: "No connection"
 - assertVisible: "Retry"
 # Restore network and retry

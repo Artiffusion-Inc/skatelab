@@ -33,8 +33,9 @@ tags:
 # Start upload
 - tapOn: "Upload video"
 - tapOn: "00:12"
-- assertVisible: "axel"
-- tapOn: "axel"
+- assertVisible: "Аксель"
+- tapOn: "Аксель"
+- tapOn: "Next"
 - assertVisible: "Uploading video…"
 # Break mid-upload: airplane ON shortly after upload starts
 - setAirplaneMode: enabled

@@ -1,5 +1,7 @@
 appId: ru.skatelab.capture
 ---
-# Pick the first video from gallery / photo picker
+# Pick the first video from gallery / photo picker.
+# Android photo-picker shows the video by its duration text ("00:12"), not the file name —
+# Maestro 2.6.x cannot select by content-desc, so tap the duration label (matches upload-pipeline.yaml).
 - tapOn:
-    text: test_video
+    text: "00:12"
