@@ -4,6 +4,8 @@ import com.russhwolf.settings.MapSettings
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.plugins.auth.Auth
+import io.ktor.client.plugins.auth.AuthConfig
+import io.ktor.client.plugins.auth.providers.BearerAuthProvider
 import io.ktor.client.plugins.auth.providers.BearerTokens
 import io.ktor.client.plugins.auth.providers.bearer
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
@@ -38,10 +40,18 @@ import kotlin.test.assertEquals
 class SessionReadAuthTest {
     private val json = Json { ignoreUnknownKeys = true; isLenient = true }
 
-    private fun newClient(backend: FakeAuthBackend, tokenStorage: TokenStorage): HttpClient {
+    /**
+     * Builds the test HttpClient with the real Ktor `Auth` plugin and returns a
+     * [clearCache] callback that flushes the plugin's in-memory bearer cache —
+     * mirroring `SkateLabClient.clearAuthCache()` / the `AuthRepository` callback
+     * (the `AuthConfig` install-receiver is captured to reach the providers).
+     */
+    private fun newClient(backend: FakeAuthBackend, tokenStorage: TokenStorage): Pair<HttpClient, () -> Unit> {
+        lateinit var authConfig: AuthConfig
         val client = HttpClient(backend.engine()) {
             install(ContentNegotiation) { json(json) }
             install(Auth) {
+                authConfig = this
                 bearer {
                     loadTokens {
                         val access = tokenStorage.getAccessToken() ?: return@loadTokens null
@@ -69,15 +79,18 @@ class SessionReadAuthTest {
                 }
             }
         }
-        return client
+        val clearCache: () -> Unit = {
+            authConfig.providers.filterIsInstance<BearerAuthProvider>().forEach { it.clearToken() }
+        }
+        return client to clearCache
     }
 
     @Test
     fun sessionsList_usesCurrentAccountToken() = runTest {
         val backend = FakeAuthBackend().addAccount("a", "a@skatelab.ru", "A").addAccount("b", "b@skatelab.ru", "B")
         val tokenStorage = TokenStorage(MapSettings())
-        val client = newClient(backend, tokenStorage)
-        val repo = AuthRepository(AuthApi(client), tokenStorage)
+        val (client, clearCache) = newClient(backend, tokenStorage)
+        val repo = AuthRepository(AuthApi(client), tokenStorage, clearCache)
         val sessions = SessionsApi(client)
 
         repo.login("a@skatelab.ru", "pw")
@@ -96,8 +109,8 @@ class SessionReadAuthTest {
     fun sessionDetail_afterAccountSwitch_belongsToNewAccount() = runTest {
         val backend = FakeAuthBackend().addAccount("a", "a@skatelab.ru", "A").addAccount("b", "b@skatelab.ru", "B")
         val tokenStorage = TokenStorage(MapSettings())
-        val client = newClient(backend, tokenStorage)
-        val repo = AuthRepository(AuthApi(client), tokenStorage)
+        val (client, clearCache) = newClient(backend, tokenStorage)
+        val repo = AuthRepository(AuthApi(client), tokenStorage, clearCache)
         val sessions = SessionsApi(client)
 
         repo.login("a@skatelab.ru", "pw")
@@ -115,8 +128,8 @@ class SessionReadAuthTest {
     fun sessionsList_on401_refreshesTransparently() = runTest {
         val backend = FakeAuthBackend().addAccount("a", "a@skatelab.ru", "A")
         val tokenStorage = TokenStorage(MapSettings())
-        val client = newClient(backend, tokenStorage)
-        val repo = AuthRepository(AuthApi(client), tokenStorage)
+        val (client, clearCache) = newClient(backend, tokenStorage)
+        val repo = AuthRepository(AuthApi(client), tokenStorage, clearCache)
         val sessions = SessionsApi(client)
 
         repo.login("a@skatelab.ru", "pw")
@@ -155,8 +168,8 @@ class SessionReadAuthTest {
     fun sessionsList_afterLogout_failsCleanly() = runTest {
         val backend = FakeAuthBackend().addAccount("a", "a@skatelab.ru", "A")
         val tokenStorage = TokenStorage(MapSettings())
-        val client = newClient(backend, tokenStorage)
-        val repo = AuthRepository(AuthApi(client), tokenStorage)
+        val (client, clearCache) = newClient(backend, tokenStorage)
+        val repo = AuthRepository(AuthApi(client), tokenStorage, clearCache)
         val sessions = SessionsApi(client)
 
         repo.login("a@skatelab.ru", "pw")

@@ -4,6 +4,8 @@ import com.russhwolf.settings.MapSettings
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.plugins.auth.Auth
+import io.ktor.client.plugins.auth.AuthConfig
+import io.ktor.client.plugins.auth.providers.BearerAuthProvider
 import io.ktor.client.plugins.auth.providers.BearerTokens
 import io.ktor.client.plugins.auth.providers.bearer
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
@@ -28,10 +30,20 @@ import kotlin.test.assertEquals
 class AuthWireTest {
     private val json = Json { ignoreUnknownKeys = true; isLenient = true }
 
-    private fun newClient(backend: FakeAuthBackend, tokenStorage: TokenStorage): HttpClient {
+    /**
+     * Builds the test HttpClient with the real Ktor `Auth` plugin (mirrors
+     * `SkateLabClient`) and returns a [clearCache] callback that flushes the
+     * plugin's in-memory bearer cache — the same wiring production uses via
+     * `SkateLabClient.clearAuthCache()` / the `AuthRepository` callback. The
+     * public Ktor API exposes the bearer providers only through the
+     * `AuthConfig` install-receiver, so it is captured here.
+     */
+    private fun newClient(backend: FakeAuthBackend, tokenStorage: TokenStorage): Pair<HttpClient, () -> Unit> {
+        lateinit var authConfig: AuthConfig
         val client = HttpClient(backend.engine()) {
             install(ContentNegotiation) { json(json) }
             install(Auth) {
+                authConfig = this
                 bearer {
                     loadTokens {
                         val access = tokenStorage.getAccessToken() ?: return@loadTokens null
@@ -59,15 +71,18 @@ class AuthWireTest {
                 }
             }
         }
-        return client
+        val clearCache: () -> Unit = {
+            authConfig.providers.filterIsInstance<BearerAuthProvider>().forEach { it.clearToken() }
+        }
+        return client to clearCache
     }
 
     @Test
     fun logoutThenLoginAsDifferentUser_getMeReturnsNewUser() = runTest {
         val backend = FakeAuthBackend().addAccount("a", "a@skatelab.ru", "A").addAccount("b", "b@skatelab.ru", "B")
         val tokenStorage = TokenStorage(MapSettings())
-        val client = newClient(backend, tokenStorage)
-        val repo = AuthRepository(AuthApi(client), tokenStorage)
+        val (client, clearCache) = newClient(backend, tokenStorage)
+        val repo = AuthRepository(AuthApi(client), tokenStorage, clearCache)
         val users = UsersApi(client)
 
         // Login A
@@ -89,8 +104,8 @@ class AuthWireTest {
     fun logoutThenLoginSameUser_getMeSucceeds() = runTest {
         val backend = FakeAuthBackend().addAccount("a", "a@skatelab.ru", "A")
         val tokenStorage = TokenStorage(MapSettings())
-        val client = newClient(backend, tokenStorage)
-        val repo = AuthRepository(AuthApi(client), tokenStorage)
+        val (client, clearCache) = newClient(backend, tokenStorage)
+        val repo = AuthRepository(AuthApi(client), tokenStorage, clearCache)
         val users = UsersApi(client)
 
         repo.login("a@skatelab.ru", "pw")
@@ -105,8 +120,8 @@ class AuthWireTest {
     fun logout_clearsInMemoryTokenCache() = runTest {
         val backend = FakeAuthBackend().addAccount("a", "a@skatelab.ru", "A")
         val tokenStorage = TokenStorage(MapSettings())
-        val client = newClient(backend, tokenStorage)
-        val repo = AuthRepository(AuthApi(client), tokenStorage)
+        val (client, clearCache) = newClient(backend, tokenStorage)
+        val repo = AuthRepository(AuthApi(client), tokenStorage, clearCache)
         val users = UsersApi(client)
 
         repo.login("a@skatelab.ru", "pw")
@@ -127,8 +142,8 @@ class AuthWireTest {
     fun registerAfterLogout_getMeReturnsNewUser() = runTest {
         val backend = FakeAuthBackend().addAccount("a", "a@skatelab.ru", "A").addAccount("b", "b@skatelab.ru", "B")
         val tokenStorage = TokenStorage(MapSettings())
-        val client = newClient(backend, tokenStorage)
-        val repo = AuthRepository(AuthApi(client), tokenStorage)
+        val (client, clearCache) = newClient(backend, tokenStorage)
+        val repo = AuthRepository(AuthApi(client), tokenStorage, clearCache)
         val users = UsersApi(client)
 
         repo.register("a@skatelab.ru", "pw", "A")
@@ -144,8 +159,8 @@ class AuthWireTest {
     fun switchAccountTwice_getMeMatchesLatestLogin() = runTest {
         val backend = FakeAuthBackend().addAccount("a", "a@skatelab.ru", "A").addAccount("b", "b@skatelab.ru", "B")
         val tokenStorage = TokenStorage(MapSettings())
-        val client = newClient(backend, tokenStorage)
-        val repo = AuthRepository(AuthApi(client), tokenStorage)
+        val (client, clearCache) = newClient(backend, tokenStorage)
+        val repo = AuthRepository(AuthApi(client), tokenStorage, clearCache)
         val users = UsersApi(client)
 
         repo.login("a@skatelab.ru", "pw")
@@ -166,8 +181,8 @@ class AuthWireTest {
     fun expiredAccess_liveRefresh_getMeRetriesWithNewToken() = runTest {
         val backend = FakeAuthBackend().addAccount("a", "a@skatelab.ru", "A")
         val tokenStorage = TokenStorage(MapSettings())
-        val client = newClient(backend, tokenStorage)
-        val repo = AuthRepository(AuthApi(client), tokenStorage)
+        val (client, clearCache) = newClient(backend, tokenStorage)
+        val repo = AuthRepository(AuthApi(client), tokenStorage, clearCache)
         val users = UsersApi(client)
 
         repo.login("a@skatelab.ru", "pw")
@@ -185,10 +200,10 @@ class AuthWireTest {
     fun expiredAccessAndRefresh_onAuthFailureTriggersLogout() = runTest {
         val backend = FakeAuthBackend().addAccount("a", "a@skatelab.ru", "A")
         val tokenStorage = TokenStorage(MapSettings())
-        val client = newClient(backend, tokenStorage)
+        val (client, clearCache) = newClient(backend, tokenStorage)
         val usersApi = UsersApi(client)
         val sharedVm = ru.skatelab.shared.state.AuthViewModel(
-            AuthRepository(AuthApi(client), tokenStorage),
+            AuthRepository(AuthApi(client), tokenStorage, clearCache),
             usersApi,
         )
 
@@ -220,8 +235,8 @@ class AuthWireTest {
     fun concurrentRequestsOnExpiringToken_refreshCalledOnce() = runTest {
         val backend = FakeAuthBackend().addAccount("a", "a@skatelab.ru", "A")
         val tokenStorage = TokenStorage(MapSettings())
-        val client = newClient(backend, tokenStorage)
-        val repo = AuthRepository(AuthApi(client), tokenStorage)
+        val (client, clearCache) = newClient(backend, tokenStorage)
+        val repo = AuthRepository(AuthApi(client), tokenStorage, clearCache)
         val users = UsersApi(client)
 
         repo.login("a@skatelab.ru", "pw")
@@ -248,8 +263,8 @@ class AuthWireTest {
     fun refreshReturnsNewRefreshToken_storageUpdated() = runTest {
         val backend = FakeAuthBackend().addAccount("a", "a@skatelab.ru", "A")
         val tokenStorage = TokenStorage(MapSettings())
-        val client = newClient(backend, tokenStorage)
-        val repo = AuthRepository(AuthApi(client), tokenStorage)
+        val (client, clearCache) = newClient(backend, tokenStorage)
+        val repo = AuthRepository(AuthApi(client), tokenStorage, clearCache)
         val users = UsersApi(client)
 
         repo.login("a@skatelab.ru", "pw")
@@ -269,8 +284,8 @@ class AuthWireTest {
     fun refreshFailureThenSuccess_doesNotLeakStaleState() = runTest {
         val backend = FakeAuthBackend().addAccount("a", "a@skatelab.ru", "A")
         val tokenStorage = TokenStorage(MapSettings())
-        val client = newClient(backend, tokenStorage)
-        val repo = AuthRepository(AuthApi(client), tokenStorage)
+        val (client, clearCache) = newClient(backend, tokenStorage)
+        val repo = AuthRepository(AuthApi(client), tokenStorage, clearCache)
         val users = UsersApi(client)
 
         repo.login("a@skatelab.ru", "pw")
