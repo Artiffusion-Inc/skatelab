@@ -30,10 +30,20 @@ Bug-hunt E2E-набор гоняет upload-pipeline против реально
 ## Найденные недоработки (новые)
 
 ### #330 — Upload-init зависает на "Preparing upload…" (критический блокер, prod-impact)
-App висит на "Preparing upload…" **бесконечно** — и онлайн, и offline, **до отправки `POST /uploads/init`** (logcat: только успешный `GET /users/me`, upload-init-запроса нет). Backend жив (`uploads/init` endpoint отвечает). Root cause — подготовительная стадия upload-init (presign/multipart setup, чтение файла, или WorkManager-scheduling) зависает, не network-timeout. App unusable до force-stop.
+App висит на "Preparing upload…" **бесконечно** — и онлайн, и offline, **до отправки `POST /uploads/init`** (logcat: только успешный `GET /users/me`, upload-init-запроса нет). Backend жив (`uploads/init` endpoint отвечает).
+
+**Root cause локализован (RC-углубление):** это **orphaned PendingUpload** — WorkManager worker стартует, exit'ит `Result.success()` **без выполнения работы** (`run_attempt_count=0`), row остаётся `status=READY`, worker помечен `SUCCEEDED` (не ретрачится) → UI вечно ждёт.
+
+Доказательство (DB):
+- PendingUpload Room: `id=732b2268... | status=READY | retryCount=0 | videoKey=(empty)` (worker не обновил статус).
+- WorkManager workspec: `state=3 (SUCCEEDED) | run_attempt_count=0` (worker success без попытки).
+
+Точный баг: `UploadWorker.kt:54` `if (locked == 0) return Result.success()` — при `tryLockForUpload`==0 (UPDATE 0 rows: row не найден/не READY из-за race insert→enqueue) worker возвращает **`Result.success()`** вместо `Result.retry()` → WorkManager помечает job done навсегда → row orphaned → UI зависает. Race: `CameraViewModel.kt:273-275` (gallery) / `:206-210` (camera) — `pendingUploadDao.insert` → `UploadScheduler.enqueue` в одной корутине, но worker стартует до commit row → `tryLock=0` → success exit.
+
 - Flows: U4 (offline), U2 (online) — оба зависают на "Preparing upload…" после "Next".
 - **Блокер для всех upload E2E**: U1/U3/U5 не могут пройти мимо upload-init.
-- Fix (отдельным PR): upload-init preparation + timeout/recovery; при network-failure показывать "No connection"/"Retry".
+- **Fix (отдельным PR):** `UploadWorker.kt:54` → `Result.retry()` (не success) при `locked==0` (или getById-discriminate: row нет → failure, status≠READY → success); + `CameraViewModel.kt:206-210/273-275` гарантировать insert-commit до enqueue (или enqueue в `confirmElementType`).
+- Опровергнутые гипотезы: network-timeout, `requiresBatteryNotLow` (battery=100 full), backend-down, WorkManager-not-init. Подробности: https://github.com/Artiffusion-Inc/skatelab/issues/330#issuecomment-4792766778
 
 ### #331 — Элемент-каталог hardcoded ru, не i18n (E2E-инфра + i18n gap)
 На экране "Select element" названия элементов hardcoded ru ("Аксель", "Сальхов", "Тулуп" и др.) — **не переводятся** при en-US локали (остальной UI en: "Camera", "Upload video", "Select element", "Next"). Нарушает i18n-принцип (no hardcoded user-facing strings). Ломает Maestro-селекторы (кириллица → "??????" в логах, хрупко); существующий `upload-pipeline.yaml` (`tapOn: "axel"`, en) **сломан**.
