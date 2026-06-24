@@ -28,17 +28,21 @@ Ktor `Auth`-плагин кэширует bearer-токен в памяти (`Be
 
 **1. `mobile/shared/src/commonMain/kotlin/ru/skatelab/shared/api/SkateLabClient.kt`**
 
-Новый публичный метод — очищает кэш всех `BearerAuthProvider`:
+Новый публичный метод — очищает кэш всех `BearerAuthProvider`. Доступ к провайдерам — через ссылку на `AuthConfig`, захваченную во время `install(Auth)` (публичный Ktor API отдаёт провайдеров только через этот config-приёмник, `plugin(Auth)` возвращает `ClientPluginInstance` без `providers`):
 
 ```kotlin
+private lateinit var authConfig: AuthConfig
+
+// внутри install(Auth) { authConfig = this; bearer { ... } }
+
 fun clearAuthCache() {
-    httpClient.plugin(Auth).providers
+    authConfig.providers
         .filterIsInstance<BearerAuthProvider>()
         .forEach { it.clearToken() }
 }
 ```
 
-Импорты: `io.ktor.client.plugins.auth.Auth`, `io.ktor.client.plugins.auth.providers.BearerAuthProvider`.
+Импорты: `io.ktor.client.plugins.auth.AuthConfig`, `io.ktor.client.plugins.auth.providers.BearerAuthProvider` (оба покрыты wildcard-импортами `...auth.*` и `...providers.*`, уже присутствующими в файле).
 
 **2. `mobile/shared/src/commonMain/kotlin/ru/skatelab/shared/auth/AuthRepository.kt`**
 
@@ -97,18 +101,19 @@ fun provideAuthRepository(
 
 **`mobile/shared/src/commonTest/kotlin/ru/skatelab/shared/auth/AuthRepositoryCacheBugReproTest.kt`**
 
-Уже в worktree (коммит `40b5ebe9`), падает. После фикса — зелёный. В тесте `AuthRepository` конструируется с третьим аргументом — инлайн-лямбдой, повторяющей логику `SkateLabClient.clearAuthCache()`:
+Уже в worktree (коммит `e8937ff1`, cherry-pick из `40b5ebe9`), падает. После фикса — зелёный. В тесте `AuthRepository` конструируется с третьим аргументом — инлайн-лямбдой, повторяющей логику `SkateLabClient.clearAuthCache()`. Тест собирает `HttpClient` напрямую (без `SkateLabClient`), поэтому захватывает `AuthConfig` внутри своего `install(Auth)`-блока так же, как продакшен-код:
 
 ```kotlin
+lateinit var authConfig: AuthConfig
+// ... HttpClient { install(Auth) { authConfig = this; bearer { ... } } }
+
 val clearCache: () -> Unit = {
-    client.plugin(Auth).providers
+    authConfig.providers
         .filterIsInstance<BearerAuthProvider>()
         .forEach { it.clearToken() }
 }
 val repo = AuthRepository(AuthApi(client), tokenStorage, clearCache)
 ```
-
-Обоснование инлайн-лямбды вместо полного `SkateLabClient`: репро-тест проверяет поведение `AuthRepository` (что вызывает колбэк в нужные моменты), а не внутренности `SkateLabClient`. Тащить весь `SkateLabClient` (baseUrl/engine/Logging/Retry/Timeout) ради repro — бойлерплейс, нарушающий MVP-first. Дублирование 2 строк логики — в пределах DRY-within-reason. `SkateLabClient.clearAuthCache()` отдельно покрыт тем, что его логика идентична и тривиальна; отдельный unit-тест на сам метод избыточен (YAGNI).
 
 ### Не трогается
 

@@ -35,7 +35,7 @@ mobile/shared/src/commonTest/kotlin/ru/skatelab/shared/auth/
 ```
 
 Responsibilities:
-- **`SkateLabClient.clearAuthCache()`** — single owner of "reset Auth plugin in-memory cache". Iterates `httpClient.plugin(Auth).providers`, clears every `BearerAuthProvider`.
+- **`SkateLabClient.clearAuthCache()`** — single owner of "reset Auth plugin in-memory cache". Captures the `AuthConfig` during `install(Auth)` into a `private lateinit var authConfig` field, then iterates `authConfig.providers`, clearing every `BearerAuthProvider` via `clearToken()`. (The public Ktor API exposes the providers only through the `AuthConfig` install-receiver — `plugin(Auth)` returns a `ClientPluginInstance` without a `providers` property, and `AuthProvidersKey` is internal to ktor.)
 - **`AuthRepository`** — owns the three state-transition points (`logout`/`login`/`register`); delegates cache reset to the injected callback. No knowledge of Ktor internals.
 - **`AppModule.provideAuthRepository`** — the single wiring point binding the client's cache-reset to the repository.
 
@@ -49,9 +49,31 @@ Responsibilities:
 **Interfaces:**
 - Produces: `fun SkateLabClient.clearAuthCache(): Unit` — clears all `BearerAuthProvider` in-memory caches. No params, no return. Consumed by Task 2 (via `client::clearAuthCache` reference) and Task 3 (AppModule wiring).
 
-**Context:** `SkateLabClient` already imports `io.ktor.client.plugins.auth.*` and `io.ktor.client.plugins.auth.providers.*` (lines 8–9), so `Auth` and `BearerAuthProvider` are available without new imports. `httpClient` is a `val` on the class (line 31). The method goes after the API properties (line 98) and before the closing brace (line 99).
+**Context:** `SkateLabClient` already imports `io.ktor.client.plugins.auth.*` and `io.ktor.client.plugins.auth.providers.*` (lines 8–9), so `AuthConfig` and `BearerAuthProvider` are available without new imports. The `Auth` plugin is installed in `httpClient` (line 41). The public Ktor API does **not** expose the bearer providers after install: `plugin(Auth)` returns a `ClientPluginInstance` (no `providers`), and `AuthProvidersKey` is internal to ktor — so the providers must be reached through the `AuthConfig` install-receiver, captured into a field. Two edits: (a) add a `private lateinit var authConfig: AuthConfig` field and assign it `authConfig = this` as the first line inside `install(Auth) { ... }`; (b) add `clearAuthCache()` after the API properties (line 98), before the closing brace.
 
-- [ ] **Step 1: Add the method**
+- [ ] **Step 1a: Capture the Auth config during install**
+
+Add a field before `val httpClient` and assign it inside the `install(Auth)` block. After `val json = Json { ... }` add:
+
+```kotlin
+    /**
+     * The `Auth` plugin's config, captured during `install(Auth)`. Its `providers`
+     * list holds the `BearerAuthProvider` whose in-memory token cache we must
+     * invalidate on logout / account switch — the public Ktor API exposes the
+     * providers only through this config instance, not via `plugin(Auth)`.
+     */
+    private lateinit var authConfig: AuthConfig
+```
+
+Then in the existing `install(Auth) { bearer { ... } }` block, add `authConfig = this` as the first line:
+
+```kotlin
+        install(Auth) {
+            authConfig = this
+            bearer {
+```
+
+- [ ] **Step 1b: Add the method**
 
 Insert after line 98 (`val metrics = MetricsApi(httpClient)`) and before the final `}`:
 
@@ -67,7 +89,7 @@ Insert after line 98 (`val metrics = MetricsApi(httpClient)`) and before the fin
      * request forces `loadTokens` to re-read storage.
      */
     fun clearAuthCache() {
-        httpClient.plugin(Auth).providers
+        authConfig.providers
             .filterIsInstance<BearerAuthProvider>()
             .forEach { it.clearToken() }
     }
@@ -179,33 +201,43 @@ git commit -m "fix(mobile): invalidate Ktor Auth cache on logout/login/register"
 **Interfaces:**
 - Consumes: `AuthRepository`'s 3rd constructor param `clearAuthCache: () -> Unit` (from Task 2). The `Auth` plugin + `BearerAuthProvider` types from ktor-client-auth (already in commonTest transitively).
 
-**Context:** The test currently constructs `val repo = AuthRepository(AuthApi(client), tokenStorage)` (line 98) — 2-arg, so it uses the default `{}` and the test stays RED (cache never cleared). The fix passes a lambda that mirrors `SkateLabClient.clearAuthCache()`. The test already imports `io.ktor.client.plugins.auth.Auth` (line 7) and `io.ktor.client.plugins.auth.providers.bearer` (line 9). Add an import for `BearerAuthProvider` (same package as `BearerTokens`, already imported on line 8).
+**Context:** The test currently constructs `val repo = AuthRepository(AuthApi(client), tokenStorage)` (2-arg, default `{}`) — the test stays RED (cache never cleared). The fix mirrors `SkateLabClient.clearAuthCache()`: because the test builds `HttpClient` directly (no `SkateLabClient`), it captures its own `AuthConfig` reference inside `install(Auth)` and reads `authConfig.providers` in the callback. Imports needed: `io.ktor.client.plugins.auth.Auth` (for `install(Auth)`, already present), `io.ktor.client.plugins.auth.AuthConfig`, `io.ktor.client.plugins.auth.providers.BearerAuthProvider`.
 
-The repro test's own assertion (lines 110–117) already asserts `id == "b"` — it needs no change. Only the repo construction changes, which makes the assertion pass.
+The repro test's own assertion already asserts `id == "b"` — it needs no change. The repo construction + config capture change, which makes the assertion pass.
 
-- [ ] **Step 1: Add the `BearerAuthProvider` import**
+- [ ] **Step 1: Update imports**
 
-In `mobile/shared/src/commonTest/kotlin/ru/skatelab/shared/auth/AuthRepositoryCacheBugReproTest.kt`, after line 9 (`import io.ktor.client.plugins.auth.providers.bearer`), add:
+In `mobile/shared/src/commonTest/kotlin/ru/skatelab/shared/auth/AuthRepositoryCacheBugReproTest.kt`, ensure these imports are present alongside the existing `import io.ktor.client.plugins.auth.Auth`:
 
 ```kotlin
+import io.ktor.client.plugins.auth.Auth
+import io.ktor.client.plugins.auth.AuthConfig
 import io.ktor.client.plugins.auth.providers.BearerAuthProvider
+import io.ktor.client.plugins.auth.providers.BearerTokens
+import io.ktor.client.plugins.auth.providers.bearer
 ```
 
-- [ ] **Step 2: Replace the repo construction with the wired version**
+- [ ] **Step 2: Capture the Auth config + wire the callback**
 
-In the same file, replace line 98:
-
-```kotlin
-        val repo = AuthRepository(AuthApi(client), tokenStorage)
-```
-
-with:
+Add a `lateinit var authConfig: AuthConfig` before the `HttpClient(...)` builder, assign `authConfig = this` as the first line inside `install(Auth) { ... }`, and replace the 2-arg `AuthRepository` construction with the 3-arg version passing the clear-cache lambda:
 
 ```kotlin
+        lateinit var authConfig: AuthConfig
+
+        val client = HttpClient(engine) {
+            install(ContentNegotiation) { json(json) }
+            install(Auth) {
+                authConfig = this
+                bearer {
+                    // ... existing loadTokens / refreshTokens unchanged ...
+                }
+            }
+        }
+
         // Mirror SkateLabClient.clearAuthCache(): clear the Auth plugin's in-memory
         // cache so logout/login forces loadTokens to re-read storage.
         val clearCache: () -> Unit = {
-            client.plugin(Auth).providers
+            authConfig.providers
                 .filterIsInstance<BearerAuthProvider>()
                 .forEach { it.clearToken() }
         }
