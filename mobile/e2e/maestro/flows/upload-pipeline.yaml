@@ -39,8 +39,19 @@ tags:
 - addMedia: ["./assets/test_video.mp4"]
 - tapOn: "Upload video"
 - tapOn: "00:12"
-- assertVisible: "axel"
-- tapOn: "axel"
+# ISU element picker (family-grouped): "Axel" family header, then rotation variants "1A/2A/3A/4A".
+# The bottom sheet only shows the top of the list; the variant rows sit below the fold, so
+# scroll the sheet incrementally until "3A" is visible. Maestro tapOn matches visible text as a
+# case-insensitive substring, so "3A" hits the "3A — Triple Axel" variant row.
+- assertVisible: "Axel"
+- scrollUntilVisible:
+    element: "3A"
+    timeout: 15000
+    speed: 5
+- tapOn: "3A"
+# Confirm element selection — the new picker has a "Next" button that triggers the upload
+# (the old slug picker auto-uploaded on selection; the ISU picker requires explicit confirm).
+- tapOn: "Next"
 - assertVisible: "Uploading video…"
 - retry:
     maxRetries: 30
