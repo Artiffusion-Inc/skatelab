@@ -44,10 +44,15 @@ tags:
 # scroll the sheet incrementally until "3A" is visible. Maestro tapOn matches visible text as a
 # case-insensitive substring, so "3A" hits the "3A — Triple Axel" variant row.
 - assertVisible: "Axel"
-- scrollUntilVisible:
-    element: "3A"
-    timeout: 15000
-    speed: 5
+# The ISU picker is a Compose ModalBottomSheet whose internal scroll does not map to
+# Maestro's full-screen `scrollUntilVisible` (it overshoots past the Axel family at the
+# default speed). Use a low-speed coordinate swipe inside the sheet to reveal the variants
+# (1A..4A), then tap "3A". The exact swipe range may need tuning per device/screen.
+- swipe:
+    start: 50%, 65%
+    end: 50%, 45%
+    duration: 500
+- assertVisible: "3A"
 - tapOn: "3A"
 # Confirm element selection — the new picker has a "Next" button that triggers the upload
 # (the old slug picker auto-uploaded on selection; the ISU picker requires explicit confirm).
