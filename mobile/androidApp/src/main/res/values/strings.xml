@@ -205,18 +205,57 @@
     <string name="metric_total_rotation">Total rotation</string>
     <string name="metric_speed_at_takeoff">Speed at takeoff</string>
 
-    <!-- Figure skating elements -->
-    <string name="element_axel">Axel</string>
-    <string name="element_lutz">Lutz</string>
-    <string name="element_flip">Flip</string>
-    <string name="element_loop">Loop</string>
-    <string name="element_salchow">Salchow</string>
-    <string name="element_toe_loop">Toe loop</string>
-    <string name="element_toe_loop_flip">Toe loop (flip)</string>
-    <string name="element_cascade">Cascade</string>
-    <string name="element_waltz_jump">Waltz jump</string>
-    <string name="element_three_turn">Three turn</string>
-    <string name="element_spin">Spin</string>
+    <!-- Figure skating elements (ISU codes) — full localized names.
+         The code itself (e.g. "3A") is locale-agnostic and shown verbatim
+         alongside this name; this resource holds only the name. Mirrors
+         backend elements_db.py name_en (Task 1). Resource names are the
+         lowercased code since AAPT rejects uppercase resource name chars. -->
+    <string name="element_1a_name">Single Axel</string>
+    <string name="element_2a_name">Double Axel</string>
+    <string name="element_3a_name">Triple Axel</string>
+    <string name="element_4a_name">Quad Axel</string>
+    <string name="element_1t_name">Single Toe Loop</string>
+    <string name="element_2t_name">Double Toe Loop</string>
+    <string name="element_3t_name">Triple Toe Loop</string>
+    <string name="element_4t_name">Quad Toe Loop</string>
+    <string name="element_1s_name">Single Salchow</string>
+    <string name="element_2s_name">Double Salchow</string>
+    <string name="element_3s_name">Triple Salchow</string>
+    <string name="element_4s_name">Quad Salchow</string>
+    <string name="element_1lo_name">Single Loop</string>
+    <string name="element_2lo_name">Double Loop</string>
+    <string name="element_3lo_name">Triple Loop</string>
+    <string name="element_4lo_name">Quad Loop</string>
+    <string name="element_1f_name">Single Flip</string>
+    <string name="element_2f_name">Double Flip</string>
+    <string name="element_3f_name">Triple Flip</string>
+    <string name="element_4f_name">Quad Flip</string>
+    <string name="element_1lz_name">Single Lutz</string>
+    <string name="element_2lz_name">Double Lutz</string>
+    <string name="element_3lz_name">Triple Lutz</string>
+    <string name="element_4lz_name">Quad Lutz</string>
+    <string name="element_1eu_name">Euler (half-loop)</string>
+    <string name="element_csp1_name">Change Foot Combination Spin Lv1</string>
+    <string name="element_csp2_name">Change Foot Combination Spin Lv2</string>
+    <string name="element_csp3_name">Change Foot Combination Spin Lv3</string>
+    <string name="element_csp4_name">Change Foot Combination Spin Lv4</string>
+    <string name="element_stsq1_name">Step Sequence Lv1</string>
+    <string name="element_stsq2_name">Step Sequence Lv2</string>
+    <string name="element_stsq3_name">Step Sequence Lv3</string>
+    <string name="element_stsq4_name">Step Sequence Lv4</string>
+    <string name="element_chsq1_name">Choreographic Sequence</string>
+
+    <!-- Element picker family headers -->
+    <string name="element_family_a">Axel</string>
+    <string name="element_family_t">Toe loop</string>
+    <string name="element_family_s">Salchow</string>
+    <string name="element_family_lo">Loop</string>
+    <string name="element_family_f">Flip</string>
+    <string name="element_family_lz">Lutz</string>
+    <string name="element_family_eu">Euler</string>
+    <string name="element_family_csp">Combination spin</string>
+    <string name="element_family_stsq">Step sequence</string>
+    <string name="element_family_chsq">Choreographic sequence</string>
 
     <!-- Recording -->
     <string name="recording_left_battery">L: %1$d%%</string>

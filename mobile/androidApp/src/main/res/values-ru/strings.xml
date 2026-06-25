@@ -191,17 +191,57 @@
     <string name="metric_total_rotation">Общее вращение</string>
     <string name="metric_speed_at_takeoff">Скорость на отрыве</string>
 
-    <string name="element_axel">Аксель</string>
-    <string name="element_lutz">Лутц</string>
-    <string name="element_flip">Флип</string>
-    <string name="element_loop">Риттбергер</string>
-    <string name="element_salchow">Сальхов</string>
-    <string name="element_toe_loop">Тулуп</string>
-    <string name="element_toe_loop_flip">Тулуп (флип)</string>
-    <string name="element_cascade">Каскад</string>
-    <string name="element_waltz_jump">Вальсовый прыжок</string>
-    <string name="element_three_turn">Тройной</string>
-    <string name="element_spin">Вращение</string>
+    <!-- Figure skating elements (ISU codes) — full localized names.
+         Код (напр. "3A") локаленезависим и показывается как есть рядом с
+         именем; этот ресурс хранит только имя. Зеркало backend elements_db.py
+         name_ru (Task 1). Имя ресурса — код в нижнем регистре (AAPT не
+         допускает заглавные в имени ресурса). -->
+    <string name="element_1a_name">Одинарный Аксель</string>
+    <string name="element_2a_name">Двойной Аксель</string>
+    <string name="element_3a_name">Тройной Аксель</string>
+    <string name="element_4a_name">Четверной Аксель</string>
+    <string name="element_1t_name">Одинарный Тулуп</string>
+    <string name="element_2t_name">Двойной Тулуп</string>
+    <string name="element_3t_name">Тройной Тулуп</string>
+    <string name="element_4t_name">Четверной Тулуп</string>
+    <string name="element_1s_name">Одинарный Сальхов</string>
+    <string name="element_2s_name">Двойной Сальхов</string>
+    <string name="element_3s_name">Тройной Сальхов</string>
+    <string name="element_4s_name">Четверной Сальхов</string>
+    <string name="element_1lo_name">Одинарный Риттбергер</string>
+    <string name="element_2lo_name">Двойной Риттбергер</string>
+    <string name="element_3lo_name">Тройной Риттбергер</string>
+    <string name="element_4lo_name">Четверной Риттбергер</string>
+    <string name="element_1f_name">Одинарный Флип</string>
+    <string name="element_2f_name">Двойной Флип</string>
+    <string name="element_3f_name">Тройной Флип</string>
+    <string name="element_4f_name">Четверной Флип</string>
+    <string name="element_1lz_name">Одинарный Лутц</string>
+    <string name="element_2lz_name">Двойной Лутц</string>
+    <string name="element_3lz_name">Тройной Лутц</string>
+    <string name="element_4lz_name">Четверной Лутц</string>
+    <string name="element_1eu_name">Эйлер (перекидной)</string>
+    <string name="element_csp1_name">Вращение со сменой ноги (комб.) ур.1</string>
+    <string name="element_csp2_name">Вращение со сменой ноги (комб.) ур.2</string>
+    <string name="element_csp3_name">Вращение со сменой ноги (комб.) ур.3</string>
+    <string name="element_csp4_name">Вращение со сменой ноги (комб.) ур.4</string>
+    <string name="element_stsq1_name">Дорожка шагов ур.1</string>
+    <string name="element_stsq2_name">Дорожка шагов ур.2</string>
+    <string name="element_stsq3_name">Дорожка шагов ур.3</string>
+    <string name="element_stsq4_name">Дорожка шагов ур.4</string>
+    <string name="element_chsq1_name">Хореографическая дорожка</string>
+
+    <!-- Element picker family headers -->
+    <string name="element_family_a">Аксель</string>
+    <string name="element_family_t">Тулуп</string>
+    <string name="element_family_s">Сальхов</string>
+    <string name="element_family_lo">Риттбергер</string>
+    <string name="element_family_f">Флип</string>
+    <string name="element_family_lz">Лутц</string>
+    <string name="element_family_eu">Эйлер</string>
+    <string name="element_family_csp">Комбинационное вращение</string>
+    <string name="element_family_stsq">Дорожка шагов</string>
+    <string name="element_family_chsq">Хореографическая дорожка</string>
 
     <string name="recording_left_battery">Л: %1$d%%</string>
     <string name="recording_right_battery">П: %1$d%%</string>

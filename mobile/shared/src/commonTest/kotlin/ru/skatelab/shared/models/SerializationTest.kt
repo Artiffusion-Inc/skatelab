@@ -75,27 +75,52 @@ class SerializationTest {
     }
 
     @Test
-    fun elementTypes_containsExpectedCatalog() {
-        // Canonical element keys are the backend contract (metrics_registry.py);
-        // display strings are resolved per-locale in the UI layer (#331). The list
-        // must keep the picker catalog stable and in the same order across builds.
+    fun elementTypes_containsExpectedIsuCatalog() {
+        // Canonical element keys are now ISU codes — the backend contract
+        // (backend/app/services/choreography/elements_db.py ELEMENTS dict, Task 1).
+        // Display strings (full names) are resolved per-locale in the UI layer
+        // (#331), the code itself (e.g. "3A") is locale-agnostic and shown verbatim
+        // alongside the name. The list must keep the picker catalog stable and in
+        // the same order across builds.
         assertEquals(
-            listOf("waltz_jump", "toe_loop", "flip", "lutz", "salchow", "loop", "axel", "three_turn", "spin"),
+            listOf(
+                "1A", "2A", "3A", "4A",
+                "1T", "2T", "3T", "4T",
+                "1S", "2S", "3S", "4S",
+                "1Lo", "2Lo", "3Lo", "4Lo",
+                "1F", "2F", "3F", "4F",
+                "1Lz", "2Lz", "3Lz", "4Lz",
+                "1Eu",
+                "CSp1", "CSp2", "CSp3", "CSp4",
+                "StSq1", "StSq2", "StSq3", "StSq4",
+                "ChSq1",
+            ),
             elementTypes,
         )
     }
 
     @Test
-    fun elementTypes_coversBackendJumpAndSpinVocabulary() {
-        // Every backend jump element and the spin/three-turn markers must be
-        // representable in the UI catalog (no element the backend can return is
-        // unmappable). Drift here is the bug class #331 guards against.
-        val backendJumps = listOf("waltz_jump", "toe_loop", "flip", "salchow", "loop", "lutz", "axel")
-        val backendOthers = listOf("three_turn", "spin")
-        // assertTrue (kotlin.test) instead of built-in assert(): Kotlin/Native requires
-        // ExperimentalNativeApi opt-in for assert, which breaks iOS test compilation.
-        backendJumps.forEach { assertTrue(it in elementTypes, "missing jump element key: $it") }
-        backendOthers.forEach { assertTrue(it in elementTypes, "missing non-jump element key: $it") }
+    fun elementTypes_coversAllBackendIsuCodes() {
+        // The picker catalog must be a superset of the backend ELEMENTS codes that
+        // are selectable in the capture flow (jumps, combination spins, step
+        // sequences, choreo sequence). Drift here is the bug class #331 guards
+        // against — no element the backend can return is unmappable.
+        val expected = listOf(
+            "1A", "2A", "3A", "4A",
+            "1T", "2T", "3T", "4T",
+            "1S", "2S", "3S", "4S",
+            "1Lo", "2Lo", "3Lo", "4Lo",
+            "1F", "2F", "3F", "4F",
+            "1Lz", "2Lz", "3Lz", "4Lz",
+            "1Eu",
+            "CSp1", "CSp2", "CSp3", "CSp4",
+            "StSq1", "StSq2", "StSq3", "StSq4",
+            "ChSq1",
+        )
+        // assertTrue (kotlin.test) instead of built-in assert(): Kotlin/Native
+        // requires ExperimentalNativeApi opt-in for assert, which breaks iOS test
+        // compilation.
+        expected.forEach { assertTrue(it in elementTypes, "missing ISU element code: $it") }
     }
 
     @Test
