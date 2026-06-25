@@ -48,6 +48,7 @@ async def save_analyzer_results(
     phases: Any,
     fps: float = 30.0,
     total_frames: int = 0,
+    rotations: int | None = None,
 ) -> dict[str, Any]:
     """Compute multi-dimensional score and save SessionScore + SessionPhase.
 
@@ -149,4 +150,4 @@ async def save_analyzer_results(
         fallback_used=phase_dicts == [],
     )
 
-    return {"overall_score": overall, "element_type": element_type}
+    return {"overall_score": overall, "element_type": element_type, "rotations": rotations}
