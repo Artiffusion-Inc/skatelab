@@ -74,11 +74,15 @@ export function useElementMap(): Record<string, ElementEntry> | undefined {
 }
 
 /**
- * Returns a stable function that renders the label for an ISU element code:
+ * Returns a function that renders the label for an ISU element code:
  * "<code> — <localized name>".
  *
  * Picks `name_ru` for the Russian locale, `name_en` otherwise. Falls back to the
  * raw code when the code is not in the registry (e.g. registry still loading).
+ *
+ * Note: the returned function is rebuilt each render (the underlying
+ * `useElementMap` rebuilds its map each render). It is not memoized — fine for
+ * label rendering, but avoid depending on referential equality.
  *
  * Usage: `const label = useElementLabel()` then `label("3A")` per item.
  */

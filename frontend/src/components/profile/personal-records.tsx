@@ -2,15 +2,14 @@
 
 import { Trophy } from "lucide-react"
 import Link from "next/link"
-import { useLocale, useTranslations } from "@/i18n"
+import { useTranslations } from "@/i18n"
 import { useMetricRegistry, usePRs } from "@/lib/api/metrics"
-import { useElementMap } from "@/hooks/use-metric-registry"
+import { useElementLabel } from "@/hooks/use-metric-registry"
 
 export function PersonalRecords({ userId }: { userId?: string }) {
   const { data: prsData } = usePRs(userId)
   const { data: registry } = useMetricRegistry()
-  const elementMap = useElementMap()
-  const locale = useLocale()
+  const elementLabel = useElementLabel()
   const t = useTranslations("profile")
 
   if (!prsData || !registry) return null
@@ -22,13 +21,6 @@ export function PersonalRecords({ userId }: { userId?: string }) {
         {t("noRecordsHint")}
       </div>
     )
-  }
-
-  const elementLabel = (code: string): string => {
-    const entry = elementMap?.[code]
-    if (!entry) return code
-    const name = locale === "ru" ? entry.name_ru : entry.name_en
-    return `${code} — ${name}`
   }
 
   // Group PRs by element type
