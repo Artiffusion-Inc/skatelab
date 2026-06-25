@@ -50,12 +50,9 @@
 import { describe, expect, it } from "vitest"
 
 // Verbatim cookie strings from the source. Source citations in each constant.
-const LOGIN_SET_COOKIE =
-  "sb_auth=1; path=/; max-age=31536000; SameSite=Lax" // auth-provider.tsx:73 (also :90 register)
-const CLEAR_COOKIE =
-  "sb_auth=; path=/; max-age=0; Domain=skatelab.ru" // api-client.ts:38 clearTokens()
-const REFRESH_SET_COOKIE =
-  "sb_auth=1; path=/; max-age=31536000; SameSite=Lax; Domain=skatelab.ru" // api-client.ts:32/:52
+const LOGIN_SET_COOKIE = "sb_auth=1; path=/; max-age=31536000; SameSite=Lax" // auth-provider.tsx:73 (also :90 register)
+const CLEAR_COOKIE = "sb_auth=; path=/; max-age=0; Domain=skatelab.ru" // api-client.ts:38 clearTokens()
+const REFRESH_SET_COOKIE = "sb_auth=1; path=/; max-age=31536000; SameSite=Lax; Domain=skatelab.ru" // api-client.ts:32/:52
 
 /** Extract the Domain attribute (lowercased) from a Set-Cookie string, or null if host-only. */
 function domainOf(setCookie: string): string | null {

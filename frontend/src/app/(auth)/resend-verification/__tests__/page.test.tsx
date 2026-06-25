@@ -40,11 +40,9 @@ import { describe, expect, it, beforeEach, vi } from "vitest"
 import { render, screen, fireEvent, waitFor } from "@testing-library/react"
 
 // Mock resendVerification to throw (backend 429 / network failure).
-const resendVerificationMock = vi.fn(
-  async (_email: string): Promise<{ message: string }> => {
-    throw new Error("HTTP 429")
-  },
-)
+const resendVerificationMock = vi.fn(async (_email: string): Promise<{ message: string }> => {
+  throw new Error("HTTP 429")
+})
 vi.mock("@/lib/auth", () => ({
   resendVerification: (email: string) => resendVerificationMock(email),
 }))

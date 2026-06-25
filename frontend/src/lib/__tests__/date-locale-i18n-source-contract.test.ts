@@ -57,9 +57,12 @@ describe("date formatting respects selected locale (i18n source-contract repro)"
       }
     }
 
-    expect(offenders, `BUG (i18n): these files hardcode "ru-RU" date locale, ` +
-      `ignoring the user's selected language (useLocale). English users see ` +
-      `Russian dates. Use useLocale() from next-intl instead. Offenders: ` +
-      `${offenders.join(", ")}`).toEqual([])
+    expect(
+      offenders,
+      `BUG (i18n): these files hardcode "ru-RU" date locale, ` +
+        `ignoring the user's selected language (useLocale). English users see ` +
+        `Russian dates. Use useLocale() from next-intl instead. Offenders: ` +
+        `${offenders.join(", ")}`,
+    ).toEqual([])
   })
 })
