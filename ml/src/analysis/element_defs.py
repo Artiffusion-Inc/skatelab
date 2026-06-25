@@ -374,16 +374,85 @@ ELEMENT_DEFS: dict[str, ElementDef] = {
 }
 
 
+# ISU code → ELEMENT_DEFS slug mapping.
+# Covers jumps (1..4 rotations), spins, and step sequences.
+# Euler (1Eu) is omitted — no ElementDef exists for it.
+ISU_CODE_TO_SLUG: dict[str, str] = {
+    # Jumps — Axel family (single axel = 1A maps to axel, not waltz_jump)
+    "1A": "axel",
+    "2A": "axel",
+    "3A": "axel",
+    "4A": "axel",
+    # Jumps — Toe loop family
+    "1T": "toe_loop",
+    "2T": "toe_loop",
+    "3T": "toe_loop",
+    "4T": "toe_loop",
+    # Jumps — Salchow family
+    "1S": "salchow",
+    "2S": "salchow",
+    "3S": "salchow",
+    "4S": "salchow",
+    # Jumps — Loop family
+    "1Lo": "loop",
+    "2Lo": "loop",
+    "3Lo": "loop",
+    "4Lo": "loop",
+    # Jumps — Flip family
+    "1F": "flip",
+    "2F": "flip",
+    "3F": "flip",
+    "4F": "flip",
+    # Jumps — Lutz family
+    "1Lz": "lutz",
+    "2Lz": "lutz",
+    "3Lz": "lutz",
+    "4Lz": "lutz",
+    # Spins
+    "1USp": "upright_spin",
+    "2USp": "upright_spin",
+    "3USp": "upright_spin",
+    "4USp": "upright_spin",
+    "1CSp": "one_foot_spin",
+    "2CSp": "one_foot_spin",
+    "3CSp": "one_foot_spin",
+    "4CSp": "one_foot_spin",
+    "1LSp": "scratch_spin",
+    "2LSp": "scratch_spin",
+    "3LSp": "scratch_spin",
+    "4LSp": "scratch_spin",
+    # Flying / Camel spins — no exact match; map to scratch_spin for generic spin analysis
+    "1FSp": "scratch_spin",
+    "2FSp": "scratch_spin",
+    "3FSp": "scratch_spin",
+    "4FSp": "scratch_spin",
+    "1CSpB": "scratch_spin",
+    "2CSpB": "scratch_spin",
+    "3CSpB": "scratch_spin",
+    "4CSpB": "scratch_spin",
+    # Step sequences
+    "StSq1": "three_turn",
+    "StSq2": "three_turn",
+    "StSq3": "three_turn",
+    "StSq4": "three_turn",
+}
+
+
 def get_element_def(element_type: str) -> ElementDef | None:
     """Get element definition by type.
 
+    Accepts both legacy slugs (e.g. 'axel') and ISU codes (e.g. '3A').
+
     Args:
-        element_type: Element identifier (e.g., 'three_turn').
+        element_type: Element identifier (e.g., 'three_turn', '3A').
 
     Returns:
         ElementDef or None if not found.
     """
-    return ELEMENT_DEFS.get(element_type)
+    if element_type in ELEMENT_DEFS:
+        return ELEMENT_DEFS[element_type]
+    slug = ISU_CODE_TO_SLUG.get(element_type)
+    return ELEMENT_DEFS.get(slug) if slug else None
 
 
 @dataclass(frozen=True)

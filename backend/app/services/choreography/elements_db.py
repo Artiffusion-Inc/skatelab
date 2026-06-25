@@ -677,6 +677,7 @@ def get_spins() -> list[ElementDef]:
 # ML / TAS vocabulary mapping
 # ---------------------------------------------------------------------------
 
+# Must stay in sync with ml/src/analysis/isu_remap.py ML_TYPE_TO_FAMILY.
 # Maps ML/TAS slug element names to ISU jump family codes. "waltz_jump" is a
 # single Axel (fixed 1A code, not a rotation-composable family) — encoded as
 # the literal code "1A" so family_to_isu returns it directly.
