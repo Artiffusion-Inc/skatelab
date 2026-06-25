@@ -1,5 +1,5 @@
 import { assert, describe, expect, it, vi, beforeEach } from "vitest"
-import { z } from "zod"
+import * as z from "zod"
 
 // Mock window.location.href redirect
 const mockRedirect = vi.fn()

@@ -3,6 +3,7 @@
 import Link from "next/link"
 import { TrendingUp, Minus, TrendingDown, Circle } from "lucide-react"
 import { useTranslations } from "@/i18n"
+import { useElementLabel } from "@/hooks/use-metric-registry"
 
 type HealthStatus = "improving" | "stagnant" | "declining" | "no_data"
 
@@ -26,7 +27,7 @@ export function ElementCard({
   lastSessionDate,
   findingCount,
 }: ElementCardProps) {
-  const te = useTranslations("elements")
+  const elementLabel = useElementLabel()
   const tp = useTranslations("progress")
   const config = healthConfig[health]
   const Icon = config.icon
@@ -41,7 +42,7 @@ export function ElementCard({
         aria-label={tp(`health.${health}`)}
       />
       <div className="min-w-0 flex-1">
-        <p className="text-sm font-medium">{te(elementId)}</p>
+        <p className="text-sm font-medium">{elementLabel(elementId)}</p>
         {lastSessionDate && (
           <p className="text-xs text-ink-mute">
             {new Date(lastSessionDate).toLocaleDateString("ru-RU")}

@@ -2,13 +2,15 @@
 
 import { Trophy } from "lucide-react"
 import Link from "next/link"
-import { useTranslations } from "@/i18n"
+import { useLocale, useTranslations } from "@/i18n"
 import { useMetricRegistry, usePRs } from "@/lib/api/metrics"
+import { useElementMap } from "@/hooks/use-metric-registry"
 
 export function PersonalRecords({ userId }: { userId?: string }) {
   const { data: prsData } = usePRs(userId)
   const { data: registry } = useMetricRegistry()
-  const te = useTranslations("elements")
+  const elementMap = useElementMap()
+  const locale = useLocale()
   const t = useTranslations("profile")
 
   if (!prsData || !registry) return null
@@ -22,6 +24,13 @@ export function PersonalRecords({ userId }: { userId?: string }) {
     )
   }
 
+  const elementLabel = (code: string): string => {
+    const entry = elementMap?.[code]
+    if (!entry) return code
+    const name = locale === "ru" ? entry.name_ru : entry.name_en
+    return `${code} — ${name}`
+  }
+
   // Group PRs by element type
   const grouped = prs.reduce<Record<string, typeof prs>>((acc, pr) => {
     if (!acc[pr.element_type]) acc[pr.element_type] = []
@@ -33,7 +42,9 @@ export function PersonalRecords({ userId }: { userId?: string }) {
     <div className="space-y-4">
       {Object.entries(grouped).map(([elementType, elementPRs]) => (
         <div key={elementType}>
-          <h3 className="mb-2 text-sm font-medium text-muted-foreground">{te(elementType)}</h3>
+          <h3 className="mb-2 text-sm font-medium text-muted-foreground">
+            {elementLabel(elementType)}
+          </h3>
           <div className="space-y-1.5">
             {elementPRs.map(pr => {
               const mdef = registry[pr.metric_name]

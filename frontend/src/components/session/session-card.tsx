@@ -5,6 +5,7 @@ import Link from "next/link"
 import type React from "react"
 import { useTranslations } from "@/i18n"
 import type { Session } from "@/types"
+import { useElementLabel } from "@/hooks/use-metric-registry"
 
 function relativeTime(
   dateStr: string,
@@ -36,7 +37,7 @@ interface SessionCardProps {
 
 export function SessionCard({ session, selectable, selected, onSelect }: SessionCardProps) {
   const hasPR = session.metrics.some(m => m.is_pr)
-  const te = useTranslations("elements")
+  const elementLabel = useElementLabel()
   const ts = useTranslations("session")
 
   return (
@@ -54,7 +55,7 @@ export function SessionCard({ session, selectable, selected, onSelect }: Session
               />
             )}
             <div className="min-w-0">
-              <p className="font-medium truncate">{te(session.element_type)}</p>
+              <p className="font-medium truncate">{elementLabel(session.element_type)}</p>
               <p className="text-xs text-muted-foreground flex items-center gap-1">
                 <Clock className="h-3 w-3 shrink-0" />
                 {relativeTime(session.created_at, ts)}

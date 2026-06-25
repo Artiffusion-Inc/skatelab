@@ -14,8 +14,9 @@ vi.mock("next/navigation", () => ({
   usePathname: vi.fn(() => "/"),
 }))
 
-// Mock @/i18n for components that use useTranslations
+// Mock @/i18n for components that use useTranslations / useLocale
 vi.mock("@/i18n", () => ({
+  useLocale: vi.fn(() => "en"),
   useTranslations: vi.fn((_namespace: string) => {
     // Return a translation function that returns the key (identity) or interpolated string
     return vi.fn((key: string, params?: Record<string, string>) => {

@@ -1,6 +1,6 @@
 // src/frontend/src/lib/api/metrics.ts
 import { useQuery } from "@tanstack/react-query"
-import { z } from "zod"
+import * as z from "zod"
 import { apiFetch } from "@/lib/api-client"
 
 const TrendDataPointSchema = z.object({

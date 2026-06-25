@@ -6,6 +6,7 @@ import { UploadCtaBanner } from "@/components/demo/upload-cta-banner"
 import { SkeletonDetail } from "@/components/skeleton-detail"
 import { MetricRow } from "@/components/session/metric-row"
 import { useTranslations } from "@/i18n"
+import { useElementLabel } from "@/hooks/use-metric-registry"
 
 interface DemoMetric {
   id: string
@@ -30,7 +31,7 @@ interface DemoSession {
 }
 
 export default function DemoSessionPage() {
-  const te = useTranslations("elements")
+  const elementLabel = useElementLabel()
   const ts = useTranslations("sessions")
   const tSession = useTranslations("session")
 
@@ -46,7 +47,7 @@ export default function DemoSessionPage() {
       <UploadCtaBanner />
       <div className="space-y-4 px-4 pt-4">
         <div className="flex items-center gap-2">
-          <h1 className="text-xl font-semibold">{te(demo.element_type)}</h1>
+          <h1 className="text-xl font-semibold">{elementLabel(demo.element_type)}</h1>
           <DemoBadge />
         </div>
         <p className="text-sm text-ink-mute">

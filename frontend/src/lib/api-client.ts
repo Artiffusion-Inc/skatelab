@@ -6,7 +6,7 @@
  * The frontend only manages the `sb_auth` sentinel cookie for SSR gating.
  */
 
-import { z } from "zod"
+import * as z from "zod"
 
 export const API_BASE = process.env.NEXT_PUBLIC_API_URL || "https://api.skatelab.ru/v1"
 
@@ -195,7 +195,7 @@ export async function apiPatch<T>(path: string, schema: z.ZodSchema<T>, body: un
   })
 }
 
-const VoidSchema = z.unknown().transform(() => undefined)
+const VoidSchema = z.any().transform(() => undefined)
 
 export async function apiDelete(path: string): Promise<void> {
   return apiFetch(path, VoidSchema, { method: "DELETE" })

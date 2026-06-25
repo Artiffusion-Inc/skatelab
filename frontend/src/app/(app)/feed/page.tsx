@@ -9,7 +9,7 @@ import { DemoBadge } from "@/components/demo/demo-badge"
 import { usePageStatus } from "@/lib/hooks/use-page-status"
 import { useTranslations } from "@/i18n"
 import { useSessions, useBulkDeleteSessions } from "@/lib/api/sessions"
-import { ELEMENT_TYPE_KEYS } from "@/lib/constants"
+import { useElementLabel, useElementMap } from "@/hooks/use-metric-registry"
 import { Upload } from "lucide-react"
 import { EmptyState, FirstAnalysisCelebration } from "@/components/onboarding"
 import { NoVideoGuide } from "./no-video-guide"
@@ -19,7 +19,8 @@ export default function FeedPage() {
   const { isFirstLoad, isError } = usePageStatus([query])
   const tf = useTranslations("feed")
   const tc = useTranslations("common")
-  const te = useTranslations("elements")
+  const elementLabel = useElementLabel()
+  const elementMap = useElementMap()
   const tEmpty = useTranslations("emptyStates")
   const td = useTranslations("demo")
 
@@ -90,7 +91,7 @@ export default function FeedPage() {
           className="block rounded-2xl border border-primary/20 bg-primary/5 p-3 sm:p-4 transition-colors hover:bg-primary/10"
         >
           <div className="flex items-center gap-2">
-            <span className="font-medium">{te("axel")}</span>
+            <span className="font-medium">{elementLabel("3A")}</span>
             <DemoBadge />
           </div>
           <p className="mt-1 text-sm text-ink-mute">{td("demoSessionLabel")}</p>
@@ -149,11 +150,13 @@ export default function FeedPage() {
           className="rounded-lg border border-hairline bg-transparent px-2 py-1 text-sm"
         >
           <option value="">{tf("allElements")}</option>
-          {ELEMENT_TYPE_KEYS.map(key => (
-            <option key={key} value={key}>
-              {te(key)}
-            </option>
-          ))}
+          {Object.keys(elementMap ?? {})
+            .sort()
+            .map(key => (
+              <option key={key} value={key}>
+                {elementLabel(key)}
+              </option>
+            ))}
         </select>
         <div className="flex gap-1">
           {(["7d", "30d", "90d", "all"] as const).map(d => (
@@ -186,7 +189,7 @@ export default function FeedPage() {
               className="block rounded-2xl border border-primary/20 bg-primary/5 p-3 sm:p-4 transition-colors hover:bg-primary/10"
             >
               <div className="flex items-center gap-2">
-                <span className="font-medium">{te("axel")}</span>
+                <span className="font-medium">{elementLabel("3A")}</span>
                 <DemoBadge />
               </div>
               <p className="mt-1 text-sm text-ink-mute">{td("demoSessionLabel")}</p>
