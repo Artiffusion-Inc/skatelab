@@ -61,7 +61,7 @@ async def save_analyzer_results(
         total_frames: Total frame count for phase coverage calc.
 
     Returns:
-        Dict with overall_score and element_type for gamification.
+        Dict with overall_score, element_type, and rotations for gamification.
     """
     from app.crud.session_phase import create as create_phase
     from app.crud.session_score import create as create_score
