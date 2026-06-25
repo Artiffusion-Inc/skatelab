@@ -1607,3 +1607,6 @@ class PhaseDetectionResult:
 
     confidence: float
     """Detection confidence score [0, 1]."""
+
+    rotations: int = 0
+    """Full body rotations counted over the flight phase (jumps only)."""
