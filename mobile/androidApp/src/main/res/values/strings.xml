@@ -135,6 +135,7 @@
     <string name="error_not_found">Not found.</string>
     <string name="error_server">Server error. Please try again later.</string>
     <string name="error_timeout">Request timed out. Please try again.</string>
+    <string name="error_conflict">Account conflict.</string>
     <string name="error_unknown">An unexpected error occurred.</string>
 
     <!-- Auth -->

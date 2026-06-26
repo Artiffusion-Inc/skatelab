@@ -14,6 +14,7 @@ fun AppError.asString(): String =
             is AppError.NotFound -> R.string.error_not_found
             is AppError.Server -> R.string.error_server
             is AppError.Timeout -> R.string.error_timeout
+            is AppError.Conflict -> R.string.error_conflict
             is AppError.Unknown -> R.string.error_unknown
         },
     )
