@@ -1,8 +1,11 @@
 package ru.skatelab.capture.ui.processing
 
+import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import androidx.work.ExistingWorkPolicy
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -12,6 +15,7 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import ru.skatelab.capture.data.db.PendingUploadDao
 import ru.skatelab.capture.data.db.PendingUploadEntity
+import ru.skatelab.capture.upload.UploadScheduler
 import ru.skatelab.shared.api.SkateLabClient
 import ru.skatelab.shared.state.ProcessingUiState
 import ru.skatelab.shared.state.ProcessingViewModel
@@ -23,7 +27,7 @@ sealed interface UploadPhase {
 
     data class ReadyForProcessing(val videoKey: String, val sessionId: String) : UploadPhase
 
-    data object UploadFailed : UploadPhase
+    data class UploadFailed(val isNetworkError: Boolean) : UploadPhase
 }
 
 @HiltViewModel
@@ -32,6 +36,7 @@ class AndroidProcessingViewModel
     constructor(
         private val client: SkateLabClient,
         private val pendingUploadDao: PendingUploadDao,
+        @ApplicationContext private val appContext: Context,
     ) : ViewModel() {
         private val shared = ProcessingViewModel(client.process)
 
@@ -46,23 +51,30 @@ class AndroidProcessingViewModel
             viewModelScope.launch {
                 pendingUploadDao.getByIdFlow(uploadId).collect { entity ->
                     if (entity == null) {
-                        _uploadPhase.value = UploadPhase.UploadFailed
+                        _uploadPhase.value = UploadPhase.UploadFailed(false)
                         return@collect
                     }
-                    _uploadPhase.value = UploadPhase.UploadStatus(entity)
                     when (entity.status) {
                         "PROCESSING" -> {
+                            _uploadPhase.value = UploadPhase.UploadStatus(entity)
                             entity.sessionId?.let { sid ->
                                 _uploadPhase.value = UploadPhase.ReadyForProcessing(entity.videoKey ?: "", sid)
                             }
                         }
                         "COMPLETED" -> {
+                            _uploadPhase.value = UploadPhase.UploadStatus(entity)
                             entity.sessionId?.let { sid ->
                                 _uploadPhase.value = UploadPhase.ReadyForProcessing(entity.videoKey ?: "", sid)
                             }
                         }
                         "FAILED" -> {
-                            _uploadPhase.value = UploadPhase.UploadFailed
+                            _uploadPhase.value = UploadPhase.UploadFailed(false)
+                        }
+                        "NETWORK_ERROR" -> {
+                            _uploadPhase.value = UploadPhase.UploadFailed(true)
+                        }
+                        else -> {
+                            _uploadPhase.value = UploadPhase.UploadStatus(entity)
                         }
                     }
                 }
@@ -81,6 +93,13 @@ class AndroidProcessingViewModel
             sessionId: String? = null,
         ) {
             viewModelScope.launch { shared.startProcessing(videoKey, sessionId) }
+        }
+
+        fun retryUpload(uploadId: String) {
+            viewModelScope.launch {
+                pendingUploadDao.resetForRetry(uploadId)
+                UploadScheduler.enqueue(appContext, uploadId, ExistingWorkPolicy.REPLACE)
+            }
         }
 
         fun cancel() {
