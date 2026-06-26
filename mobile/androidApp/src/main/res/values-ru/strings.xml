@@ -191,6 +191,7 @@
     <string name="metric_total_rotation">Общее вращение</string>
     <string name="metric_speed_at_takeoff">Скорость на отрыве</string>
 
+
     <!-- Figure skating elements (ISU codes) — full localized names.
          Код (напр. "3A") локаленезависим и показывается как есть рядом с
          именем; этот ресурс хранит только имя. Зеркало backend elements_db.py
@@ -242,6 +243,8 @@
     <string name="element_family_csp">Комбинационное вращение</string>
     <string name="element_family_stsq">Дорожка шагов</string>
     <string name="element_family_chsq">Хореографическая дорожка</string>
+
+    <string name="element_unknown">Неизвестный элемент</string>
 
     <string name="recording_left_battery">Л: %1$d%%</string>
     <string name="recording_right_battery">П: %1$d%%</string>

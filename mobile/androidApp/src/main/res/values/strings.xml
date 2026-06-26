@@ -205,6 +205,7 @@
     <string name="metric_total_rotation">Total rotation</string>
     <string name="metric_speed_at_takeoff">Speed at takeoff</string>
 
+
     <!-- Figure skating elements (ISU codes) — full localized names.
          The code itself (e.g. "3A") is locale-agnostic and shown verbatim
          alongside this name; this resource holds only the name. Mirrors
@@ -256,6 +257,8 @@
     <string name="element_family_csp">Combination spin</string>
     <string name="element_family_stsq">Step sequence</string>
     <string name="element_family_chsq">Choreographic sequence</string>
+
+    <string name="element_unknown">Unknown element</string>
 
     <!-- Recording -->
     <string name="recording_left_battery">L: %1$d%%</string>

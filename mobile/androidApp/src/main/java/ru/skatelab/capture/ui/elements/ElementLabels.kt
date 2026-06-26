@@ -67,9 +67,16 @@ private fun elementStringRes(key: String): Int? =
  * `"3A — Тройной Аксель"` (ru). The code is locale-agnostic and stable across
  * builds; the name follows the device locale. Unknown keys fall back to the
  * capitalized key.
+ *
+ * Null is tolerated: the backend may return `element_type: null` for sessions
+ * created during auto-detect (#355). A null key renders a localized
+ * "Unknown element" placeholder instead of crashing the UI.
  */
 @Composable
-fun elementLabel(key: String): String {
+fun elementLabel(key: String?): String {
+    if (key == null) {
+        return stringResource(R.string.element_unknown)
+    }
     val res = elementStringRes(key)
     return if (res != null) {
         "$key — ${stringResource(res)}"

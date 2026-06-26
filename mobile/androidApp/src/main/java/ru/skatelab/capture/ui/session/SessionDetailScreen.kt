@@ -302,7 +302,7 @@ private fun SessionDetailContent(
                                     .clickable {
                                         onNavigateToMetricTrend(
                                             metric.metricName,
-                                            session.elementType,
+                                            session.elementType ?: "",
                                         )
                                     },
                         )
