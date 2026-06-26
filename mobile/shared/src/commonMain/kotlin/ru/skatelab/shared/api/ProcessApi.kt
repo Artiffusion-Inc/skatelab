@@ -44,7 +44,7 @@ class ProcessApi(private val client: HttpClient) : IProcessApi {
         client.get("process/$taskId/status").expectSuccess().body()
 
     override suspend fun cancel(taskId: String) {
-        client.post("process/$taskId/cancel")
+        client.post("process/$taskId/cancel").expectSuccess()
     }
 
     override fun stream(taskId: String): Flow<ProcessEvent> = flow {
