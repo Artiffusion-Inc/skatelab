@@ -304,6 +304,23 @@ class CreateSessionRequest(BaseModel):
     isu_code: str | None = None
 
 
+# Status values the system actually writes to Session.status:
+#   uploading  — default (session created without video_key)
+#   queued     — session created with video_key / retry flow (client-settable)
+#   completed  — worker wrote pose data but no metrics (crud.update_session_analysis)
+#   done       — worker wrote metrics (canonical terminal for metrics filters)
+#   deleted    — soft delete (system only)
+# Terminal statuses (completed, done, deleted) are worker/system-only: a client
+# must never set them via PATCH — that would bypass the ML pipeline and let a
+# never-analyzed session pollute PR/trend/diagnostics filters.
+SESSION_STATUS_WHITELIST = frozenset(
+    {"uploading", "queued", "completed", "done", "failed", "deleted"}
+)
+# Statuses a client may set directly via PATCH /sessions/{id}. Terminal/worker-only
+# statuses are excluded — only the worker may transition a session to them.
+CLIENT_SETTABLE_STATUSES = frozenset({"uploading", "queued"})
+
+
 class PatchSessionRequest(BaseModel):
     element_type: str | None = Field(default=None, max_length=50)
     status: str | None = Field(default=None, max_length=20)

@@ -23,6 +23,8 @@ from app.crud.session import count_by_user, create, get_by_id, list_by_user, sof
 from app.middleware.rate_limit import check_rate_limit
 from app.models.connection import ConnectionType
 from app.schemas import (
+    CLIENT_SETTABLE_STATUSES,
+    SESSION_STATUS_WHITELIST,
     CreateSessionRequest,
     PatchSessionRequest,
     SessionListResponse,
@@ -222,7 +224,29 @@ class SessionsController(Controller):
                 status_code=HTTP_403_FORBIDDEN,
                 detail="Not authorized",
             )
-        session = await update(db, session, **data.model_dump(exclude_unset=True))
+        updates = data.model_dump(exclude_unset=True)
+        new_status = updates.get("status")
+        if new_status is not None:
+            # Whitelist: reject unknown/arbitrary status strings.
+            if new_status not in SESSION_STATUS_WHITELIST:
+                raise ClientException(
+                    status_code=HTTP_400_BAD_REQUEST,
+                    detail=f"Invalid status: {new_status!r}",
+                )
+            # State-machine: terminal/worker-only statuses (completed, done,
+            # deleted, failed) cannot be set by a client — only the worker
+            # transitions a session to them after running the ML pipeline.
+            # Allowing a client to set "completed"/"done" would bypass analysis
+            # and let a never-analyzed session pollute PR/trend/diagnostics.
+            if new_status not in CLIENT_SETTABLE_STATUSES:
+                raise ClientException(
+                    status_code=HTTP_400_BAD_REQUEST,
+                    detail=(
+                        f"Status {new_status!r} is not client-settable; "
+                        "it is set by the worker after analysis."
+                    ),
+                )
+        session = await update(db, session, **updates)
         return await _session_to_response(session)
 
     @delete("/{session_id:str}", status_code=HTTP_204_NO_CONTENT)
