@@ -1,12 +1,13 @@
 "use client"
 
 import { useState } from "react"
-import { useTranslations } from "@/i18n"
+import { useLocale, useTranslations } from "@/i18n"
 import { useSession, useSessions } from "@/lib/api/sessions"
 import { VideoWithSkeleton } from "@/components/analysis/video-with-skeleton"
 
 export function SessionComparison() {
   const t = useTranslations("compare")
+  const locale = useLocale()
   const { data: sessionsData } = useSessions()
   const [leftId, setLeftId] = useState("")
   const [rightId, setRightId] = useState("")
@@ -31,7 +32,7 @@ export function SessionComparison() {
           <option value="">{t("selectLeft")}</option>
           {sessions.map(s => (
             <option key={s.id} value={s.id}>
-              {s.element_type} — {new Date(s.created_at).toLocaleDateString("ru-RU")}
+              {s.element_type} — {new Date(s.created_at).toLocaleDateString(locale)}
             </option>
           ))}
         </select>
@@ -43,7 +44,7 @@ export function SessionComparison() {
           <option value="">{t("selectRight")}</option>
           {sessions.map(s => (
             <option key={s.id} value={s.id}>
-              {s.element_type} — {new Date(s.created_at).toLocaleDateString("ru-RU")}
+              {s.element_type} — {new Date(s.created_at).toLocaleDateString(locale)}
             </option>
           ))}
         </select>

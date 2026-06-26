@@ -2,11 +2,12 @@
 
 import { Clock } from "lucide-react"
 import Link from "next/link"
-import { useTranslations } from "@/i18n"
+import { useLocale, useTranslations } from "@/i18n"
 import type { Connection } from "@/types"
 
 export function StudentCard({ conn }: { conn: Connection }) {
   const t = useTranslations("coach")
+  const locale = useLocale()
 
   return (
     <Link href={`/students/${conn.to_user_id}`} className="block">
@@ -19,7 +20,7 @@ export function StudentCard({ conn }: { conn: Connection }) {
             <p className="font-medium text-sm">{conn.to_user_name ?? t("studentFallback")}</p>
             <p className="text-xs text-muted-foreground flex items-center gap-1">
               <Clock className="h-3 w-3" />
-              {new Date(conn.created_at).toLocaleDateString("ru-RU")}
+              {new Date(conn.created_at).toLocaleDateString(locale)}
             </p>
           </div>
         </div>
