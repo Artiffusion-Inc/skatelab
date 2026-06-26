@@ -37,7 +37,7 @@ export function ProfileHero() {
         weight_kg: weight ? Number.parseFloat(weight) : undefined,
       })
     } catch {
-      // silent fail
+      toast.error(t("updateError"))
     } finally {
       setSaving(false)
     }

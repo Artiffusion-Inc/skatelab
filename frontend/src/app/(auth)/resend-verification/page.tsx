@@ -28,7 +28,7 @@ export default function ResendVerificationPage() {
       setSent(true)
       toast.success(t("resendSuccess"), { duration: 3000 })
     } catch {
-      toast.success(t("resendSuccess"), { duration: 3000 })
+      toast.error(t("verifyEmailError"), { duration: 3000 })
     } finally {
       setLoading(false)
     }
