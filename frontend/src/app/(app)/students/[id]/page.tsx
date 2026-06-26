@@ -13,25 +13,17 @@ import { BarChart3, Activity } from "lucide-react"
 import { usePageStatus } from "@/lib/hooks/use-page-status"
 import { ErrorState } from "@/components/error-state"
 import { SkeletonStudent } from "@/components/skeleton-student"
-
-const ELEMENT_IDS = [
-  "three_turn",
-  "waltz_jump",
-  "toe_loop",
-  "flip",
-  "salchow",
-  "loop",
-  "lutz",
-  "axel",
-] as const
+import { useElementLabel, useElementMap } from "@/hooks/use-metric-registry"
 
 export default function StudentProfilePage() {
   const { id } = useParams<{ id: string }>()
   const [tab, setTab] = useState<"progress" | "diagnostics">("progress")
-  const [element, setElement] = useState("waltz_jump")
+  const [element, setElement] = useState("3A")
   const [metric, setMetric] = useState("max_height")
   const [period, setPeriod] = useState("30d")
-  const te = useTranslations("elements")
+  const elementLabel = useElementLabel()
+  const elementMap = useElementMap()
+  const elementIds = Object.keys(elementMap ?? {}).sort()
   const tc = useTranslations("common")
   const ts = useTranslations("students")
   const tEmpty = useTranslations("emptyStates")
@@ -82,14 +74,14 @@ export default function StudentProfilePage() {
       {tab === "progress" && (
         <div className="space-y-4">
           <div className="grid grid-cols-4 gap-1.5 sm:gap-2">
-            {ELEMENT_IDS.map(elId => (
+            {elementIds.map(elId => (
               <button
                 type="button"
                 key={elId}
                 onClick={() => setElement(elId)}
                 className={`truncate rounded-xl border p-1.5 text-center text-[11px] sm:p-2 sm:text-xs ${element === elId ? "border-primary bg-primary/10" : "border-hairline"}`}
               >
-                {te(elId)}
+                {elementLabel(elId)}
               </button>
             ))}
           </div>

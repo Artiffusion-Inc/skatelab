@@ -48,6 +48,7 @@ async def save_analyzer_results(
     phases: Any,
     fps: float = 30.0,
     total_frames: int = 0,
+    rotations: int | None = None,
 ) -> dict[str, Any]:
     """Compute multi-dimensional score and save SessionScore + SessionPhase.
 
@@ -60,7 +61,7 @@ async def save_analyzer_results(
         total_frames: Total frame count for phase coverage calc.
 
     Returns:
-        Dict with overall_score and element_type for gamification.
+        Dict with overall_score, element_type, and rotations for gamification.
     """
     from app.crud.session_phase import create as create_phase
     from app.crud.session_score import create as create_score
@@ -149,4 +150,4 @@ async def save_analyzer_results(
         fallback_used=phase_dicts == [],
     )
 
-    return {"overall_score": overall, "element_type": element_type}
+    return {"overall_score": overall, "element_type": element_type, "rotations": rotations}

@@ -10,7 +10,7 @@ import { MetricRow } from "@/components/session/metric-row"
 import { useTranslations } from "@/i18n"
 import { useSession, useDeleteSession, useRetrySession } from "@/lib/api/sessions"
 import { useCancelProcess } from "@/lib/api/process"
-import { useMetricRegistry } from "@/hooks/use-metric-registry"
+import { useElementLabel, useMetricRegistry } from "@/hooks/use-metric-registry"
 import { Button } from "@/components/ui/button"
 import { FrameMetricsChart } from "@/components/analysis/frame-metrics-chart"
 import { SessionDiagnostics } from "@/components/analysis/session-diagnostics"
@@ -32,7 +32,7 @@ export default function SessionDetailPage() {
   const { id } = useParams<{ id: string }>()
   const router = useRouter()
   const { data: session, isLoading } = useSession(id)
-  const te = useTranslations("elements")
+  const elementLabel = useElementLabel()
   const ts = useTranslations("sessions")
   const tSession = useTranslations("session")
   const { data: registry } = useMetricRegistry()
@@ -146,9 +146,7 @@ export default function SessionDetailPage() {
       <div className="mx-auto max-w-2xl px-4 pt-4 lg:max-w-none">
         <div className="relative flex items-start justify-between gap-2">
           <div>
-            <h1 className="text-xl font-semibold">
-              {te(session.element_type) ?? session.element_type}
-            </h1>
+            <h1 className="text-xl font-semibold">{elementLabel(session.element_type)}</h1>
             {visitCount === 1 && !dismissed && (
               <div className="absolute -bottom-8 left-0 whitespace-nowrap rounded-lg bg-foreground px-3 py-1.5 text-xs text-background shadow-lg">
                 {tSession("tourTabs")}

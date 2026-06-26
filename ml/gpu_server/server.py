@@ -221,6 +221,7 @@ class ProcessResponse(BaseModel):
     recommendations: list | None = None
     goe_grade: dict | None = None
     segments: list[dict] | None = None
+    rotations: int | None = None
 
 
 def _s3(creds: ProcessRequest | DetectRequest):
@@ -481,6 +482,7 @@ async def process(req: ProcessRequest):
                 metrics: list = []
                 phases: ElementPhase | None = None
                 recommendations: list = []
+                rotations: int = 0
 
                 if req.element_type:
                     from src.analysis import element_defs
@@ -495,6 +497,7 @@ async def process(req: ProcessRequest):
                             prepared.poses_norm, prepared.meta.fps, req.element_type
                         )
                         phases = phase_result.phases
+                        rotations = phase_result.rotations
 
                         analyzer = BiomechanicsAnalyzer(element_def)
                         metrics = analyzer.analyze(prepared.poses_norm, phases, prepared.meta.fps)
@@ -583,6 +586,7 @@ async def process(req: ProcessRequest):
                         else None
                     ),
                     "element_type": req.element_type,
+                    "rotations": rotations,
                 }
                 metrics_json.write_text(_json.dumps(metrics_data, ensure_ascii=False, indent=2))
                 upload_tasks.append(_s3_upload(s3, req.s3_bucket, metrics_key, str(metrics_json)))
@@ -600,6 +604,7 @@ async def process(req: ProcessRequest):
                     recommendations=recommendations,
                     goe_grade=metrics_data.get("goe_grade"),
                     segments=segments_result,
+                    rotations=metrics_data.get("rotations"),
                 )
     except Exception:
         INFERENCE_REQUESTS.labels(status="error").inc()

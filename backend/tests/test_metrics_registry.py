@@ -3,9 +3,12 @@
 import pytest
 from app.metrics_registry import (
     ALL_ELEMENTS,
+    CHOREO_ELEMENTS,
     JUMP_ELEMENTS,
     METRIC_REGISTRY,
     SPIN_ELEMENTS,
+    STEP_ELEMENTS,
+    TURN_METRIC_ELEMENTS,
     get_metrics_for_element,
 )
 
@@ -89,16 +92,16 @@ class TestMetricRegistry:
                 f"{metric_name}: unit '{metric_def.unit}' not in {valid_units}"
             )
 
-    def test_jump_metrics_not_on_three_turn(self):
-        """Jump-specific metrics should not apply to three_turn."""
+    def test_jump_metrics_not_on_step_sequence(self):
+        """Jump-specific metrics should not apply to a step sequence (StSq)."""
         jump_only_metrics = {"airtime", "max_height", "rotation_speed"}
 
-        three_turn_metrics = get_metrics_for_element("three_turn")
-        three_turn_metric_names = set(three_turn_metrics.keys())
+        step_metrics = get_metrics_for_element("StSq1")
+        step_metric_names = set(step_metrics.keys())
 
         for metric in jump_only_metrics:
-            assert metric not in three_turn_metric_names, (
-                f"{metric} should not apply to three_turn element"
+            assert metric not in step_metric_names, (
+                f"{metric} should not apply to step sequence element"
             )
 
     def test_symmetry_on_all_elements(self):
@@ -110,8 +113,8 @@ class TestMetricRegistry:
         )
 
     def test_get_metrics_for_element_jump(self):
-        """Test get_metrics_for_element for a jump element."""
-        waltz_jump_metrics = get_metrics_for_element("waltz_jump")
+        """Test get_metrics_for_element for an ISU jump code (3A)."""
+        jump_metrics = get_metrics_for_element("3A")
 
         # Should have all jump-specific metrics plus symmetry
         expected_jump_metrics = {
@@ -131,16 +134,16 @@ class TestMetricRegistry:
             "symmetry",
             "estimated_score",
         }
-        assert set(waltz_jump_metrics.keys()) == expected_jump_metrics
+        assert set(jump_metrics.keys()) == expected_jump_metrics
 
         # Verify step-specific metrics are NOT included
         step_only_metrics = {"knee_angle", "trunk_lean", "edge_change_smoothness"}
         for metric in step_only_metrics:
-            assert metric not in waltz_jump_metrics
+            assert metric not in jump_metrics
 
     def test_get_metrics_for_element_spin(self):
-        """Test get_metrics_for_element for a spin element."""
-        upright_spin_metrics = get_metrics_for_element("upright_spin")
+        """Test get_metrics_for_element for an ISU spin code (CSp4)."""
+        spin_metrics = get_metrics_for_element("CSp4")
 
         # Should have spin-specific metrics plus rotation + symmetry
         expected_spin_metrics = {
@@ -152,7 +155,7 @@ class TestMetricRegistry:
             "symmetry",
             "estimated_score",
         }
-        assert set(upright_spin_metrics.keys()) == expected_spin_metrics
+        assert set(spin_metrics.keys()) == expected_spin_metrics
 
         # Verify jump-specific metrics are NOT included
         jump_only_metrics = {
@@ -163,13 +166,13 @@ class TestMetricRegistry:
             "jump_type",
         }
         for metric in jump_only_metrics:
-            assert metric not in upright_spin_metrics
+            assert metric not in spin_metrics
 
     def test_get_metrics_for_element_step(self):
-        """Test get_metrics_for_element for a step element."""
-        three_turn_metrics = get_metrics_for_element("three_turn")
+        """Test get_metrics_for_element for an ISU step sequence code (StSq1)."""
+        step_metrics = get_metrics_for_element("StSq1")
 
-        # Should have step-specific metrics plus symmetry
+        # Should have step/turn-specific metrics plus symmetry
         expected_step_metrics = {
             "knee_angle",
             "trunk_lean",
@@ -180,7 +183,7 @@ class TestMetricRegistry:
             "symmetry",
             "estimated_score",
         }
-        assert set(three_turn_metrics.keys()) == expected_step_metrics
+        assert set(step_metrics.keys()) == expected_step_metrics
 
         # Verify jump-specific metrics are NOT included
         jump_only_metrics = {
@@ -194,12 +197,27 @@ class TestMetricRegistry:
             "rotation_speed",
         }
         for metric in jump_only_metrics:
-            assert metric not in three_turn_metrics
+            assert metric not in step_metrics
 
     def test_get_metrics_for_element_invalid(self):
         """Test get_metrics_for_element with invalid element type."""
         with pytest.raises(ValueError, match="Unknown element type"):
             get_metrics_for_element("invalid_element")
+
+    def test_get_metrics_for_element_rejects_old_slug(self):
+        """Old slug vocabulary (e.g. 'axel') must be rejected after ISU migration."""
+        with pytest.raises(ValueError, match="Unknown element type"):
+            get_metrics_for_element("axel")  # old slug, must be rejected
+
+    def test_get_metrics_for_element_rejects_waltz_jump_slug(self):
+        """Old slug 'waltz_jump' must be rejected after ISU migration."""
+        with pytest.raises(ValueError, match="Unknown element type"):
+            get_metrics_for_element("waltz_jump")
+
+    def test_get_metrics_for_element_rejects_three_turn_slug(self):
+        """Old slug 'three_turn' must be rejected after ISU migration."""
+        with pytest.raises(ValueError, match="Unknown element type"):
+            get_metrics_for_element("three_turn")
 
     def test_metric_def_is_frozen(self):
         """MetricDef should be immutable (frozen dataclass)."""
@@ -225,16 +243,31 @@ class TestMetricRegistry:
             )
 
     def test_element_types_constants(self):
-        """Verify JUMP_ELEMENTS and ALL_ELEMENTS constants are correct."""
-        # JUMP_ELEMENTS should have 7 jump types
-        assert len(JUMP_ELEMENTS) == 7, f"Expected 7 jump elements, got {len(JUMP_ELEMENTS)}"
+        """Verify JUMP/SPIN/STEP/ALL_ELEMENTS constants are correct (ISU codes)."""
+        # JUMP_ELEMENTS: 6 families x4 + 1Eu = 25
+        assert len(JUMP_ELEMENTS) == 25, f"Expected 25 jump elements, got {len(JUMP_ELEMENTS)}"
 
-        # SPIN_ELEMENTS should have 3 spin types
-        assert len(SPIN_ELEMENTS) == 3, f"Expected 3 spin elements, got {len(SPIN_ELEMENTS)}"
+        # SPIN_ELEMENTS: CSp/FSp/LSp/USp x4 + CSpB x4 = 20
+        assert len(SPIN_ELEMENTS) == 20, f"Expected 20 spin elements, got {len(SPIN_ELEMENTS)}"
 
-        # ALL_ELEMENTS should be jumps + three_turn + spins
-        assert len(ALL_ELEMENTS) == 11, f"Expected 11 total elements, got {len(ALL_ELEMENTS)}"
-        assert (*JUMP_ELEMENTS, "three_turn", *SPIN_ELEMENTS) == ALL_ELEMENTS
+        # STEP_ELEMENTS: StSq1..StSq4
+        assert len(STEP_ELEMENTS) == 4, f"Expected 4 step elements, got {len(STEP_ELEMENTS)}"
+
+        # CHOREO_ELEMENTS: ChSq1
+        assert len(CHOREO_ELEMENTS) == 1, f"Expected 1 choreo element, got {len(CHOREO_ELEMENTS)}"
+
+        # ALL_ELEMENTS = jumps + spins + steps + choreo = 50
+        assert len(ALL_ELEMENTS) == 50, f"Expected 50 total elements, got {len(ALL_ELEMENTS)}"
+        assert JUMP_ELEMENTS + SPIN_ELEMENTS + STEP_ELEMENTS + CHOREO_ELEMENTS == ALL_ELEMENTS
+
+        # TURN_METRIC_ELEMENTS aliases step sequences
+        assert TURN_METRIC_ELEMENTS == STEP_ELEMENTS
+
+        # No slug remnants
+        for code in ALL_ELEMENTS:
+            assert code != "three_turn"
+            assert code != "waltz_jump"
+            assert code != "axel"
 
         # All element types in registry should be in ALL_ELEMENTS
         for metric_def in METRIC_REGISTRY.values():
@@ -242,3 +275,32 @@ class TestMetricRegistry:
                 assert element_type in ALL_ELEMENTS, (
                     f"Element type '{element_type}' not in ALL_ELEMENTS constant"
                 )
+
+
+def test_jump_metrics_apply_to_isu_jump_codes():
+    """ISU jump code 3A exposes jump metrics (airtime + max_height)."""
+    m = get_metrics_for_element("3A")
+    assert "airtime" in m
+    assert "max_height" in m  # jump-height metric
+
+
+def test_jump_metrics_do_not_apply_to_spins():
+    """ISU spin code CSp4 exposes spin metrics, not jump metrics (from brief)."""
+    m = get_metrics_for_element("CSp4")
+    assert "airtime" not in m
+    assert "spin_peak_velocity" in m
+
+
+def test_all_elements_are_isu_codes():
+    """No slug remnants in ALL_ELEMENTS; StSq family present (from brief)."""
+    for code in ALL_ELEMENTS:
+        assert code != "three_turn"
+        assert code != "waltz_jump"
+    # three_turn metrics now under StSq family
+    assert "StSq1" in ALL_ELEMENTS
+
+
+def test_unknown_code_raises():
+    """Old slug 'axel' is rejected as unknown (from brief)."""
+    with pytest.raises(ValueError):
+        get_metrics_for_element("axel")  # old slug, must be rejected

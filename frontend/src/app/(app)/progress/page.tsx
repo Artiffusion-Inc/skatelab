@@ -11,7 +11,7 @@ import { EmptyState } from "@/components/onboarding"
 import { useTranslations } from "@/i18n"
 import { useDiagnostics } from "@/lib/api/metrics"
 import { useConnections } from "@/lib/api/connections"
-import { ELEMENT_TYPE_KEYS } from "@/lib/constants"
+import { useElementLabel, useElementMap } from "@/hooks/use-metric-registry"
 import { CoachViewSwitcher, type ViewMode } from "@/components/layout/coach-view-switcher"
 import { ElementCard, type HealthStatus } from "@/components/progress/element-card"
 import { ElementDetail } from "@/components/progress/element-detail"
@@ -33,7 +33,9 @@ function ProgressContent() {
   const searchParams = useSearchParams()
   const elementParam = searchParams.get("element")
   const metricParam = searchParams.get("metric")
-  const te = useTranslations("elements")
+  const elementLabel = useElementLabel()
+  const elementMap = useElementMap()
+  const elementCodes = Object.keys(elementMap ?? {}).sort()
   const tEmpty = useTranslations("emptyStates")
   const tc = useTranslations("coach")
   const ts = useTranslations("students")
@@ -60,11 +62,8 @@ function ProgressContent() {
     return <MetricDeepDive elementId={elementParam} metricName={metricParam} />
   }
 
-  // L1: element detail when element param is present
-  if (
-    elementParam &&
-    ELEMENT_TYPE_KEYS.includes(elementParam as (typeof ELEMENT_TYPE_KEYS)[number])
-  ) {
+  // L1: element detail when element param is a known ISU code
+  if (elementParam && elementCodes.includes(elementParam)) {
     return (
       <div className="mx-auto max-w-2xl space-y-4 sm:max-w-3xl">
         {hasStudents && (
@@ -74,7 +73,7 @@ function ProgressContent() {
         )}
         <ElementDetail
           elementId={elementParam}
-          elementName={te(elementParam)}
+          elementName={elementLabel(elementParam)}
           findings={diagQuery.data?.findings ?? []}
         />
       </div>
@@ -155,7 +154,7 @@ function ProgressContent() {
       )}
 
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-        {ELEMENT_TYPE_KEYS.map(id => (
+        {elementCodes.map(id => (
           <ElementCard
             key={id}
             elementId={id}

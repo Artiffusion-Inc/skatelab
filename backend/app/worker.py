@@ -206,6 +206,32 @@ def _compute_frame_metrics(poses: np.ndarray) -> dict:
     }
 
 
+def compose_isu_element_type(tas_type: str | None, rotations: int | None) -> str | None:
+    """Compose ISU element code from ML TAS type + phase_detector rotation count."""
+    if not tas_type or rotations is None:
+        return None
+    # import ml remap lazily to avoid importing ML pipeline at module load
+    from src.analysis.isu_remap import remap_to_isu  # type: ignore
+
+    return remap_to_isu(tas_type, rotations)
+
+
+def _category_for_element(code: str | None) -> str | None:
+    """Map ISU element code to gamification category."""
+    if not code:
+        return None
+    from app.services.choreography.elements_db import get_element
+
+    el = get_element(code)
+    if el is None:
+        return None
+    if el.type.value == "jump":
+        return "jumps"
+    if el.type.value == "spin":
+        return "spins"
+    return "control"
+
+
 async def startup(ctx: dict[str, Any]) -> None:
     """Initialize shared pools. Retry on Valkey failure."""
     import asyncio as _asyncio
@@ -468,7 +494,17 @@ async def process_video_task(
                                 total_frames=len(vast_result.segments)
                                 if vast_result.segments
                                 else 0,
+                                rotations=vast_result.rotations,
                             )
+
+                            # Compose ISU code from TAS type + rotation count
+                            isu_code = compose_isu_element_type(
+                                analyzer["element_type"], analyzer["rotations"]
+                            )
+                            if isu_code is not None and session_obj is not None:
+                                session_obj.element_type = isu_code
+                                db.add(session_obj)
+
                             await db.commit()
 
                             # Enqueue gamification task to fast queue (if redis pool available)
@@ -481,7 +517,7 @@ async def process_video_task(
                                     if session_obj
                                     else (user_id or ""),
                                     overall_score=analyzer["overall_score"],
-                                    element_type=analyzer["element_type"],
+                                    element_type=isu_code,
                                     _queue_name="skatelab:queue:fast",
                                 )
                         except Exception as analyzer_err:  # noqa: BLE001
@@ -824,15 +860,7 @@ async def compute_gamification_task(
         async with async_session_factory() as db:
             xp_result = await award_session_xp(db, user_id, overall_score)
 
-            category: str | None = None
-            if element_type:
-                et = element_type.lower()
-                if "spin" in et:
-                    category = "spins"
-                elif "step" in et or "turn" in et or "spiral" in et:
-                    category = "control"
-                else:
-                    category = "jumps"
+            category = _category_for_element(element_type)
 
             unlocked_skills: list[str] = []
             if category:

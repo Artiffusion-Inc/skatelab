@@ -3,7 +3,7 @@
 import numpy as np
 
 from src.analysis.metrics import PhaseDetectionResult
-from src.analysis.phase_detector import PhaseDetector
+from src.analysis.phase_detector import PhaseDetector, count_rotations
 from src.types import ElementPhase, H36Key
 
 
@@ -367,3 +367,144 @@ class TestPhaseDetector3D:
 
         assert isinstance(result, PhaseDetectionResult)
         assert result.phases.takeoff < result.phases.peak
+
+
+class TestCountRotations:
+    """Test count_rotations standalone helper."""
+
+    def test_count_rotations_from_flight_trajectory(self):
+        """3 full turns over flight window should return 3."""
+        angles = np.linspace(0, 3 * 2 * np.pi, 60)
+        assert count_rotations(angles) == 3
+
+    def test_count_rotations_zero_for_short(self):
+        """Less than one full turn should return 0."""
+        angles = np.linspace(0, 0.3 * 2 * np.pi, 30)
+        assert count_rotations(angles) == 0
+
+    def test_count_rotations_two_turns_negative_direction(self):
+        """Counter-clockwise rotation should still count absolute turns."""
+        angles = np.linspace(0, -2 * 2 * np.pi, 40)
+        assert count_rotations(angles) == 2
+
+    def test_count_rotations_with_wraparound(self):
+        """Rotation crossing pi boundary should not be lost."""
+        angles = np.array([3.0, 3.1, 3.2, -3.1, -3.0, -2.9])  # crosses +pi/-pi
+        # unwrap fixes the discontinuity
+        assert count_rotations(angles) == 0  # not even one full turn
+
+
+class TestRotationCountingInJumpDetection:
+    """Test that PhaseDetector correctly counts rotations during jumps."""
+
+    @staticmethod
+    def _make_rotating_jump_poses(
+        n_frames: int = 60,
+        takeoff_frame: int = 15,
+        landing_frame: int = 45,
+        rotations: int = 2,
+        peak_y: float = 0.1,
+        baseline_y: float = 0.4,
+    ) -> np.ndarray:
+        """Create normalized poses with parabolic CoM and shoulder rotation over detected flight window.
+
+        Builds a base parabolic jump, detects the flight window, then overlays
+        exactly `rotations` full shoulder turns over that detected window.
+        This makes the test self-consistent regardless of the exact detector heuristics.
+        """
+        # Base parabolic jump
+        poses = TestParabolicFlightDetector._make_jump_poses(
+            n_frames=n_frames,
+            takeoff_frame=takeoff_frame,
+            landing_frame=landing_frame,
+            peak_y=peak_y,
+            baseline_y=baseline_y,
+        )
+
+        # Detect flight window on base poses
+        detector = PhaseDetector()
+        result = detector._detect_jump_phases_parabolic(poses, fps=30.0)
+        t_off = result.phases.takeoff
+        l_off = result.phases.landing
+
+        # Overlay shoulder rotation over the detected flight window
+        flight_indices = np.arange(t_off, l_off)
+        if len(flight_indices) < 2:
+            return poses
+
+        rotation_angles = np.linspace(0, rotations * 2 * np.pi, len(flight_indices))
+        shoulder_len = 0.15
+
+        for idx, f in enumerate(flight_indices):
+            theta = rotation_angles[idx]
+            cx = 0.5
+            cy = (poses[f, H36Key.LHIP, 1] + poses[f, H36Key.RHIP, 1]) / 2.0
+            # Left shoulder
+            poses[f, H36Key.LSHOULDER, 0] = cx - (shoulder_len / 2) * np.cos(theta)
+            poses[f, H36Key.LSHOULDER, 1] = cy - (shoulder_len / 2) * np.sin(theta)
+            # Right shoulder
+            poses[f, H36Key.RSHOULDER, 0] = cx + (shoulder_len / 2) * np.cos(theta)
+            poses[f, H36Key.RSHOULDER, 1] = cy + (shoulder_len / 2) * np.sin(theta)
+
+        return poses
+
+    def test_rotations_detected_for_double_jump(self):
+        """A jump with 2 full shoulder rotations should report rotations=2."""
+        detector = PhaseDetector()
+        poses = self._make_rotating_jump_poses(
+            n_frames=60,
+            takeoff_frame=15,
+            landing_frame=45,
+            rotations=2,
+        )
+
+        result = detector.detect_jump_phases(poses, fps=30.0)
+
+        assert isinstance(result, PhaseDetectionResult)
+        assert result.phases.takeoff < result.phases.peak
+        assert result.phases.peak < result.phases.landing
+        assert result.rotations == 2
+
+    def test_rotations_detected_for_single_jump(self):
+        """A jump with 1 full shoulder rotation should report rotations=1."""
+        detector = PhaseDetector()
+        poses = self._make_rotating_jump_poses(
+            n_frames=60,
+            takeoff_frame=15,
+            landing_frame=45,
+            rotations=1,
+        )
+
+        result = detector.detect_jump_phases(poses, fps=30.0)
+
+        assert isinstance(result, PhaseDetectionResult)
+        assert result.phases.takeoff < result.phases.peak
+        assert result.phases.peak < result.phases.landing
+        assert result.rotations == 1
+
+    def test_rotations_zero_for_non_rotating_jump(self):
+        """A jump with no shoulder rotation should report rotations=0."""
+        detector = PhaseDetector()
+        # Reuse parabolic fixture (no rotation)
+        from tests.analysis.test_phase_detector import TestParabolicFlightDetector
+
+        poses = TestParabolicFlightDetector._make_jump_poses(
+            n_frames=60,
+            takeoff_frame=15,
+            landing_frame=45,
+        )
+
+        result = detector.detect_jump_phases(poses, fps=30.0)
+
+        assert isinstance(result, PhaseDetectionResult)
+        assert result.rotations == 0
+
+    def test_rotations_populated_in_detect_phases(self):
+        """detect_phases() should surface rotations for jump element types."""
+        detector = PhaseDetector()
+        poses = self._make_rotating_jump_poses(rotations=3)
+
+        result = detector.detect_phases(poses, fps=30.0, element_type="lutz")
+
+        assert isinstance(result, PhaseDetectionResult)
+        assert result.rotations == 3

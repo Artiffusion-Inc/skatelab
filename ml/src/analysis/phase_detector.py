@@ -16,6 +16,48 @@ from .metrics import BiomechanicsAnalyzer, PhaseDetectionResult
 # Phase detection now uses CoM-based method only
 
 
+def count_rotations(angles: np.ndarray) -> int:
+    """Full turns over a flight-phase angle trajectory (radians), rounded.
+
+    Unwraps the angle to handle 2pi wraparound, then computes the total
+    signed angular span and rounds to the nearest integer of full turns.
+
+    Args:
+        angles: Shoulder/hip orientation angles in radians, shape (N,).
+
+    Returns:
+        Number of full 360 degree turns, rounded to nearest int.
+    """
+    if len(angles) < 2:
+        return 0
+    unwrapped = np.unwrap(angles)
+    total_radians = float(np.abs(unwrapped[-1] - unwrapped[0]))
+    return round(total_radians / (2.0 * np.pi))
+
+
+def _compute_flight_rotations(poses: NormalizedPose, takeoff_idx: int, landing_idx: int) -> int:
+    """Compute body rotation count over the flight window.
+
+    Uses shoulder-axis orientation projected to the ground plane.
+
+    Args:
+        poses: NormalizedPose (num_frames, 17, 2).
+        takeoff_idx: Flight start frame.
+        landing_idx: Flight end frame.
+
+    Returns:
+        Full body rotations counted over the flight window.
+    """
+    if takeoff_idx >= landing_idx or landing_idx >= len(poses):
+        return 0
+    flight_poses = poses[takeoff_idx:landing_idx]
+    left_shoulder = flight_poses[:, 11]  # H36Key.LSHOULDER
+    right_shoulder = flight_poses[:, 14]  # H36Key.RSHOULDER
+    shoulder_vector = right_shoulder - left_shoulder
+    angles = np.arctan2(shoulder_vector[:, 1], shoulder_vector[:, 0])
+    return count_rotations(angles)
+
+
 class PhaseDetector:
     """Detect phases of skating elements from pose sequences."""
 
@@ -219,7 +261,10 @@ class PhaseDetector:
             ),
         )
 
-        return PhaseDetectionResult(phases=phases, confidence=float(confidence))
+        rotations = _compute_flight_rotations(poses, int(phases.takeoff), int(phases.landing))
+        return PhaseDetectionResult(
+            phases=phases, confidence=float(confidence), rotations=rotations
+        )
 
     def _detect_jump_phases_parabolic(
         self,
@@ -376,6 +421,7 @@ class PhaseDetector:
                     # Confidence from R² and excursion
                     confidence = min(1.0, r_squared * min(1.0, seg_excursion / 0.1))
 
+                    rotations = _compute_flight_rotations(poses, int(takeoff_idx), int(landing_idx))
                     best_result = PhaseDetectionResult(
                         phases=ElementPhase(
                             name="jump",
@@ -386,6 +432,7 @@ class PhaseDetector:
                             end=end_idx,
                         ),
                         confidence=confidence,
+                        rotations=rotations,
                     )
 
         # 12. Fallback if no good parabola found

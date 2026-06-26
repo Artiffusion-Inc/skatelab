@@ -47,6 +47,7 @@ class VastResult:
     recommendations: list | None
     goe_grade: dict | None = None
     segments: list[dict] | None = None
+    rotations: int | None = None
 
 
 @dataclass
@@ -185,6 +186,7 @@ async def process_video_remote_async(
         phases=result.get("phases"),
         recommendations=result.get("recommendations"),
         segments=segments,
+        rotations=result.get("rotations"),
     )
 
 
