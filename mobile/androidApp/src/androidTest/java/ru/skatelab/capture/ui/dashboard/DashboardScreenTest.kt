@@ -39,7 +39,7 @@ class DashboardScreenTest {
     fun dashboard_withData_showsDashboardContent() {
         val personalRecords =
             listOf(
-                PersonalRecord(elementType = "axel", value = 0.85, sessionId = "s1"),
+                PersonalRecord(elementType = "axel", metricName = "jump_height", value = 0.85, sessionId = "s1"),
             )
         val weeklySessions =
             listOf(

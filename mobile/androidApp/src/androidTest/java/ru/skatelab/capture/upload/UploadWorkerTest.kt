@@ -1,8 +1,9 @@
 package ru.skatelab.capture.upload
 
 import androidx.test.ext.junit.runners.AndroidJUnit4
-import kotlin.test.Test
-import kotlin.test.assertEquals
+import org.junit.Assert.assertEquals
+import org.junit.Test
+import org.junit.runner.RunWith
 
 /**
  * Tests for UploadWorker behavior.
@@ -38,7 +39,7 @@ class UploadWorkerTest {
         for (status in statusesThatShouldNotLock) {
             // Simulate: WHERE status = 'READY' would not match these
             val matchesReady = status == "READY"
-            assertEquals(false, matchesReady, "Status '$status' should not match READY")
+            assertEquals("Status '$status' should not match READY", false, matchesReady)
         }
     }
 }
