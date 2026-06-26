@@ -109,7 +109,7 @@ class UploadWorker
                 // Step 4: Create session on backend
                 val session =
                     skateLabClient.sessions.create(
-                        elementType = entity.elementType ?: "axel",
+                        elementType = entity.elementType,
                         videoKey = videoKey,
                         imuLeftKey = imuLeftKey,
                         imuRightKey = imuRightKey,
