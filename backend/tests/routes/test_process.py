@@ -15,7 +15,7 @@ import pytest
 
 
 @pytest.mark.asyncio
-async def test_enqueue_process(client, auth_headers):
+async def test_enqueue_process(client, auth_headers, authed_user):
     """POST /process/queue creates task state and enqueues job with correct params."""
     req_body = {
         "video_key": "input/test.mp4",
@@ -27,8 +27,17 @@ async def test_enqueue_process(client, auth_headers):
         "optical_flow": False,
     }
 
+    # The session ownership check (assert_session_owned) loads the session by id;
+    # stub it to return a session owned by the authed user so the enqueue happy
+    # path proceeds (the test verifies enqueue params, not session lookup).
+    fake_session = MagicMock(user_id=str(authed_user.id))
     with (
         patch("app.routes.process.create_task_state", new_callable=AsyncMock),
+        patch(
+            "app.auth.ownership.get_session_by_id",
+            new_callable=AsyncMock,
+            return_value=fake_session,
+        ),
     ):
         response = await client.post("/v1/process/queue", json=req_body, headers=auth_headers)
 
@@ -58,7 +67,7 @@ async def test_enqueue_process(client, auth_headers):
 
 
 @pytest.mark.asyncio
-async def test_enqueue_process_with_ml_flags(client, auth_headers):
+async def test_enqueue_process_with_ml_flags(client, auth_headers, authed_user):
     """POST /process/queue passes ML model flags to the job."""
     req_body = {
         "video_key": "input/flags.mp4",
@@ -69,8 +78,14 @@ async def test_enqueue_process_with_ml_flags(client, auth_headers):
         "foot_track": True,
     }
 
+    fake_session = MagicMock(user_id=str(authed_user.id))
     with (
         patch("app.routes.process.create_task_state", new_callable=AsyncMock),
+        patch(
+            "app.auth.ownership.get_session_by_id",
+            new_callable=AsyncMock,
+            return_value=fake_session,
+        ),
     ):
         response = await client.post("/v1/process/queue", json=req_body, headers=auth_headers)
 
@@ -113,7 +128,7 @@ async def test_enqueue_process_defaults(client, auth_headers):
 
 
 @pytest.mark.asyncio
-async def test_process_status(client, auth_headers):
+async def test_process_status(client, auth_headers, authed_user):
     """GET /process/{task_id}/status returns task state without result."""
     fake_state = {
         "task_id": "proc_abc",
@@ -122,10 +137,11 @@ async def test_process_status(client, auth_headers):
         "message": "Extracting poses",
         "result": None,
         "error": "",
+        "user_id": str(authed_user.id),
     }
 
     with (
-        patch("app.routes.process.get_task_state", new_callable=AsyncMock, return_value=fake_state),
+        patch("app.auth.ownership.get_task_state", new_callable=AsyncMock, return_value=fake_state),
     ):
         response = await client.get("/v1/process/proc_abc/status", headers=auth_headers)
 
@@ -142,7 +158,7 @@ async def test_process_status(client, auth_headers):
 async def test_process_status_not_found(client, auth_headers):
     """GET /process/{task_id}/status returns 404 when task not found."""
     with (
-        patch("app.routes.process.get_task_state", new_callable=AsyncMock, return_value=None),
+        patch("app.auth.ownership.get_task_state", new_callable=AsyncMock, return_value=None),
     ):
         response = await client.get("/v1/process/proc_nonexist/status", headers=auth_headers)
 
@@ -152,7 +168,7 @@ async def test_process_status_not_found(client, auth_headers):
 
 
 @pytest.mark.asyncio
-async def test_process_status_with_result(client, auth_headers):
+async def test_process_status_with_result(client, auth_headers, authed_user):
     """GET /process/{task_id}/status embeds ProcessResponse when result exists."""
     fake_result = {
         "video_path": "output/proc_abc/result.mp4",
@@ -173,10 +189,11 @@ async def test_process_status_with_result(client, auth_headers):
         "message": "Done",
         "result": fake_result,
         "error": "",
+        "user_id": str(authed_user.id),
     }
 
     with (
-        patch("app.routes.process.get_task_state", new_callable=AsyncMock, return_value=fake_state),
+        patch("app.auth.ownership.get_task_state", new_callable=AsyncMock, return_value=fake_state),
     ):
         response = await client.get("/v1/process/proc_done/status", headers=auth_headers)
 
@@ -189,7 +206,7 @@ async def test_process_status_with_result(client, auth_headers):
 
 
 @pytest.mark.asyncio
-async def test_process_status_with_error(client, auth_headers):
+async def test_process_status_with_error(client, auth_headers, authed_user):
     """GET /process/{task_id}/status returns error field when present."""
     fake_state = {
         "task_id": "proc_fail",
@@ -198,10 +215,11 @@ async def test_process_status_with_error(client, auth_headers):
         "message": "Error",
         "result": None,
         "error": "Model loading failed",
+        "user_id": str(authed_user.id),
     }
 
     with (
-        patch("app.routes.process.get_task_state", new_callable=AsyncMock, return_value=fake_state),
+        patch("app.auth.ownership.get_task_state", new_callable=AsyncMock, return_value=fake_state),
     ):
         response = await client.get("/v1/process/proc_fail/status", headers=auth_headers)
 
@@ -215,9 +233,21 @@ async def test_process_status_with_error(client, auth_headers):
 
 
 @pytest.mark.asyncio
-async def test_cancel_process(client, auth_headers):
+async def test_cancel_process(client, auth_headers, authed_user):
     """POST /process/{task_id}/cancel sets cancel signal and returns confirmation."""
-    with patch("app.routes.process.set_cancel_signal", new_callable=AsyncMock):
+    fake_state = {
+        "task_id": "proc_running",
+        "status": "running",
+        "progress": 0.5,
+        "message": "Processing",
+        "result": None,
+        "error": "",
+        "user_id": str(authed_user.id),
+    }
+    with (
+        patch("app.auth.ownership.get_task_state", new_callable=AsyncMock, return_value=fake_state),
+        patch("app.routes.process.set_cancel_signal", new_callable=AsyncMock),
+    ):
         response = await client.post("/v1/process/proc_running/cancel", headers=auth_headers)
 
     assert response.status_code == 200

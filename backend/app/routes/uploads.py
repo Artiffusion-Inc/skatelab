@@ -9,7 +9,7 @@ from typing import ClassVar
 from litestar import Controller, post
 from litestar.exceptions import ClientException
 from litestar.params import Parameter
-from litestar.status_codes import HTTP_400_BAD_REQUEST
+from litestar.status_codes import HTTP_400_BAD_REQUEST, HTTP_403_FORBIDDEN
 from pydantic import BaseModel
 
 from app.auth.deps import VerifiedUser
@@ -87,6 +87,17 @@ class UploadsController(Controller):
         await check_rate_limit(
             f"upload:complete:{verified_user.id}", max_requests=10, window_seconds=60
         )
+
+        # Ownership check: the object key must live under the caller's upload
+        # prefix (`uploads/{user_id}/...` — the format /init and /presign emit).
+        # Reject cross-user completion (IDOR: finalizing another user's
+        # in-flight multipart upload under their key).
+        expected_prefix = f"uploads/{verified_user.id}/"
+        if not data.key.startswith(expected_prefix):
+            raise ClientException(
+                status_code=HTTP_403_FORBIDDEN,
+                detail="Not your upload key",
+            )
 
         s3 = get_s3_client()
         bucket = get_settings().s3.bucket

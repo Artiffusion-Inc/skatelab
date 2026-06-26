@@ -71,7 +71,7 @@ async def test_enqueue_detect_custom_tracking(client, auth_headers):
 
 
 @pytest.mark.asyncio
-async def test_detect_status(client, auth_headers):
+async def test_detect_status(client, auth_headers, authed_user):
     """GET /detect/{task_id}/status returns task state without result."""
     fake_state = {
         "task_id": "det_abc123",
@@ -80,10 +80,11 @@ async def test_detect_status(client, auth_headers):
         "message": "Processing",
         "result": None,
         "error": "",
+        "user_id": str(authed_user.id),
     }
 
     with (
-        patch("app.routes.detect.get_task_state", new_callable=AsyncMock, return_value=fake_state),
+        patch("app.auth.ownership.get_task_state", new_callable=AsyncMock, return_value=fake_state),
     ):
         response = await client.get("/v1/detect/det_abc123/status", headers=auth_headers)
 
@@ -101,7 +102,7 @@ async def test_detect_status(client, auth_headers):
 async def test_detect_status_not_found(client, auth_headers):
     """GET /detect/{task_id}/status returns 404 when task not found."""
     with (
-        patch("app.routes.detect.get_task_state", new_callable=AsyncMock, return_value=None),
+        patch("app.auth.ownership.get_task_state", new_callable=AsyncMock, return_value=None),
     ):
         response = await client.get("/v1/detect/det_nonexist/status", headers=auth_headers)
 
@@ -111,7 +112,7 @@ async def test_detect_status_not_found(client, auth_headers):
 
 
 @pytest.mark.asyncio
-async def test_detect_status_with_error(client, auth_headers):
+async def test_detect_status_with_error(client, auth_headers, authed_user):
     """GET /detect/{task_id}/status returns error field when present."""
     fake_state = {
         "task_id": "det_fail",
@@ -120,10 +121,11 @@ async def test_detect_status_with_error(client, auth_headers):
         "message": "Error",
         "result": None,
         "error": "CUDA out of memory",
+        "user_id": str(authed_user.id),
     }
 
     with (
-        patch("app.routes.detect.get_task_state", new_callable=AsyncMock, return_value=fake_state),
+        patch("app.auth.ownership.get_task_state", new_callable=AsyncMock, return_value=fake_state),
     ):
         response = await client.get("/v1/detect/det_fail/status", headers=auth_headers)
 
@@ -133,7 +135,7 @@ async def test_detect_status_with_error(client, auth_headers):
 
 
 @pytest.mark.asyncio
-async def test_detect_status_with_result_type_mismatch(client, auth_headers):
+async def test_detect_status_with_result_type_mismatch(client, auth_headers, authed_user):
     """GET /detect/{task_id}/status raises ValidationError when result is DetectResultResponse.
 
     TaskStatusResponse.result is typed as ProcessResponse | None, so embedding
@@ -163,10 +165,11 @@ async def test_detect_status_with_result_type_mismatch(client, auth_headers):
         "message": "Done",
         "result": fake_result,
         "error": "",
+        "user_id": str(authed_user.id),
     }
 
     with (
-        patch("app.routes.detect.get_task_state", new_callable=AsyncMock, return_value=fake_state),
+        patch("app.auth.ownership.get_task_state", new_callable=AsyncMock, return_value=fake_state),
     ):
         response = await client.get("/v1/detect/det_abc123/status", headers=auth_headers)
 
@@ -179,7 +182,7 @@ async def test_detect_status_with_result_type_mismatch(client, auth_headers):
 
 
 @pytest.mark.asyncio
-async def test_detect_result(client, auth_headers):
+async def test_detect_result(client, auth_headers, authed_user):
     """GET /detect/{task_id}/result returns DetectResultResponse for completed task."""
     fake_result = {
         "persons": [
@@ -202,10 +205,11 @@ async def test_detect_result(client, auth_headers):
         "message": "Done",
         "result": fake_result,
         "error": "",
+        "user_id": str(authed_user.id),
     }
 
     with (
-        patch("app.routes.detect.get_task_state", new_callable=AsyncMock, return_value=fake_state),
+        patch("app.auth.ownership.get_task_state", new_callable=AsyncMock, return_value=fake_state),
     ):
         response = await client.get("/v1/detect/det_done/result", headers=auth_headers)
 
@@ -218,7 +222,7 @@ async def test_detect_result(client, auth_headers):
 
 
 @pytest.mark.asyncio
-async def test_detect_result_with_auto_click(client, auth_headers):
+async def test_detect_result_with_auto_click(client, auth_headers, authed_user):
     """GET /detect/{task_id}/result returns auto_click when present."""
     fake_result = {
         "persons": [],
@@ -234,10 +238,11 @@ async def test_detect_result_with_auto_click(client, auth_headers):
         "message": "Done",
         "result": fake_result,
         "error": "",
+        "user_id": str(authed_user.id),
     }
 
     with (
-        patch("app.routes.detect.get_task_state", new_callable=AsyncMock, return_value=fake_state),
+        patch("app.auth.ownership.get_task_state", new_callable=AsyncMock, return_value=fake_state),
     ):
         response = await client.get("/v1/detect/det_auto/result", headers=auth_headers)
 
@@ -250,7 +255,7 @@ async def test_detect_result_with_auto_click(client, auth_headers):
 async def test_detect_result_not_found(client, auth_headers):
     """GET /detect/{task_id}/result returns 404 when task not found."""
     with (
-        patch("app.routes.detect.get_task_state", new_callable=AsyncMock, return_value=None),
+        patch("app.auth.ownership.get_task_state", new_callable=AsyncMock, return_value=None),
     ):
         response = await client.get("/v1/detect/det_ghost/result", headers=auth_headers)
 
@@ -260,7 +265,7 @@ async def test_detect_result_not_found(client, auth_headers):
 
 
 @pytest.mark.asyncio
-async def test_detect_result_not_completed(client, auth_headers):
+async def test_detect_result_not_completed(client, auth_headers, authed_user):
     """GET /detect/{task_id}/result returns 400 when task not completed."""
     fake_state = {
         "task_id": "det_running",
@@ -269,10 +274,11 @@ async def test_detect_result_not_completed(client, auth_headers):
         "message": "Processing",
         "result": None,
         "error": "",
+        "user_id": str(authed_user.id),
     }
 
     with (
-        patch("app.routes.detect.get_task_state", new_callable=AsyncMock, return_value=fake_state),
+        patch("app.auth.ownership.get_task_state", new_callable=AsyncMock, return_value=fake_state),
     ):
         response = await client.get("/v1/detect/det_running/result", headers=auth_headers)
 
@@ -282,7 +288,7 @@ async def test_detect_result_not_completed(client, auth_headers):
 
 
 @pytest.mark.asyncio
-async def test_detect_result_no_result(client, auth_headers):
+async def test_detect_result_no_result(client, auth_headers, authed_user):
     """GET /detect/{task_id}/result returns 500 when task completed but no result stored."""
     fake_state = {
         "task_id": "det_empty",
@@ -291,10 +297,11 @@ async def test_detect_result_no_result(client, auth_headers):
         "message": "Done",
         "result": None,
         "error": "",
+        "user_id": str(authed_user.id),
     }
 
     with (
-        patch("app.routes.detect.get_task_state", new_callable=AsyncMock, return_value=fake_state),
+        patch("app.auth.ownership.get_task_state", new_callable=AsyncMock, return_value=fake_state),
     ):
         response = await client.get("/v1/detect/det_empty/result", headers=auth_headers)
 

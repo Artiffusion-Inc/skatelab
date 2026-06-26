@@ -9,6 +9,7 @@ from litestar.exceptions import ClientException
 from litestar.status_codes import HTTP_404_NOT_FOUND
 
 from app.auth.deps import CurrentUser, DbDep
+from app.auth.ownership import assert_session_owned
 from app.crud.session_score import get_by_session_id
 from app.schemas import SessionScoreResponse
 
@@ -24,6 +25,7 @@ class ScoresController(Controller):
     async def get_session_scores(
         self, session_id: str, user: CurrentUser, db: DbDep
     ) -> SessionScoreResponse:
+        await assert_session_owned(db, session_id, user)
         score = await get_by_session_id(db, session_id)
         if not score:
             raise ClientException(status_code=HTTP_404_NOT_FOUND, detail="Session scores not found")

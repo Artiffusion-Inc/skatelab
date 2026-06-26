@@ -9,6 +9,7 @@ from litestar.exceptions import ClientException
 from litestar.status_codes import HTTP_404_NOT_FOUND
 
 from app.auth.deps import CurrentUser, DbDep
+from app.auth.ownership import assert_session_owned
 from app.crud.session_phase import get_by_session_id
 from app.schemas import SessionPhaseResponse
 
@@ -24,6 +25,7 @@ class PhasesController(Controller):
     async def get_session_phases(
         self, session_id: str, user: CurrentUser, db: DbDep
     ) -> SessionPhaseResponse:
+        await assert_session_owned(db, session_id, user)
         phase = await get_by_session_id(db, session_id)
         if not phase:
             raise ClientException(status_code=HTTP_404_NOT_FOUND, detail="Session phases not found")

@@ -9,9 +9,9 @@ from litestar.exceptions import ClientException
 from litestar.status_codes import HTTP_201_CREATED, HTTP_404_NOT_FOUND
 
 from app.auth.deps import CurrentUser, DbDep, VerifiedUser
+from app.auth.ownership import assert_plan_owned, assert_session_owned
 from app.crud.session_score import get_by_session_id
 from app.crud.training_plan import create as create_plan
-from app.crud.training_plan import get_by_id
 from app.schemas import GenerateTrainingPlanRequest, SubScoreSchema, TrainingPlanResponse
 from app.services.training_plan import generate_training_plan
 
@@ -27,6 +27,7 @@ class TrainingPlansController(Controller):
     async def generate_plan(
         self, data: GenerateTrainingPlanRequest, user: VerifiedUser, db: DbDep
     ) -> TrainingPlanResponse:
+        await assert_session_owned(db, data.session_id, user)
         score = await get_by_session_id(db, data.session_id)
         if not score:
             raise ClientException(status_code=HTTP_404_NOT_FOUND, detail="Session scores not found")
@@ -43,7 +44,5 @@ class TrainingPlansController(Controller):
 
     @get("/{plan_id:str}")
     async def get_plan(self, plan_id: str, user: CurrentUser, db: DbDep) -> TrainingPlanResponse:
-        plan = await get_by_id(db, plan_id)
-        if not plan:
-            raise ClientException(status_code=HTTP_404_NOT_FOUND, detail="Training plan not found")
+        plan = await assert_plan_owned(db, plan_id, user)
         return TrainingPlanResponse.model_validate(plan)
