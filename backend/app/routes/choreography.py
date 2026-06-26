@@ -137,11 +137,15 @@ class ChoreographyController(Controller):
             )
             logger.info("Enqueued analyze_music_task for music_id=%s", music.id)
         except (OSError, ValueError, RuntimeError) as e:
+            # Log the raw exception server-side (logger.exception dumps the traceback
+            # with full detail); send the client only a generic user-facing message
+            # so internal S3 infrastructure (bucket name, endpoint host, paths) does
+            # not leak through the error detail. See issue #343.
             logger.exception("Failed to upload or enqueue music analysis")
             await update_music_analysis(db, music, status="failed")
             raise ClientException(
                 status_code=HTTP_422_UNPROCESSABLE_ENTITY,
-                detail=f"Upload failed: {type(e).__name__}: {e}",
+                detail="Upload failed, please try again",
             ) from e
         finally:
             Path(tmp_path).unlink(missing_ok=True)
