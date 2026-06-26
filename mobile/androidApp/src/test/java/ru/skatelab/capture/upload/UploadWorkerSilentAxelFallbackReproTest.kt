@@ -4,7 +4,6 @@ import android.content.Context
 import androidx.work.WorkerParameters
 import io.mockk.coEvery
 import io.mockk.coVerify
-import io.mockk.eq
 import io.mockk.mockk
 import java.io.File
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -107,23 +106,11 @@ class UploadWorkerSilentAxelFallbackReproTest {
             worker.doWork()
         }
 
-        // CONTRACT: the worker must NOT silently fabricate elementType="axel" for a
-        // row whose element is null. RED now: sessions.create IS invoked with
-        // elementType="axel" (the `?: "axel"` fallback). After the fix (fail /
-        // surface the missing element) → create is not called with "axel".
-        coVerify(exactly = 0) {
-            sessions.create(
-                elementType = eq("axel"),
-                videoKey = any(),
-                imuLeftKey = any(),
-                imuRightKey = any(),
-            )
-        }
-
-        // Stronger contract: create must not be called at all when the element is
-        // unknown — the worker should fail / surface the error instead of
-        // inventing an element. (If the team prefers a different default, the
-        // primary RED above still pins that "axel" specifically must not leak.)
+        // CONTRACT: the worker must NOT create a session at all when the element is
+        // unknown — it must fail / surface the missing element instead of inventing
+        // one. RED now: sessions.create IS invoked (the `?: "axel"` fallback fires)
+        // → the backend analyzes the video as an Axel jump. After the fix (fail /
+        // surface the missing element) → create is not called.
         coVerify(exactly = 0) {
             sessions.create(
                 elementType = any(),
