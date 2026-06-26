@@ -64,7 +64,7 @@ async def test_sse_stream_times_out_after_no_messages(mock_settings):
         mock_valkey.pubsub.return_value = mock_pubsub
         mock_valkey_fn.return_value = mock_valkey
 
-        mock_state.return_value = {"status": "running", "progress": 0.5}
+        mock_state.return_value = {"status": "running", "progress": 0.5, "user_id": "test-user-id"}
 
         from app.routes.process import ProcessController
 
@@ -108,7 +108,7 @@ async def test_sse_stream_yields_progress_events(mock_settings):
         mock_valkey.pubsub.return_value = mock_pubsub
         mock_valkey_fn.return_value = mock_valkey
 
-        mock_state.return_value = {"status": "running", "progress": 0.0}
+        mock_state.return_value = {"status": "running", "progress": 0.0, "user_id": "test-user-id"}
 
         from app.routes.process import ProcessController
 

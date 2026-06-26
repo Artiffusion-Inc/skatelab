@@ -10,11 +10,11 @@ from collections.abc import Sequence  # noqa: TC003
 from typing import Any, ClassVar
 
 from litestar import Controller, Request, get, post
-from litestar.exceptions import ClientException, NotAuthorizedException
+from litestar.exceptions import NotAuthorizedException
 from litestar.response import ServerSentEvent
-from litestar.status_codes import HTTP_404_NOT_FOUND
 
-from app.auth.deps import CurrentUser
+from app.auth.deps import CurrentUser, DbDep
+from app.auth.ownership import assert_session_owned, assert_task_owned
 from app.middleware.rate_limit import check_rate_limit
 from app.schemas import (
     ProcessRequest,
@@ -45,9 +45,13 @@ class ProcessController(Controller):
         request: Request,
         data: ProcessRequest,
         user: CurrentUser,
+        db: DbDep,
     ) -> QueueProcessResponse:
         """Enqueue video processing job and return task_id immediately."""
         await check_rate_limit(f"process:enqueue:{user.id}", max_requests=10, window_seconds=60)
+
+        if data.session_id is not None:
+            await assert_session_owned(db, data.session_id, user)
 
         task_id = f"proc_{uuid.uuid4().hex[:12]}"
 
@@ -80,13 +84,7 @@ class ProcessController(Controller):
     @get("/{task_id:str}/status")
     async def get_process_status(self, task_id: str, user: CurrentUser) -> TaskStatusResponse:
         """Poll task status."""
-        state = await get_task_state(task_id)
-
-        if state is None:
-            raise ClientException(
-                status_code=HTTP_404_NOT_FOUND,
-                detail="Task not found",
-            )
+        state = await assert_task_owned(task_id, user)
 
         result = None
         if state.get("result"):
@@ -104,6 +102,7 @@ class ProcessController(Controller):
     @post("/{task_id:str}/cancel", status_code=200)
     async def cancel_queued_process(self, task_id: str, user: CurrentUser) -> dict:
         """Cancel a queued or running task via Valkey signal."""
+        await assert_task_owned(task_id, user)
         await set_cancel_signal(task_id)
         return {"status": "cancel_requested", "task_id": task_id}
 
@@ -120,9 +119,11 @@ class ProcessController(Controller):
                 # Send initial state
                 state = await get_task_state(task_id)
                 if state:
-                    # Ownership check: reject if task belongs to another user
+                    # Ownership check: fail-closed — reject if task belongs to
+                    # another user OR if the owner cannot be established (missing
+                    # user_id on legacy/unattributed tasks). Mirrors assert_task_owned.
                     task_user_id = state.get("user_id")
-                    if task_user_id and str(task_user_id) != str(user.id):
+                    if task_user_id is None or str(task_user_id) != str(user.id):
                         raise NotAuthorizedException("Not authorized to view this task")
                     yield {"data": json.dumps(state)}
                 else:

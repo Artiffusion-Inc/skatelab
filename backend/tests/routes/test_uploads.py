@@ -104,8 +104,9 @@ async def test_init_upload_single_part(client, auth_headers):
 
 
 @pytest.mark.asyncio
-async def test_complete_upload(client, auth_headers):
+async def test_complete_upload(client, auth_headers, authed_user):
     """POST /uploads/complete calls complete_multipart_upload with sorted parts."""
+    upload_key = f"uploads/{authed_user.id}/uuid/video.mp4"
     with (
         patch("app.routes.uploads.get_s3_client") as mock_s3_client,
         patch("app.routes.uploads.get_settings") as mock_settings,
@@ -118,7 +119,7 @@ async def test_complete_upload(client, auth_headers):
             "/v1/uploads/complete",
             json={
                 "upload_id": "up_123",
-                "key": "uploads/user-id/uuid/video.mp4",
+                "key": upload_key,
                 "parts": [
                     {"part_number": 1, "etag": '"etag1"'},
                     {"part_number": 2, "etag": '"etag2"'},
@@ -130,7 +131,7 @@ async def test_complete_upload(client, auth_headers):
     assert response.status_code == 201
     data = response.json()
     assert data["status"] == "completed"
-    assert data["key"] == "uploads/user-id/uuid/video.mp4"
+    assert data["key"] == upload_key
 
     s3.complete_multipart_upload.assert_called_once()
     call_kwargs = s3.complete_multipart_upload.call_args
@@ -142,8 +143,9 @@ async def test_complete_upload(client, auth_headers):
 
 
 @pytest.mark.asyncio
-async def test_complete_upload_empty_parts(client, auth_headers):
+async def test_complete_upload_empty_parts(client, auth_headers, authed_user):
     """POST /uploads/complete with no parts returns 400."""
+    upload_key = f"uploads/{authed_user.id}/uuid/video.mp4"
     with (
         patch("app.routes.uploads.get_s3_client") as mock_s3_client,
         patch("app.routes.uploads.get_settings") as mock_settings,
@@ -155,7 +157,7 @@ async def test_complete_upload_empty_parts(client, auth_headers):
             "/v1/uploads/complete",
             json={
                 "upload_id": "up_123",
-                "key": "uploads/user-id/uuid/video.mp4",
+                "key": upload_key,
                 "parts": [],
             },
             headers=auth_headers,
@@ -167,8 +169,9 @@ async def test_complete_upload_empty_parts(client, auth_headers):
 
 
 @pytest.mark.asyncio
-async def test_complete_upload_parts_sorted(client, auth_headers):
+async def test_complete_upload_parts_sorted(client, auth_headers, authed_user):
     """Parts are sorted by part_number regardless of input order."""
+    upload_key = f"uploads/{authed_user.id}/uuid/video.mp4"
     with (
         patch("app.routes.uploads.get_s3_client") as mock_s3_client,
         patch("app.routes.uploads.get_settings") as mock_settings,
@@ -181,7 +184,7 @@ async def test_complete_upload_parts_sorted(client, auth_headers):
             "/v1/uploads/complete",
             json={
                 "upload_id": "up_123",
-                "key": "uploads/user-id/uuid/video.mp4",
+                "key": upload_key,
                 "parts": [
                     {"part_number": 3, "etag": '"etag3"'},
                     {"part_number": 1, "etag": '"etag1"'},

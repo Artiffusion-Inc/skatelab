@@ -11,6 +11,7 @@ from litestar import Controller, Request, get, post
 from litestar.exceptions import ClientException
 
 from app.auth.deps import CurrentUser
+from app.auth.ownership import assert_task_owned
 from app.middleware.rate_limit import check_rate_limit
 from app.schemas import (
     DetectQueueResponse,
@@ -21,7 +22,6 @@ from app.storage import upload_bytes_async
 from app.task_manager import (
     TaskStatus,
     create_task_state,
-    get_task_state,
 )
 
 
@@ -70,13 +70,7 @@ class DetectController(Controller):
     @get("/{task_id:str}/status")
     async def get_detect_status(self, task_id: str, user: CurrentUser) -> TaskStatusResponse:
         """Poll detection task status."""
-        state = await get_task_state(task_id)
-
-        if state is None:
-            raise ClientException(
-                status_code=404,
-                detail="Task not found",
-            )
+        state = await assert_task_owned(task_id, user)
 
         result = None
         if state.get("result"):
@@ -94,13 +88,7 @@ class DetectController(Controller):
     @get("/{task_id:str}/result")
     async def get_detect_result(self, task_id: str, user: CurrentUser) -> DetectResultResponse:
         """Get detection result (persons, preview)."""
-        state = await get_task_state(task_id)
-
-        if state is None:
-            raise ClientException(
-                status_code=404,
-                detail="Task not found",
-            )
+        state = await assert_task_owned(task_id, user)
 
         if state.get("status") != TaskStatus.COMPLETED:
             raise ClientException(
