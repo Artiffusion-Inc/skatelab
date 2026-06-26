@@ -7,7 +7,7 @@ import kotlinx.serialization.Serializable
 data class SessionResponse(
     val id: String,
     @SerialName("user_id") val userId: String,
-    @SerialName("element_type") val elementType: String,
+    @SerialName("element_type") val elementType: String? = null,
     @SerialName("video_url") val videoUrl: String? = null,
     @SerialName("processed_video_url") val processedVideoUrl: String? = null,
     @SerialName("pose_data") val poseData: PoseData? = null,

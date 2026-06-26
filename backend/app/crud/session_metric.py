@@ -49,7 +49,7 @@ async def get_current_best(
 async def get_current_best_batch(
     db: AsyncSession,
     user_id: str,
-    element_type: str,
+    element_type: str | None,
     metric_names: list[str],
 ) -> dict[str, float]:
     """Get current best values for multiple metrics in a single query.
@@ -57,8 +57,14 @@ async def get_current_best_batch(
     Uses METRIC_REGISTRY to determine direction per metric.
     Higher-is-better -> max, lower-is-better -> min.
     Missing metrics (no data) are omitted from the dict.
+
+    If element_type is None (session created during auto-detect, element not
+    yet determined), there are no per-element bests to fetch -> return {}.
     """
     if not metric_names:
+        return {}
+
+    if element_type is None:
         return {}
 
     from sqlalchemy import func

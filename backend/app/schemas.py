@@ -296,7 +296,7 @@ class TaskStatusResponse(BaseModel):
 
 
 class CreateSessionRequest(BaseModel):
-    element_type: str = Field(..., min_length=1, max_length=50)
+    element_type: str | None = Field(default=None, max_length=50)
     video_key: str | None = Field(default=None, max_length=500)
     imu_left_key: str | None = Field(default=None, max_length=500)
     imu_right_key: str | None = Field(default=None, max_length=500)
@@ -386,7 +386,7 @@ class SessionResponse(BaseModel):
     id: str
     user_id: str
     workspace_id: str | None = None
-    element_type: str
+    element_type: str | None
     video_key: str | None = None
     video_url: str | None
     processed_video_key: str | None = None

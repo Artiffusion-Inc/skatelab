@@ -203,6 +203,40 @@ class SerializationTest {
         assertEquals("2026-05-28T12:00:00", decoded.processedAt)
     }
 
+    // --- #355: backend may send element_type: null for sessions created during auto-detect.
+    // The SessionResponse must deserialize without throwing and surface null. ---
+    @Test
+    fun sessionResponse_handlesNullElementType() {
+        val payload = """{"id":"s1","user_id":"u1","element_type":null,"status":"processing","overall_score":null,"recommendations":null,"metrics":[],"created_at":"2026-05-24T10:00:00Z"}"""
+        val decoded = json.decodeFromString<SessionResponse>(payload)
+        assertEquals(null, decoded.elementType)
+    }
+
+    @Test
+    fun sessionResponse_handlesMissingElementType() {
+        val payload = """{"id":"s1","user_id":"u1","status":"processing","overall_score":null,"recommendations":null,"metrics":[],"created_at":"2026-05-24T10:00:00Z"}"""
+        val decoded = json.decodeFromString<SessionResponse>(payload)
+        assertEquals(null, decoded.elementType)
+    }
+
+    @Test
+    fun sessionResponse_nullElementTypeRoundtrip() {
+        val original = SessionResponse(
+            id = "s1",
+            userId = "u1",
+            elementType = null,
+            status = "processing",
+            overallScore = null,
+            recommendations = null,
+            metrics = emptyList(),
+            createdAt = "2026-05-24T10:00:00Z",
+        )
+        val encoded = json.encodeToString(original)
+        val decoded = json.decodeFromString<SessionResponse>(encoded)
+        assertEquals(original, decoded)
+        assertEquals(null, decoded.elementType)
+    }
+
     @Test
     fun sessionResponse_handlesMissingNewFields() {
         val payload = """{"id":"s1","user_id":"u1","element_type":"axel","status":"done","created_at":"2026-05-28"}"""

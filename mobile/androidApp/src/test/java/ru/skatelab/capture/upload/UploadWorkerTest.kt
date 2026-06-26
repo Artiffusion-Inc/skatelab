@@ -68,16 +68,14 @@ class UploadWorkerTest {
     }
 
     @Test
-    fun pendingUploadEntity_elementType_nullFallsBackToAxel() {
+    fun pendingUploadEntity_elementType_nullIsValid_forAutoDetect() {
         val entity = PendingUploadEntity(id = "1", videoPath = "/path.mp4")
-        val resolved = entity.elementType ?: "axel"
-        assertEquals("axel", resolved)
+        assertEquals(null, entity.elementType)
     }
 
     @Test
     fun pendingUploadEntity_elementType_setValueUsed() {
         val entity = PendingUploadEntity(id = "1", videoPath = "/path.mp4", elementType = "lutz")
-        val resolved = entity.elementType ?: "axel"
-        assertEquals("lutz", resolved)
+        assertEquals("lutz", entity.elementType)
     }
 }

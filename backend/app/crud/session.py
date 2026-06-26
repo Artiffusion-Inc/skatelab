@@ -16,7 +16,9 @@ if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession
 
 
-async def create(db: AsyncSession, *, user_id: str, element_type: str, **kwargs: Any) -> Session:
+async def create(
+    db: AsyncSession, *, user_id: str, element_type: str | None, **kwargs: Any
+) -> Session:
     session = Session(user_id=user_id, element_type=element_type, **kwargs)
     db.add(session)
     await db.flush()

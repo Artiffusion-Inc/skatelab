@@ -32,7 +32,7 @@ class SessionsApi(private val client: HttpClient) {
         }.expectSuccess().body()
 
     suspend fun create(
-        elementType: String,
+        elementType: String? = null,
         videoKey: String? = null,
         imuLeftKey: String? = null,
         imuRightKey: String? = null,
@@ -40,7 +40,7 @@ class SessionsApi(private val client: HttpClient) {
         client.post("sessions") {
             contentType(ContentType.Application.Json)
             setBody(buildJsonObject {
-                put("element_type", elementType)
+                elementType?.let { put("element_type", it) }
                 videoKey?.let { put("video_key", it) }
                 imuLeftKey?.let { put("imu_left_key", it) }
                 imuRightKey?.let { put("imu_right_key", it) }
