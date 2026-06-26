@@ -51,6 +51,31 @@ async def mark_used(db: AsyncSession, token: PasswordResetToken) -> None:
     await db.flush()
 
 
+async def invalidate_unused_for_user(db: AsyncSession, user_id: str) -> int:
+    """Mark all previously-issued, unused reset tokens for a user as used.
+
+    Called before issuing a new reset token so that any prior unused (and
+    potentially leaked) reset links immediately become invalid. Returns the
+    number of tokens invalidated.
+    """
+    now = datetime.now(UTC)
+    result = await db.execute(
+        select(PasswordResetToken)
+        .where(
+            PasswordResetToken.user_id == user_id,
+            PasswordResetToken.used_at.is_(None),
+        )
+        .with_for_update(skip_locked=True)
+    )
+    tokens = result.scalars().all()
+    for token in tokens:
+        token.used_at = now
+        db.add(token)
+    if tokens:
+        await db.flush()
+    return len(tokens)
+
+
 async def delete_expired(db: AsyncSession) -> int:
     """Delete expired or used tokens. Returns number of rows deleted."""
     result = await db.execute(

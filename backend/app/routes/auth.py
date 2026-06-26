@@ -31,6 +31,9 @@ from app.crud.password_reset_token import (
     get_by_hash as get_password_reset_by_hash,
 )
 from app.crud.password_reset_token import (
+    invalidate_unused_for_user as invalidate_unused_password_reset,
+)
+from app.crud.password_reset_token import (
     mark_used as mark_password_reset_used,
 )
 from app.crud.refresh_token import create as create_refresh_token_crud
@@ -43,6 +46,9 @@ from app.crud.verification_token import (
 )
 from app.crud.verification_token import (
     get_by_hash as get_verification_by_hash,
+)
+from app.crud.verification_token import (
+    invalidate_unused_for_user as invalidate_unused_verification,
 )
 from app.crud.verification_token import (
     mark_used as mark_verification_used,
@@ -280,6 +286,10 @@ class AuthController(Controller):
         if not user:
             return MessageResponse(message="If email exists, reset link sent")
 
+        # Invalidate any prior unused reset tokens for this user so a leaked
+        # old reset link cannot be used after a new one is issued (#342).
+        await invalidate_unused_password_reset(db, user.id)
+
         raw_token = create_password_reset_token()
         token_hash = hash_token(raw_token)
         await create_password_reset_token_crud(
@@ -388,6 +398,10 @@ class AuthController(Controller):
         user = await get_by_email(db, data.email)
         if not user or user.is_verified:
             return MessageResponse(message="If email exists and unverified, verification sent")
+
+        # Invalidate any prior unused verification tokens for this user so a
+        # leaked old verification link cannot be used after a new one is issued (#342).
+        await invalidate_unused_verification(db, user.id)
 
         raw_token = create_password_reset_token()
         token_hash = hash_token(raw_token)
