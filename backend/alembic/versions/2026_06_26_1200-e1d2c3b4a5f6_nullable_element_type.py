@@ -1,6 +1,6 @@
 """nullable element_type on sessions
 
-Revision ID: 2026_06_26_1200-e1d2c3b4a5f6
+Revision ID: e1d2c3b4a5f6
 Revises: 0e5a9f25728f
 Create Date: 2026-06-26 12:00:00.000000
 
@@ -8,7 +8,7 @@ Create Date: 2026-06-26 12:00:00.000000
 
 from alembic import op
 
-revision = "2026_06_26_1200-e1d2c3b4a5f6"
+revision = "e1d2c3b4a5f6"
 down_revision = "0e5a9f25728f"
 branch_labels = None
 depends_on = None
