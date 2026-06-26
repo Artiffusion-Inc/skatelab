@@ -62,8 +62,11 @@ class SessionsViewModel(private val sessionsApi: SessionsApi) {
                 hasMore = response.hasMore,
                 isLoadingMore = false,
             )
-        } catch (_: Exception) {
-            _uiState.value = current.copy(isLoadingMore = false)
+        } catch (e: Exception) {
+            // Surface pagination failures (incl. 401 auth-expiry mid-scroll) as Error(AppError)
+            // — mirrors loadSessions() so the UI can route to re-login instead of silently
+            // reverting to Loaded(hasMore=true), which causes an invisible infinite retry loop.
+            _uiState.value = SessionsUiState.Error(e.toAppError())
         }
     }
 

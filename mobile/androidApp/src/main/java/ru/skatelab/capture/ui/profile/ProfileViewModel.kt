@@ -9,13 +9,16 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import ru.skatelab.shared.api.SkateLabClient
+import ru.skatelab.shared.models.AppError
 import ru.skatelab.shared.models.UserResponse
 import ru.skatelab.shared.state.AuthViewModel as SharedAuthViewModel
+import ru.skatelab.shared.utils.toAppError
 
 data class ProfileUiState(
     val isLoading: Boolean = true,
     val profile: UserResponse? = null,
     val error: String? = null,
+    val appError: AppError? = null,
     val isSaving: Boolean = false,
     val saveSuccess: Boolean = false,
 )
@@ -41,7 +44,7 @@ class ProfileViewModel
 
         fun loadProfile() {
             viewModelScope.launch {
-                _uiState.value = _uiState.value.copy(isLoading = true, error = null)
+                _uiState.value = _uiState.value.copy(isLoading = true, error = null, appError = null)
                 runCatching { usersApi.getMe() }
                     .onSuccess { user ->
                         _uiState.value =
@@ -49,13 +52,16 @@ class ProfileViewModel
                                 isLoading = false,
                                 profile = user,
                                 error = null,
+                                appError = null,
                             )
                     }
                     .onFailure { e ->
+                        val appError = e.toAppError()
                         _uiState.value =
                             _uiState.value.copy(
                                 isLoading = false,
-                                error = e.message ?: "Failed to load profile",
+                                error = appError.toUserMessage(),
+                                appError = appError,
                             )
                     }
             }
@@ -81,10 +87,12 @@ class ProfileViewModel
                             )
                     }
                     .onFailure { e ->
+                        val appError = e.toAppError()
                         _uiState.value =
                             _uiState.value.copy(
                                 isSaving = false,
-                                error = e.message ?: "Failed to update profile",
+                                error = appError.toUserMessage(),
+                                appError = appError,
                             )
                     }
             }
@@ -105,10 +113,12 @@ class ProfileViewModel
                             )
                     }
                     .onFailure { e ->
+                        val appError = e.toAppError()
                         _uiState.value =
                             _uiState.value.copy(
                                 isSaving = false,
-                                error = e.message ?: "Failed to update settings",
+                                error = appError.toUserMessage(),
+                                appError = appError,
                             )
                     }
             }
@@ -122,10 +132,16 @@ class ProfileViewModel
         }
 
         fun clearError() {
-            _uiState.value = _uiState.value.copy(error = null)
+            _uiState.value = _uiState.value.copy(error = null, appError = null)
         }
 
         fun clearSaveSuccess() {
             _uiState.value = _uiState.value.copy(saveSuccess = false)
         }
+
+        private fun AppError.toUserMessage(): String =
+            when (this) {
+                is AppError.Unknown -> detail ?: messageKey
+                else -> messageKey
+            }
     }
