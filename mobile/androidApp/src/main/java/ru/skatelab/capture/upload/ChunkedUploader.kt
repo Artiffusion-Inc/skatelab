@@ -5,6 +5,7 @@ import io.ktor.client.request.*
 import io.ktor.client.statement.*
 import io.ktor.http.*
 import java.io.File
+import java.io.IOException
 import java.io.RandomAccessFile
 import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.atomic.AtomicLong
@@ -14,6 +15,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import ru.skatelab.shared.api.UploadsApi
 import ru.skatelab.shared.models.CompletedPart
 import ru.skatelab.shared.models.UploadInitResponse
@@ -53,8 +55,11 @@ class ChunkedUploader(
         withContext(Dispatchers.IO) {
             val totalSize = file.length()
 
-            // Step 1: init multipart upload
-            val init: UploadInitResponse = uploadsApi.init(fileName, contentType, totalSize)
+            // Step 1: init multipart upload — bounded so offline doesn't hang past HttpTimeout + WorkManager backoff escalation
+            val init: UploadInitResponse =
+                withTimeoutOrNull(30_000L) {
+                    uploadsApi.init(fileName, contentType, totalSize)
+                } ?: throw UploadException("Upload init timed out (likely offline)")
             val chunkSize = init.chunkSize
 
             // Step 2: upload parts with bounded concurrency
@@ -121,4 +126,4 @@ class ChunkedUploader(
 
 class UploadException(
     message: String,
-) : Exception(message)
+) : IOException(message)

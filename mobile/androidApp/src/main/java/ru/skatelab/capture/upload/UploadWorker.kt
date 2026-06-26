@@ -11,6 +11,7 @@ import io.ktor.client.request.*
 import io.ktor.client.statement.*
 import io.ktor.http.*
 import java.io.File
+import java.io.IOException
 import ru.skatelab.capture.data.db.PendingUploadDao
 import ru.skatelab.shared.api.SkateLabClient
 
@@ -128,13 +129,23 @@ class UploadWorker
                 pendingUploadDao.updateStatus(entity.id, "COMPLETED", session.id)
                 Result.success()
             } catch (e: Exception) {
-                pendingUploadDao.incrementRetry(entity.id)
-                val currentEntity = pendingUploadDao.getById(uploadId)
-                if ((currentEntity?.retryCount ?: 0) >= 3) {
-                    pendingUploadDao.updateStatus(entity.id, "FAILED")
+                // Network/offline errors: surface immediately to the user as FAILED.
+                // Non-network transient errors (e.g. 503): retry up to 3 times,
+                // but first reset status to READY so tryLockForUpload can lock again.
+                if (e is IOException) {
+                    pendingUploadDao.updateStatus(entity.id, "NETWORK_ERROR")
                     Result.failure()
                 } else {
-                    Result.retry()
+                    pendingUploadDao.incrementRetry(entity.id)
+                    val currentEntity = pendingUploadDao.getById(uploadId)
+                    if ((currentEntity?.retryCount ?: 0) >= 3) {
+                        pendingUploadDao.updateStatus(entity.id, "FAILED")
+                        Result.failure()
+                    } else {
+                        // Reset to READY so the next worker run can lock this row.
+                        pendingUploadDao.updateStatus(entity.id, "READY")
+                        Result.retry()
+                    }
                 }
             }
         }

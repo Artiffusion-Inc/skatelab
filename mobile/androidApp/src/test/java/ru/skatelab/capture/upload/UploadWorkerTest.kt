@@ -80,4 +80,10 @@ class UploadWorkerTest {
         val resolved = entity.elementType ?: "axel"
         assertEquals("lutz", resolved)
     }
+
+    @Test
+    fun pendingUploadEntity_status_networkError() {
+        val entity = PendingUploadEntity(id = "up-net", videoPath = "/tmp/v.mp4", status = "NETWORK_ERROR")
+        assertEquals("NETWORK_ERROR", entity.status)
+    }
 }

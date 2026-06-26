@@ -22,7 +22,6 @@ object UploadScheduler {
         val constraints =
             Constraints
                 .Builder()
-                .setRequiredNetworkType(NetworkType.CONNECTED)
                 .setRequiresBatteryNotLow(true)
                 .build()
 

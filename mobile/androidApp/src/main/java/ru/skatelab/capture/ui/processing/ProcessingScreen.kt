@@ -99,7 +99,8 @@ fun ProcessingScreen(
             // Upload failed
             uploadPhase is UploadPhase.UploadFailed -> {
                 UploadFailedContent(
-                    onRetry = { uploadId?.let { viewModel.observeUpload(it) } },
+                    isNetworkError = (uploadPhase as UploadPhase.UploadFailed).isNetworkError,
+                    onRetry = { uploadId?.let { viewModel.retryUpload(it) } },
                     onBack = onBack,
                 )
             }
@@ -141,6 +142,7 @@ internal fun UploadStatusContent(entity: PendingUploadEntity) {
 
 @Composable
 internal fun UploadFailedContent(
+    isNetworkError: Boolean,
     onRetry: () -> Unit,
     onBack: () -> Unit,
 ) {
@@ -152,10 +154,16 @@ internal fun UploadFailedContent(
     )
     Spacer(Modifier.height(12.dp))
     Text(
-        text = stringResource(R.string.processing_error),
+        text = if (isNetworkError) stringResource(R.string.processing_no_connection) else stringResource(R.string.processing_error),
         style = MaterialTheme.typography.headlineSmall,
         color = MaterialTheme.colorScheme.error,
         modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
+    )
+    Spacer(Modifier.height(8.dp))
+    Text(
+        text = if (isNetworkError) stringResource(R.string.processing_check_network) else stringResource(R.string.processing_error),
+        style = MaterialTheme.typography.bodyMedium,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
     )
     Spacer(Modifier.height(24.dp))
     Button(
