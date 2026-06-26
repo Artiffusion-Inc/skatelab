@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { TrendingUp, Minus, TrendingDown, Circle } from "lucide-react"
-import { useTranslations } from "@/i18n"
+import { useLocale, useTranslations } from "@/i18n"
 import { useElementLabel } from "@/hooks/use-metric-registry"
 
 type HealthStatus = "improving" | "stagnant" | "declining" | "no_data"
@@ -29,6 +29,7 @@ export function ElementCard({
 }: ElementCardProps) {
   const elementLabel = useElementLabel()
   const tp = useTranslations("progress")
+  const locale = useLocale()
   const config = healthConfig[health]
   const Icon = config.icon
 
@@ -45,7 +46,7 @@ export function ElementCard({
         <p className="text-sm font-medium">{elementLabel(elementId)}</p>
         {lastSessionDate && (
           <p className="text-xs text-ink-mute">
-            {new Date(lastSessionDate).toLocaleDateString("ru-RU")}
+            {new Date(lastSessionDate).toLocaleDateString(locale)}
           </p>
         )}
       </div>

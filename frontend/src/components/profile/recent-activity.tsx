@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import type React from "react"
-import { useTranslations } from "@/i18n"
+import { useLocale, useTranslations } from "@/i18n"
 import { useSessions } from "@/lib/api/sessions"
 import { useElementLabel } from "@/hooks/use-metric-registry"
 
@@ -16,6 +16,7 @@ export function RecentActivity({ userId }: { userId?: string }) {
   const { data: sessionsData } = useSessions(userId)
   const elementLabel = useElementLabel()
   const t = useTranslations("profile")
+  const locale = useLocale()
 
   if (!sessionsData) return null
 
@@ -35,7 +36,7 @@ export function RecentActivity({ userId }: { userId?: string }) {
   return (
     <div className="space-y-1.5">
       {sessions.map(s => {
-        const date = new Date(s.created_at).toLocaleDateString("ru-RU", {
+        const date = new Date(s.created_at).toLocaleDateString(locale, {
           day: "numeric",
           month: "short",
         })

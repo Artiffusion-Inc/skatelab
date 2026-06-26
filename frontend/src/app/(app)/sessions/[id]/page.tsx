@@ -7,7 +7,7 @@ import { PhaseTimeline } from "@/components/analysis/phase-timeline"
 import { SkeletonDetail } from "@/components/skeleton-detail"
 import { VideoWithSkeleton } from "@/components/analysis/video-with-skeleton"
 import { MetricRow } from "@/components/session/metric-row"
-import { useTranslations } from "@/i18n"
+import { useLocale, useTranslations } from "@/i18n"
 import { useSession, useDeleteSession, useRetrySession } from "@/lib/api/sessions"
 import { useCancelProcess } from "@/lib/api/process"
 import { useElementLabel, useMetricRegistry } from "@/hooks/use-metric-registry"
@@ -35,6 +35,7 @@ export default function SessionDetailPage() {
   const elementLabel = useElementLabel()
   const ts = useTranslations("sessions")
   const tSession = useTranslations("session")
+  const locale = useLocale()
   const { data: registry } = useMetricRegistry()
   const cancelMutation = useCancelProcess()
   const retryMutation = useRetrySession()
@@ -160,7 +161,7 @@ export default function SessionDetailPage() {
               </div>
             )}
             <p className="text-sm text-ink-mute">
-              {new Date(session.created_at).toLocaleDateString("ru-RU")}
+              {new Date(session.created_at).toLocaleDateString(locale)}
             </p>
             {session.overall_score !== null && (
               <p className="text-sm font-medium" style={{ color: "oklch(var(--score-good))" }}>
