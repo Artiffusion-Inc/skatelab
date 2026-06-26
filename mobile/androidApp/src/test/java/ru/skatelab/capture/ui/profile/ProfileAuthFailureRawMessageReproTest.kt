@@ -1,11 +1,11 @@
 package ru.skatelab.capture.ui.profile
 
-import io.mockk.coEvery
-import io.mockk.every
-import io.mockk.mockk
 import io.ktor.client.plugins.ClientRequestException
 import io.ktor.client.statement.HttpResponse
 import io.ktor.http.HttpStatusCode
+import io.mockk.coEvery
+import io.mockk.every
+import io.mockk.mockk
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestScope
@@ -22,7 +22,6 @@ import org.junit.Test
 import ru.skatelab.shared.api.SkateLabClient
 import ru.skatelab.shared.api.UsersApi
 import ru.skatelab.shared.auth.AuthRepository
-import ru.skatelab.shared.models.AppError
 import ru.skatelab.shared.state.AuthViewModel as SharedAuthViewModel
 
 /**

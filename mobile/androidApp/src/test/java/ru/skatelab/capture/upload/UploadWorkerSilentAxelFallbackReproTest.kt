@@ -81,11 +81,12 @@ class UploadWorkerSilentAxelFallbackReproTest {
         tmpVideo.deleteOnExit()
 
         // The defect condition: element never recorded (PendingUploadEntity.elementType == null).
-        val entity = ru.skatelab.capture.data.db.PendingUploadEntity(
-            id = "upload-1",
-            videoPath = tmpVideo.absolutePath,
-            elementType = null,
-        )
+        val entity =
+            ru.skatelab.capture.data.db.PendingUploadEntity(
+                id = "upload-1",
+                videoPath = tmpVideo.absolutePath,
+                elementType = null,
+            )
         coEvery { pendingUploadDao.getById(any()) } returns entity
         coEvery { chunkedUploader.upload(any(), any(), any(), any()) } returns "uploads/x/y.mp4"
         coEvery { skateLabClient.sessions } returns sessions
