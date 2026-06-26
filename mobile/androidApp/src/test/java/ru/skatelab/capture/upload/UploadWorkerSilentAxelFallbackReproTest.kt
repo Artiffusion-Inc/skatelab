@@ -4,11 +4,11 @@ import android.content.Context
 import androidx.work.WorkerParameters
 import io.mockk.coEvery
 import io.mockk.coVerify
+import io.mockk.eq
 import io.mockk.mockk
 import java.io.File
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.runTest
-import org.junit.Assert.assertEquals
 import org.junit.Test
 import ru.skatelab.capture.data.db.PendingUploadDao
 import ru.skatelab.shared.api.SkateLabClient
@@ -80,10 +80,11 @@ class UploadWorkerSilentAxelFallbackReproTest {
         val tmpVideo = File.createTempFile("repro_axel", ".mp4").apply { writeBytes(ByteArray(16)) }
         tmpVideo.deleteOnExit()
 
+        // The defect condition: element never recorded (PendingUploadEntity.elementType == null).
         val entity = ru.skatelab.capture.data.db.PendingUploadEntity(
             id = "upload-1",
             videoPath = tmpVideo.absolutePath,
-            elementType = null, // ← the defect: element never recorded
+            elementType = null,
         )
         coEvery { pendingUploadDao.getById(any()) } returns entity
         coEvery { chunkedUploader.upload(any(), any(), any(), any()) } returns "uploads/x/y.mp4"
