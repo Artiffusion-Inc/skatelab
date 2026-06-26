@@ -22,7 +22,7 @@ def mock_s3_client():
 
 
 @pytest.mark.asyncio
-async def test_e2e_presign_enqueue_poll(client, auth_headers, mock_s3_client):
+async def test_e2e_presign_enqueue_poll(client, auth_headers, authed_user, mock_s3_client):
     """Full flow: presign upload → enqueue process → poll status → get result."""
     # 1. Presign upload
     with (
@@ -81,10 +81,11 @@ async def test_e2e_presign_enqueue_poll(client, auth_headers, mock_s3_client):
         "message": "Extracting poses",
         "result": None,
         "error": "",
+        "user_id": str(authed_user.id),
     }
     with (
         patch(
-            "app.routes.process.get_task_state", new_callable=AsyncMock, return_value=fake_running
+            "app.auth.ownership.get_task_state", new_callable=AsyncMock, return_value=fake_running
         ),
     ):
         status_resp = await client.get(f"/v1/process/{task_id}/status", headers=auth_headers)
@@ -113,10 +114,11 @@ async def test_e2e_presign_enqueue_poll(client, auth_headers, mock_s3_client):
             "status": "completed",
         },
         "error": "",
+        "user_id": str(authed_user.id),
     }
     with (
         patch(
-            "app.routes.process.get_task_state", new_callable=AsyncMock, return_value=fake_completed
+            "app.auth.ownership.get_task_state", new_callable=AsyncMock, return_value=fake_completed
         ),
     ):
         final_resp = await client.get(f"/v1/process/{task_id}/status", headers=auth_headers)
@@ -129,7 +131,7 @@ async def test_e2e_presign_enqueue_poll(client, auth_headers, mock_s3_client):
 
 
 @pytest.mark.asyncio
-async def test_e2e_enqueue_then_cancel(client, auth_headers):
+async def test_e2e_enqueue_then_cancel(client, auth_headers, authed_user):
     """Enqueue process then cancel it."""
     # 1. Enqueue
     with (
@@ -148,8 +150,22 @@ async def test_e2e_enqueue_then_cancel(client, auth_headers):
     task_id = process_resp.json()["task_id"]
 
     # 2. Cancel
+    fake_running_for_cancel = {
+        "task_id": task_id,
+        "status": "running",
+        "progress": 0.3,
+        "message": "Processing",
+        "result": None,
+        "error": "",
+        "user_id": str(authed_user.id),
+    }
     with (
         patch("app.routes.process.set_cancel_signal", new_callable=AsyncMock),
+        patch(
+            "app.auth.ownership.get_task_state",
+            new_callable=AsyncMock,
+            return_value=fake_running_for_cancel,
+        ),
     ):
         cancel_resp = await client.post(f"/v1/process/{task_id}/cancel", headers=auth_headers)
 
@@ -166,10 +182,11 @@ async def test_e2e_enqueue_then_cancel(client, auth_headers):
         "message": "Cancelled by user",
         "result": None,
         "error": "",
+        "user_id": str(authed_user.id),
     }
     with (
         patch(
-            "app.routes.process.get_task_state", new_callable=AsyncMock, return_value=fake_cancelled
+            "app.auth.ownership.get_task_state", new_callable=AsyncMock, return_value=fake_cancelled
         ),
     ):
         status_resp = await client.get(f"/v1/process/{task_id}/status", headers=auth_headers)
@@ -179,7 +196,7 @@ async def test_e2e_enqueue_then_cancel(client, auth_headers):
 
 
 @pytest.mark.asyncio
-async def test_e2e_process_failed_task(client, auth_headers):
+async def test_e2e_process_failed_task(client, auth_headers, authed_user):
     """Process task that fails — status returns error."""
     task_id = "proc_fail_e2e"
 
@@ -190,10 +207,11 @@ async def test_e2e_process_failed_task(client, auth_headers):
         "message": "GPU error",
         "result": None,
         "error": "CUDA out of memory",
+        "user_id": str(authed_user.id),
     }
     with (
         patch(
-            "app.routes.process.get_task_state", new_callable=AsyncMock, return_value=fake_failed
+            "app.auth.ownership.get_task_state", new_callable=AsyncMock, return_value=fake_failed
         ),
     ):
         status_resp = await client.get(f"/v1/process/{task_id}/status", headers=auth_headers)
