@@ -48,6 +48,31 @@ async def mark_used(db: AsyncSession, token: VerificationToken) -> None:
     await db.flush()
 
 
+async def invalidate_unused_for_user(db: AsyncSession, user_id: str) -> int:
+    """Mark all previously-issued, unused verification tokens for a user as used.
+
+    Called before issuing a new verification token so that any prior unused
+    (and potentially leaked) verification links immediately become invalid.
+    Returns the number of tokens invalidated.
+    """
+    now = datetime.now(UTC)
+    result = await db.execute(
+        select(VerificationToken)
+        .where(
+            VerificationToken.user_id == user_id,
+            VerificationToken.used_at.is_(None),
+        )
+        .with_for_update(skip_locked=True)
+    )
+    tokens = result.scalars().all()
+    for token in tokens:
+        token.used_at = now
+        db.add(token)
+    if tokens:
+        await db.flush()
+    return len(tokens)
+
+
 async def delete_expired(db: AsyncSession) -> int:
     result = await db.execute(
         delete(VerificationToken).where(
