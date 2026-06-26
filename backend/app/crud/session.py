@@ -118,7 +118,7 @@ async def update_session_analysis(
             pose_data=pose_data,
             frame_metrics=frame_metrics,
             phases=phases,
-            status="completed",
+            status="done",
             processed_at=func.now(),
         )
         .returning(Session)

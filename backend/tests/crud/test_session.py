@@ -218,7 +218,7 @@ async def test_update_session_analysis(db_session):
         frame_metrics=frame_metrics,
         phases=phases,
     )
-    assert updated.status == "completed"
+    assert updated.status == "done"
     assert updated.pose_data == pose_data
     assert updated.frame_metrics == frame_metrics
     assert updated.phases == phases
@@ -238,7 +238,7 @@ async def test_update_session_analysis_none_values(db_session):
         frame_metrics=None,
         phases=None,
     )
-    assert updated.status == "completed"
+    assert updated.status == "done"
     assert updated.pose_data is None
     assert updated.frame_metrics is None
     assert updated.phases is None
