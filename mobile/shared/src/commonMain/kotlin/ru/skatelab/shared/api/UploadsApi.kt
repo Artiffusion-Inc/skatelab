@@ -24,7 +24,7 @@ class UploadsApi(private val client: HttpClient) {
         client.post("uploads/complete") {
             contentType(ContentType.Application.Json)
             setBody(UploadCompleteRequest(uploadId, key, parts))
-        }
+        }.expectSuccess()
     }
 
     /** Get a presigned PUT URL for small file direct upload. */

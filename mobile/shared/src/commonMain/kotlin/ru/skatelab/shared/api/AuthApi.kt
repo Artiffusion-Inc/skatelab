@@ -8,6 +8,7 @@ import io.ktor.http.*
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import ru.skatelab.shared.models.TokenResponse
+import ru.skatelab.shared.utils.expectSuccess
 
 @Serializable
 data class LoginRequest(
@@ -86,28 +87,28 @@ class AuthApi(
         client.post("auth/logout") {
             contentType(ContentType.Application.Json)
             setBody(LogoutRequest(refreshToken))
-        }
+        }.expectSuccess()
     }
 
     suspend fun verifyEmail(token: String) {
         client.post("auth/verify-email") {
             contentType(ContentType.Application.Json)
             setBody(VerifyEmailRequest(token))
-        }
+        }.expectSuccess()
     }
 
     suspend fun resendVerification(email: String) {
         client.post("auth/resend-verification") {
             contentType(ContentType.Application.Json)
             setBody(ResendVerificationRequest(email))
-        }
+        }.expectSuccess()
     }
 
     suspend fun forgotPassword(email: String) {
         client.post("auth/forgot-password") {
             contentType(ContentType.Application.Json)
             setBody(ForgotPasswordRequest(email))
-        }
+        }.expectSuccess()
     }
 
     suspend fun resetPassword(
@@ -117,6 +118,6 @@ class AuthApi(
         client.post("auth/reset-password") {
             contentType(ContentType.Application.Json)
             setBody(ResetPasswordRequest(token, newPassword))
-        }
+        }.expectSuccess()
     }
 }
