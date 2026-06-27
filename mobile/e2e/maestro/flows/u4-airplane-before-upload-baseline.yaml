@@ -3,9 +3,8 @@ tags:
   - bug-hunt
   - upload
 ---
-# U4 baseline: login online → airplane ON → upload attempt (pick video + select element) → "No connection"/"Retry" → airplane OFF → retry → complete.
-# Control GREEN: confirms pre-upload retry path healthy. If RED = infra/basic retry broken.
-# Requires en-US locale (Maestro selectors): adb shell service call locale 3 s16 ru.skatelab.capture s16 en-US
+# U4 baseline: login online → airplane ON → upload attempt → "No connection"/"Retry" → airplane OFF → retry → complete.
+# Requires en-US locale: adb shell service call locale 3 s16 ru.skatelab.capture s16 en-US
 - addMedia: ["./assets/test_video.mp4"]
 - launchApp
 - runFlow:
@@ -31,11 +30,11 @@ tags:
 - back
 - tapOn: "Log in"
 - assertVisible: "Camera"
-# Go offline, then walk the upload flow up to the network call (upload init happens after element selection)
+# Go offline, then walk the upload flow up to upload-init (network call after element selection)
 - setAirplaneMode: enabled
 - tapOn: "Upload video"
 - tapOn: "00:12"
-# ISU element picker (family-grouped): "Axel" family header, then rotation variant.
+# ISU element picker (family-grouped): "Axel" family header, swipe to variants, tap "3A"
 - assertVisible: "Axel"
 - swipe:
     start: 50%, 65%
@@ -44,13 +43,13 @@ tags:
 - assertVisible: ".*3A.*"
 - tapOn: ".*3A.*"
 - tapOn: "Next"
-# upload init (network) should now fail offline → offline handling
-# Bounded by ChunkedUploader 30s timeout + WorkManager startup overhead; allow up to 60s.
-- retry:
-    maxRetries: 60
-    interval: 1000
-    commands:
-      - assertVisible: "No connection"
+# upload-init (network) fails offline → UploadWorker sets NETWORK_ERROR →
+# ProcessingScreen shows "No connection"/"Retry" within ~15s (connectTimeout 10s
+# + no HttpRequestRetry on IOException → fast fail).
+# extendedWaitUntil polls up to 60s for "No connection" to appear.
+- extendedWaitUntil:
+    visible: "No connection"
+    timeout: 60000
 - assertVisible: "Retry"
 # Restore network and retry
 - setAirplaneMode: disabled
@@ -58,6 +57,5 @@ tags:
 # Wait for processing to complete (network restored)
 - retry:
     maxRetries: 30
-    interval: 1000
     commands:
       - assertVisible: "Analysis complete"

@@ -55,9 +55,12 @@ class ChunkedUploader(
         withContext(Dispatchers.IO) {
             val totalSize = file.length()
 
-            // Step 1: init multipart upload — bounded so offline doesn't hang past HttpTimeout + WorkManager backoff escalation
+            // Step 1: init multipart upload — bounded so offline fails fast.
+            // 15s = connectTimeout(10s) + buffer. Without HttpRequestRetry on
+            // IOException (removed from SkateLabClient), offline throws ConnectException
+            // immediately (no retry escalation), so 15s is generous.
             val init: UploadInitResponse =
-                withTimeoutOrNull(30_000L) {
+                withTimeoutOrNull(15_000L) {
                     uploadsApi.init(fileName, contentType, totalSize)
                 } ?: throw UploadException("Upload init timed out (likely offline)")
             val chunkSize = init.chunkSize
