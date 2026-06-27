@@ -412,6 +412,80 @@ class TestExtractActiveSegments:
             assert 0 <= start < end <= len(mask)
 
 
+# --- prod-ready-audit repro (M6) -------------------------------------------
+# RED-by-design: _extract_active_segments mis-pairs starts/ends via zip() when
+# the video STARTS or ENDS with an active segment (len(starts) != len(ends)).
+# The leading-active branch consumes ends[0]; the zip() loop then mis-pairs the
+# remaining starts/ends; the `i+1 < len(starts)` guard skips valid pairs; the
+# `starts[-1] > ends[-1]` end-check misses the trailing segment. Result: drops
+# or misidentifies active segments. Existing tests above assert only
+# 0 <= start < end <= len(mask) (validity), so the bug went undetected.
+#
+# These cases assert EXACT boundaries (and count) of the active runs (runs of
+# False in the stillness mask). Today the function returns the wrong segments
+# so these FAIL (RED). A correct implementation returns the runs of False.
+# --------------------------------------------------------------------------
+
+
+class TestExtractActiveSegmentsExactBoundariesM6:
+    """Exact-boundary repro for the M6 zip() mis-pairing bug.
+
+    Stillness mask convention: True = still, False = active. Active segments
+    are maximal runs of False, returned as (start, end) half-open tuples.
+    """
+
+    @staticmethod
+    def _normalize(segments):
+        return [(int(s), int(e)) for s, e in segments]
+
+    def test_starts_active_then_still_then_active_trailing_active(self):
+        """mask=[F,F,T,T,F,F,T,T,T] -> active runs [0,2) and [4,6).
+
+        Bug: leading-active branch consumes ends[0]=2 -> (0,2); the zip loop
+        pairs starts[0]=4 with ends[0]=2 (already consumed, but zip restarts at
+        index 0) and the `i+1 < len(starts)` guard (1 < 1 False) skips it; the
+        trailing check `starts[-1]=4 > ends[-1]=6` is False so the [4,6) segment
+        is dropped. Today returns [(0,2)].
+        """
+        seg = ElementSegmenter()
+        mask = np.array([False, False, True, True, False, False, True, True, True], dtype=bool)
+        segments = self._normalize(seg._extract_active_segments(mask))
+        assert segments == [(0, 2), (4, 6)]
+
+    def test_starts_active_three_active_runs(self):
+        """mask=[F,F,T,T,F,F,T,T,F,F] -> active runs [0,2),[4,6),[8,10).
+
+        Bug: leading-active -> (0,2); zip pairs starts=[4,8] with ends=[2,6]:
+        i=0 (s=4,e=2): i+1=1 < 2 True and 4<2 False -> skip; i=1 (s=8,e=6):
+        i+1=2 < 2 False -> skip; trailing check starts[-1]=8 > ends[-1]=6 True
+        -> appends (8,10). Today returns [(0,2),(8,10)], dropping the middle
+        [4,6) run.
+        """
+        seg = ElementSegmenter()
+        mask = np.array(
+            [False, False, True, True, False, False, True, True, False, False],
+            dtype=bool,
+        )
+        segments = self._normalize(seg._extract_active_segments(mask))
+        assert segments == [(0, 2), (4, 6), (8, 10)]
+
+    def test_starts_still_ends_active(self):
+        """mask=[T,T,F,F,T,T,F,F,T,T] -> active runs [2,4) and [6,8).
+
+        Bug: no leading-active branch. zip pairs starts=[2,6] with ends=[4,8]:
+        i=0 (s=2,e=4): i+1=1 < 2 True -> append (2,4); i=1 (s=6,e=8): i+1=2 < 2
+        False -> skip; trailing check starts[-1]=6 > ends[-1]=8 False -> no
+        append. Today returns [(2,4)], dropping the trailing [6,8) run.
+        """
+        seg = ElementSegmenter()
+        mask = np.array(
+            [True, True, False, False, True, True, False, False, True, True],
+            dtype=bool,
+        )
+        segments = self._normalize(seg._extract_active_segments(mask))
+        assert segments == [(2, 4), (6, 8)]
+
+
 # ---------------------------------------------------------------------------
 # Test _refine_boundaries
 # ---------------------------------------------------------------------------
