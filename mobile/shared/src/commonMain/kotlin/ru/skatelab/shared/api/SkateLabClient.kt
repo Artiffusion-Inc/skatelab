@@ -79,10 +79,14 @@ class SkateLabClient(
         install(HttpRequestRetry) {
             maxRetries = 3
             retryIf { _, response -> response.status.value.let { it >= 500 || it == 429 } }
+            // Retry only transient server-side timeouts, NOT generic IOException
+            // (ConnectException/offline is NOT transient — retrying delays the
+            // network-error surfacing to the UI by 30s+, which breaks #330 offline
+            // detection). Let IOException propagate immediately so UploadWorker
+            // sets NETWORK_ERROR and ProcessingScreen shows "No connection"/"Retry".
             retryOnExceptionIf { _, cause ->
                 cause is SocketTimeoutException ||
-                cause is HttpRequestTimeoutException ||
-                cause is IOException
+                cause is HttpRequestTimeoutException
             }
             exponentialDelay(
                 base = 2.0,
