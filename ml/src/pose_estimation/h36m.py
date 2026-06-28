@@ -103,6 +103,48 @@ H36M_KEYPOINT_NAMES = [
 ]
 
 
+def _finite_midpoint(a: np.ndarray, b: np.ndarray) -> np.ndarray:
+    """Midpoint of two keypoints with NaN-coordinate guard (single frame).
+
+    Guards on the finiteness of the xy coordinates (channels 0, 1), NOT on
+    confidence — the bug is NaN coords reported with non-zero confidence.
+    - Both finite → average (preserve confidence channel if present).
+    - Exactly one finite → fall back to the finite joint (the confident one).
+    - Both NaN → midpoint stays NaN (propagate; downstream GapFiller handles).
+
+    Mirrors the HEAD block's fallback philosophy, applied to hip/shoulder
+    midpoints which previously averaged unconditionally and poisoned
+    HIP_CENTER / SPINE with NaN.
+    """
+    a_finite = np.isfinite(a[:2]).all()
+    b_finite = np.isfinite(b[:2]).all()
+    if a_finite and b_finite:
+        return (a + b) / 2
+    if a_finite:
+        return a.copy()
+    if b_finite:
+        return b.copy()
+    return (a + b) / 2  # both NaN → NaN
+
+
+def _finite_midpoint_batch(a: np.ndarray, b: np.ndarray) -> np.ndarray:
+    """Vectorized NaN-coordinate-guarded midpoint over (N, C) arrays.
+
+    Per-row equivalent of _finite_midpoint: average where both xy are finite,
+    fall back to the finite row where exactly one is NaN, NaN where both are
+    NaN.
+    """
+    a_finite = np.isfinite(a[:, :2]).all(axis=1)  # (N,)
+    b_finite = np.isfinite(b[:, :2]).all(axis=1)
+    both = a_finite & b_finite
+    only_a = a_finite & ~b_finite
+    only_b = ~a_finite & b_finite
+    out = (a + b) / 2  # default; correct for `both` and for both-NaN (→ NaN)
+    out[only_a] = a[only_a]
+    out[only_b] = b[only_b]
+    return out
+
+
 def coco_to_h36m(coco_pose: np.ndarray) -> np.ndarray:
     """Convert COCO 17 keypoints to H3.6M 17 keypoints (single frame).
 
@@ -117,9 +159,19 @@ def coco_to_h36m(coco_pose: np.ndarray) -> np.ndarray:
 
     h36m_pose = np.zeros((17, n_channels), dtype=coco_pose.dtype)
 
-    # Midpoints
-    mid_hip = (coco_pose[_COCOKey.LEFT_HIP] + coco_pose[_COCOKey.RIGHT_HIP]) / 2
-    mid_shoulder = (coco_pose[_COCOKey.LEFT_SHOULDER] + coco_pose[_COCOKey.RIGHT_SHOULDER]) / 2
+    # Midpoints — NaN-guard: average only when both members have finite xy
+    # coords; if exactly one is NaN (e.g. detector glitch: NaN coords with
+    # non-zero confidence), fall back to the finite joint instead of poisoning
+    # the midpoint with NaN. Both NaN → midpoint stays NaN (propagate; the
+    # downstream GapFiller handles missing frames). This mirrors the HEAD
+    # block's fallback philosophy but guards on coordinate finiteness rather
+    # than confidence, since the bug is NaN coords with non-zero confidence.
+    left_hip = coco_pose[_COCOKey.LEFT_HIP]
+    right_hip = coco_pose[_COCOKey.RIGHT_HIP]
+    left_shoulder = coco_pose[_COCOKey.LEFT_SHOULDER]
+    right_shoulder = coco_pose[_COCOKey.RIGHT_SHOULDER]
+    mid_hip = _finite_midpoint(left_hip, right_hip)
+    mid_shoulder = _finite_midpoint(left_shoulder, right_shoulder)
 
     # Direct mapping from COCO to H3.6M
     h36m_pose[H36Key.HIP_CENTER] = mid_hip
@@ -192,11 +244,16 @@ def coco_to_h36m_batch(poses_coco: np.ndarray) -> np.ndarray:
 
     poses_h36m = np.zeros((n_frames, 17, n_channels), dtype=poses_coco.dtype)
 
-    # Midpoints
-    mid_hip = (poses_coco[:, _COCOKey.LEFT_HIP] + poses_coco[:, _COCOKey.RIGHT_HIP]) / 2
-    mid_shoulder = (
-        poses_coco[:, _COCOKey.LEFT_SHOULDER] + poses_coco[:, _COCOKey.RIGHT_SHOULDER]
-    ) / 2
+    # Midpoints — per-frame NaN-guard (vectorized). For each frame, average
+    # the pair only when both members have finite xy coords; if exactly one is
+    # NaN, fall back to the finite joint; both NaN → NaN (propagate). Mirrors
+    # coco_to_h36m's _finite_midpoint guard on coordinate finiteness.
+    left_hip = poses_coco[:, _COCOKey.LEFT_HIP]
+    right_hip = poses_coco[:, _COCOKey.RIGHT_HIP]
+    left_shoulder = poses_coco[:, _COCOKey.LEFT_SHOULDER]
+    right_shoulder = poses_coco[:, _COCOKey.RIGHT_SHOULDER]
+    mid_hip = _finite_midpoint_batch(left_hip, right_hip)
+    mid_shoulder = _finite_midpoint_batch(left_shoulder, right_shoulder)
 
     # Direct mapping from COCO to H3.6M
     poses_h36m[:, H36Key.HIP_CENTER] = mid_hip
