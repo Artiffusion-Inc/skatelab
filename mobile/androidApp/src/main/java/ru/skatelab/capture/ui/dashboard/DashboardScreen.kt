@@ -39,6 +39,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import ru.skatelab.capture.R
 import ru.skatelab.capture.ui.elements.elementLabel
+import ru.skatelab.capture.utils.localizedMessage
 import ru.skatelab.shared.models.DiagnosticsFinding
 import ru.skatelab.shared.models.SessionResponse
 import ru.skatelab.shared.state.DashboardData
@@ -87,7 +88,7 @@ fun DashboardScreen(
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
-                    error.messageKey,
+                    error.localizedMessage(),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )

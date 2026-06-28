@@ -59,6 +59,7 @@ import kotlinx.coroutines.isActive
 import ru.skatelab.capture.R
 import ru.skatelab.capture.ui.elements.elementLabel
 import ru.skatelab.capture.ui.skeleton.DynamicSkeletonOverlay
+import ru.skatelab.capture.utils.localizedMessage
 import ru.skatelab.shared.state.SessionDetailState
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
@@ -118,7 +119,7 @@ fun SessionDetailScreen(
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        state.error.messageKey,
+                        state.error.localizedMessage(),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )

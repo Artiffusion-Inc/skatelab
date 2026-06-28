@@ -64,6 +64,7 @@ import com.patrykandpatrick.vico.core.cartesian.decoration.HorizontalBox
 import com.patrykandpatrick.vico.core.common.Fill
 import com.patrykandpatrick.vico.core.common.shape.Shape
 import ru.skatelab.capture.R
+import ru.skatelab.capture.utils.localizedMessage
 import ru.skatelab.shared.models.TrendDataPoint
 import ru.skatelab.shared.models.TrendResponse
 import ru.skatelab.shared.state.TrendState
@@ -136,7 +137,7 @@ fun MetricTrendScreen(
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        state.error.messageKey,
+                        state.error.localizedMessage(),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
