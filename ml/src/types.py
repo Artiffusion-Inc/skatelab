@@ -293,6 +293,19 @@ def assert_pose_format(
     xy = poses[:, :, :2]  # Get x, y coordinates (drop confidence if present)
 
     if expected_format == "normalized":
+        # Reject NaN/Inf BEFORE the range check: `.min()`/`.max()` of a
+        # non-finite array return NaN, and NaN comparisons (NaN < -0.01) are
+        # always False, so the range check below would silently pass and let
+        # non-finite coords flow downstream. `np.all(np.isfinite(...))` is
+        # False for any NaN/Inf element, including a single partial NaN.
+        if not np.all(np.isfinite(xy)):
+            raise AssertionError(
+                f"{context}: normalized poses contain non-finite values "
+                f"(NaN/Inf). Got {int(np.isfinite(xy).sum())}/{xy.size} finite "
+                f"xy coords. This usually means upstream detection/glitch NaN "
+                f"was not caught before validation."
+            )
+
         x_min, x_max = xy[:, :, 0].min(), xy[:, :, 0].max()
         y_min, y_max = xy[:, :, 1].min(), xy[:, :, 1].max()
 
