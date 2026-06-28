@@ -564,7 +564,14 @@
     "noData": "No data",
     "generatePlan": "Generate plan",
     "generatingPlan": "Generating...",
-    "planError": "Failed to generate plan"
+    "planError": "Failed to generate plan",
+    "phases": {
+      "approach": "Approach",
+      "takeoff": "Takeoff",
+      "air": "Flight",
+      "landing": "Landing",
+      "glide_out": "Exit"
+    }
   },
   "joints": {
     "pelvis": "Pelvis",

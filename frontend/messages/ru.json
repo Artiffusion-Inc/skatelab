@@ -602,7 +602,14 @@
     "noData": "Нет данных",
     "generatePlan": "Сгенерировать план",
     "generatingPlan": "Генерация...",
-    "planError": "Не удалось создать план"
+    "planError": "Не удалось создать план",
+    "phases": {
+      "approach": "Заход",
+      "takeoff": "Взлёт",
+      "air": "Полёт",
+      "landing": "Приземление",
+      "glide_out": "Выезд"
+    }
   },
   "joints": {
     "pelvis": "Таз",
