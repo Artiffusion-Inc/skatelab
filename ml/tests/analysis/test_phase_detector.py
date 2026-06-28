@@ -508,3 +508,94 @@ class TestRotationCountingInJumpDetection:
 
         assert isinstance(result, PhaseDetectionResult)
         assert result.rotations == 3
+
+
+# --- prod-ready-audit repro (M2) ---
+# This test is RED-by-design: it proves the parabolic segment-merge in
+# _detect_jump_phases_parabolic (ml/src/analysis/phase_detector.py:339)
+# uses the WRONG metric. The comment at line ~330 says "gap < 3 frames" but
+# the expression `(i - segments[-1][1]) < 3` measures
+# (first_non_elevated_frame - last_segment_end) = gap + 1 + current_run_length,
+# which is NEVER < 3 for any non-trivial run. So two close elevated segments
+# separated by a 1-frame dip that should be ONE flight arc stay separate.
+#
+# Consequence: the detector fits a parabola to each short half separately
+# instead of the full merged arc, so the detected flight window is too short.
+# The test asserts the flight window spans BOTH segments (merged-arc length);
+# with the bug it only spans one half -> RED.
+
+
+class TestParabolicSegmentMergeGapMetric:
+    """M2: parabolic segment-merge conflates gap+run length."""
+
+    @staticmethod
+    def _make_split_arc_poses(
+        n_frames: int = 60,
+        baseline_y: float = 0.40,
+        peak_y: float = 0.10,
+        seg1: tuple[int, int] = (10, 18),
+        dip_frame: int = 19,
+        seg2: tuple[int, int] = (20, 28),
+    ) -> np.ndarray:
+        """Two elevated runs of a single parabolic arc separated by a 1-frame dip.
+
+        All 17 keypoints share the same Y per frame so CoM == that Y. The
+        full arc is a parabola peaking at the centre of [seg1.start, seg2.end];
+        the dip frame is exactly at baseline so it is NOT 'elevated' and
+        triggers the merge branch.
+        """
+        poses = np.full((n_frames, 17, 2), baseline_y, dtype=np.float32)
+        poses[:, :, 0] = 0.5
+
+        full_start = seg1[0]
+        full_end = seg2[1]
+        peak_frame = (full_start + full_end) / 2.0
+        half_span = max(1.0, (full_end - full_start) / 2.0)
+        a = (baseline_y - peak_y) / (half_span**2)
+
+        for f in range(full_start, full_end + 1):
+            if f == dip_frame:
+                # Exactly at baseline -> not elevated (the "gap" frame).
+                y = baseline_y
+            else:
+                y = a * ((f - peak_frame) ** 2) + peak_y
+            poses[f, :, 1] = y
+        return poses
+
+    def test_m2_close_elevated_segments_merge_into_one_flight(self):
+        """M2: two elevated runs split by 1 frame must merge into ONE jump.
+
+        With the bug, the merge check `(i - segments[-1][1]) < 3` evaluates to
+        `(20 - 18) = 2 < 3`?? Wait: i is the FIRST non-elevated frame after the
+        second run (i = seg2.end + 1 = 29), and segments[-1][1] is the end of
+        the FIRST run (18). So `(29 - 18) = 11`, NOT < 3 -> segments stay
+        separate. The detector fits a parabola to each ~8-frame half and the
+        best one yields a short flight window. The merged arc would span
+        ~18 frames (seg1.start..seg2.end). Assert airtime >= 14 frames.
+        """
+        detector = PhaseDetector()
+        fps = 30.0
+        poses = self._make_split_arc_poses(
+            n_frames=60,
+            baseline_y=0.40,
+            peak_y=0.10,
+            seg1=(10, 18),
+            dip_frame=19,
+            seg2=(20, 28),
+        )
+
+        result = detector._detect_jump_phases_parabolic(poses, fps=fps)
+
+        assert isinstance(result, PhaseDetectionResult)
+        airtime_frames = result.phases.landing - result.phases.takeoff
+        # Merged arc spans frames 10..28 (18 frames). The 0.3s minimum-airtime
+        # gate at fps=30 requires >= 9 frames, so a properly merged parabola
+        # passes. Each separate half is ~8 frames (< 9) and would be rejected
+        # by the airtime gate, forcing a fallback result with airtime < 14.
+        assert airtime_frames >= 14, (
+            f"M2: two elevated segments split by a 1-frame dip should merge "
+            f"into one flight arc of >=14 frames, but the detector returned "
+            f"airtime={airtime_frames} (takeoff={result.phases.takeoff}, "
+            f"landing={result.phases.landing}). The segment-merge metric "
+            f"`(i - segments[-1][1]) < 3` measures gap+run, not the pure gap."
+        )
