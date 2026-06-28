@@ -352,17 +352,17 @@ class TestExtractActiveSegments:
         assert segments == []
 
     def test_all_active(self):
-        """All-active mask with no transitions produces no segments.
+        """All-active mask (no stillness) is one maximal active run [0, n).
 
-        _extract_active_segments relies on detecting still->active and
-        active->still transitions. With no stillness at all, there are no
-        transitions, so the result is empty.
+        A direct scan for runs of False (active) returns the whole video as a
+        single half-open segment when the mask is entirely False. (The previous
+        transition-based implementation dropped this case because it relied on
+        still->active transitions that never occur when nothing is still.)
         """
         seg = ElementSegmenter()
         mask = np.zeros(30, dtype=bool)  # All False = all active
         segments = seg._extract_active_segments(mask)
-        # No transitions → no segments detected
-        assert segments == []
+        assert segments == [(0, 30)]
 
     def test_starts_active(self):
         """Video starts active, then goes still."""
