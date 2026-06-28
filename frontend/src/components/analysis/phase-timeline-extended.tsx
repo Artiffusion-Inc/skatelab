@@ -89,8 +89,7 @@ export function PhaseTimelineExtended({ totalFrames, result }: PhaseTimelineExte
             {/* Tooltip on hover */}
             <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 hidden group-hover:block z-10">
               <div className="bg-popover text-popover-foreground text-xs rounded-md px-2 py-1 shadow-lg whitespace-nowrap">
-                {t(phase.name)}: {phase.start_time.toFixed(2)}s -{" "}
-                {phase.end_time.toFixed(2)}s
+                {t(phase.name)}: {phase.start_time.toFixed(2)}s - {phase.end_time.toFixed(2)}s
                 <br />
                 Confidence: {(phase.confidence * 100).toFixed(0)}%
               </div>

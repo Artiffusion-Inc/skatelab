@@ -58,9 +58,7 @@ export function GamificationPanel({ level, skills }: Props) {
         <div className="grid grid-cols-3 gap-3">
           {(["jumps", "spins", "control"] as const).map(category => (
             <div key={category} className="space-y-2">
-              <div className="text-xs font-medium text-center capitalize">
-                {t(category)}
-              </div>
+              <div className="text-xs font-medium text-center capitalize">{t(category)}</div>
               {grouped[category].map(skill => (
                 <div
                   key={skill.id}
