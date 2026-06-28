@@ -427,3 +427,71 @@ class TestEdgeCases:
         # will fall back to linear which then finds no valid frames.
         # The gap itself is 20 frames which is <= 30, so it goes to extrapolation.
         assert len(report.gaps) >= 1
+
+
+# --- prod-ready-audit repro (M5) ---
+# This test is RED-by-design: it proves the long-gap split path in
+# _fill_no_phases (ml/src/utils/gap_filling.py:236-253) mixes two coordinate
+# spaces in the SAME GapReport.gaps list. Line 252 inserts (start, end) in
+# GLOBAL (pre-trim) indices, while line 249 appends (gs, ge) in LOCAL
+# (post-trim) indices of the returned `poses_new` array. The caller indexes
+# the returned (trimmed) array, so the global entry is invalid for the
+# returned array. Tests stay RED until all gap entries share one space.
+
+
+class TestLongGapSplitCoordinateSpace:
+    """M5: long-gap split mixes local+global coords in GapReport.gaps."""
+
+    def test_m5_long_gap_split_gap_indices_consistent_space(self):
+        """M5: every entry in GapReport.gaps must be a valid index into the
+        returned (trimmed) poses array.
+
+        Setup: 80-frame array with a 40-frame long gap [10..49] (>30 threshold)
+        and one short 3-frame gap inside the KEPT (right) segment [55..57].
+        The long gap forces a split; the right segment [50..79] (30 frames) is
+        kept (longer than left [0..9]). The short gap at [55..57] (global) is
+        re-discovered in the trimmed array at local indices [5..7] and filled.
+
+        With the bug:
+          all_gaps[0] = (10, 49)  -- GLOBAL coords of the long gap (line 252)
+          all_gaps[1] = (5, 7)    -- LOCAL coords of the short gap (line 249)
+        The returned array has length 30, so (10, 49) is OUT OF BOUNDS ->
+        caller indexing `filled[10:50]` reads the wrong frames.
+
+        Intended contract (derived from callers: pipeline.py discards the
+        report; the phase-aware branch returns GLOBAL coords because it does
+        NOT trim; the split branch IS the only branch that trims the returned
+        array, so its gap entries MUST be valid indices into that trimmed
+        array). Assert every (gs, ge) satisfies 0 <= gs <= ge < len(filled).
+        """
+        n = 80
+        rng = np.random.RandomState(7)
+        poses = rng.randn(n, 17, 3).astype(np.float32)
+
+        # Long gap [10..49] (40 frames > 30) -> triggers split.
+        # Left segment [0..9] = 10 frames; right segment [50..79] = 30 frames.
+        poses[10:50] = np.nan
+        # Short gap [55..57] inside the kept right segment -> filled after trim.
+        poses[55:58] = np.nan
+
+        mask = ~np.isnan(poses[:, 0, 0])
+
+        filler = GapFiller()
+        filled, report = filler.fill_gaps(poses, mask)
+
+        assert report.strategy_used[0] == "split", "setup must trigger the split path"
+        assert len(filled) == 30, (
+            f"setup invariant: kept right segment should be 30 frames, "
+            f"got len(filled)={len(filled)}"
+        )
+
+        # Every reported gap must be a valid inclusive range over the RETURNED
+        # (trimmed) array. The bug inserts the long gap in global coords
+        # (10, 49) which exceeds len(filled)-1 = 29.
+        for gs, ge in report.gaps:
+            assert 0 <= gs <= ge < len(filled), (
+                f"M5: gap ({gs}, {ge}) is not a valid index into the returned "
+                f"trimmed array of length {len(filled)}. The long-gap split "
+                f"branch mixes global coords (line 252: (start, end)) with "
+                f"local coords (line 249: (gs, ge)) in the same GapReport.gaps."
+            )

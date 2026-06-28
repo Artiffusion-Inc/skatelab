@@ -248,8 +248,14 @@ class GapFiller:
                         strategies.append("extrapolation")
                     all_gaps.append((gs, ge))
 
+                # The split branch trims `poses` to `poses_new` (the longer valid
+                # side), so the long gap is the trim boundary — it no longer
+                # exists as a gap in the RETURNED array. Only keep LOCAL
+                # (post-trim) gap entries from `remaining_gaps`, which are valid
+                # indices into `poses_new`. Inserting the GLOBAL (start, end)
+                # would mix coordinate spaces and index out of bounds for the
+                # caller (the returned array is shorter than the original).
                 strategies.insert(0, "split")
-                all_gaps.insert(0, (start, end))
                 return poses_new, GapReport(gaps=all_gaps, strategy_used=strategies)
 
             all_gaps.append((start, end))

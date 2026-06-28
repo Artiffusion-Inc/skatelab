@@ -262,7 +262,8 @@ class ElementSegmenter:
             Boolean mask where True = stillness.
         """
         # Adaptive threshold if not provided
-        if self._stillness_threshold is None:
+        adaptive = self._stillness_threshold is None
+        if adaptive:
             # Use 25th percentile as threshold
             threshold = np.percentile(motion_energy, 25)
         else:
@@ -270,6 +271,15 @@ class ElementSegmenter:
 
         # Binary mask: energy below threshold = stillness
         still = motion_energy < threshold
+
+        # Degenerate adaptive case: when the signal is flat (e.g. all-zero
+        # motion energy from a completely still video), the 25th percentile
+        # equals the max, so `energy < threshold` marks NOTHING as still — the
+        # whole video reads as "active". A flat low-energy signal means there
+        # is no motion to segment, so classify every frame as still. (Explicit
+        # thresholds already handle this: 0 < 0.1 is True for all-zero energy.)
+        if adaptive and not still.any() and float(np.max(motion_energy)) <= float(threshold):
+            still = np.ones_like(still)
 
         # Morphological opening to remove short noise bursts
         min_frames = int(self._min_still_duration * fps)
@@ -288,31 +298,20 @@ class ElementSegmenter:
             stillness_mask: Boolean mask where True = stillness.
 
         Returns:
-            List of (start_frame, end_frame) tuples.
+            List of (start_frame, end_frame) half-open tuples [start, end).
+            Active segments are maximal runs of False (active) in the mask.
         """
-        # Find transitions
-        transitions = np.diff(stillness_mask.astype(int))
-        starts = np.where(transitions == -1)[0] + 1  # still -> active
-        ends = np.where(transitions == 1)[0] + 1  # active -> still
-
-        # Handle edge cases
         segments: list[tuple[int, int]] = []
-
-        # If video starts with active segment
-        if len(stillness_mask) > 0 and not stillness_mask[0]:
-            start = 0
-            if len(ends) > 0:
-                segments.append((start, ends[0]))
-
-        # Process interior segments
-        for i, (s, e) in enumerate(zip(starts, ends, strict=False)):
-            if i + 1 < len(starts) and s < e:
-                segments.append((int(s), int(e)))
-
-        # If video ends with active segment
-        if len(starts) > 0 and len(ends) > 0 and starts[-1] > ends[-1]:
-            segments.append((int(starts[-1]), len(stillness_mask)))
-
+        n = len(stillness_mask)
+        i = 0
+        while i < n:
+            if not stillness_mask[i]:  # active
+                start = i
+                while i < n and not stillness_mask[i]:
+                    i += 1
+                segments.append((int(start), int(i)))  # half-open [start, end)
+            else:
+                i += 1
         return segments
 
     def _refine_boundaries(
