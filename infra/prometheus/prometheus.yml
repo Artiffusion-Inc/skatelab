@@ -33,3 +33,17 @@ scrape_configs:
   - job_name: "posthog_kafka"
     static_configs:
       - targets: ["posthog_kafka:9644"]
+
+  # PostHog web (Django) — /metrics endpoint (expected exporter endpoint)
+  - job_name: "posthog_web"
+    static_configs:
+      - targets: ["posthog_web:8001"]
+    metrics_path: /metrics
+    scheme: http
+
+  # PostHog worker (Celery) — exports posthog_celery_queue_length (expected exporter endpoint)
+  - job_name: "posthog_worker"
+    static_configs:
+      - targets: ["posthog_worker:9001"]
+    metrics_path: /metrics
+    scheme: http

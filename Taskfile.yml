@@ -33,20 +33,24 @@ tasks:
   # Database tasks
   db-migrate:
     desc: Run database migrations (Alembic upgrade)
+    dir: backend
     cmd: "{{.UV_RUN}} alembic upgrade head"
 
   db-rollback:
     desc: Rollback last database migration
+    dir: backend
     cmd: "{{.UV_RUN}} alembic downgrade -1"
 
   db-reset:
     desc: Reset database (drop all, recreate, migrate)
+    dir: backend
     cmds:
       - "{{.UV_RUN}} alembic downgrade base"
       - "{{.UV_RUN}} alembic upgrade head"
 
   db-migration:
     desc: Create a new autogenerate migration
+    dir: backend
     cmd: "{{.UV_RUN}} alembic revision --autogenerate -m '{{.migration_name}}'"
 
   # Frontend tasks
