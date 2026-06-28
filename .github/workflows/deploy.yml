@@ -277,6 +277,7 @@ jobs:
           | CI | \`${{ needs.ci.result }}\` |
           | Build Frontend | \`${{ needs.build-frontend.result }}\` |
           | Build Backend | \`${{ needs.build-backend.result }}\` |
+          | Build ARQ Worker | \`${{ needs.build-arq-worker.result }}\` |
           | Deploy Files | \`${{ needs.deploy-files.result }}\` |
           | Deploy | \`${{ needs.deploy.result }}\` |
 
