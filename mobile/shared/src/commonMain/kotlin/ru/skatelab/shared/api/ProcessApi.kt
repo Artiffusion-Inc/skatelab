@@ -83,7 +83,12 @@ class ProcessApi(private val client: HttpClient) : IProcessApi {
                     continue
                 }
                 return@flow
-            } catch (_: Exception) {
+            } catch (e: Exception) {
+                // Auth/server errors (ResponseException) must propagate out of the
+                // flow so ProcessingViewModel.startProcessing's catch routes them via
+                // toAppError -> AppError.Auth (401/403) -> Failed + propagateIfAuth.
+                // Only retry transient network errors (IOException/SocketTimeout/timeout).
+                if (e is io.ktor.client.plugins.ResponseException) throw e
                 retries++
                 if (retries > maxRetries) return@flow
                 kotlinx.coroutines.delay(1000L * retries)

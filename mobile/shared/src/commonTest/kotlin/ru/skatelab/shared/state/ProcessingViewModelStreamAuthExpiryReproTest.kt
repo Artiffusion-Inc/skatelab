@@ -116,12 +116,14 @@ class ProcessingViewModelStreamAuthExpiryReproTest {
             val queuing = awaitItem()
             assertIs<ProcessingUiState.Progress>(queuing)
 
-            // The stream 401s; ProcessApi.stream's catch-all retries 3x (each a 401,
-            // delays skipped under runTest virtual time) then silently return@flow.
-            // observeProgress.collect returns with NO terminal event emitted. With the
-            // bug, no further uiState is produced and awaitItem() hangs until the
-            // Turbine scope is cancelled — so read the final state from uiState.value
-            // after startProcessing returns, rather than awaiting another emission.
+            // With the fix, the 401 ResponseException propagates out of
+            // ProcessApi.stream -> observeProgress.collect -> startProcessing's catch
+            // -> Failed(e.toAppError()) -> Failed(AppError.Auth). With the bug, no
+            // further uiState is produced and awaitItem() hangs until the Turbine
+            // scope is cancelled — so read the final state from uiState.value after.
+            val failed = awaitItem()
+            assertIs<ProcessingUiState.Failed>(failed)
+            assertIs<AppError.Auth>(failed.error)
         }
 
         // startProcessing has returned (the stream flow completed silently). The
