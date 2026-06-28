@@ -20,6 +20,7 @@ class ElementDef:
         has_toe_pick: True if takeoff uses toe pick (toe loop, flip, lutz).
         key_joints: List of H36Key indices relevant for analysis.
         ideal_metrics: Dict of metric_name -> (min_good, max_good) ranges.
+        name_en: English name for display (defaults to "" for legacy callers).
         isu_prefix: ISU code prefix for SOV lookup (e.g., 'T' for toe loop, 'A' for axel).
     """
 
@@ -29,6 +30,7 @@ class ElementDef:
     has_toe_pick: bool
     key_joints: list[int]
     ideal_metrics: dict[str, tuple[float, float]]
+    name_en: str = ""
     isu_prefix: str = ""
 
 
@@ -37,6 +39,7 @@ ELEMENT_DEFS: dict[str, ElementDef] = {
     "three_turn": ElementDef(
         name="three_turn",
         name_ru="тройка",
+        name_en="three turn",
         rotations=0,
         has_toe_pick=False,
         key_joints=[
@@ -60,6 +63,7 @@ ELEMENT_DEFS: dict[str, ElementDef] = {
     "waltz_jump": ElementDef(
         name="waltz_jump",
         name_ru="вальсовый прыжок",
+        name_en="waltz jump",
         rotations=1,  # Half jump, but treated as jump for analysis
         has_toe_pick=False,
         key_joints=[
@@ -98,6 +102,7 @@ ELEMENT_DEFS: dict[str, ElementDef] = {
     "toe_loop": ElementDef(
         name="toe_loop",
         name_ru="перекидной",
+        name_en="half loop",
         rotations=1,
         has_toe_pick=True,
         key_joints=[
@@ -132,6 +137,7 @@ ELEMENT_DEFS: dict[str, ElementDef] = {
     "flip": ElementDef(
         name="flip",
         name_ru="флип",
+        name_en="flip",
         rotations=1,
         has_toe_pick=True,
         key_joints=[
@@ -166,6 +172,7 @@ ELEMENT_DEFS: dict[str, ElementDef] = {
     "salchow": ElementDef(
         name="salchow",
         name_ru="перекидной",
+        name_en="half loop",
         rotations=1,
         has_toe_pick=False,
         key_joints=[
@@ -200,6 +207,7 @@ ELEMENT_DEFS: dict[str, ElementDef] = {
     "loop": ElementDef(
         name="loop",
         name_ru="петля",
+        name_en="loop",
         rotations=1,
         has_toe_pick=False,
         key_joints=[
@@ -233,6 +241,7 @@ ELEMENT_DEFS: dict[str, ElementDef] = {
     "lutz": ElementDef(
         name="lutz",
         name_ru="льютц",
+        name_en="lutz",
         rotations=1,
         has_toe_pick=True,
         key_joints=[
@@ -267,6 +276,7 @@ ELEMENT_DEFS: dict[str, ElementDef] = {
     "axel": ElementDef(
         name="axel",
         name_ru="аксель",
+        name_en="axel",
         rotations=1.5,
         has_toe_pick=False,
         key_joints=[
@@ -302,6 +312,7 @@ ELEMENT_DEFS: dict[str, ElementDef] = {
     "upright_spin": ElementDef(
         name="upright_spin",
         name_ru="Вертикальное вращение",
+        name_en="Upright spin",
         rotations=0,
         has_toe_pick=False,
         key_joints=[
@@ -326,6 +337,7 @@ ELEMENT_DEFS: dict[str, ElementDef] = {
     "one_foot_spin": ElementDef(
         name="one_foot_spin",
         name_ru="Вращение на одной ноге",
+        name_en="One-foot spin",
         rotations=0,
         has_toe_pick=False,
         key_joints=[
@@ -350,6 +362,7 @@ ELEMENT_DEFS: dict[str, ElementDef] = {
     "scratch_spin": ElementDef(
         name="scratch_spin",
         name_ru="Скрестное вращение",
+        name_en="Cross-foot spin",
         rotations=0,
         has_toe_pick=False,
         key_joints=[
