@@ -22,13 +22,24 @@ WORKFLOWS_DIR = REPO_ROOT / ".github" / "workflows"
 
 
 def load_workflow(name: str) -> dict[str, Any]:
-    """Load a workflow YAML file by filename under .github/workflows/."""
+    """Load a workflow YAML file by filename under .github/workflows/.
+
+    PyYAML's safe_load parses the YAML 1.1 bool keywords ``on``/``off``/
+    ``yes``/``no`` as Python booleans, so a workflow's top-level ``on:``
+    trigger key becomes ``True`` instead of the string ``"on"``. Normalize
+    that back so callers can ``workflow.get("on")`` and actually see the
+    trigger block. Without this, every trigger assertion is silently a
+    no-op (``get("on")`` returns ``None`` for every workflow).
+    """
     path = WORKFLOWS_DIR / name
     if not path.exists():
         print(f"RED: workflow file not found: {path}", file=sys.stderr)  # noqa: T201
         sys.exit(2)
     with path.open("r", encoding="utf-8") as fh:
-        return yaml.safe_load(fh)
+        data = yaml.safe_load(fh)
+    if isinstance(data, dict) and True in data and "on" not in data:
+        data["on"] = data.pop(True)
+    return data
 
 
 def red(message: str) -> tuple[int, str]:

@@ -45,11 +45,16 @@ def _has_workflow_run_trigger(on_field) -> bool:
 
 
 def _workflow_run_references(on_field, target_workflow: str) -> bool:
-    """True if an `on.workflow_run` trigger references target_workflow."""
+    """True if an `on.workflow_run` trigger references target_workflow.
+
+    GitHub Actions uses the plural key ``workflow_run.workflows`` (a list),
+    but older docs/specs sometimes mention a singular ``workflow``. Accept
+    either key so the oracle matches the real schema.
+    """
     if isinstance(on_field, dict):
         wr = on_field.get("workflow_run")
         if isinstance(wr, dict):
-            wfs = wr.get("workflow")
+            wfs = wr.get("workflows", wr.get("workflow"))
             if isinstance(wfs, str):
                 return wfs == target_workflow
             if isinstance(wfs, list):
@@ -102,13 +107,20 @@ def main() -> int:
 
     stale_fetch = _has_stale_fetch(e2e)
 
+    # GREEN contract (per brief): a workflow_run trigger referencing
+    # mobile-ci.yml OR a `needs:` linkage to a mobile-ci job, AND no stale
+    # `gh run list --status=success` fetch. The trigger/linkage link the two
+    # workflows so e2e runs after mobile-ci; the stale-fetch removal ensures
+    # the APK comes from the triggering run, not the previous commit's run.
+    has_linkage = (has_wr and wr_refs_ci) or has_needs_linkage
+
     reasons = []
     if not has_wr:
         reasons.append("no `on.workflow_run` trigger")
     elif not wr_refs_ci:
         reasons.append("`on.workflow_run` does not reference mobile-ci.yml")
-    if not has_needs_linkage:
-        reasons.append("no `needs:` linkage to a mobile-ci job")
+    if not has_linkage:
+        reasons.append("no `workflow_run`/`needs:` linkage to a mobile-ci run")
     if stale_fetch:
         reasons.append("`gh run list --status=success` stale-fetch present")
 

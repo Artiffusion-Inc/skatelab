@@ -1,13 +1,10 @@
 name: Mobile E2E
 
 on:
-  push:
+  workflow_run:
+    workflows: [mobile-ci.yml]
+    types: [completed]
     branches: [master]
-    paths:
-      - 'mobile/androidApp/**'
-      - 'mobile/shared/**'
-      - 'mobile/e2e/**'
-      - '.github/workflows/mobile-e2e.yml'
   workflow_dispatch:
 
 permissions:
@@ -29,15 +26,14 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - name: Download APK from latest build
+      - name: Download APK from mobile-ci run
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           gh run download --name apk-debug --repo ${{ github.repository }} \
-            $(gh run list --repo ${{ github.repository }} \
-              --workflow=mobile-ci.yml --status=success --limit=1 --json databaseId -q '.[0].databaseId') \
+            ${{ github.event.workflow_run.id }} \
             -D androidApp/build/outputs/apk/debug || {
-              echo "::error::No successful mobile-build run found. Push a commit to trigger a build first."
+              echo "::error::No apk-debug artifact in the mobile-ci run."
               exit 1
             }
 
@@ -78,7 +74,7 @@ jobs:
             --format junit \
             --format html \
             --output build/reports/maestro/ \
-            ${{ github.event_name == 'push' && 'e2e/maestro/' || '--include-tags=smokeTest e2e/maestro/' }}
+            ${{ github.event_name == 'workflow_run' && 'e2e/maestro/' || '--include-tags=smokeTest e2e/maestro/' }}
 
       - name: Disable airplane mode (cleanup)
         if: always()
