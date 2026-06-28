@@ -693,5 +693,14 @@
     "badge": "Demo",
     "uploadCta": "Upload your video",
     "demoSessionLabel": "Try a demo analysis"
+  },
+  "gamification": {
+    "level": "Level",
+    "xp": "XP",
+    "jumps": "Jumps",
+    "spins": "Spins",
+    "control": "Control",
+    "unlockedAt": "Unlocked:",
+    "requires": "Requires:"
   }
 }

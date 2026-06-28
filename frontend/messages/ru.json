@@ -733,5 +733,14 @@
     "badge": "Демо",
     "uploadCta": "Загрузить своё видео",
     "demoSessionLabel": "Попробуйте демо-разбор"
+  },
+  "gamification": {
+    "level": "Уровень",
+    "xp": "Опыт",
+    "jumps": "Прыжки",
+    "spins": "Вращения",
+    "control": "Контроль",
+    "unlockedAt": "Разблокировано:",
+    "requires": "Требуется:"
   }
 }
