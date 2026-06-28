@@ -18,7 +18,7 @@ groups:
           severity: warning
         annotations:
           summary: "High inference error rate"
-          description: "Error rate is {{ $value | humanizePercentage }}% (threshold: 5%)"
+          description: "Error rate is {{ $value }}% (threshold: 5%)"
 
       - alert: HighInferenceLatency
         expr: job:inference_duration:p95 > 30
