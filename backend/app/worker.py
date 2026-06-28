@@ -585,6 +585,25 @@ async def process_video_task(
             )
         except (OSError, RuntimeError):
             logger.warning("Failed to publish error event for task %s", task_id)
+
+        # Non-retryable failure: mark the DB Session row as failed so the user
+        # polling GET /sessions/{id} (which reads the DB, not Valkey) sees a
+        # terminal state instead of a stuck queued/uploading row. Mirrors
+        # analyze_music_task's DB-status-failed update (worker.py:815-831).
+        if not retryable and session_id:
+            try:
+                from app.crud.session import get_by_id as _get_by_id_failed
+                from app.database import async_session_factory  # type: ignore[import-untyped]
+
+                async with async_session_factory() as db:
+                    session_row = await _get_by_id_failed(db, session_id)
+                    if session_row is not None:
+                        session_row.status = "failed"
+                        session_row.error_message = str(e)
+                        await db.commit()
+            except (OSError, RuntimeError):
+                logger.warning("Failed to update session status to failed for %s", session_id)
+
         if retryable:
             raise Retry(defer=ctx.get("job_try", 1) * 10) from e
         raise
