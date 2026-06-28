@@ -423,6 +423,10 @@ async def process_video_task(
             "stats": vast_result.stats,
             "status": "Analysis complete!",
         }
+        # Track whether the (non-critical) analyzer post-processing failed. When
+        # True, the main metrics are committed but SessionScore/SessionPhase rows
+        # + gamification are missing — the client must NOT see `completed`.
+        analyzer_failed = False
         if session_id:
             try:
                 from app.crud.session import (
@@ -521,12 +525,36 @@ async def process_video_task(
                                     _queue_name="skatelab:queue:fast",
                                 )
                         except Exception as analyzer_err:  # noqa: BLE001
+                            # Analyzer post-processing failed: SessionScore /
+                            # SessionPhase rows are discarded by the rollback below
+                            # and gamification is skipped. The MAIN metrics (committed
+                            # at 480) are intact, so this is partial data loss, not
+                            # total — but we must NOT report `completed` to the client
+                            # while multi-score rows + XP/skill-unlocks are missing.
+                            # Mark the DB Session row `partial`, surface a non-
+                            # completed status to Valkey + the event stream, and keep
+                            # store_result as a single call (the client polls Valkey
+                            # for the terminal status). Committing the status change
+                            # in its own transaction also persists the partial state
+                            # independently of the rolled-back analyzer rows.
                             logger.warning(
                                 "Skating analyzer post-processing failed for %s: %s",
                                 session_id,
                                 analyzer_err,
                             )
                             await db.rollback()
+                            analyzer_failed = True
+                            try:
+                                session_partial = await get_by_id(db, session_id)
+                                if session_partial is not None:
+                                    session_partial.status = "partial"
+                                    session_partial.error_message = str(analyzer_err)
+                                    await db.commit()
+                            except (OSError, RuntimeError):
+                                logger.warning(
+                                    "Failed to mark session partial for %s",
+                                    session_id,
+                                )
                     except Exception:
                         await db.rollback()
                         raise
@@ -553,6 +581,8 @@ async def process_video_task(
                 }
 
         # Write Valkey status LAST, after DB commit (if any)
+        if analyzer_failed:
+            response_data["status"] = "Analysis complete with partial results"
         await store_result(task_id, response_data)
 
         from app.analytics_events import analysis_completed
@@ -568,7 +598,12 @@ async def process_video_task(
 
         await update_progress(task_id, 1.0, "Done")
         await publish_task_event(
-            task_id, {"status": "completed", "progress": 1.0, "message": "Done"}
+            task_id,
+            {
+                "status": "partial" if analyzer_failed else "completed",
+                "progress": 1.0,
+                "message": "Done with partial results" if analyzer_failed else "Done",
+            },
         )
 
         return response_data
