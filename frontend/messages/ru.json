@@ -7,7 +7,8 @@
     "noData": "Нет данных",
     "cancel": "Отмена",
     "or": "или",
-    "back": "Назад"
+    "back": "Назад",
+    "home": "На главную"
   },
   "auth": {
     "signIn": "Вход",
@@ -434,6 +435,7 @@
     "celebrationSubtitle": "Выберите роль для персонализации",
     "bannerMessage": "Выберите роль для персонализации",
     "bannerDismiss": "Скрыть",
+    "lastSession": "Последняя: вчера",
     "slides": {
       "skater": {
         "0": {

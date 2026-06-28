@@ -7,7 +7,8 @@
     "noData": "No data",
     "cancel": "Cancel",
     "or": "or",
-    "back": "Back"
+    "back": "Back",
+    "home": "Home"
   },
   "auth": {
     "signIn": "Sign In",
@@ -414,6 +415,7 @@
     "celebrationSubtitle": "Choose a role to personalize your experience",
     "bannerMessage": "Choose a role to personalize your experience",
     "bannerDismiss": "Dismiss",
+    "lastSession": "Last: yesterday",
     "slides": {
       "skater": {
         "0": {
