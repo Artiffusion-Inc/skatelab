@@ -702,5 +702,9 @@
     "control": "Control",
     "unlockedAt": "Unlocked:",
     "requires": "Requires:"
+  },
+  "errorState": {
+    "title": "Something went wrong",
+    "retry": "Try again"
   }
 }
