@@ -1,14 +1,18 @@
 package ru.skatelab.shared.state
 
+import app.cash.turbine.test
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.test.runTest
 import ru.skatelab.shared.api.IProcessApi
 import ru.skatelab.shared.api.QueueProcessResponse
 import ru.skatelab.shared.api.TaskStatusResponse
 import ru.skatelab.shared.models.ProcessEvent
 import kotlin.test.Test
+import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertIs
 import kotlin.test.assertTrue
 
 /**
@@ -53,7 +57,7 @@ class ProcessingViewModelCancelledReproTest {
     }
 
     @Test
-    fun startProcessing_onCancelledStatus_emitsTerminalStateNotProgress() = kotlinx.coroutines.test.runTest {
+    fun startProcessing_onCancelledStatus_emitsTerminalStateNotProgress() = runTest {
         val fakeApi = FakeProcessApi(
             streamEvents = listOf(
                 ProcessEvent(progress = 0.5f, message = "Processing...", status = "running"),
@@ -62,24 +66,36 @@ class ProcessingViewModelCancelledReproTest {
         )
         val viewModel = ProcessingViewModel(fakeApi)
 
-        // startProcessing suspends until the stream completes (both events
-        // consumed). The RUNNING event transitions state to Progress; the
-        // CANCELLED event is swallowed by `else -> {}`, so state stays Progress.
-        viewModel.startProcessing("video-key")
+        // Observe uiState emissions as startProcessing runs. The RUNNING event
+        // transitions state to Progress (captured mid-stream as proof the RUNNING
+        // branch fired); the CANCELLED event must then transition to a terminal
+        // state (Idle/Completed/Failed), NOT stay in Progress.
+        viewModel.uiState.test {
+            assertEquals(ProcessingUiState.Idle, awaitItem())
+            viewModel.startProcessing("video-key")
 
-        // Sanity: the RUNNING event was processed -> state reached Progress.
-        assertTrue(
-            actual = viewModel.uiState.value is ProcessingUiState.Progress,
-            message = "Precondition: state should be Progress after RUNNING event, got ${viewModel.uiState.value}",
-        )
+            // startProcessing sets Progress(0f, "Queuing...") before observeProgress.
+            val queuing = awaitItem()
+            assertIs<ProcessingUiState.Progress>(queuing)
 
-        // BUG REPRO: after a CANCELLED event the UI must be in a terminal state
-        // (Idle/Completed/Failed), NOT Progress. Today this is RED because the
-        // ViewModel's `when` block has `else -> {}` for CANCELLED and never
-        // transitions out of Progress.
+            // The RUNNING SSE event -> Progress(0.5f, "Processing...").
+            val running = awaitItem()
+            assertIs<ProcessingUiState.Progress>(running)
+
+            // The CANCELLED SSE event must transition out of Progress to a terminal
+            // state (Idle — cancel returns to the pre-processing state). Today (RED)
+            // the `when` block has `else -> {}` for CANCELLED, so no further emission
+            // occurs and awaitItem() hangs until the Turbine scope is cancelled.
+            val terminal = awaitItem()
+            assertIs<ProcessingUiState.Idle>(terminal)
+        }
+
+        // After startProcessing returns (both events consumed), the UI must NOT be
+        // stuck in Progress: a CANCELLED event is terminal.
+        val finalState = viewModel.uiState.value
         assertFalse(
-            actual = viewModel.uiState.value is ProcessingUiState.Progress,
-            message = "Expected terminal state after CANCELLED event, but UI is stuck in Progress: ${viewModel.uiState.value}",
+            actual = finalState is ProcessingUiState.Progress,
+            message = "Expected terminal state after CANCELLED event, but UI is stuck in Progress: $finalState",
         )
     }
 }
