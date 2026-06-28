@@ -40,6 +40,8 @@ class ProcessingViewModel(private val processApi: IProcessApi) {
                     _uiState.value = ProcessingUiState.Completed(event.sessionId ?: taskId)
                 ProcessStatus.FAILED ->
                     _uiState.value = ProcessingUiState.Failed(AppError.Server())
+                ProcessStatus.CANCELLED ->
+                    _uiState.value = ProcessingUiState.Idle
                 else -> {}
             }
         }
