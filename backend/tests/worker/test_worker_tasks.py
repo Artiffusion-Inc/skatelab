@@ -458,7 +458,14 @@ class TestProcessVideoTask:
 
     @pytest.mark.asyncio
     async def test_save_session_results_failure_continues(self, mock_valkey):
-        """When save_analysis_results raises, the exception is caught and task still completes."""
+        """When save_analysis_results raises, the worker surfaces a save failure
+        instead of reporting false success (#375).
+
+        Previously the outer main-save except swallowed the error and fell through
+        to store_result(COMPLETED) + publish_task_event("completed") with ZERO
+        metrics committed — silent total data loss. The fix reports a non-completed
+        status so the client does not see a successful analysis with no metrics.
+        """
         from app.worker import process_video_task
 
         with (
@@ -494,7 +501,11 @@ class TestProcessVideoTask:
                     session_id="session_42",
                 )
 
-        assert result["status"] == "Analysis complete!"
+        # Main save failed -> the worker must NOT report "Analysis complete!"
+        # (false success with zero committed metrics). It surfaces a save-failure
+        # status instead. See #375.
+        assert result["status"] != "Analysis complete!"
+        assert "fail" in result["status"].lower()
 
     @pytest.mark.asyncio
     async def test_publish_error_event_failure(self, mock_valkey):
