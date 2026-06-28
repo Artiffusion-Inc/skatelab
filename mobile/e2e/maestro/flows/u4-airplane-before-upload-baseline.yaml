@@ -3,33 +3,20 @@ tags:
   - bug-hunt
   - upload
 ---
-# U4 baseline: login online → airplane ON → upload attempt → "No connection"/"Retry" → airplane OFF → retry → complete.
+# U4 baseline: airplane ON → upload attempt → "No connection"/"Retry" → airplane OFF → retry → complete.
+#
+# PREREQUISITE (run first, in the SAME Maestro session so the app is already logged in
+# and on the Camera screen): login.yaml. This flow deliberately does NOT call `launchApp`
+# — Maestro's `launchApp` force-stops the app (am force-stop), which kills any in-flight
+# UploadWorker mid-flow and was the root cause of the E2E failure (#330 deep-debug 2026-06-28:
+# dumpsys jobscheduler confirmed the worker DID start + jobFinished, but the Maestro driver
+# force-stopped the app via launchApp). Production code is fixed (#364 NETWORK_ERROR UI +
+# #370 HttpRequestRetry no longer retries offline IOException). This flow avoids the test-
+# harness force-stop by continuing from the already-running, logged-in app state.
+#
 # Requires en-US locale: adb shell service call locale 3 s16 ru.skatelab.capture s16 en-US
+# Requires the app already running + logged in (Camera screen) from a prior login flow.
 - addMedia: ["./assets/test_video.mp4"]
-- launchApp
-- runFlow:
-    when:
-      visible: "While using the app"
-    commands:
-      - tapOn: "While using the app"
-- runFlow:
-    when:
-      visible: "Camera"
-    commands:
-      - tapOn: "Profile"
-      - scroll
-      - scroll
-      - tapOn: "Log out"
-      - assertVisible: "Log in to your account"
-- assertVisible: "Log in to your account"
-- tapOn: "Email"
-- inputText: test@skatelab.ru
-- back
-- tapOn: "Password"
-- inputText: Test123456
-- back
-- tapOn: "Log in"
-- assertVisible: "Camera"
 # Go offline, then walk the upload flow up to upload-init (network call after element selection)
 - setAirplaneMode: enabled
 - tapOn: "Upload video"
@@ -46,10 +33,10 @@ tags:
 # upload-init (network) fails offline → UploadWorker sets NETWORK_ERROR →
 # ProcessingScreen shows "No connection"/"Retry" within ~15s (connectTimeout 10s
 # + no HttpRequestRetry on IOException → fast fail).
-# extendedWaitUntil polls up to 60s for "No connection" to appear.
+# extendedWaitUntil polls up to 45s for "No connection" to appear.
 - extendedWaitUntil:
     visible: "No connection"
-    timeout: 60000
+    timeout: 45000
 - assertVisible: "Retry"
 # Restore network and retry
 - setAirplaneMode: disabled
