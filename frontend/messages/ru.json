@@ -58,7 +58,8 @@
     "resendBtn": "Отправить",
     "sending": "Отправка...",
     "resendVerificationSubtitle": "Введите email, и мы отправим новую ссылку для подтверждения",
-    "backToSignIn": "Вернуться к входу"
+    "backToSignIn": "Вернуться к входу",
+    "unverifiedBanner": "Подтвердите email для загрузки видео и доступа к расширенным функциям"
   },
   "nav": {
     "analysis": "Анализ",

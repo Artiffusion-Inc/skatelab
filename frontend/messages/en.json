@@ -58,7 +58,8 @@
     "resendBtn": "Send",
     "sending": "Sending...",
     "resendVerificationSubtitle": "Enter your email and we'll send a new verification link",
-    "backToSignIn": "Back to sign in"
+    "backToSignIn": "Back to sign in",
+    "unverifiedBanner": "Verify your email to upload videos and access advanced features"
   },
   "nav": {
     "analysis": "Analysis",
