@@ -531,7 +531,26 @@ async def process_video_task(
                         await db.rollback()
                         raise
             except (OSError, ValueError, RuntimeError) as save_err:
+                # Main save failed: ZERO SessionMetric rows committed, Session.status
+                # never advanced. Do NOT fall through to store_result(COMPLETED) +
+                # publish_task_event("completed") — that would be false success with
+                # total data loss. Surface the failure instead: write Valkey failed,
+                # publish a failed event, and return a non-completed result. (The DB
+                # Session row is left for the outermost except / #371 path to mark
+                # failed if this re-surfaces there; we do not commit here so the
+                # rollback inside the inner except is the last DB write on this path.)
                 logger.warning("Failed to save session data: %s", save_err)
+                await store_error(task_id, str(save_err))
+                await publish_task_event(
+                    task_id,
+                    {"status": "failed", "progress": 1.0, "message": str(save_err)},
+                )
+                return {
+                    "poses_key": vast_result.poses_key or "",
+                    "metrics_key": vast_result.metrics_key or "",
+                    "stats": vast_result.stats,
+                    "status": "Analysis failed during save",
+                }
 
         # Write Valkey status LAST, after DB commit (if any)
         await store_result(task_id, response_data)
