@@ -17,6 +17,7 @@ from src.types import (
     ReferenceData,
     TrackedExtraction,
     VideoMeta,
+    assert_pose_format,
 )
 
 
@@ -446,3 +447,39 @@ class TestTrackedExtraction:
         mask = te.valid_mask()
         assert mask.shape == (1,)
         assert mask[0] is np.True_
+
+
+# --- prod-ready-audit repro (M3) ---
+# These tests are RED-by-design: they prove assert_pose_format
+# (ml/src/types.py:295-304, normalized branch) misses NaN/Inf. The check
+# `xy[:,:,0].min() < -0.01` returns False when the min is NaN (NaN
+# comparisons are always False), so an all-NaN array PASSES "normalized"
+# validation. This lets silent NaN flow downstream. Tests stay RED until
+# the validator rejects non-finite values explicitly.
+
+
+class TestAssertPoseFormatNanInf:
+    """M3: NaN/Inf pass the 'normalized' validation."""
+
+    def test_m3_all_nan_passes_normalized_validation(self):
+        """M3: an all-NaN array must NOT pass 'normalized' validation.
+
+        NaN comparisons (NaN < -0.01, NaN > 1.01) are always False, so the
+        range check never triggers and the array silently passes.
+        """
+        poses = np.full((5, 17, 2), np.nan, dtype=np.float32)
+
+        with pytest.raises(AssertionError):
+            assert_pose_format(poses, "normalized", context="test_m3_nan")
+
+    def test_m3_partial_nan_passes_normalized_validation(self):
+        """M3: a mostly-valid array with NaN coords must NOT pass.
+
+        A single NaN coordinate makes `.min()`/`.max()` return NaN, and the
+        range comparisons all evaluate to False, so validation silently passes.
+        """
+        poses = np.full((5, 17, 2), 0.5, dtype=np.float32)
+        poses[2, 7, 0] = np.nan  # one NaN coordinate
+
+        with pytest.raises(AssertionError):
+            assert_pose_format(poses, "normalized", context="test_m3_partial_nan")
