@@ -309,8 +309,14 @@ class PhaseDetector:
         else:
             com_y = calculate_com_trajectory(poses)
 
-        # 2. Smooth with median filter (remove spikes)
-        com_smooth = _median_filter(com_y.astype(np.float64), size=5)
+        # 2. Keep the raw CoM signal for elevated-segment detection. A size-5
+        #    median here washes out 1-2 frame dips, which makes the segment-merge
+        #    step below unreachable — the dips it is meant to bridge never
+        #    appear as non-elevated gaps. The min-duration filter (step 7) and
+        #    the merge step already reject/bridge short spikes, so spike
+        #    smoothing is not applied here. The baseline (step 3) is still
+        #    median-filtered with a large window for robustness.
+        com_smooth = com_y.astype(np.float64)
 
         # 3. Compute baseline via large-window median
         baseline_win = min(61, max(21, N // 3))
@@ -335,8 +341,11 @@ class PhaseDetector:
                 if seg_start is None:
                     seg_start = i
             elif seg_start is not None:
-                # Check if gap to previous segment is small → merge
-                if segments and (i - segments[-1][1]) < 3:
+                # Check if gap to previous segment is small → merge.
+                # Measure the PURE gap: number of still-frames between the
+                # previous segment's end and the current segment's start
+                # (seg_start - prev_end - 1), not gap + 1 + current_run_length.
+                if segments and (seg_start - segments[-1][1] - 1) < 3:
                     segments[-1] = (segments[-1][0], i - 1)
                 else:
                     segments.append((seg_start, i - 1))
