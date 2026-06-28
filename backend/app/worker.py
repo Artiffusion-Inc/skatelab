@@ -423,6 +423,10 @@ async def process_video_task(
             "stats": vast_result.stats,
             "status": "Analysis complete!",
         }
+        # Track whether the (non-critical) analyzer post-processing failed. When
+        # True, the main metrics are committed but SessionScore/SessionPhase rows
+        # + gamification are missing — the client must NOT see `completed`.
+        analyzer_failed = False
         if session_id:
             try:
                 from app.crud.session import (
@@ -521,19 +525,64 @@ async def process_video_task(
                                     _queue_name="skatelab:queue:fast",
                                 )
                         except Exception as analyzer_err:  # noqa: BLE001
+                            # Analyzer post-processing failed: SessionScore /
+                            # SessionPhase rows are discarded by the rollback below
+                            # and gamification is skipped. The MAIN metrics (committed
+                            # at 480) are intact, so this is partial data loss, not
+                            # total — but we must NOT report `completed` to the client
+                            # while multi-score rows + XP/skill-unlocks are missing.
+                            # Mark the DB Session row `partial`, surface a non-
+                            # completed status to Valkey + the event stream, and keep
+                            # store_result as a single call (the client polls Valkey
+                            # for the terminal status). Committing the status change
+                            # in its own transaction also persists the partial state
+                            # independently of the rolled-back analyzer rows.
                             logger.warning(
                                 "Skating analyzer post-processing failed for %s: %s",
                                 session_id,
                                 analyzer_err,
                             )
                             await db.rollback()
+                            analyzer_failed = True
+                            try:
+                                session_partial = await get_by_id(db, session_id)
+                                if session_partial is not None:
+                                    session_partial.status = "partial"
+                                    session_partial.error_message = str(analyzer_err)
+                                    await db.commit()
+                            except (OSError, RuntimeError):
+                                logger.warning(
+                                    "Failed to mark session partial for %s",
+                                    session_id,
+                                )
                     except Exception:
                         await db.rollback()
                         raise
             except (OSError, ValueError, RuntimeError) as save_err:
+                # Main save failed: ZERO SessionMetric rows committed, Session.status
+                # never advanced. Do NOT fall through to store_result(COMPLETED) +
+                # publish_task_event("completed") — that would be false success with
+                # total data loss. Surface the failure instead: write Valkey failed,
+                # publish a failed event, and return a non-completed result. (The DB
+                # Session row is left for the outermost except / #371 path to mark
+                # failed if this re-surfaces there; we do not commit here so the
+                # rollback inside the inner except is the last DB write on this path.)
                 logger.warning("Failed to save session data: %s", save_err)
+                await store_error(task_id, str(save_err))
+                await publish_task_event(
+                    task_id,
+                    {"status": "failed", "progress": 1.0, "message": str(save_err)},
+                )
+                return {
+                    "poses_key": vast_result.poses_key or "",
+                    "metrics_key": vast_result.metrics_key or "",
+                    "stats": vast_result.stats,
+                    "status": "Analysis failed during save",
+                }
 
         # Write Valkey status LAST, after DB commit (if any)
+        if analyzer_failed:
+            response_data["status"] = "Analysis complete with partial results"
         await store_result(task_id, response_data)
 
         from app.analytics_events import analysis_completed
@@ -549,7 +598,12 @@ async def process_video_task(
 
         await update_progress(task_id, 1.0, "Done")
         await publish_task_event(
-            task_id, {"status": "completed", "progress": 1.0, "message": "Done"}
+            task_id,
+            {
+                "status": "partial" if analyzer_failed else "completed",
+                "progress": 1.0,
+                "message": "Done with partial results" if analyzer_failed else "Done",
+            },
         )
 
         return response_data
@@ -585,6 +639,25 @@ async def process_video_task(
             )
         except (OSError, RuntimeError):
             logger.warning("Failed to publish error event for task %s", task_id)
+
+        # Non-retryable failure: mark the DB Session row as failed so the user
+        # polling GET /sessions/{id} (which reads the DB, not Valkey) sees a
+        # terminal state instead of a stuck queued/uploading row. Mirrors
+        # analyze_music_task's DB-status-failed update (worker.py:815-831).
+        if not retryable and session_id:
+            try:
+                from app.crud.session import get_by_id as _get_by_id_failed
+                from app.database import async_session_factory  # type: ignore[import-untyped]
+
+                async with async_session_factory() as db:
+                    session_row = await _get_by_id_failed(db, session_id)
+                    if session_row is not None:
+                        session_row.status = "failed"
+                        session_row.error_message = str(e)
+                        await db.commit()
+            except (OSError, RuntimeError):
+                logger.warning("Failed to update session status to failed for %s", session_id)
+
         if retryable:
             raise Retry(defer=ctx.get("job_try", 1) * 10) from e
         raise
