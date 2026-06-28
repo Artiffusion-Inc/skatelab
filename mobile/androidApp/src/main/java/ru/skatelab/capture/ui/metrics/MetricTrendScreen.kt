@@ -160,7 +160,7 @@ fun MetricTrendScreen(
                 ) {
                     // Trend indicator row
                     TrendIndicatorRow(
-                        label = metricDef.labelRu ?: metricName,
+                        label = metricLabel(metricName),
                         unit = metricDef.unit,
                         trendDirection = trend.trend,
                         currentPr = trend.currentPr,
