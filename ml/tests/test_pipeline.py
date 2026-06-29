@@ -773,3 +773,37 @@ class TestPipelineLazyLoading:
         recommender = pipeline._get_recommender()
         assert recommender is not None
         assert pipeline._recommender is not None
+
+
+# --------------------------------------------------------------------------- #
+# #429 — pipeline must not hardcode PhysicsEngine body_mass; thread user weight
+# --------------------------------------------------------------------------- #
+class TestPipelineBodyMassPlumbing:
+    def test_pipeline_does_not_hardcode_body_mass_70(self):
+        """pipeline.py must thread the user's body mass into PhysicsEngine, not
+        hardcode 70.0 kg, so moment_of_inertia/angular_momentum are per-user.
+        The User model stores weight_kg (models/user.py:29). #429
+        """
+        import re
+
+        pipeline_src = Path(__file__).resolve().parents[1] / "src" / "pipeline.py"
+        text = pipeline_src.read_text(encoding="utf-8")
+        hardcoded = re.findall(r"PhysicsEngine\(body_mass=70\.0\)", text)
+        assert not hardcoded, (
+            f"pipeline.py hardcodes PhysicsEngine(body_mass=70.0) "
+            f"({len(hardcoded)} site(s)); user weight_kg from profile is ignored. "
+            "Thread the user's weight_kg into the engine so "
+            "moment_of_inertia/angular_momentum are per-user."
+        )
+
+    def test_analyze_accepts_body_mass_param(self):
+        """analyze and analyze_async must expose a body_mass param so callers
+        can pass the user's weight_kg (#429)."""
+        import inspect
+
+        from src.pipeline import AnalysisPipeline
+
+        analyze_sig = inspect.signature(AnalysisPipeline.analyze)
+        analyze_async_sig = inspect.signature(AnalysisPipeline.analyze_async)
+        assert "body_mass" in analyze_sig.parameters, "analyze must accept body_mass"
+        assert "body_mass" in analyze_async_sig.parameters, "analyze_async must accept body_mass"
