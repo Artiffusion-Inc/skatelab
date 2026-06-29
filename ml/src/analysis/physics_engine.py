@@ -384,6 +384,7 @@ class PhysicsEngine:
         takeoff_idx: int,
         landing_idx: int,
         com_trajectory: np.ndarray,
+        fps: float = 30.0,
     ) -> dict:
         """Fit parabolic trajectory using pre-computed CoM.
 
@@ -392,6 +393,7 @@ class PhysicsEngine:
             takeoff_idx: Frame index of takeoff
             landing_idx: Frame index of landing
             com_trajectory: (N, 3) pre-computed CoM trajectory
+            fps: Video framerate (was hardcoded 30; #423)
 
         Returns:
             dict with:
@@ -400,10 +402,19 @@ class PhysicsEngine:
                 - takeoff_velocity: Vertical velocity at takeoff (m/s)
                 - fit_quality: R² of parabolic fit
         """
+        # Guard reversed/degenerate phases (phase-detector failure): an empty
+        # slice crashes curve_fit/np.max. Sibling analyze_2d is tolerant. #428
+        if takeoff_idx > landing_idx:
+            return {
+                "height": 0.0,
+                "flight_time": 0.0,
+                "takeoff_velocity": 0.0,
+                "fit_quality": 0.0,
+            }
         # Extract flight phase (vertical component = Y axis)
         flight_com = com_trajectory[takeoff_idx : landing_idx + 1, 1]  # Y coordinate
         n_frames = len(flight_com)
-        t = np.arange(n_frames) / 30.0  # Assume 30 fps
+        t = np.arange(n_frames) / fps  # #423: was hardcoded / 30.0
 
         # Parabolic fit: h(t) = at² + bt + c
         def parabola(t: Any, a: float, b: float, c: float) -> Any:
@@ -444,7 +455,7 @@ class PhysicsEngine:
             # Fallback: simple height difference
             return {
                 "height": np.max(flight_com) - np.min(flight_com),
-                "flight_time": n_frames / 30.0,
+                "flight_time": n_frames / fps,  # #423: was / 30.0
                 "takeoff_velocity": 0.0,
                 "fit_quality": 0.0,
             }
@@ -454,6 +465,7 @@ class PhysicsEngine:
         poses_3d: np.ndarray,
         takeoff_idx: int,
         landing_idx: int,
+        fps: float = 30.0,
     ) -> dict:
         """Fit parabolic trajectory to CoM during flight.
 
@@ -463,6 +475,7 @@ class PhysicsEngine:
             poses_3d: (N, 17, 3) array of poses
             takeoff_idx: Frame index of takeoff
             landing_idx: Frame index of landing
+            fps: Video framerate (was hardcoded 30; #423)
 
         Returns:
             dict with:
@@ -474,10 +487,18 @@ class PhysicsEngine:
         # Get CoM trajectory
         com_trajectory = self.calculate_center_of_mass(poses_3d)
 
+        # Guard reversed/degenerate phases. #428
+        if takeoff_idx > landing_idx:
+            return {
+                "height": 0.0,
+                "flight_time": 0.0,
+                "takeoff_velocity": 0.0,
+                "fit_quality": 0.0,
+            }
         # Extract flight phase (vertical component = Y axis)
         flight_com = com_trajectory[takeoff_idx : landing_idx + 1, 1]  # Y coordinate
         n_frames = len(flight_com)
-        t = np.arange(n_frames) / 30.0  # Assume 30 fps
+        t = np.arange(n_frames) / fps  # #423: was hardcoded / 30.0
 
         # Parabolic fit: h(t) = at² + bt + c
         def parabola(t: Any, a: float, b: float, c: float) -> Any:
@@ -518,7 +539,7 @@ class PhysicsEngine:
             # Fallback: simple height difference
             return {
                 "height": np.max(flight_com) - np.min(flight_com),
-                "flight_time": n_frames / 30.0,
+                "flight_time": n_frames / fps,  # #423: was / 30.0
                 "takeoff_velocity": 0.0,
                 "fit_quality": 0.0,
             }
@@ -528,6 +549,7 @@ class PhysicsEngine:
         poses_3d: np.ndarray,
         takeoff_idx: int | None = None,
         landing_idx: int | None = None,
+        fps: float = 30.0,
     ) -> PhysicsResult:
         """Run full physics analysis on 3D pose sequence.
 
@@ -537,6 +559,7 @@ class PhysicsEngine:
             poses_3d: (N, 17, 3) array of poses
             takeoff_idx: Optional takeoff frame index
             landing_idx: Optional landing frame index
+            fps: Video framerate (was hardcoded 30 in the trajectory fit; #423)
 
         Returns:
             PhysicsResult with all calculated values
@@ -555,7 +578,9 @@ class PhysicsEngine:
         flight_time = None
 
         if takeoff_idx is not None and landing_idx is not None:
-            trajectory = self._fit_jump_trajectory_with_com(poses_3d, takeoff_idx, landing_idx, com)
+            trajectory = self._fit_jump_trajectory_with_com(
+                poses_3d, takeoff_idx, landing_idx, com, fps=fps
+            )
             jump_height = trajectory["height"]
             flight_time = trajectory["flight_time"]
 
