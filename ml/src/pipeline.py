@@ -350,6 +350,7 @@ class AnalysisPipeline:
                         smoothed,
                         takeoff_idx=_t_off,
                         landing_idx=_l_off,
+                        fps=meta.fps,  # #423: was missing -> 3D path hardcoded 30 fps
                     )
                     physics_dict = {
                         "jump_height": physics_result.jump_height,
@@ -1029,7 +1030,9 @@ class AnalysisPipeline:
             if poses_3d is not None:
                 result = await loop.run_in_executor(
                     None,
-                    lambda: engine.analyze(smoothed, takeoff_idx=_t_off, landing_idx=_l_off),
+                    lambda: engine.analyze(
+                        smoothed, takeoff_idx=_t_off, landing_idx=_l_off, fps=fps
+                    ),  # #423: was missing -> 3D path hardcoded 30 fps
                 )
                 return {
                     "jump_height": result.jump_height,

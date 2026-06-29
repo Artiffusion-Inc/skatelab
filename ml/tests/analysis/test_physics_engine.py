@@ -269,3 +269,57 @@ class TestPhysicsEngine2D:
     def test_analyze_2d_jump_height_positive(self, engine_2d, poses_2d_jump):
         result = engine_2d.analyze_2d(poses_2d_jump, takeoff_idx=10, landing_idx=25, fps=30.0)
         assert result["jump_height"] > 0
+
+
+# --------------------------------------------------------------------------- #
+# #423 — analyze (3D path) must use the video's real fps, not hardcoded 30
+# --------------------------------------------------------------------------- #
+class TestPhysicsEngine3dFpsPlumbing:
+    def test_3d_analyze_uses_passed_fps_not_30(self):
+        """PhysicsEngine.analyze (3D path) must compute flight_time from the
+        passed fps, not a hardcoded 30. Sibling analyze_2d already divides by
+        fps; the 3D path used ``np.arange(n) / 30.0`` and analyze() had no fps
+        param. A 60 fps video reported flight_time 2x too large. #423"""
+        from src.analysis.physics_engine import PhysicsEngine
+
+        engine = PhysicsEngine(body_mass=70.0)
+        n = 40
+        poses_3d = np.zeros((n, 17, 3), dtype=np.float32)
+        for i in range(n):
+            poses_3d[i, :, 1] = 0.5 - 0.2 * np.sin(np.pi * (i - 5) / 30)
+
+        # 30 flight frames. At 60 fps the real flight time is 30/60 = 0.5 s.
+        # Old 3D path hardcoded 30 fps -> 30/30 = 1.0 s (2x wrong).
+        result_3d = engine.analyze(poses_3d, takeoff_idx=5, landing_idx=35, fps=60.0)
+        result_2d_60 = engine.analyze_2d(
+            poses_3d[:, :, :2], takeoff_idx=5, landing_idx=35, fps=60.0
+        )
+
+        assert abs(result_3d.flight_time - result_2d_60["flight_time"]) < 0.05, (
+            f"3D flight_time {result_3d.flight_time}s did not use passed fps=60 "
+            f"(2D path correct: {result_2d_60['flight_time']}s)"
+        )
+
+
+# --------------------------------------------------------------------------- #
+# #428 — analyze (3D path) must not crash on takeoff_idx > landing_idx
+# --------------------------------------------------------------------------- #
+class TestPhysicsAnalyzeReversedCrash:
+    def test_reversed_takeoff_landing_no_crash(self):
+        """PhysicsEngine.analyze must not crash when takeoff_idx > landing_idx
+        (phase-detector failure / step turn). The 3D path sliced
+        ``com[takeoff:landing+1]`` with no guard -> empty slice -> ValueError.
+        #428"""
+        from src.analysis.physics_engine import PhysicsEngine
+
+        engine = PhysicsEngine(body_mass=70.0)
+        n = 40
+        poses_3d = np.zeros((n, 17, 3), dtype=np.float32)
+        # Degenerate: takeoff after landing.
+        try:
+            engine.analyze(poses_3d, takeoff_idx=8, landing_idx=3)
+        except ValueError as exc:
+            pytest.fail(
+                f"PhysicsEngine.analyze crashes on takeoff>landing: {exc}. "
+                "Caller does not pre-validate order."
+            )
