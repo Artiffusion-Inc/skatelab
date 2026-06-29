@@ -73,7 +73,8 @@ describe("PersonalRecords", () => {
     withProviders(<PersonalRecords />)
 
     // Wait for react-query to settle and the element label to render.
-    const label = await screen.findByText("3A — Triple Axel")
+    // Test locale is ru (production default), so the label uses name_ru.
+    const label = await screen.findByText("3A — Тройной Аксель")
     expect(label).toBeTruthy()
   })
 

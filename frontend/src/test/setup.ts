@@ -14,24 +14,30 @@ vi.mock("next/navigation", () => ({
   usePathname: vi.fn(() => "/"),
 }))
 
-// Mock @/i18n for components that use useTranslations / useLocale
-vi.mock("@/i18n", () => ({
-  useLocale: vi.fn(() => "en"),
-  useTranslations: vi.fn((_namespace: string) => {
-    // Return a translation function that returns the key (identity) or interpolated string
-    return vi.fn((key: string, params?: Record<string, string>) => {
-      // Simple interpolation for common patterns
-      if (params) {
-        let result = key
-        for (const [k, v] of Object.entries(params)) {
-          result = result.replace(new RegExp(`{${k}}`, "g"), String(v))
-        }
-        return result
-      }
-      return key
-    })
-  }),
-}))
+// Mock @/i18n for components that use useTranslations / useLocale. Returns REAL
+// ru strings from messages/ru.json (with {placeholder} interpolation) instead
+// of bare key paths, so i18n-asserting tests check the actual user-facing text.
+// Use the real next-intl NextIntlClientProvider instead of this mock only if a
+// test needs ICU message-format features beyond simple {name} interpolation.
+vi.mock("@/i18n", async () => {
+  const messages = (await import("./../../messages/ru.json")).default as Record<
+    string,
+    Record<string, string>
+  >
+  const interpolate = (template: string, params?: Record<string, unknown>) => {
+    if (!params) return template
+    return template.replace(/\{(\w+)\}/g, (_m, k: string) =>
+      k in params ? String(params[k]) : `{${k}}`,
+    )
+  }
+  return {
+    useLocale: () => "ru",
+    useTranslations: (namespace: string) => (key: string, params?: Record<string, unknown>) => {
+      const template = messages[namespace]?.[key]
+      return template === undefined ? key : interpolate(template, params)
+    },
+  }
+})
 
 // Mock @sentry/nextjs (optional dep, may not be installed in CI)
 vi.mock("@sentry/nextjs", () => ({
