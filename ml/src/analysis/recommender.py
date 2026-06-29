@@ -71,6 +71,7 @@ class Recommender:
         metrics: list[MetricResult],
         element_type: str,
         goe_grade: GOEGrade | None = None,
+        lang: str = "ru",
     ) -> list[str]:
         """Generate recommendations with optional ISU GOE context.
 
@@ -78,15 +79,44 @@ class Recommender:
             metrics: List of computed MetricResult.
             element_type: Type of skating element.
             goe_grade: Optional GOEGrade from ISU GOE scoring.
+            lang: Output language — "ru" (default, backward compatible)
+                or "en" for English GOE summary.
 
         Returns:
-            List of recommendation strings in Russian, with GOE summary
-            prepended if goe_grade is provided.
+            List of recommendation strings (Russian by default), with GOE
+            summary prepended if goe_grade is provided.
         """
         recommendations = self.recommend(metrics, element_type)
         if goe_grade is None:
             return recommendations
         # Insert GOE summary as first recommendation
+        goe_summary = self._format_goe_summary(goe_grade, lang)
+        return [goe_summary, *recommendations]
+
+    @staticmethod
+    def _format_goe_summary(goe_grade: GOEGrade, lang: str) -> str:
+        """Format a GOE summary line in the requested language.
+
+        Args:
+            goe_grade: GOEGrade from ISU GOE scoring.
+            lang: "ru" or "en".
+
+        Returns:
+            Formatted GOE summary string.
+        """
+        if lang == "en":
+            goe_summary = (
+                f"GOE {goe_grade.grade:+d} "
+                f"({len(goe_grade.positives)} positives, "
+                f"{len(goe_grade.negatives)} negatives). "
+                f"Element score: {goe_grade.estimated_score:.2f} points "
+                f"(BV {goe_grade.base_value:.2f}"
+            )
+            if goe_grade.modifier:
+                goe_summary += f", modifier {goe_grade.modifier}"
+            goe_summary += f"). Confidence: {goe_grade.confidence:.0%}."
+            return goe_summary
+        # Default: Russian (backward compatible)
         goe_summary = (
             f"GOE {goe_grade.grade:+d} "
             f"({len(goe_grade.positives)} плюсов, {len(goe_grade.negatives)} минусов). "
@@ -96,7 +126,7 @@ class Recommender:
         if goe_grade.modifier:
             goe_summary += f", модификатор {goe_grade.modifier}"
         goe_summary += f"). Уверенность: {goe_grade.confidence:.0%}."
-        return [goe_summary, *recommendations]
+        return goe_summary
 
     def _determine_severity(
         self,

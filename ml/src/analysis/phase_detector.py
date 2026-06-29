@@ -499,6 +499,7 @@ class PhaseDetector:
             has_toe_pick=False,
             key_joints=[],
             ideal_metrics={},
+            name_en="three turn",
         )
 
         analyzer = BiomechanicsAnalyzer(dummy_def)
