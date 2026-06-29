@@ -76,6 +76,7 @@ class ProcessController(Controller):
             ml_flags=ml_flags,
             session_id=data.session_id,
             user_id=str(user.id),
+            lang=user.language,
             _queue_name="skatelab:queue:heavy",
         )
 

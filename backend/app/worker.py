@@ -288,6 +288,7 @@ async def process_video_task(
     ml_flags: dict[str, bool] | None = None,
     session_id: str | None = None,
     user_id: str | None = None,
+    lang: str = "ru",
 ) -> dict[str, Any]:
     """arq task: dispatch video processing to Vast.ai Serverless GPU."""
     if ml_flags is None:
@@ -364,6 +365,7 @@ async def process_video_task(
                 ml_flags=ml_flags,
                 element_type=element_type,
                 isu_code=isu_code,
+                lang=lang,
             )
         # NoReadyWorkerError is retryable in _async_route_request (3 attempts), so
         # reaching here means the endpoint stayed workerless across all retries —
