@@ -54,6 +54,7 @@ import androidx.compose.ui.unit.dp
 import ru.skatelab.capture.R
 import ru.skatelab.capture.ui.elements.elementLabel
 import ru.skatelab.capture.ui.metrics.metricLabel
+import ru.skatelab.capture.utils.localizedMessage
 import ru.skatelab.shared.models.SessionResponse
 import ru.skatelab.shared.models.elementTypes
 import ru.skatelab.shared.state.SessionsUiState
@@ -120,7 +121,6 @@ fun SessionListScreen(
             is SessionsUiState.Error -> {
                 val errorLabel = stringResource(R.string.session_list_error)
                 val retryLabel = stringResource(R.string.session_list_retry)
-                val message = (uiState as SessionsUiState.Error).error.messageKey
                 Column(
                     modifier = Modifier.fillMaxSize().padding(padding),
                     verticalArrangement = Arrangement.Center,
@@ -129,7 +129,7 @@ fun SessionListScreen(
                     Text(errorLabel, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.error)
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        message,
+                        (uiState as SessionsUiState.Error).error.localizedMessage(),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )

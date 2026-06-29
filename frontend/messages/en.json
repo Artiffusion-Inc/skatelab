@@ -8,7 +8,16 @@
     "cancel": "Cancel",
     "or": "or",
     "back": "Back",
-    "home": "Home"
+    "home": "Home",
+    "legalInfo": "Legal information"
+  },
+  "offer": {
+    "title": "Offer",
+    "comingSoon": "Document in preparation."
+  },
+  "terms": {
+    "title": "Terms of Service",
+    "comingSoon": "Document in preparation."
   },
   "auth": {
     "signIn": "Sign In",
