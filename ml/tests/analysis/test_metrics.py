@@ -920,3 +920,92 @@ def test_analyze_2d_backward_compat():
     phases = ElementPhase(name="waltz_jump", start=5, takeoff=10, peak=20, landing=30, end=40)
     metrics = analyzer.analyze(poses_2d, phases, fps=30.0)
     assert isinstance(metrics, list)
+
+
+# --------------------------------------------------------------------------- #
+# #422 — compute_rotation_speed shoulder-axis angle not unwrapped before diff
+# --------------------------------------------------------------------------- #
+class TestRotationSpeedWrapAround:
+    def test_rotation_crossing_180_boundary_no_spike(self):
+        """A steady rotation crossing the ±180° wrap-around must not produce a
+        rotation-speed spike. np.unwrap was missing before np.gradient (#422)."""
+        fps = 30.0
+        n = 60
+        element_def = get_element_def("waltz_jump")
+        analyzer = BiomechanicsAnalyzer(element_def)
+
+        poses = np.full((n, 17, 2), 0.5, dtype=np.float32)
+        # 170 -> 180 -> -180 -> -190(=170): steady +20° across the wrap. arctan2
+        # returns 179.83 then -179.83 (~360° jump), though the physical axis only
+        # moved ~0.34°/frame.
+        angles_deg = np.linspace(170.0, 190.0, n)
+        rad = np.radians(angles_deg)
+        cx, cy = 0.5, 0.5
+        poses[:, 4, 0] = cx + 0.1 * np.cos(rad)  # LSHOULDER = 4
+        poses[:, 4, 1] = cy + 0.1 * np.sin(rad)
+        poses[:, 11, 0] = cx - 0.1 * np.cos(rad)  # RSHOULDER = 11 (opposite)
+        poses[:, 11, 1] = cy - 0.1 * np.sin(rad)
+
+        phases = ElementPhase(
+            name="waltz_jump", start=0, takeoff=10, peak=30, landing=50, end=n - 1
+        )
+
+        speed = analyzer.compute_rotation_speed(poses, phases, fps=fps)
+
+        assert speed < 2000.0, (
+            f"rotation-speed wrap-around spike: {speed:.0f} deg/s — expected "
+            f"<2000 for a steady rotation; np.unwrap missing before np.gradient"
+        )
+
+
+# --------------------------------------------------------------------------- #
+# #424 — compute_jump_height_com crashes on takeoff >= landing
+# --------------------------------------------------------------------------- #
+class TestJumpHeightComDegenerateCrash:
+    def test_takeoff_ge_landing_returns_zero_not_crash(self):
+        """compute_jump_height_com must not crash on degenerate phases
+        (takeoff >= landing). Sibling compute_relative_jump_height guards this. #424"""
+        analyzer = BiomechanicsAnalyzer(get_element_def("waltz_jump"))
+        poses = np.full((40, 17, 2), 0.5, dtype=np.float32)
+        phases = ElementPhase(name="waltz_jump", start=0, takeoff=35, peak=20, landing=5, end=39)
+
+        try:
+            height = analyzer.compute_jump_height_com(poses, phases)
+        except ValueError as exc:
+            pytest.fail(
+                f"compute_jump_height_com crashes on takeoff>=landing: {exc}. "
+                "Sibling compute_relative_jump_height guards this (returns 0.0)."
+            )
+        assert isinstance(height, float)
+
+
+# --------------------------------------------------------------------------- #
+# #426 — rotation_yaw_delta clamps to 0.0 (not max_delta); 720 deg/s too low
+# --------------------------------------------------------------------------- #
+class TestRotationYawDeltaClampZero:
+    def test_realistic_triple_jump_keeps_rotation_count(self):
+        """compute_rotation_yaw_delta must not destroy the rotation count of a
+        realistic triple jump. Old clamp replaced deltas with 0.0 at 720 deg/s
+        (far below real ~2160 deg/s jump speed). #426"""
+        analyzer = BiomechanicsAnalyzer(get_element_def("lutz"))
+        # Realistic triple: ~1080 deg over 15 flight frames at 30 fps = 2160 deg/s.
+        n = 15
+        poses_3d = np.full((n, 17, 3), 0.5, dtype=np.float32)
+        for i in range(n):
+            ang = np.radians(72 * i)  # 72 deg/frame
+            poses_3d[i, 4, 0] = 0.5 + 0.1 * np.cos(ang)  # LSHOULDER
+            poses_3d[i, 4, 2] = 0.5 + 0.1 * np.sin(ang)
+            poses_3d[i, 11, 0] = 0.5 - 0.1 * np.cos(ang)  # RSHOULDER
+            poses_3d[i, 11, 2] = 0.5 - 0.1 * np.sin(ang)
+        flight_indices = np.arange(n)
+
+        total_deg, rot_count, clamped = analyzer.compute_rotation_yaw_delta(
+            poses_3d, flight_indices, fps=30.0
+        )
+
+        assert rot_count >= 2.0, (
+            f"realistic triple jump (~2160 deg/s) lost: total_deg={total_deg}, "
+            f"count={rot_count}, clamped={int(clamped.sum())}/15. Clamp replaces "
+            "deltas with 0.0 (not max_delta) and 720 deg/s is far below real "
+            "jump speed, so every flight frame is zeroed."
+        )

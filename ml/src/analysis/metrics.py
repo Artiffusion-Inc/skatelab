@@ -698,8 +698,10 @@ class BiomechanicsAnalyzer:
         Returns:
             Angular velocity in deg/s.
         """
-        # Compute gradient
-        gradient = np.gradient(angle_series)
+        # Unwrap before differentiating so a wrap-around at ±180° does not
+        # produce a ~360° jump. Idempotent for already-continuous series. #422
+        unwrapped = np.unwrap(np.radians(angle_series))
+        gradient = np.degrees(np.gradient(unwrapped))
         return gradient * fps
 
     def compute_airtime(self, phases: ElementPhase, fps: float) -> float:
@@ -781,6 +783,11 @@ class BiomechanicsAnalyzer:
         """
         if com_trajectory is None:
             com_trajectory = calculate_com_trajectory(poses)
+
+        # Guard against degenerate phases (phase detector failure): empty slice
+        # would crash np.min. Sibling compute_relative_jump_height guards the same. #424
+        if phases.takeoff >= phases.landing:
+            return 0.0
 
         # Get CoM at takeoff (baseline)
         takeoff_com = com_trajectory[phases.takeoff]
@@ -1271,10 +1278,13 @@ class BiomechanicsAnalyzer:
         delta = np.where(delta > np.pi, delta - 2 * np.pi, delta)
         delta = np.where(delta < -np.pi, delta + 2 * np.pi, delta)
 
-        # Physiological clamp: max 720 deg/s
-        max_delta = np.radians(720.0 / fps)
+        # Physiological clamp: above ~2400 deg/s (quadruple jump ceiling) a delta
+        # is a tracking artifact, not real rotation. Cap to the ceiling preserving
+        # sign — zeroing (old behavior) destroyed the rotation count of real
+        # triple/quadruple jumps (~2160-2400 deg/s). 720 deg/s was far too low. #426
+        max_delta = np.radians(2400.0 / fps)
         clamped = np.abs(delta) > max_delta
-        delta[clamped] = 0.0
+        delta = np.clip(delta, -max_delta, max_delta)
 
         total_deg = float(np.sum(delta) * 180 / np.pi)
         rotation_count = round(abs(total_deg) / 360, 1)
