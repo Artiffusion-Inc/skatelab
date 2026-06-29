@@ -8,8 +8,16 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 
 async def award_session_xp(db: AsyncSession, user_id: str, overall_score: float) -> dict:
-    """Award XP based on session score. 1 XP per 0.1 score point."""
-    xp_earned = int(overall_score * 10)
+    """Award XP based on session score.
+
+    overall_score is on a 0..10 scale (compute_subscores.overall, multi_score.py:93;
+    the only prod caller worker.py passes analyzer["overall_score"]). 1 XP per
+    score point -> max 10 XP per session, consistent with check_skill_unlocks
+    thresholds (bronze=5.0/silver=6.5/gold=8.0, same 0..10 scale) and the
+    level/skill-reward economy (L2=100 XP, gold skill reward=300 XP). Old code
+    used int(score*10), a 0..1-scale formula that inflated XP 10x (#437).
+    """
+    xp_earned = int(overall_score)
     level = await add_xp(db, user_id, xp_earned)
     return {"xp_earned": xp_earned, "level": level}
 
