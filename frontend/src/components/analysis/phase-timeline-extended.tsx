@@ -2,6 +2,7 @@
 
 import { useCallback } from "react"
 import { useAnalysisStore } from "@/stores/analysis"
+import { useTranslations } from "@/i18n"
 import type { PhaseDetectionResult, PhaseExtended } from "@/types"
 
 interface PhaseTimelineExtendedProps {
@@ -17,16 +18,9 @@ const PHASE_COLORS: Record<PhaseExtended["name"], string> = {
   glide_out: "oklch(var(--score-mid) / 0.2)",
 }
 
-const PHASE_LABELS_RU: Record<PhaseExtended["name"], string> = {
-  approach: "Заход",
-  takeoff: "Взлёт",
-  air: "Полёт",
-  landing: "Приземление",
-  glide_out: "Выезд",
-}
-
 export function PhaseTimelineExtended({ totalFrames, result }: PhaseTimelineExtendedProps) {
   const { currentFrame, setCurrentFrame } = useAnalysisStore()
+  const t = useTranslations("analysis.phases")
 
   const handleSeek = useCallback(
     (e: { currentTarget: HTMLElement; clientX: number }) => {
@@ -78,7 +72,7 @@ export function PhaseTimelineExtended({ totalFrames, result }: PhaseTimelineExte
               width: `${endPercent - startPercent}%`,
               backgroundColor: PHASE_COLORS[phase.name],
             }}
-            title={`${PHASE_LABELS_RU[phase.name]}: ${phase.confidence.toFixed(2)} confidence`}
+            title={`${t(phase.name)}: ${phase.confidence.toFixed(2)} confidence`}
           >
             {/* Warning stripe for low confidence */}
             {isLowConfidence && (
@@ -88,15 +82,14 @@ export function PhaseTimelineExtended({ totalFrames, result }: PhaseTimelineExte
             {/* Phase label (visible on hover or wide enough) */}
             {endPercent - startPercent > 8 && (
               <span className="absolute top-1 left-1 text-[9px] text-foreground/70 truncate pointer-events-none">
-                {PHASE_LABELS_RU[phase.name]}
+                {t(phase.name)}
               </span>
             )}
 
             {/* Tooltip on hover */}
             <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 hidden group-hover:block z-10">
               <div className="bg-popover text-popover-foreground text-xs rounded-md px-2 py-1 shadow-lg whitespace-nowrap">
-                {PHASE_LABELS_RU[phase.name]}: {phase.start_time.toFixed(2)}s -{" "}
-                {phase.end_time.toFixed(2)}s
+                {t(phase.name)}: {phase.start_time.toFixed(2)}s - {phase.end_time.toFixed(2)}s
                 <br />
                 Confidence: {(phase.confidence * 100).toFixed(0)}%
               </div>

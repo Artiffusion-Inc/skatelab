@@ -212,7 +212,7 @@ function CoachDashboardPreview() {
         <div className="h-8 w-8 rounded-full bg-muted" />
         <div className="flex-1">
           <p className="text-sm font-medium text-foreground">Максим П.</p>
-          <p className="text-xs text-ink-mute">Последняя: вчера</p>
+          <p className="text-xs text-ink-mute">{t("lastSession")}</p>
         </div>
         <div className="text-right">
           <p className="text-xs font-medium text-primary">+0.1с</p>

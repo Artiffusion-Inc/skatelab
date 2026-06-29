@@ -7,7 +7,8 @@
     "noData": "Нет данных",
     "cancel": "Отмена",
     "or": "или",
-    "back": "Назад"
+    "back": "Назад",
+    "home": "На главную"
   },
   "auth": {
     "signIn": "Вход",
@@ -58,7 +59,8 @@
     "resendBtn": "Отправить",
     "sending": "Отправка...",
     "resendVerificationSubtitle": "Введите email, и мы отправим новую ссылку для подтверждения",
-    "backToSignIn": "Вернуться к входу"
+    "backToSignIn": "Вернуться к входу",
+    "unverifiedBanner": "Подтвердите email для загрузки видео и доступа к расширенным функциям"
   },
   "nav": {
     "analysis": "Анализ",
@@ -433,6 +435,7 @@
     "celebrationSubtitle": "Выберите роль для персонализации",
     "bannerMessage": "Выберите роль для персонализации",
     "bannerDismiss": "Скрыть",
+    "lastSession": "Последняя: вчера",
     "slides": {
       "skater": {
         "0": {
@@ -602,7 +605,14 @@
     "noData": "Нет данных",
     "generatePlan": "Сгенерировать план",
     "generatingPlan": "Генерация...",
-    "planError": "Не удалось создать план"
+    "planError": "Не удалось создать план",
+    "phases": {
+      "approach": "Заход",
+      "takeoff": "Взлёт",
+      "air": "Полёт",
+      "landing": "Приземление",
+      "glide_out": "Выезд"
+    }
   },
   "joints": {
     "pelvis": "Таз",
@@ -725,5 +735,18 @@
     "badge": "Демо",
     "uploadCta": "Загрузить своё видео",
     "demoSessionLabel": "Попробуйте демо-разбор"
+  },
+  "gamification": {
+    "level": "Уровень",
+    "xp": "Опыт",
+    "jumps": "Прыжки",
+    "spins": "Вращения",
+    "control": "Контроль",
+    "unlockedAt": "Разблокировано:",
+    "requires": "Требуется:"
+  },
+  "errorState": {
+    "title": "Что-то пошло не так",
+    "retry": "Попробовать снова"
   }
 }
