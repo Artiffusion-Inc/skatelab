@@ -26,16 +26,18 @@ def detect_deductions(metrics: dict[str, float]) -> list[DetectedDeduction]:
     """Detect applicable deductions from biomechanical metrics."""
     results: list[DetectedDeduction] = []
 
-    # Fall detection: landing_smoothness < 0.05 + hard_landing > 0.9
+    # Fall detection: hard impact + unstable landing. compute_hard_landing scale
+    # is 1.0 = soft, 0.0 = very hard (metrics.py:990), so a fall is LOW hard_landing
+    # (hard impact) + LOW landing_smoothness — not a soft landing. See #421.
     smoothness = metrics.get("landing_smoothness", 1.0)
-    hard_landing = metrics.get("hard_landing", 0.0)
-    if smoothness < 0.05 and hard_landing > 0.9:
+    hard_landing = metrics.get("hard_landing", 1.0)
+    if smoothness < 0.05 and hard_landing < 0.1:
         fall_def = next((d for d in DETECTABLE_DEDUCTIONS if d.id == "fall"), None)
         if fall_def:
             results.append(
                 DetectedDeduction(
                     deduction=fall_def,
-                    confidence=0.9 if hard_landing > 0.95 else 0.7,
+                    confidence=0.9 if hard_landing < 0.05 else 0.7,
                     evidence=f"landing_smoothness={smoothness:.2f}, hard_landing={hard_landing:.2f}",
                 )
             )

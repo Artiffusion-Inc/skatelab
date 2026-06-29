@@ -78,11 +78,12 @@ class TestGOEIntegration:
         assert any("GOE" in r for r in recommendations)
 
     def test_full_pipeline_fall(self):
-        """Fall on 3T -> GOE -5 -> fall deduction."""
+        """Fall on 3T -> GOE -5 -> fall deduction. hard_landing scale: 0.0=very
+        hard, 1.0=soft (metrics.py:990), so a fall is a HARD impact (low value)."""
         from app.services.choreography.deductions import detect_deductions
 
         grader = GOEGrader()
-        metrics_values = {"landing_smoothness": 0.02, "hard_landing": 0.95, "rotation_count": 3.0}
+        metrics_values = {"landing_smoothness": 0.02, "hard_landing": 0.05, "rotation_count": 3.0}
         metrics = [
             MetricResult(name=k, value=v, unit="score", is_good=False, reference_range=(0, 1))
             for k, v in metrics_values.items()
