@@ -21,6 +21,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import ru.skatelab.capture.R
+import ru.skatelab.capture.utils.localizedMessage
 import ru.skatelab.shared.state.AuthUiState
 
 @Composable
@@ -76,7 +77,7 @@ fun SplashScreen(
             }
             if (uiState is AuthUiState.Error) {
                 Text(
-                    text = uiState.error.messageKey,
+                    text = uiState.error.localizedMessage(),
                     color = MaterialTheme.colorScheme.error,
                     fontSize = 12.sp,
                 )

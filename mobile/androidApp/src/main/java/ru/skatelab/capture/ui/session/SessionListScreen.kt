@@ -53,6 +53,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import ru.skatelab.capture.R
 import ru.skatelab.capture.ui.elements.elementLabel
+import ru.skatelab.capture.ui.metrics.metricLabel
 import ru.skatelab.shared.models.SessionResponse
 import ru.skatelab.shared.models.elementTypes
 import ru.skatelab.shared.state.SessionsUiState
@@ -302,7 +303,7 @@ internal fun SessionCard(
                     ) {
                         displayMetrics.forEach { metric ->
                             Text(
-                                text = "${metricLabelRu(metric.metricName)}: ${formatMetricValue(metric.metricValue)}",
+                                text = "${metricLabel(metric.metricName)}: ${formatMetricValue(metric.metricValue)}",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
@@ -354,17 +355,6 @@ internal fun StatusBadge(
         )
     }
 }
-
-@Composable
-private fun metricLabelRu(metricName: String): String =
-    when (metricName) {
-        "airtime" -> stringResource(R.string.metric_airtime_label)
-        "rotation_speed" -> stringResource(R.string.metric_rotation_speed_label)
-        "jump_height" -> stringResource(R.string.metric_jump_height_label)
-        "knee_angle" -> stringResource(R.string.metric_knee_angle_label)
-        "landing_quality" -> stringResource(R.string.metric_landing_quality_label)
-        else -> metricName.replaceFirstChar { it.uppercase() }
-    }
 
 private fun formatMetricValue(value: Float): String {
     return if (value < 1 && value > -1) {
