@@ -189,6 +189,7 @@ class AnalysisPipeline:
         reference_path: Path | None = None,
         isu_code: str | None = None,
         lang: str = "ru",
+        body_mass: float = 70.0,
     ) -> AnalysisReport:
         """Analyze a skating video.
 
@@ -204,6 +205,9 @@ class AnalysisPipeline:
                 compatible) or "en". Forwarded to ``recommend_with_goe``; the
                 rule-based recommendations themselves stay Russian (rules/*.py
                 templates are Russian-only — out of scope, #407 follow-up).
+            body_mass: Athlete body mass in kg, threaded into PhysicsEngine so
+                moment_of_inertia/angular_momentum are per-user. Default 70.0
+                (backward compatible); callers pass the user's weight_kg. #429
 
         Returns:
             AnalysisReport with metrics, recommendations, and scores.
@@ -340,7 +344,7 @@ class AnalysisPipeline:
             try:
                 from .analysis.physics_engine import PhysicsEngine
 
-                engine = PhysicsEngine(body_mass=70.0)
+                engine = PhysicsEngine(body_mass=body_mass)  # #429: was hardcoded 70.0
                 # Use takeoff/landing only if they are non-zero (0 = unknown for steps/turns)
                 _t_off = phases.takeoff if phases.takeoff > 0 else None
                 _l_off = phases.landing if phases.landing > 0 else None
@@ -689,6 +693,7 @@ class AnalysisPipeline:
         manual_phases: ElementPhase | None = None,
         reference_path: Path | None = None,
         lang: str = "ru",
+        body_mass: float = 70.0,
     ) -> AnalysisReport:
         """Async version of analyze with parallel stage execution.
 
@@ -844,7 +849,9 @@ class AnalysisPipeline:
             # Task 2c: Physics (3D if available, else 2D)
             wave2_tasks.append(
                 asyncio.create_task(
-                    self._compute_physics_async(smoothed, phases, meta.fps, poses_3d=poses_3d)
+                    self._compute_physics_async(
+                        smoothed, phases, meta.fps, poses_3d=poses_3d, body_mass=body_mass
+                    )
                 )
             )
 
@@ -1007,6 +1014,7 @@ class AnalysisPipeline:
         phases: ElementPhase,
         fps: float,
         poses_3d: np.ndarray | None = None,
+        body_mass: float = 70.0,
     ) -> dict:
         """Compute physics in thread pool (3D if available, else 2D).
 
@@ -1015,6 +1023,7 @@ class AnalysisPipeline:
             phases: Element phases.
             fps: Video frame rate.
             poses_3d: 3D poses if available.
+            body_mass: Athlete body mass in kg for per-user inertia (#429).
 
         Returns:
             Physics result dict.
@@ -1022,7 +1031,7 @@ class AnalysisPipeline:
         loop = asyncio.get_event_loop()
         from .analysis.physics_engine import PhysicsEngine
 
-        engine = PhysicsEngine(body_mass=70.0)
+        engine = PhysicsEngine(body_mass=body_mass)  # #429: was hardcoded 70.0
         _t_off = phases.takeoff if phases.takeoff > 0 else None
         _l_off = phases.landing if phases.landing > 0 else None
 
