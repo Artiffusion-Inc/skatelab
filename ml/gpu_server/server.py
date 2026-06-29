@@ -204,6 +204,7 @@ class ProcessRequest(BaseModel):
     ml_flags: dict[str, bool] = {}
     element_type: str | None = None
     isu_code: str | None = None
+    lang: str = "ru"
     # S3 credentials passed per-request (worker doesn't store them)
     s3_endpoint_url: str = ""
     s3_access_key_id: str = ""
@@ -518,7 +519,7 @@ async def process(req: ProcessRequest):
 
                         recommender = Recommender()
                         recommendations = recommender.recommend_with_goe(
-                            metrics, req.element_type, goe_grade
+                            metrics, req.element_type, goe_grade, lang=req.lang
                         )
 
                 # --- 3D Lift (TCPFormer) ---

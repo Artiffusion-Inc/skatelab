@@ -188,6 +188,7 @@ class AnalysisPipeline:
         manual_phases: ElementPhase | None = None,
         reference_path: Path | None = None,
         isu_code: str | None = None,
+        lang: str = "ru",
     ) -> AnalysisReport:
         """Analyze a skating video.
 
@@ -199,6 +200,10 @@ class AnalysisPipeline:
             manual_phases: Optional manual phase boundaries (auto-detect if None).
             reference_path: Optional path to reference video (use store if None).
             isu_code: Optional ISU element code (e.g., '3T', '2A') for GOE grading.
+            lang: Output language for the GOE summary — "ru" (default, backward
+                compatible) or "en". Forwarded to ``recommend_with_goe``; the
+                rule-based recommendations themselves stay Russian (rules/*.py
+                templates are Russian-only — out of scope, #407 follow-up).
 
         Returns:
             AnalysisReport with metrics, recommendations, and scores.
@@ -385,7 +390,9 @@ class AnalysisPipeline:
             # Stage 7: Generate recommendations
             t0 = time.perf_counter()
             recommender = self._get_recommender()
-            recommendations = recommender.recommend_with_goe(metrics, element_type, goe_grade)
+            recommendations = recommender.recommend_with_goe(
+                metrics, element_type, goe_grade, lang=lang
+            )
             self._profiler.record("recommendations", time.perf_counter() - t0)
 
             # Stage 8: Compute overall score
@@ -680,6 +687,7 @@ class AnalysisPipeline:
         element_type: str | None = None,
         manual_phases: ElementPhase | None = None,
         reference_path: Path | None = None,
+        lang: str = "ru",
     ) -> AnalysisReport:
         """Async version of analyze with parallel stage execution.
 
@@ -847,6 +855,8 @@ class AnalysisPipeline:
             physics_dict = wave2_results[2] if reference is not None else wave2_results[1]
 
             recommender = self._get_recommender()
+            # recommend() rule templates are Russian-only (rules/*.py); lang
+            # plumbing is for the GOE summary + training_plan only (#417).
             recommendations = recommender.recommend(metrics, element_type)
             overall_score = self._compute_overall_score(metrics)
         else:
