@@ -84,9 +84,16 @@ async def save_analysis_results(
 
     await bulk_create(db, metric_rows)
 
-    # Compute overall_score
-    in_range_count = sum(1 for m in metric_rows if m["is_in_range"])
-    overall_score = in_range_count / len(metric_rows) if metric_rows else None
+    # Compute overall_score. Denominator = metrics that HAVE a registry ideal
+    # range (is_in_range is not None), not all metric rows. Unregistered ML
+    # metrics (is_in_range=None) must not inflate the denominator and deflate
+    # the score for an otherwise perfect session. #432
+    eligible = [m for m in metric_rows if m["is_in_range"] is not None]
+    in_range_count = sum(1 for m in eligible if m["is_in_range"])
+    if eligible:
+        overall_score = in_range_count / len(eligible)
+    else:
+        overall_score = None
 
     # Update session with GOE grade if present
     update_kwargs: dict[str, Any] = {

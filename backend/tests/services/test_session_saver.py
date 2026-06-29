@@ -334,8 +334,9 @@ async def test_save_analysis_unknown_metric_no_registry_entry():
     # No registry entry -> direction defaults to "higher", no previous best -> PR
     assert rows[0]["is_pr"] is True
 
-    # None is_in_range doesn't count toward score
-    assert mock_update.call_args[1]["overall_score"] == 0.0
+    # Unregistered metric (is_in_range=None) is not eligible — no metrics with a
+    # registry range -> overall_score is None, not a deflated 0.0. #432
+    assert mock_update.call_args[1]["overall_score"] is None
 
 
 # ---------------------------------------------------------------------------
