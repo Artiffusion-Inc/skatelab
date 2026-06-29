@@ -599,3 +599,34 @@ class TestParabolicSegmentMergeGapMetric:
             f"landing={result.phases.landing}). The segment-merge metric "
             f"`(i - segments[-1][1]) < 3` measures gap+run, not the pure gap."
         )
+
+
+# --------------------------------------------------------------------------- #
+# #425 — confidence inflated on flat/no-jump input (vy_std=0 -> NaN -> 0.5)
+# --------------------------------------------------------------------------- #
+class TestPhaseDetectorConfidenceInflate:
+    def test_flat_input_zero_confidence_not_half(self):
+        """A flat/no-jump input must report ~0 confidence, not 0.5.
+
+        _detect_jump_phases_com_improved computed vy_std = std(vy) and divided
+        by it. When vy is flat, vy_std == 0 -> 0/0 = NaN -> min(1.0, NaN) = 1.0
+        in Python -> NaN-weighted velocity terms inflated to full weight ->
+        ~0.5 confidence on a video with no jump. Sibling parabolic path
+        guards with a 1e-6 threshold; the velocity-confidence path did not. #425
+        """
+        import warnings
+
+        detector = PhaseDetector()
+        # Flat poses with a tiny x drift (still no jump — com_y stays constant).
+        poses = np.full((40, 17, 2), 0.5, dtype=np.float32)
+        poses[:, :, 0] = np.tile(np.linspace(0.3, 0.7, 40)[:, None], (1, 17))
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            result = detector.detect_jump_phases(poses, fps=30.0)
+
+        assert result.confidence < 0.1, (
+            f"flat/no-jump input reports confidence={result.confidence} "
+            "(vy_std=0 -> NaN-division -> min(1.0,NaN)=1.0 inflates terms); "
+            "expected <0.1 since there is no jump"
+        )
