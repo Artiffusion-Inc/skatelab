@@ -85,14 +85,33 @@ class TestGOEGraderPositives:
 
 class TestGOEGraderNegatives:
     def test_fall_detection(self):
+        # Fall = hard impact (hard_landing≈0 = very hard, per compute_hard_landing
+        # scale: 1.0=soft, 0.0=very hard) + unstable landing (low smoothness). #421
         grader = GOEGrader()
-        metrics = _make_metrics(landing_smoothness=0.02, hard_landing=0.95)
+        metrics = _make_metrics(landing_smoothness=0.02, hard_landing=0.05)
         negatives = grader.detect_negatives(metrics)
         assert "fall" in negatives
 
     def test_no_fall(self):
+        # Soft landing (hard_landing≈1) + wobbly touchdown is NOT a fall. #421
         grader = GOEGrader()
-        metrics = _make_metrics(landing_smoothness=0.6, hard_landing=0.3)
+        metrics = _make_metrics(landing_smoothness=0.6, hard_landing=0.9)
+        negatives = grader.detect_negatives(metrics)
+        assert "fall" not in negatives
+
+    def test_hard_impact_low_smoothness_is_fall(self):
+        # #421: real hard-impact fall must be detected (was missed: old code
+        # required hard_landing>0.9 = soft landing to flag a fall).
+        grader = GOEGrader()
+        metrics = _make_metrics(landing_smoothness=0.02, hard_landing=0.05)
+        negatives = grader.detect_negatives(metrics)
+        assert "fall" in negatives
+
+    def test_soft_landing_low_smoothness_not_fall(self):
+        # #421: soft landing (hard_landing≈0.95) is NOT a fall even if wobbly;
+        # old code misclassified it as a fall.
+        grader = GOEGrader()
+        metrics = _make_metrics(landing_smoothness=0.02, hard_landing=0.95)
         negatives = grader.detect_negatives(metrics)
         assert "fall" not in negatives
 
@@ -128,7 +147,7 @@ class TestGOEGraderComputeGrade:
         grader = GOEGrader()
         metrics = _make_metrics(
             landing_smoothness=0.02,
-            hard_landing=0.95,
+            hard_landing=0.05,  # #421: hard impact (0.0=very hard), not soft 0.95
             rotation_count=3.0,
         )
         grade = grader.compute_goe_grade(metrics, base_value=4.20, expected_rotations=3.0)

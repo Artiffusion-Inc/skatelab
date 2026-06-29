@@ -22,7 +22,7 @@ _THRESHOLDS = {
     "good_trunk_recovery": 0.6,
     # Negative thresholds
     "fall_smoothness_max": 0.05,
-    "fall_hard_landing_min": 0.9,
+    "fall_hard_landing_max": 0.1,
     "poor_airtime_max": 0.2,
     "wrong_edge_direction_change": 90,
     "unclear_edge_direction_change": 60,
@@ -177,9 +177,12 @@ class GOEGrader:
         return negatives
 
     def _is_fall(self, mv: dict[str, float]) -> bool:
+        # compute_hard_landing scale: 1.0 = soft landing, 0.0 = very hard impact
+        # (metrics.py:990). A fall is a HARD impact (low hard_landing) + unstable
+        # landing (low smoothness), not a soft landing. See #421.
         return (
             mv.get("landing_smoothness", 1) < _THRESHOLDS["fall_smoothness_max"]
-            and mv.get("hard_landing", 0) > _THRESHOLDS["fall_hard_landing_min"]
+            and mv.get("hard_landing", 1) < _THRESHOLDS["fall_hard_landing_max"]
         )
 
     def _adjusted_base_value(self, clean_bv: float, modifier: str) -> float:
