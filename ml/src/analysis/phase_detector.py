@@ -251,13 +251,24 @@ class PhaseDetector:
         takeoff_signal = abs(vy[takeoff_idx]) if takeoff_idx < len(vy) else 0
         landing_signal = abs(vy[landing_idx]) if landing_idx < len(vy) else 0
 
+        # Guard flat input: vy_std == 0 makes the velocity-clarity ratios 0/0 = NaN,
+        # and min(1.0, NaN) returns 1.0 in Python -> NaN-weighted terms inflate to
+        # full weight -> ~0.5 confidence on a video with no jump at all. Sibling
+        # parabolic path guards with a 1e-6 threshold; this velocity path did not. #425
+        if vy_std < 1e-6:
+            velocity_confidence = 0.0
+        else:
+            velocity_confidence = (
+                min(1.0, takeoff_signal / (2 * vy_std)) * 0.3  # Takeoff clarity
+                + min(1.0, landing_signal / (3 * vy_std)) * 0.2  # Landing clarity
+            )
+
         # Combine factors
         confidence = min(
             1.0,
             (
                 min(1.0, prominence / 0.05) * 0.5  # Peak prominence (max 0.05)
-                + min(1.0, takeoff_signal / (2 * vy_std)) * 0.3  # Takeoff clarity
-                + min(1.0, landing_signal / (3 * vy_std)) * 0.2  # Landing clarity
+                + velocity_confidence
             ),
         )
 
