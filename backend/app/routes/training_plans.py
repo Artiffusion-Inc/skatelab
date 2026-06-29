@@ -32,7 +32,7 @@ class TrainingPlansController(Controller):
         if not score:
             raise ClientException(status_code=HTTP_404_NOT_FOUND, detail="Session scores not found")
         subscores = [SubScoreSchema(**s) if isinstance(s, dict) else s for s in score.subscores]
-        items = generate_training_plan(subscores, session_id=data.session_id)
+        items = generate_training_plan(subscores, session_id=data.session_id, lang=user.language)
         plan = await create_plan(
             db,
             user_id=user.id,
