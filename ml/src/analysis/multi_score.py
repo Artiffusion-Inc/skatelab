@@ -37,11 +37,14 @@ def compute_subscores(metrics: dict[str, float]) -> MultiDimensionalScore:
     arms = _normalize(metrics.get("arm_position_score", 0) * 0.6 + metrics.get("symmetry", 0) * 0.4)
 
     # landing_absorption: knee angle + stability + smoothness + hard_landing
+    # hard_landing scale: 1.0 = soft, 0.0 = very hard (compute_hard_landing,
+    # metrics.py:988). Soft landing → higher absorption, so use the value
+    # directly. Old code used (1 - hard_landing), inverting the scale (#434).
     landing = _normalize(
         (1 - abs(metrics.get("landing_knee_angle", 110) - 110) / 40) * 0.3
         + metrics.get("landing_knee_stability", 0) * 0.3
         + metrics.get("landing_smoothness", 0) * 0.2
-        + (1 - metrics.get("hard_landing", 0)) * 0.2
+        + metrics.get("hard_landing", 0) * 0.2
     )
 
     # core_stability: trunk recovery + torso lean
