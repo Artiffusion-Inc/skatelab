@@ -41,8 +41,11 @@ export function PersonalRecords({ userId }: { userId?: string }) {
             {elementPRs.map(pr => {
               const mdef = registry[pr.metric_name]
               if (!mdef) return null
-              const decimals = mdef.format?.replace(".", "") ?? "2"
-              const formatted = pr.value.toFixed(Number(decimals))
+              // Backend metric registry emits Python format-specs (".2f", ".1f", ".0f", ".3f").
+              // Pull the digit before the trailing "f" — not a dot-strip, which turns ".2f"
+              // into "2f" -> NaN -> toFixed(0) and drops all decimals. #446.
+              const decimals = Number(mdef.format?.match(/\d+(?=f)/)?.[0] ?? 2)
+              const formatted = pr.value.toFixed(decimals)
               return (
                 <Link
                   key={`${pr.metric_name}-${pr.session_id}`}
