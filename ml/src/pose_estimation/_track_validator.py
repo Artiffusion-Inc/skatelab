@@ -44,7 +44,13 @@ class TrackValidator:
                 not np.isfinite(ratio_change) or ratio_change > self.RATIO_CHANGE_THRESHOLD
             )
 
-        return jump > self.CENTROID_JUMP_THRESHOLD and skeletal_anomaly
+        # NaN centroid (an all-NaN / heavily-occluded frame) must NOT clear
+        # the centroid half of the AND-gate: `NaN > threshold` is False, which
+        # would short-circuit the gate and write an untrustworthy pose verbatim.
+        # Treat a non-finite jump as exceeding the threshold (conservative),
+        # mirroring the ratio half's NaN guard (#451).
+        jump_exceeded = not np.isfinite(jump) or jump > self.CENTROID_JUMP_THRESHOLD
+        return jump_exceeded and skeletal_anomaly
 
     def migration_score(
         self,

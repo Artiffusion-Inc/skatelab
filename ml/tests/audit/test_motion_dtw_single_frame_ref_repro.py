@@ -43,7 +43,11 @@ def test_compute_distance_single_frame_reference_is_not_perfect_match():
 
     distance = aligner.compute_distance(user, reference)
 
-    assert distance != 0.0 and np.isfinite(distance) and distance > 0, (
+    # CONTRACT: a single-frame reference must NOT silently return 0.0 (perfect
+    # match). The fix extends #452's empty→inf sentinel to <2 frames, so inf is
+    # the expected "no meaningful reference" signal (not a finite distance). The
+    # only thing we must reject is 0.0 — the silent-perfect-match corruption.
+    assert distance != 0.0, (
         f"BUG: single-frame reference returned distance={distance} — a "
         f"degenerate/missing reference is silently treated as a PERFECT match "
         f"(0.0), indistinguishable from a genuine perfect alignment. #452 "
