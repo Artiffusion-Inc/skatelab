@@ -98,7 +98,15 @@ async def save_analyzer_results(
         landing = _field("landing", 0) or 0
         end = _field("end", 0) or 0
 
-        if takeoff > 0 and landing > 0:
+        # #461: monotonicity guard. The dict-path (#445) made degenerate
+        # boundaries reachable — if end < landing, landing_mid = landing +
+        # max(1, (end-landing)//2) yields a landing phase end beyond `end`,
+        # and the glide_out phase gets start_frame > end_frame (negative
+        # duration SessionPhase row). Reject any non-monotonic ordering; the
+        # caller records fallback_used=True and no SessionPhase rows instead.
+        if not (start <= takeoff <= peak <= landing <= end):
+            phase_dicts = []
+        elif takeoff > 0 and landing > 0:
             landing_mid = landing + max(1, (end - landing) // 2)
             phase_dicts = [
                 {

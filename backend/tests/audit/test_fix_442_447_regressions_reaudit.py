@@ -52,11 +52,13 @@ def _stub_score() -> MagicMock:
 @pytest.mark.asyncio
 async def test_dict_phases_reversed_boundaries_no_negative_duration() -> None:
     """Dict phases with reversed boundaries (end < landing) must not produce
-    negative-duration glide_out phase. The fix #445 makes dict-path reachable,
-    so this degenerate-math bug is now EXPOSED.
+    negative-duration SessionPhase rows. The fix #445 makes dict-path
+    reachable, exposing this degenerate-math when the GPU emits non-monotonic
+    boundaries.
 
-    Current behavior (RED):
-      landing=60, end=50  -> landing_mid = 60 + max(1, (50-60)//2) = 60 + 1 = 61
+    Fix #461 strategy: reject non-monotonic orderings entirely — emit no
+    phase_dicts and record fallback_used=True. Before the fix:
+      landing=60, end=50  -> landing_mid = 60 + max(1, (50-60)//2) = 61
       glide_out phase: start_frame=61, end_frame=50  -> negative duration
       start_time=61/30=2.03, end_time=50/30=1.67  -> end_time < start_time
     """
@@ -98,24 +100,29 @@ async def test_dict_phases_reversed_boundaries_no_negative_duration() -> None:
         )
 
     phase_dicts = captured["phases"]
-    assert phase_dicts != [], (
-        "Fix #445 makes dict-path reachable — non-empty phase_dicts expected for "
-        "valid dict input. If empty, the dict-path is still broken (regression)."
+    # #461 fix strategy: reversed (non-monotonic) boundaries are rejected —
+    # phase_dicts is empty and fallback_used=True, rather than emitting
+    # negative-duration SessionPhase rows. The dict-path (#445) stays
+    # reachable for VALID monotonic input (covered by other tests); this test
+    # pins the degenerate case: bad boundaries → no phases, not negative ones.
+    assert phase_dicts == [], (
+        f"BUG: reversed boundaries (end=50 < landing=60) produced {len(phase_dicts)} "
+        f"phase(s) — {[p['name'] for p in phase_dicts]}. A non-monotonic phase "
+        f"ordering must be rejected (empty phase_dicts + fallback), not turned "
+        f"into negative-duration SessionPhase rows. landing_mid = landing + "
+        f"max(1,(end-landing)//2) overflows past `end`, and glide_out gets "
+        f"start_frame > end_frame."
+    )
+    assert captured["fallback_used"] is True, (
+        "Degenerate (non-monotonic) phases must record fallback_used=True."
     )
 
-    # Check NO phase has end_frame < start_frame (negative duration)
+    # No phase has end_frame < start_frame (negative duration) — vacuous when
+    # phase_dicts is empty, but kept as a permanent guard against any future
+    # path that emits phases for degenerate input.
     for p in phase_dicts:
         assert p["end_frame"] >= p["start_frame"], (
             f"BUG: phase '{p['name']}' has reversed frames: "
-            f"start={p['start_frame']} > end={p['end_frame']}. "
-            "Fix #445 made dict-path reachable, exposing degenerate-math when "
-            "GPU emits reversed boundaries. The code must guard against this."
+            f"start={p['start_frame']} > end={p['end_frame']}."
         )
-
-    # Check NO phase has end_time < start_time (negative time)
-    for p in phase_dicts:
-        assert p["end_time"] >= p["start_time"], (
-            f"BUG: phase '{p['name']}' has reversed time: "
-            f"start_time={p['start_time']} > end_time={p['end_time']}. "
-            "Fix #445 made dict-path reachable, exposing degenerate-math."
-        )
+        assert p["end_time"] >= p["start_time"], f"BUG: phase '{p['name']}' has reversed time."
