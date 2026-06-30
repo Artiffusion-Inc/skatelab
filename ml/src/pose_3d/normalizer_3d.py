@@ -66,11 +66,18 @@ class Pose3DNormalizer:
             left_foot_y = frame[H36Key.LFOOT, 1]
             right_foot_y = frame[H36Key.RFOOT, 1]
 
-            # Find lowest foot and highest head
-            lowest_foot = min(left_foot_y, right_foot_y)
+            # Find lowest foot and highest head. Use np.fmin so a single NaN foot
+            # (occluded keypoint) falls back to the finite foot instead of poisoning
+            # body_height=NaN → scale=NaN → all 17 joints NaN. Python min() is NaN-unsafe
+            # (arg-order-dependent) too. #454
+            lowest_foot = float(np.fmin(left_foot_y, right_foot_y))
             body_height = head_y - lowest_foot
 
-            scale = 1.0 if body_height < 0.1 else self._target_height / body_height
+            # NaN<0.1 is False, so a numeric guard alone misses NaN — guard finiteness.
+            if not np.isfinite(body_height) or body_height < 0.1:
+                scale = 1.0
+            else:
+                scale = self._target_height / body_height
 
             normalized[frame_idx] = centered * scale
 
@@ -168,5 +175,5 @@ def calculate_body_heights(poses_3d: Pose3D) -> np.ndarray:
     left_foot_y = poses_3d[:, H36Key.LFOOT, 1]
     right_foot_y = poses_3d[:, H36Key.RFOOT, 1]
 
-    lowest_foot = np.minimum(left_foot_y, right_foot_y)
+    lowest_foot = np.fmin(left_foot_y, right_foot_y)
     return head_y - lowest_foot
