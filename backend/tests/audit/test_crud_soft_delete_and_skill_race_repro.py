@@ -103,16 +103,19 @@ async def _setup_db(engine) -> None:
 
 @pytest.mark.asyncio
 async def test_skill_progress_get_or_create_race_duplicate_rows_repro():
-    """Two interleaved get_or_create for the same (user_id, skill_id) must
-    yield exactly one row. RED now: 2 rows (no unique constraint, no lock).
+    """Two concurrent get_or_create for the same (user_id, skill_id) must
+    yield exactly one row. The guard is the UniqueConstraint(user_id,
+    skill_id) on the skill_progress table: both transactions read None, the
+    winner inserts and commits, the loser's insert is rejected by the
+    constraint (IntegrityError). ``get_or_create`` turns that rejection into a
+    no-op re-read via ON CONFLICT DO NOTHING.
 
-    The race is driven deterministically: both transactions perform the READ
-    phase (SELECT → None) BEFORE either performs the CREATE phase (INSERT +
-    flush). This is the exact interleaving two concurrent ``check_skill_unlocks``
-    workers hit on Postgres (READ COMMITTED: txn_b does NOT see txn_a's
-    uncommitted insert). SQLite shared-cache would let txn_b see txn_a's
-    uncommitted row and hide the race, so we split read-from-create explicitly
-    to pin the race window that the missing UniqueConstraint fails to guard.
+    This repro drives the loser's insert directly (bypassing get_or_create's
+    ON CONFLICT clause) to assert the DB-level constraint exists and rejects
+    the duplicate. Before the fix there was no unique constraint and both
+    rows materialized → 2 rows. SQLite shared-cache hides the race window if
+    the winner's insert is left uncommitted while the loser inserts (the
+    loser sees nothing), so the winner commits first to pin the rejection.
     """
     from sqlalchemy import select
 
@@ -157,10 +160,14 @@ async def test_skill_progress_get_or_create_race_duplicate_rows_repro():
     assert existing_a is None, "precondition: txn_a read None"
     assert existing_b is None, "precondition: txn_b read None"
 
-    # CREATE phase: both build a SkillProgress and insert. Neither used
-    # with_for_update and there is no UniqueConstraint to reject the second
-    # insert, so both rows materialize. This is exactly what get_or_create
-    # does internally (crud/skill_progress.py:33-44) when both read None.
+    # CREATE phase: both build a SkillProgress and insert. With the
+    # UniqueConstraint(user_id, skill_id) fix (#459), the DB rejects the
+    # second insert (IntegrityError) instead of materializing a duplicate
+    # row. get_or_create turns this into a no-op via ON CONFLICT DO NOTHING;
+    # this raw-insert repro bypasses that helper to assert the DB-level guard
+    # directly: exactly one row survives, the losing transaction fails.
+    from sqlalchemy.exc import IntegrityError
+
     defn = next(s for s in SKILL_DEFINITIONS if s["id"] == "jumps_bronze")
     row_a = SkillProgress(
         user_id=user_id,
@@ -178,11 +185,17 @@ async def test_skill_progress_get_or_create_race_duplicate_rows_repro():
     )
     txn_a.add(row_a)
     txn_b.add(row_b)
+    # a inserts and commits first — its row becomes the surviving row.
     await txn_a.flush()
-    await txn_b.flush()
-
     await txn_a.commit()
-    await txn_b.commit()
+    # b, which read None before a committed, now tries to insert a duplicate.
+    # The UniqueConstraint(user_id, skill_id) rejects it (IntegrityError) —
+    # exactly the DB-level guard get_or_create relies on via ON CONFLICT DO
+    # NOTHING. Before the fix there was no constraint and b's row would
+    # materialize → 2 rows.
+    with pytest.raises(IntegrityError):
+        await txn_b.flush()
+    await txn_b.rollback()
     await txn_a.close()
     await txn_b.close()
 
@@ -194,16 +207,9 @@ async def test_skill_progress_get_or_create_race_duplicate_rows_repro():
     await engine.dispose()
 
     assert row_count == 1, (
-        f"BUG (get_or_create race + missing UniqueConstraint): "
-        f"list_by_user_id returned {row_count} rows for one "
-        f"(user_id={user_id}, skill_id='jumps_bronze') — expected 1. "
-        f"`get_or_create` (crud/skill_progress.py:26-45) is read-then-create "
-        f"with no `with_for_update`, and there is NO UniqueConstraint on "
-        f"(user_id, skill_id) (migration add_analyzer_tables.py:46-77 has "
-        f"separate non-unique indexes; model skill_progress.py has no "
-        f"__table_args__ unique). Two concurrent check_skill_unlocks for the "
-        f"same user+category both read None and both insert → duplicate skill "
-        f"rows in UI, second-unlock re-flips unlocked/best_score, xp_reward "
-        f"per-row would double-award if awarded. Fix: UniqueConstraint(user_id, "
-        f"skill_id) migration + ON CONFLICT DO NOTHING / SELECT FOR UPDATE."
+        f"BUG (get_or_create race): list_by_user_id returned {row_count} rows "
+        f"for one (user_id={user_id}, skill_id='jumps_bronze') — expected 1. "
+        f"The UniqueConstraint(user_id, skill_id) must reject the duplicate "
+        f"insert so only the winner's row survives; get_or_create's ON "
+        f"CONFLICT DO NOTHING turns the rejection into a no-op re-read."
     )
