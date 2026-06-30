@@ -92,7 +92,8 @@ function routeFetch(req: { method: string; url: string }): Response {
 }
 
 fetchMock.mockImplementation(async (input: RequestInfo | URL, init?: RequestInit) => {
-  const url = typeof input === "string" || input instanceof URL ? input.toString() : (input as Request).url
+  const url =
+    typeof input === "string" || input instanceof URL ? input.toString() : (input as Request).url
   const method = (init?.method ?? "GET").toUpperCase()
   return routeFetch({ method, url })
 })

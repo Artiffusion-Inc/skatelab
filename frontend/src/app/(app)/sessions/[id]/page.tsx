@@ -8,7 +8,12 @@ import { SkeletonDetail } from "@/components/skeleton-detail"
 import { VideoWithSkeleton } from "@/components/analysis/video-with-skeleton"
 import { MetricRow } from "@/components/session/metric-row"
 import { useLocale, useTranslations } from "@/i18n"
-import { useSession, useDeleteSession, useRetrySession } from "@/lib/api/sessions"
+import {
+  SESSION_POLLING_STATUSES,
+  useSession,
+  useDeleteSession,
+  useRetrySession,
+} from "@/lib/api/sessions"
 import { useCancelProcess } from "@/lib/api/process"
 import { useElementLabel, useMetricRegistry } from "@/hooks/use-metric-registry"
 import { Button } from "@/components/ui/button"
@@ -26,7 +31,7 @@ const ThreeJSkeletonViewer = lazy(() =>
   })),
 )
 
-const POLLING_STATUSES = new Set(["queued", "uploading", "running", "pending"])
+const POLLING_STATUSES = SESSION_POLLING_STATUSES
 
 export default function SessionDetailPage() {
   const { id } = useParams<{ id: string }>()
