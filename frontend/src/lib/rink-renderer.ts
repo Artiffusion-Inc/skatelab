@@ -23,6 +23,24 @@ function _elementLabel(code: string): string {
   return "Прыжок"
 }
 
+// #480: el.code is interpolated raw into <text> — an unescaped code breaks out
+// of the SVG node (same unescaped-interpolation class as backend #464, latent
+// here: renderRink has no live consumer but is an exported public-API footgun).
+function _escapeXml(s: string): string {
+  return s
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&apos;")
+}
+
+// #480: clamp element coords to the rink viewBox so out-of-bounds positions do
+// not land as raw negative/huge values in cx/cy/x/y attributes.
+function _clampCoord(x: number, y: number): [number, number] {
+  return [Math.max(0, Math.min(RINK_W, x)), Math.max(0, Math.min(RINK_H, y))]
+}
+
 function elementMarker(el: RinkElement, x: number, y: number): string {
   const color = elementColor(el.code)
 
@@ -145,16 +163,18 @@ export function renderRink(elements: RinkElement[], options?: { width?: number }
     const from = sorted[i].position
     const to = sorted[i + 1].position
     if (!from || !to) continue
-    const dx = to.x - from.x
-    const dy = to.y - from.y
+    const [fx, fy] = _clampCoord(from.x, from.y)
+    const [tx, ty] = _clampCoord(to.x, to.y)
+    const dx = tx - fx
+    const dy = ty - fy
     const dist = Math.sqrt(dx * dx + dy * dy)
     if (dist < 2) continue
 
     parts.push(
-      `<line x1="${from.x}" y1="${from.y}" x2="${to.x}" y2="${to.y}" stroke="#94a3b8" stroke-width="0.08" stroke-dasharray="0.6,0.4" opacity="0.5"/>`,
+      `<line x1="${fx}" y1="${fy}" x2="${tx}" y2="${ty}" stroke="#94a3b8" stroke-width="0.08" stroke-dasharray="0.6,0.4" opacity="0.5"/>`,
     )
-    const mx = (from.x + to.x) / 2
-    const my = (from.y + to.y) / 2
+    const mx = (fx + tx) / 2
+    const my = (fy + ty) / 2
     const angle = Math.atan2(dy, dx)
     const arrowLen = 0.6
     const ax1 = mx - arrowLen * Math.cos(angle - 0.5)
@@ -171,8 +191,7 @@ export function renderRink(elements: RinkElement[], options?: { width?: number }
     const el = sorted[i]
     const pos = el.position
     if (!pos) continue
-    const x = pos.x
-    const y = pos.y
+    const [x, y] = _clampCoord(pos.x, pos.y)
     const color = elementColor(el.code)
     const num = i + 1
 
@@ -186,9 +205,9 @@ export function renderRink(elements: RinkElement[], options?: { width?: number }
       `<text x="${x + 1.2}" y="${y - 0.65}" text-anchor="middle" font-size="0.85" fill="${color}" font-weight="bold">${num}</text>`,
     )
 
-    // Element code below marker
+    // Element code below marker (escaped — #480, #464-class SVG injection)
     parts.push(
-      `<text x="${x}" y="${y + 1.8}" text-anchor="middle" font-size="0.9" fill="#334155" font-weight="600">${el.code}</text>`,
+      `<text x="${x}" y="${y + 1.8}" text-anchor="middle" font-size="0.9" fill="#334155" font-weight="600">${_escapeXml(el.code)}</text>`,
     )
   }
 

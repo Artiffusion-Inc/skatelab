@@ -95,8 +95,12 @@ class TrailLayer(Layer):
         Returns:
             Frame with motion trail.
         """
-        # Add current position to trail
-        if context.pose_3d is not None:
+        # Add current position to trail. Skip all-NaN poses (occlusion / missed
+        # frame): in pixel mode int(nan) raises ValueError, and in normalized
+        # mode normalized_to_pixel maps NaN→(0,0) (spurious trail vertex at the
+        # frame origin). Mirror VelocityLayer's `not np.all(np.isnan(...))`
+        # guard (velocity_layer.py:117) — #479.
+        if context.pose_3d is not None and not np.all(np.isnan(context.pose_3d)):
             pos = context.pose_3d[self.joint]
             self._trail_3d.append(tuple(pos))
             if len(self._trail_3d) > self.length:
@@ -105,7 +109,7 @@ class TrailLayer(Layer):
             # Draw 3D trail
             self._draw_trail_3d(frame, context)
 
-        elif context.pose_2d is not None:
+        elif context.pose_2d is not None and not np.all(np.isnan(context.pose_2d)):
             pos = context.pose_2d[self.joint]
             self._trail_2d.append(tuple(pos))
             if len(self._trail_2d) > self.length:
