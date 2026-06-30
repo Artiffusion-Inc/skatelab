@@ -301,6 +301,11 @@ def solve_layout(
                     else (duration * (i + 1) / (n + 1))
                 )
                 target_time = min(target_time, duration - 5.0)
+                # #465: lower-bound clamp. When duration < 5.0 (short clip / 0
+                # sec edge case) the upper clamp min(., duration-5.0) goes
+                # negative → all jump-pass timestamps become -1.0/-5.0 and
+                # persist as nonsensical negative data. Clamp to [0, duration].
+                target_time = max(0.0, min(target_time, duration))
             else:
                 target_time = duration * (i + 1) / (n + 1)
             el["timestamp"] = round(target_time, 1)
