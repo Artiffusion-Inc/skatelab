@@ -1,0 +1,132 @@
+# GoalBuddy v2 state.yaml
+# Board truth lives here. goal.md is the editable charter; notes/ holds long receipts only.
+
+version: 2
+
+goal:
+  title: "Merge fix-all-open-issues bug fixes (#442–#447)"
+  slug: "fix-all-open-issues"
+  kind: existing_plan
+  tranche: "Finishing-branch slice: push worktree branch → open PR vs master → CI green → merge → close #442–#447. #349 out of scope."
+  status: active
+  oracle:
+    signal: "PR merged to master with CI conclusion=success; gh issue view 442..447 all CLOSED."
+    cadence: "after PR open, after CI green, at final audit"
+    final_proof: "gh pr list --state merged --head worktree-fix-442-444-auth-error-detail = MERGED; master CI green; issues #442–#447 closed."
+  intake:
+    original_request: "давай поставим цель исправить все issues (clarified: merge ready fixes + close issues)"
+    interpreted_outcome: "Land the six ready bug fixes (#442–#447) on master via a green PR and close the issues; leave #349 open."
+    input_shape: existing_plan
+    audience: SkateLab repo / operator (Michael)
+    authority: requested
+    proof_type: test
+    completion_proof: "PR merged + master CI green + issues #442–#447 closed."
+    likely_misfire: "Declaring done after opening the PR (not merged) or after local GREEN (CI-only gates like full backend pytest, mobile CI assembleDebug, frontend biome may fail)."
+    blind_spots_considered:
+      - "CI gates not exercised locally may fail (full backend pytest regression, mobile CI build, frontend biome+tsc)."
+      - "Worktree branch already has 9 commits; must push from worktree branch, not master."
+      - "Merge strategy (squash vs merge) per repo convention — prior tranches used merge-style PRs (#439/#440/#441)."
+      - "Existing goal dir has notes from prior tranches (#416/#417) — do not conflate scope."
+    existing_plan_facts:
+      - "9 commits on branch worktree-fix-442-444-auth-error-detail; origin/master at 563286bb."
+      - "RED repro + fix per bug: #443 (rate_limit SPOF), #445 (dict phases), #446 (decimal parser), #447 (logout cache); combined mobile RED repro + fix for #442/#444."
+      - "Local verification: backend pytest 42 passed (rate-limit+analyzer-save+auth routes), mobile shared+androidApp testDebugUnitTest GREEN, androidApp ktlint GREEN, frontend vitest 84/84 + tsc clean, ruff clean."
+      - "Repro tests copied from sibling branch worktree-backend-save-audit (commits 3f3a7f0f / b44cfd6d / be04f8cf / 4fc1394b / 7bacc20b)."
+
+rules:
+  pm_owns_state: true
+  one_active_task: true
+  max_write_workers: 1
+  no_implementation_without_worker_or_pm_task: true
+  no_completion_without_judge_or_pm_audit: true
+  planning_is_not_completion: true
+  queued_required_worker_blocks_completion: true
+  continuous_until_full_outcome: true
+  missing_input_or_credentials_do_not_stop_goal: true
+  preserve_and_validate_existing_plan: true
+  intake_misfire_must_be_audited: true
+  goal_pressure_requires_oracle: true
+
+agents:
+  scout: bundled_not_installed
+  worker: bundled_not_installed
+  judge: bundled_not_installed
+
+visual_board:
+  selected: none
+  local:
+    status: blocked
+    url: null
+    command: "npx goalbuddy board docs/goals/fix-all-open-issues"
+
+active_task: T060
+
+tasks:
+  - id: T060
+    type: worker
+    assignee: Worker
+    status: active
+    objective: "Push the worktree branch to origin and open a PR vs master for #442–#447 with Что сделано / Как проверить sections."
+    allowed_files:
+      - "docs/goals/fix-all-open-issues/state.yaml"
+    verify:
+      - "git push -u origin worktree-fix-442-444-auth-error-detail"
+      - "gh pr create --base master --head worktree-fix-442-444-auth-error-detail (returns PR URL)"
+    stop_if:
+      - "Push rejected (force needed) — stop, do not force-push."
+      - "PR creation fails on auth/scope."
+    receipt: null
+
+  - id: T061
+    type: judge
+    assignee: Judge
+    status: queued
+    objective: "Watch PR CI to green. If a CI-only gate fails (full backend pytest, mobile CI build, frontend biome), triage: real regression vs flaky, decide fix-in-worktree vs rerun."
+    expected_output:
+      - "Decision: CI green | fix needed (which file/gate) | rerun (flaky)"
+      - "If fix: exact Worker objective + allowed_files + verify"
+    receipt: null
+
+  - id: T062
+    type: worker
+    assignee: Worker
+    status: queued
+    objective: "If CI red on a real gate, fix it inside the worktree branch and push. (No-op if CI already green.)"
+    allowed_files: []
+    verify:
+      - "gh pr checks <PR> --watch → all green"
+    stop_if:
+      - "Fix requires files outside the bug-fix scope (scope creep) — escalate to PM/operator."
+      - "Verification fails twice on the same gate."
+    receipt: null
+
+  - id: T063
+    type: pm
+    assignee: PM
+    status: queued
+    objective: "Merge the green PR into master per repo convention (merge style of #439/#440/#441)."
+    constraints:
+      - "Use finishing-a-development-branch skill for the merge"
+    verify:
+      - "gh pr view <PR> --json state,mergedAt → state=MERGED"
+    receipt: null
+
+  - id: T064
+    type: pm
+    assignee: PM
+    status: queued
+    objective: "Close GitHub issues #442, #443, #444, #445, #446, #447 with a link to the merged PR/commit. Do NOT close #349."
+    verify:
+      - "gh issue view 442..447 --json state → all CLOSED"
+      - "gh issue view 349 --json state → OPEN"
+    receipt: null
+
+  - id: T065
+    type: judge
+    assignee: Judge
+    status: queued
+    objective: "Final audit: map receipts to the goal oracle — PR merged, master CI green, #442–#447 closed, #349 open. Record full_outcome_complete."
+    expected_output:
+      - "Decision: full_outcome_complete true | false (with reason)"
+      - "Oracle receipt: merged PR URL, master CI conclusion, issue states"
+    receipt: null
