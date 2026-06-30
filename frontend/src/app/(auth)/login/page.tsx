@@ -8,7 +8,7 @@ import { useAuth } from "@/components/auth-provider"
 import { FormField } from "@/components/form-field"
 import { Button } from "@/components/ui/button"
 import { useTranslations } from "@/i18n"
-import { useMountEffect } from "@/lib/useMountEffect"
+import { useKeyedEffect } from "@/lib/useMountEffect"
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
@@ -20,9 +20,13 @@ export default function LoginPage() {
   const [password, setPassword] = useState("")
   const [loading, setLoading] = useState(false)
 
-  useMountEffect(() => {
+  // #470: key on isAuthenticated — the async fetchMe() in AuthProvider resolves
+  // AFTER mount, flipping isAuthenticated false→true. A mount-only effect
+  // captures the stale initial false and the redirect never fires; a keyed
+  // effect re-runs when isAuthenticated flips so a logged-in user is redirected.
+  useKeyedEffect(() => {
     if (isAuthenticated) router.push("/feed")
-  })
+  }, [isAuthenticated, router])
 
   if (isLoading) return null
 

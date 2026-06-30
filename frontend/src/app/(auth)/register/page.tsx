@@ -9,7 +9,7 @@ import { useAuth } from "@/components/auth-provider"
 import { FormField } from "@/components/form-field"
 import { Button } from "@/components/ui/button"
 import { useTranslations } from "@/i18n"
-import { useMountEffect } from "@/lib/useMountEffect"
+import { useKeyedEffect } from "@/lib/useMountEffect"
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
@@ -22,9 +22,11 @@ export default function RegisterPage() {
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
 
-  useMountEffect(() => {
+  // #470: key on isAuthenticated — see login/page.tsx. Mount-only effect would
+  // capture the stale initial false and never redirect a logged-in user.
+  useKeyedEffect(() => {
     if (isAuthenticated) router.push("/feed")
-  })
+  }, [isAuthenticated, router])
 
   if (isLoading) return null
 
