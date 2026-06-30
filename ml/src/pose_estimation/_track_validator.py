@@ -34,7 +34,15 @@ class TrackValidator:
 
             curr_ratios = compute_2d_skeletal_ratios(current_pose)
             ratio_change = float(np.linalg.norm(curr_ratios - last_target_ratios))
-            skeletal_anomaly = ratio_change > self.RATIO_CHANGE_THRESHOLD
+            # NaN means a ratio-relevant joint was occluded (one dropped keypoint
+            # poisons that bone's norm) — we cannot confirm the skater is the same.
+            # Treat NaN as an anomaly (conservative): at a centroid-jump frame this is
+            # exactly the steal signal the AND-gate exists to catch. NaN > threshold is
+            # False in Python, which silently zeroed the biometric half of the AND-gate
+            # before this guard (#451).
+            skeletal_anomaly = (
+                not np.isfinite(ratio_change) or ratio_change > self.RATIO_CHANGE_THRESHOLD
+            )
 
         return jump > self.CENTROID_JUMP_THRESHOLD and skeletal_anomaly
 

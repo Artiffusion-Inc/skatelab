@@ -348,10 +348,19 @@ def biometric_distance(pose_a: np.ndarray, pose_b: np.ndarray) -> float:
     for _i, (j1, j2) in enumerate(pairs):
         len_a = np.linalg.norm(pose_a[j1, :2] - pose_a[j2, :2])
         len_b = np.linalg.norm(pose_b[j1, :2] - pose_b[j2, :2])
-        # Skip if either joint has low confidence
-        if pose_a[j1, 2] < 0.3 or pose_a[j2, 2] < 0.3:
+        # Skip if either joint has low confidence OR non-finite xy (a NaN keypoint
+        # with high confidence would bypass the confidence gate and poison the bone
+        # length → NaN ratio → migration_score NaN → lost skater never recovered). #451
+        if (
+            pose_a[j1, 2] < 0.3
+            or pose_a[j2, 2] < 0.3
+            or pose_b[j1, 2] < 0.3
+            or pose_b[j2, 2] < 0.3
+        ):
             continue
-        if pose_b[j1, 2] < 0.3 or pose_b[j2, 2] < 0.3:
+        if not (
+            np.isfinite(len_a) and np.isfinite(len_b)
+        ):
             continue
         ratios_a.append(len_a)
         ratios_b.append(len_b)
