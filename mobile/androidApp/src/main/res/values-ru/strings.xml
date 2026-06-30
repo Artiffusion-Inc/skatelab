@@ -128,6 +128,7 @@
     <string name="error_server">Ошибка сервера. Попробуйте позже.</string>
     <string name="error_timeout">Время запроса истекло. Попробуйте снова.</string>
     <string name="error_conflict">Конфликт аккаунта.</string>
+    <string name="error_validation">Некорректный ввод.</string>
     <string name="error_unknown">Произошла непредвиденная ошибка.</string>
 
     <string name="auth_login_title">Войдите в аккаунт</string>

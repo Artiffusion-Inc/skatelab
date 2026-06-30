@@ -36,7 +36,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import ru.skatelab.capture.R
-import ru.skatelab.shared.models.AppError
+import ru.skatelab.capture.utils.localizedMessage
 import ru.skatelab.shared.state.AuthUiState
 
 @Composable
@@ -117,17 +117,7 @@ fun RegisterScreen(
 
         if (uiState is AuthUiState.Error) {
             val error = uiState.error
-            val displayMsg =
-                when {
-                    error is AppError.Unknown && error.detail != null ->
-                        "${stringResource(R.string.error_unknown)}: ${error.detail}"
-                    error is AppError.Network -> stringResource(R.string.error_network)
-                    error is AppError.Auth -> stringResource(R.string.error_auth)
-                    error is AppError.Timeout -> stringResource(R.string.error_timeout)
-                    error is AppError.Server -> stringResource(R.string.error_server)
-                    error is AppError.NotFound -> stringResource(R.string.error_not_found)
-                    else -> stringResource(R.string.error_unknown)
-                }
+            val displayMsg = error.localizedMessage()
             Text(
                 text = displayMsg,
                 color = MaterialTheme.colorScheme.error,

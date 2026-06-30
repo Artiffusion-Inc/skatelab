@@ -14,6 +14,9 @@ class AppErrorTest {
     fun appErrorSubtypesHaveCorrectMessageKeys() {
         assertEquals("error_network", AppError.Network().messageKey)
         assertEquals("error_auth", AppError.Auth().messageKey)
+        assertEquals("error_validation", AppError.Validation().messageKey)
+        assertEquals("error_validation", AppError.Validation(detail = "d").messageKey)
+        assertEquals("d", AppError.Validation(detail = "d").detail)
         assertEquals("error_not_found", AppError.NotFound().messageKey)
         assertEquals("error_server", AppError.Server().messageKey)
         assertEquals("error_timeout", AppError.Timeout().messageKey)
@@ -61,9 +64,14 @@ class AppErrorTest {
     }
 
     @Test
-    fun httpStatusCodeToAppError_maps400And422ToAuth() {
-        assertIs<AppError.Auth>(HttpStatusCode.BadRequest.toAppError())
-        assertIs<AppError.Auth>(HttpStatusCode.UnprocessableEntity.toAppError())
+    fun httpStatusCodeToAppError_maps400And422ToValidation() {
+        // 400/422 are input-validation failures, NOT auth failures (#444). They carry the
+        // backend Pydantic detail so the UI surfaces actionable guidance, not "log in again".
+        assertIs<AppError.Validation>(HttpStatusCode.BadRequest.toAppError())
+        assertIs<AppError.Validation>(HttpStatusCode.UnprocessableEntity.toAppError())
+        val validation = HttpStatusCode.BadRequest.toAppError("password: field too short")
+        assertIs<AppError.Validation>(validation)
+        assertEquals("password: field too short", validation.detail)
         assertIs<AppError.Auth>(HttpStatusCode.Forbidden.toAppError())
     }
 
