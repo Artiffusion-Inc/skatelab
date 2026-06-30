@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from typing import TYPE_CHECKING, Any
 from uuid import uuid4
 
@@ -10,6 +11,8 @@ from app.models.auth_audit_log import AuthAuditLog
 if TYPE_CHECKING:
     from litestar import Request
     from sqlalchemy.ext.asyncio import AsyncSession
+
+logger = logging.getLogger(__name__)
 
 
 async def log_auth_event(
@@ -20,16 +23,24 @@ async def log_auth_event(
     request: Request | None = None,
     **metadata: Any,
 ) -> None:
-    """Record an auth event. Flushes immediately to persist on read-only endpoints."""
-    ua = request.headers.get("user-agent", "")[:512] if request else None
-    ip = request.client.host if request and request.client else "unknown"
-    entry = AuthAuditLog(
-        id=str(uuid4()),
-        user_id=user_id,
-        event_type=event_type,
-        ip_address=ip,
-        user_agent=ua,
-        metadata_=metadata or None,
-    )
-    db.add(entry)
-    await db.flush()
+    """Record an auth event. Flushes immediately to persist on read-only endpoints.
+
+    Best-effort: a flush failure (transient DB hiccup, constraint violation, statement
+    timeout) must NOT propagate and abort the auth operation being audited (#450). Audit
+    observes auth; it never gates it. Fail open — log + swallow.
+    """
+    try:
+        ua = request.headers.get("user-agent", "")[:512] if request else None
+        ip = request.client.host if request and request.client else "unknown"
+        entry = AuthAuditLog(
+            id=str(uuid4()),
+            user_id=user_id,
+            event_type=event_type,
+            ip_address=ip,
+            user_agent=ua,
+            metadata_=metadata or None,
+        )
+        db.add(entry)
+        await db.flush()
+    except Exception:
+        logger.exception("auth audit write failed event_type=%s user_id=%s", event_type, user_id)

@@ -74,8 +74,10 @@ def draw_skeleton(
         >>> pose = np.random.rand(17, 2).astype(np.float32) * 0.5 + 0.25
         >>> draw_skeleton(frame, pose, 480, 640)
     """
-    # Handle backward compatibility: (17, 3) poses where column 2 is confidence
-    confidences = None
+    # Handle backward compatibility: (17, 3) poses where column 2 is confidence.
+    # Only derive confidences from the 3rd column for (17,3) poses; for (17,2) keep
+    # the caller-supplied confidences (may be None) — do NOT overwrite with None or
+    # the explicit confidences param is silently discarded (#448).
     if pose.shape[1] == 3:
         confidences = pose[:, 2]
         pose = pose[:, :2]
@@ -171,12 +173,15 @@ def draw_skeleton_batch(
     result = []
 
     for i, frame in enumerate(frames):
+        # Pass keyword args — passing width/height/normalized positionally
+        # swapped width<->height and fed the `normalized` bool into the
+        # `confidence_threshold` slot of draw_skeleton (#449).
         frame_draw = draw_skeleton(
             frame.copy(),
             poses[i],
-            width,
-            height,
-            normalized,
+            height=height,
+            width=width,
+            normalized=normalized,
             **kwargs,
         )
         result.append(frame_draw)

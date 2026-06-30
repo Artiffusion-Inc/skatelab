@@ -95,6 +95,20 @@ const SessionListSchema = z.object({ sessions: z.array(SessionSchema), total: z.
 
 type Session = z.infer<typeof SessionSchema>
 
+/**
+ * Session statuses that count as "in progress" — the session-detail page renders a
+ * processing banner for these, and useSession must poll (refetch) while one is active
+ * or the page freezes on e.g. "queued" right after upload. Single source of truth,
+ * shared by the hook and the page. #457
+ */
+export const SESSION_POLLING_STATUSES = new Set([
+  "queued",
+  "uploading",
+  "running",
+  "pending",
+  "processing",
+])
+
 export function useSessions(userId?: string, elementType?: string) {
   const params = new URLSearchParams()
   if (userId) params.set("user_id", userId)
@@ -112,9 +126,13 @@ export function useSession(id: string, opts?: { refetchInterval?: number | false
     enabled: !!id,
     refetchInterval: query => {
       const data = query.state.data
-      if (data?.segmentation_status === "pending" || data?.status === "processing") {
-        return 5000
-      }
+      // Poll while the session is in any in-progress status. This must match the
+      // session-detail page's banner set — the page shows a "processing" banner for
+      // these statuses, so the hook must refetch or the page freezes (e.g. status
+      // "queued" right after upload previously polled never). Single source of
+      // truth: SESSION_POLLING_STATUSES (shared with the page). #457
+      if (data?.status && SESSION_POLLING_STATUSES.has(data.status)) return 5000
+      if (data?.segmentation_status === "pending") return 5000
       if (opts?.refetchInterval !== undefined) return opts.refetchInterval
       return false
     },
@@ -155,7 +173,15 @@ export function useDeleteSession() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (id: string) => apiDelete(`/sessions/${id}`),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["sessions"] }),
+    onSuccess: (_, id) => {
+      // Remove the detail key for the deleted id — the session no longer exists, so
+      // there is nothing to refetch (invalidate would re-fetch and 404; the orphaned
+      // completed-session object would otherwise sit in cache and resurface on
+      // browser-back within gcTime). removeQueries drops it so the next mount fetches
+      // fresh. The list key is invalidated as before. #456
+      qc.removeQueries({ queryKey: ["session", id] })
+      qc.invalidateQueries({ queryKey: ["sessions"] })
+    },
   })
 }
 

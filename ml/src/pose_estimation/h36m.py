@@ -194,14 +194,18 @@ def coco_to_h36m(coco_pose: np.ndarray) -> np.ndarray:
         eye_conf_ok = True  # no confidence channel, assume ok
 
     if eye_conf_ok:
-        # Midpoint of eyes for position, average confidence
-        head_pos = (left_eye[:2] + right_eye[:2]) / 2
+        # Midpoint of eyes for position, average confidence. Guard xy finiteness
+        # — a NaN eye coordinate with confidence >= 0.3 bypassed the eye_conf_ok
+        # gate (which checks confidence only) and poisoned HEAD with NaN. Use the
+        # same finite-midpoint guard the hip/shoulder midpoints use. #455
+        eye_mid = _finite_midpoint(left_eye, right_eye)
+        head_pos = eye_mid[:2]
         if has_confidence:
             head_conf = (left_eye[2] + right_eye[2]) / 2
             h36m_pose[H36Key.HEAD, :2] = head_pos
             h36m_pose[H36Key.HEAD, 2] = head_conf
         else:
-            h36m_pose[H36Key.HEAD] = head_pos
+            h36m_pose[H36Key.HEAD, :2] = head_pos
     else:
         # Fallback: nose position offset upward by 10% of shoulder-to-nose distance
         nose_pos = coco_pose[_COCOKey.NOSE, :2]
@@ -277,6 +281,13 @@ def coco_to_h36m_batch(poses_coco: np.ndarray) -> np.ndarray:
     else:
         eye_conf_ok = np.ones(n_frames, dtype=bool)
 
+    # Also require finite xy — NaN eye coords with confidence >= 0.3 would bypass the
+    # eye_conf_ok gate and poison HEAD with NaN (same class as #451). #455
+    eyes_finite = np.isfinite(left_eye[:, :2]).all(axis=1) & np.isfinite(right_eye[:, :2]).all(
+        axis=1
+    )
+    eye_conf_ok = eye_conf_ok & eyes_finite
+
     # Frames where eyes are confident — use midpoint of eyes
     good = eye_conf_ok
     if good.any():
@@ -348,10 +359,12 @@ def biometric_distance(pose_a: np.ndarray, pose_b: np.ndarray) -> float:
     for _i, (j1, j2) in enumerate(pairs):
         len_a = np.linalg.norm(pose_a[j1, :2] - pose_a[j2, :2])
         len_b = np.linalg.norm(pose_b[j1, :2] - pose_b[j2, :2])
-        # Skip if either joint has low confidence
-        if pose_a[j1, 2] < 0.3 or pose_a[j2, 2] < 0.3:
+        # Skip if either joint has low confidence OR non-finite xy (a NaN keypoint
+        # with high confidence would bypass the confidence gate and poison the bone
+        # length → NaN ratio → migration_score NaN → lost skater never recovered). #451
+        if pose_a[j1, 2] < 0.3 or pose_a[j2, 2] < 0.3 or pose_b[j1, 2] < 0.3 or pose_b[j2, 2] < 0.3:
             continue
-        if pose_b[j1, 2] < 0.3 or pose_b[j2, 2] < 0.3:
+        if not (np.isfinite(len_a) and np.isfinite(len_b)):
             continue
         ratios_a.append(len_a)
         ratios_b.append(len_b)

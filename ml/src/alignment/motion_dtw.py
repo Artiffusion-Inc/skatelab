@@ -458,6 +458,12 @@ class MotionDTWAligner:
         Returns:
             Normalized DTW distance.
         """
+        # Empty input (zero frames) is degenerate/missing — return a sentinel instead
+        # of silently 0.0 (which is indistinguishable from a perfect match and corrupts
+        # the overall_score/GOE composite, #432/#434 class). math.inf signals "no match"
+        # without crashing the arq job. #452
+        if len(user) == 0 or len(reference) == 0:
+            return float("inf")
         if joints is None:
             joints = list(range(user.shape[1]))
 
@@ -495,6 +501,10 @@ class MotionDTWAligner:
         """
         if joints is None:
             joints = list(range(user.shape[1]))
+
+        # Empty input — guard before the reshape crash (see compute_distance, #452).
+        if len(user) == 0 or len(reference) == 0:
+            return float("inf")
 
         # Flatten to 2D: (num_frames, num_joints * 3)
         user_flat = user[:, joints, :].reshape(len(user), -1)
