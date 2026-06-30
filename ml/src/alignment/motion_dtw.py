@@ -462,7 +462,12 @@ class MotionDTWAligner:
         # of silently 0.0 (which is indistinguishable from a perfect match and corrupts
         # the overall_score/GOE composite, #432/#434 class). math.inf signals "no match"
         # without crashing the arq job. #452
-        if len(user) == 0 or len(reference) == 0:
+        #
+        # A SINGLE-FRAME reference (or user) is also degenerate: ref_phases.end=0
+        # yields an empty ref_segment that align_with_keyframes skips, leaving
+        # phase_alignments empty and total_distance = sum([])/1 = 0.0 — the same
+        # silent-perfect-match corruption. Treat <2 frames as degenerate too.
+        if len(user) < 2 or len(reference) < 2:
             return float("inf")
         if joints is None:
             joints = list(range(user.shape[1]))

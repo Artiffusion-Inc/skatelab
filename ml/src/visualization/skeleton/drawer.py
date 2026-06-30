@@ -83,8 +83,12 @@ def draw_skeleton(
         pose = pose[:, :2]
 
     # Check if coordinates are normalized or pixel format
-    # If all values are in [0, 1], assume normalized
-    if pose.max() <= 1.0:
+    # If all FINITE values are in [0, 1], assume normalized. Use nanmax so a
+    # single occluded (NaN) keypoint does not make pose.max()=NaN (NaN<=1.0
+    # is False), which would misclassify a normalized pose as pixel coords and
+    # draw the skeleton in the top-left corner.
+    finite_max = float(np.nanmax(pose)) if np.isfinite(pose).any() else 0.0
+    if finite_max <= 1.0:
         # Convert normalized to pixel
         pose_px = normalized_to_pixel(pose, width, height)
     else:
@@ -452,7 +456,12 @@ def draw_skeleton_transparent(
     """
     # Create skeleton overlay
     overlay = np.zeros_like(frame)
-    draw_skeleton(overlay, pose, width, height, normalized, **kwargs)
+    # Pass height/width/normalized as keywords. A positional call swaps
+    # width/height (draw_skeleton expects height, then width) and coerces
+    # `normalized` (bool) into `confidence_threshold` (→1.0 suppresses every
+    # joint). #449 fixed this for draw_skeleton_batch; this transparent wrapper
+    # was the missed sibling.
+    draw_skeleton(overlay, pose, height=height, width=width, normalized=normalized, **kwargs)
 
     # Create mask where skeleton was drawn
     mask = (overlay > 0).any(axis=2).astype(np.float32)
