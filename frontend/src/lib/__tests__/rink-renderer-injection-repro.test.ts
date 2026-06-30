@@ -19,9 +19,7 @@ import { renderRink } from "../rink-renderer"
 
 describe("renderRink SVG injection (latent, #464-class)", () => {
   it("rejects SVG injection in code (no raw <script>)", () => {
-    const svg = renderRink([
-      { code: '3Lz"><script>alert(1)</script>', position: { x: 15, y: 30 } },
-    ])
+    const svg = renderRink([{ code: '3Lz"><script>alert(1)</script>', position: { x: 15, y: 30 } }])
     // RED: svg contains literal "<script>" because el.code is interpolated raw.
     expect(svg).not.toContain("<script>")
   })
