@@ -196,8 +196,14 @@ async def test_soft_delete(db_session):
     session = await create(db_session, user_id="user-1", element_type="axel")
     await soft_delete(db_session, session)
 
+    # #458: soft-deleted sessions must be excluded from read paths, not
+    # merely have status=="deleted" returned. get_by_id filters status !=
+    # "deleted", so a deleted session is gone from get/list/count.
     fetched = await get_by_id(db_session, session.id)
-    assert fetched.status == "deleted"
+    assert fetched is None
+    listed = await list_by_user(db_session, "user-1")
+    assert all(s.id != session.id for s in listed)
+    assert await count_by_user(db_session, "user-1") == 0
 
 
 async def test_update_session_analysis(db_session):

@@ -30,7 +30,7 @@ async def get_by_id(db: AsyncSession, session_id: str) -> Session | None:
     result = await db.execute(
         select(Session)
         .options(selectinload(Session.metrics), selectinload(Session.elements))
-        .where(Session.id == session_id)
+        .where(Session.id == session_id, Session.status != "deleted")
     )
     return result.scalar_one_or_none()
 
@@ -43,7 +43,11 @@ async def list_by_user(
     limit: int = 20,
     cursor: tuple[datetime, str] | None = None,
 ) -> list[Session]:
-    query = select(Session).options(selectinload(Session.metrics)).where(Session.user_id == user_id)
+    query = (
+        select(Session)
+        .options(selectinload(Session.metrics))
+        .where(Session.user_id == user_id, Session.status != "deleted")
+    )
     if element_type:
         query = query.where(Session.element_type == element_type)
     if cursor is not None:
@@ -71,7 +75,11 @@ async def count_by_user(
     *,
     element_type: str | None = None,
 ) -> int:
-    query = select(func.count()).select_from(Session).where(Session.user_id == user_id)
+    query = (
+        select(func.count())
+        .select_from(Session)
+        .where(Session.user_id == user_id, Session.status != "deleted")
+    )
     if element_type:
         query = query.where(Session.element_type == element_type)
     result = await db.execute(query)

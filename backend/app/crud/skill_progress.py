@@ -32,14 +32,34 @@ async def get_or_create(db: AsyncSession, user_id: str, skill_id: str) -> SkillP
     progress = result.scalar_one_or_none()
     if progress is None:
         defn = next(s for s in SKILL_DEFINITIONS if s["id"] == skill_id)
-        progress = SkillProgress(
-            user_id=user_id,
-            skill_id=defn["id"],
-            category=defn["category"],
-            tier=defn["tier"],
-            xp_reward=defn["xp_reward"],
+        # #459: ON CONFLICT DO NOTHING on (user_id, skill_id) — a concurrent
+        # get_or_create may have just inserted the same row (race window the
+        # SELECT above cannot see under READ COMMITTED). The unique constraint
+        # rejects the duplicate; we then re-read the survivor. Without this,
+        # two concurrent check_skill_unlocks produce 2 rows for one skill.
+        from sqlalchemy.dialects.postgresql import insert as pg_insert
+
+        stmt = (
+            pg_insert(SkillProgress)
+            .values(
+                user_id=user_id,
+                skill_id=defn["id"],
+                category=defn["category"],
+                tier=defn["tier"],
+                xp_reward=defn["xp_reward"],
+            )
+            .on_conflict_do_nothing(constraint="uq_skill_progress_user_skill")
+            .returning(SkillProgress)
         )
-        db.add(progress)
+        ret = await db.execute(stmt)
+        progress = ret.scalar_one_or_none()
+        if progress is None:
+            # Conflict: another txn won the insert — re-read the surviving row.
+            result = await db.execute(
+                select(SkillProgress).where(
+                    SkillProgress.user_id == user_id, SkillProgress.skill_id == skill_id
+                )
+            )
+            progress = result.scalar_one()
         await db.flush()
-        await db.refresh(progress)
     return progress
