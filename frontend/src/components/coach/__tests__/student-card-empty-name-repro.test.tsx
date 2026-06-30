@@ -57,7 +57,7 @@ describe("StudentCard empty to_user_name crash (RED repro)", () => {
     expect(() => render(<StudentCard conn={makeConn({ to_user_name: "Alice" })} />)).not.toThrow()
   })
 
-  it("control: null name does not throw — `?? \"?\"` catches null (GREEN — proves ?? works for null)", () => {
+  it('control: null name does not throw — `?? "?"` catches null (GREEN — proves ?? works for null)', () => {
     expect(() => render(<StudentCard conn={makeConn({ to_user_name: null })} />)).not.toThrow()
   })
 
@@ -65,8 +65,6 @@ describe("StudentCard empty to_user_name crash (RED repro)", () => {
     // CONTRACT: StudentCard must render gracefully when to_user_name === "".
     // RED: ("" ?? "?")[0] === ""[0] === undefined → undefined.toUpperCase()
     //      throws TypeError → coach dashboard breaks.
-    expect(() =>
-      render(<StudentCard conn={makeConn({ to_user_name: "" })} />),
-    ).not.toThrow()
+    expect(() => render(<StudentCard conn={makeConn({ to_user_name: "" })} />)).not.toThrow()
   })
 })
