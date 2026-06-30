@@ -6,6 +6,8 @@ with element markers, labels, and connecting paths.
 
 from __future__ import annotations
 
+from html import escape as _xml_escape
+
 
 def _f(v: float) -> str:
     """Format a float, stripping unnecessary trailing zeros."""
@@ -103,7 +105,7 @@ def render_rink(
             color = "#ea580c"
 
         parts.append(
-            f'<text x="{_f(x)}" y="{_f(y - 1.2 * sy)}" text-anchor="middle" font-size="{_f(1.2 * sx)}" fill="{color}" font-weight="bold">{code}</text>'
+            f'<text x="{_f(x)}" y="{_f(y - 1.2 * sy)}" text-anchor="middle" font-size="{_f(1.2 * sx)}" fill="{color}" font-weight="bold">{_xml_escape(code)}</text>'
         )
         parts.append(
             f'<text x="{_f(x)}" y="{_f(y + 0.3 * sy)}" text-anchor="middle" font-size="{_f(0.7 * sx)}" fill="#666">{i + 1}</text>'

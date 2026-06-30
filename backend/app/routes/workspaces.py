@@ -18,6 +18,7 @@ from app.crud.workspace import (
     create_workspace,
     get_workspace_by_id,
     get_workspace_by_slug,
+    get_workspace_member,
     list_workspace_members,
     list_workspaces_for_user,
     remove_workspace_member,
@@ -104,6 +105,16 @@ class WorkspacesController(Controller):
         self, workspace_id: str, user_id: str, verified_user: VerifiedUser, db: DbDep
     ) -> None:
         await require_workspace_role(workspace_id, verified_user, db, min_role=WorkspaceRole.ADMIN)
+        # #466: removing the OWNER orphans the workspace (no one left to
+        # admin it). Only the OWNER may remove themselves; an ADMIN must not
+        # delete the OWNER row.
+        target = await get_workspace_member(db, workspace_id, user_id)
+        if (
+            target is not None
+            and target.role == WorkspaceRole.OWNER
+            and target.user_id != verified_user.id
+        ):
+            raise ClientException(status_code=403, detail="Cannot remove the workspace owner")
         await remove_workspace_member(db, workspace_id, user_id)
 
     @patch("/{workspace_id:str}/members/{user_id:str}/role")
@@ -115,8 +126,26 @@ class WorkspacesController(Controller):
         verified_user: VerifiedUser,
         db: DbDep,
     ) -> WorkspaceMemberResponse:
-        await require_workspace_role(workspace_id, verified_user, db, min_role=WorkspaceRole.ADMIN)
-        updated = await update_member_role(db, workspace_id, user_id, WorkspaceRole(data.role))
+        caller = await require_workspace_role(
+            workspace_id, verified_user, db, min_role=WorkspaceRole.ADMIN
+        )
+        new_role = WorkspaceRole(data.role)
+        target = await get_workspace_member(db, workspace_id, user_id)
+        # #466: broken access control guards — check the TARGET, not just the caller.
+        # (a) Never demote/remove the OWNER via role change: an ADMIN demoting the
+        #     OWNER is irreversible (the role pattern excludes "owner", so it can't
+        #     be undone) and seizes control of the workspace.
+        if target is not None and target.role == WorkspaceRole.OWNER:
+            raise ClientException(
+                status_code=403, detail="Cannot change the workspace owner's role"
+            )
+        # (b) Promotion to ADMIN is owner-only: an ADMIN promoting a STUDENT peer
+        #     to admin is horizontal privilege escalation.
+        if new_role == WorkspaceRole.ADMIN and caller.role != WorkspaceRole.OWNER:
+            raise ClientException(
+                status_code=403, detail="Only the owner may promote members to admin"
+            )
+        updated = await update_member_role(db, workspace_id, user_id, new_role)
         if not updated:
             raise NotFoundException(detail="Member not found")
         return WorkspaceMemberResponse.model_validate(updated)

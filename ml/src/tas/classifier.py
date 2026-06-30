@@ -28,6 +28,20 @@ def extract_segment_features(
     midhip = poses[:, 11:13, :].mean(axis=1)  # (T, 2)
     hip_y_range = float(np.max(midhip[:, 1]) - np.min(midhip[:, 1]))
 
+    # #467: np.gradient on a 1-element array raises ValueError (needs >=
+    # edge_order+1 elements), and np.diff on a single frame is empty →
+    # np.mean([]) = NaN. A single-frame segment is reachable at low fps
+    # (duration filter passes end-start==1 at fps<=2.0). Guard T<2: no
+    # motion/rotation can be measured from one frame, so report zeros.
+    if T < 2:
+        return {
+            "duration": duration,
+            "hip_y_range": hip_y_range,
+            "motion_energy": 0.0,
+            "rotation_speed": 0.0,
+            "num_frames": T,
+        }
+
     # Motion energy
     diff = np.diff(poses, axis=0)
     motion_energy = float(np.mean(np.linalg.norm(diff, axis=(1, 2))))

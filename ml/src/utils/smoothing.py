@@ -131,6 +131,32 @@ def smooth_trajectory_2d_numba(
     return smoothed
 
 
+def _fill_nan_1d(series: np.ndarray, nan_mask: np.ndarray) -> np.ndarray:
+    """Fill NaN in a 1D series with linear interpolation, ffill/bfill at edges.
+
+    #462: the numba One-Euro path crashes on NaN input. We fill NaNs with
+    finite values so the filter runs, then the caller restores NaN at the
+    original mask. An all-NaN series (no observation at all) is filled with
+    0.0 — the restored NaN mask hides it from downstream consumers.
+    """
+    out = series.astype(np.float64, copy=True)
+    n = out.shape[0]
+    idx = np.arange(n)
+    finite = ~nan_mask
+    if not finite.any():
+        return np.zeros(n, dtype=np.float64)
+    out[nan_mask] = np.interp(idx[nan_mask], idx[finite], out[finite])
+    return out
+
+
+def _fill_nan_2d(traj: np.ndarray, nan_mask: np.ndarray) -> np.ndarray:
+    """Fill NaN per-column in a (T, 2) trajectory via _fill_nan_1d. #462."""
+    out = traj.astype(np.float64, copy=True)
+    for dim in range(traj.shape[1]):
+        out[:, dim] = _fill_nan_1d(traj[:, dim], nan_mask[:, dim])
+    return out
+
+
 @dataclass(frozen=True)
 class OneEuroFilterConfig:
     """Configuration for One-Euro Filter parameters.
@@ -399,13 +425,27 @@ class PoseSmoother:
         smoothed = np.zeros_like(poses)
 
         for joint_idx in range(num_joints):
-            smoothed[:, joint_idx, :] = smooth_trajectory_2d_numba(
-                poses[:, joint_idx, :],
+            # #462: a single NaN keypoint crashes the numba One-Euro path —
+            # @njit(fastmath=True) rewrites r/(r+1)→1/(1+1/r), and 1/NaN raises
+            # ZeroDivisionError (not silent NaN). Mask NaN inputs, fill the
+            # gap so the filter runs on finite values, then restore NaN where
+            # the input was NaN — preserving it as a "no observation" sentinel
+            # for downstream consumers instead of fabricating a value.
+            traj = poses[:, joint_idx, :]
+            nan_mask = np.isnan(traj)
+            has_nan = bool(nan_mask.any())
+            if has_nan:
+                traj = _fill_nan_2d(traj, nan_mask)
+            out = smooth_trajectory_2d_numba(
+                traj,
                 fps=self.config.freq,
                 min_cutoff=self.config.min_cutoff,
                 beta=self.config.beta,
                 d_cutoff=self.config.derivative_cutoff,
             )
+            if has_nan:
+                out[nan_mask] = np.nan
+            smoothed[:, joint_idx, :] = out
 
         return smoothed
 
@@ -427,20 +467,38 @@ class PoseSmoother:
         smoothed = np.zeros_like(poses_3d)
 
         for joint_idx in range(num_joints):
-            smoothed[:, joint_idx, :2] = smooth_trajectory_2d_numba(
-                poses_3d[:, joint_idx, :2],
+            # #462: mask NaN, fill, smooth, restore NaN — see smooth().
+            traj2d = poses_3d[:, joint_idx, :2]
+            nan_mask2 = np.isnan(traj2d)
+            has_nan2 = bool(nan_mask2.any())
+            if has_nan2:
+                traj2d = _fill_nan_2d(traj2d, nan_mask2)
+            out2d = smooth_trajectory_2d_numba(
+                traj2d,
                 fps=self.config.freq,
                 min_cutoff=self.config.min_cutoff,
                 beta=self.config.beta,
                 d_cutoff=self.config.derivative_cutoff,
             )
-            smoothed[:, joint_idx, 2] = _one_euro_filter_sequence_numba(
-                poses_3d[:, joint_idx, 2],
+            if has_nan2:
+                out2d[nan_mask2] = np.nan
+            smoothed[:, joint_idx, :2] = out2d
+
+            series = poses_3d[:, joint_idx, 2]
+            nan_mask1 = np.isnan(series)
+            has_nan1 = bool(nan_mask1.any())
+            if has_nan1:
+                series = _fill_nan_1d(series, nan_mask1)
+            out1d = _one_euro_filter_sequence_numba(
+                series,
                 self.config.freq,
                 self.config.min_cutoff,
                 self.config.beta,
                 self.config.derivative_cutoff,
             )
+            if has_nan1:
+                out1d[nan_mask1] = np.nan
+            smoothed[:, joint_idx, 2] = out1d
 
         return smoothed
 

@@ -340,6 +340,13 @@ class PoseTracker:
                 # Higher weight on biometrics for identical clothing case
                 cost_matrix[i, j] = 0.4 * iou_dist + 0.6 * bio_dist
 
+        # #463: NaN mid-hip (LHIP+RHIP NaN, hip occlusion) → np.linalg.norm(... - NaN)
+        # = NaN, and a NaN bio_dist (scipy cosine on NaN bone lengths) makes the
+        # weighted sum NaN → linear_sum_assignment raises ValueError. Replace NaN
+        # with the 1e6 sentinel already used for the initial matrix so the solver
+        # rejects the pairing via the cost threshold instead of crashing.
+        cost_matrix = np.where(np.isfinite(cost_matrix), cost_matrix, 1e6)
+
         # Hungarian algorithm
         track_indices, det_indices = linear_sum_assignment(cost_matrix)
 
