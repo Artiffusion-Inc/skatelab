@@ -28,13 +28,13 @@ fun Throwable.toAppError(): AppError =
 /**
  * Map an HTTP status to an `AppError`. `detail` is the backend response-body detail carried by the
  * `ResponseException.message` (see `AuthApi` — it reads the body and throws with that detail
- * instead of the HTTP reason-phrase). Only the 409 Conflict branch currently surfaces `detail`
- * (the actionable "Email already registered"-style text); other branches ignore it to keep their
- * existing localized-only behavior.
+ * instead of the HTTP reason-phrase). The 400/422 Validation and 409 Conflict branches surface
+ * `detail` (the actionable backend text — "password: field too short", "Email already
+ * registered"); 401/403/404/5xx ignore it for localized-only behavior.
  */
 fun HttpStatusCode.toAppError(detail: String? = null): AppError =
     when (value) {
-        400, 422 -> AppError.Auth()
+        400, 422 -> AppError.Validation(detail = detail)
         401, 403 -> AppError.Auth()
         404 -> AppError.NotFound()
         409 -> AppError.Conflict(detail = detail)

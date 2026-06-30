@@ -11,6 +11,17 @@ sealed interface AppError {
         override val messageKey: String = "error_auth",
     ) : AppError
 
+    /**
+     * HTTP 400/422 input-validation failure — backend carries the Pydantic detail
+     * (e.g. "password: field too short", "value is not a valid email") in the response body.
+     * `detail` preserves that text so the UI surfaces it instead of the misleading
+     * "Authentication error. Please log in again." (which is for 401/403, not input errors). #444.
+     */
+    data class Validation(
+        override val messageKey: String = "error_validation",
+        val detail: String? = null,
+    ) : AppError
+
     data class NotFound(
         override val messageKey: String = "error_not_found",
     ) : AppError

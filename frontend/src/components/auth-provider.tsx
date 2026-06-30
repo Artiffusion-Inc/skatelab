@@ -1,6 +1,7 @@
 "use client"
 
 import { useRouter } from "next/navigation"
+import { useQueryClient } from "@tanstack/react-query"
 import { createContext, type ReactNode, useContext, useState } from "react"
 import { devMockAuth, isDevelopment } from "@/lib/env"
 import type { UserResponse } from "@/lib/auth"
@@ -23,6 +24,7 @@ const AuthContext = createContext<AuthContextValue | null>(null)
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const router = useRouter()
+  const queryClient = useQueryClient()
   const [user, setUser] = useState<UserResponse | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const { hasConsented } = useConsent()
@@ -103,6 +105,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   async function logout() {
     await auth.logout()
+    // Clear the React Query cache so the previous user's sessions/prs/
+    // diagnostics/connections don't flash for the next user on a shared
+    // device (coach tablet) for up to staleTime before a refetch. #447.
+    queryClient.clear()
     setUser(null)
     resetIdentity()
   }
