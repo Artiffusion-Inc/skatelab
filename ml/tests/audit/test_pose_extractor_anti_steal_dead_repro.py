@@ -175,7 +175,13 @@ def test_fill_target_pose_mutates_caller_last_target_pose(extractor, track_state
     last_target_ratios: np.ndarray | None = None
     target_lost_frame: int | None = None
 
-    extractor._fill_target_pose(
+    # #469 fix contract: the method returns the updated state and the caller
+    # reassigns (both production call sites do this). A direct call that ignores
+    # the return value would leave the caller's vars None — so this test
+    # mirrors the production reassign and asserts the state propagates, proving
+    # the guard (`if last_target_pose is not None ...`, line 607) is live on the
+    # next frame instead of short-circuiting to False.
+    last_target_pose, last_target_ratios, target_lost_frame = extractor._fill_target_pose(
         all_poses,
         0,  # frame_idx
         h36m_poses,
@@ -189,14 +195,13 @@ def test_fill_target_pose_mutates_caller_last_target_pose(extractor, track_state
 
     assert last_target_pose is not None, (
         "BUG: _fill_target_pose reassigns the LOCAL `last_target_pose` (line 613) "
-        "but returns None — Python pass-by-value means the caller's variable "
-        "stays None. On the next frame, the guard `if last_target_pose is not "
-        "None and validator.is_stolen(...)` (line 607) short-circuits to False, "
-        "so the TrackValidator anti-steal check (#451 / _track_validator.py) is "
-        "DEAD CODE in both _extract_per_frame and _extract_batch. The fix must "
-        "either return (last_target_pose, last_target_ratios, target_lost_frame) "
-        "and have both callers reassign, OR move this state into a mutable "
-        "object passed by reference."
+        "but the caller never recovers it — Python pass-by-value means a direct "
+        "rebind does not propagate. The fix returns (last_target_pose, "
+        "last_target_ratios, target_lost_frame) and both callers reassign; "
+        "without that the guard `if last_target_pose is not None and "
+        "validator.is_stolen(...)` (line 607) short-circuits to False, so the "
+        "TrackValidator anti-steal check (#451 / _track_validator.py) is DEAD "
+        "CODE in both _extract_per_frame and _extract_batch."
     )
 
 
@@ -281,12 +286,12 @@ def test_stolen_pose_is_written_verbatim_when_guard_is_dead(extractor, track_sta
         "The repro requires is_stolen(pose1, pose0, ratios0) == True."
     )
 
-    # ---- frame 0: normal fill ----
+    # ---- frame 0: normal fill (production reassign contract, #469 fix) ----
     last_target_pose: np.ndarray | None = None
     last_target_ratios: np.ndarray | None = None
     target_lost_frame: int | None = None
 
-    extractor._fill_target_pose(
+    last_target_pose, last_target_ratios, target_lost_frame = extractor._fill_target_pose(
         all_poses,
         0,
         pose0[None, ...],
@@ -297,16 +302,16 @@ def test_stolen_pose_is_written_verbatim_when_guard_is_dead(extractor, track_sta
         last_target_ratios,
         target_lost_frame,
     )
-    # Caller's last_target_pose is STILL None (the bug) — the guard at frame 1
-    # will short-circuit.
-    assert last_target_pose is None, (
-        "test setup invariant: caller's last_target_pose stays None after "
-        "_fill_target_pose (the bug). If this fails, the bug is fixed and "
-        "this test should be removed."
+    # After the fix the caller reassigns, so last_target_pose is now set — the
+    # guard at frame 1 will be REACHED (not short-circuited).
+    assert last_target_pose is not None, (
+        "test setup invariant: after the #469 fix the caller reassigns the "
+        "returned state, so last_target_pose must be set after frame 0. "
+        "If this fails, the return-and-reassign contract is broken."
     )
 
     # ---- frame 1: a steal under the SAME track id ----
-    extractor._fill_target_pose(
+    last_target_pose, last_target_ratios, target_lost_frame = extractor._fill_target_pose(
         all_poses,
         1,
         pose1[None, ...],

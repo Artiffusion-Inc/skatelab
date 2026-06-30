@@ -339,16 +339,18 @@ class PoseExtractor:
 
                 # Fill target data
                 if track_state.target_track_id is not None:
-                    self._fill_target_pose(
-                        all_poses,
-                        frame_idx,
-                        h36m_poses,
-                        track_ids,
-                        track_state,
-                        validator,
-                        last_target_pose,
-                        last_target_ratios,
-                        target_lost_frame,
+                    last_target_pose, last_target_ratios, target_lost_frame = (
+                        self._fill_target_pose(
+                            all_poses,
+                            frame_idx,
+                            h36m_poses,
+                            track_ids,
+                            track_state,
+                            validator,
+                            last_target_pose,
+                            last_target_ratios,
+                            target_lost_frame,
+                        )
                     )
 
                 pbar.update(self._frame_skip)
@@ -541,7 +543,7 @@ class PoseExtractor:
 
             # Fill target data
             if track_state.target_track_id is not None:
-                self._fill_target_pose(
+                last_target_pose, last_target_ratios, target_lost_frame = self._fill_target_pose(
                     all_poses,
                     frame_idx,
                     h36m_poses,
@@ -597,8 +599,18 @@ class PoseExtractor:
         last_target_pose: np.ndarray | None,
         last_target_ratios: np.ndarray | None,
         target_lost_frame: int | None,
-    ) -> None:
-        """Fill target pose for current frame, handling stolen detection."""
+    ) -> tuple[np.ndarray | None, np.ndarray | None, int | None]:
+        """Fill target pose for current frame, handling stolen detection.
+
+        #469: return the updated loop state — Python passes object references
+        by value, so reassigning the local names (last_target_pose, etc.) inside
+        this method did NOT propagate back to the caller's variables. The caller
+        kept last_target_pose=None forever, the anti-steal guard short-circuited
+        to False every frame (line 607), and validator.is_stolen was never called
+        → skeleton-steals went undetected and wrong-person poses were written
+        verbatim. Returning the new state and reassigning at both call sites
+        makes the guard live again.
+        """
         target_track_id = track_state.target_track_id
         found = False
         stolen = False
@@ -650,6 +662,8 @@ class PoseExtractor:
                     last_target_ratios = compute_2d_skeletal_ratios(best_new_pose)
                     target_lost_frame = None
                     track_state.retroactive_fill(all_poses, track_state.target_track_id)
+
+        return last_target_pose, last_target_ratios, target_lost_frame
 
     # ------------------------------------------------------------------
     # Preview
