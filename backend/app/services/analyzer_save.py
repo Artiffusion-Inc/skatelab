@@ -107,7 +107,12 @@ async def save_analyzer_results(
         if not (start <= takeoff <= peak <= landing <= end):
             phase_dicts = []
         elif takeoff > 0 and landing > 0:
-            landing_mid = landing + max(1, (end - landing) // 2)
+            # #472: clamp landing_mid to end. When end == landing the
+            # max(1, ...) overflows to landing+1, making glide_out
+            # start_frame > end_frame (negative duration). Clamping keeps
+            # the valid approach/takeoff/air phases and makes the trailing
+            # landing/glide_out zero-duration instead of reversed.
+            landing_mid = min(landing + max(1, (end - landing) // 2), end)
             phase_dicts = [
                 {
                     "name": "approach",
