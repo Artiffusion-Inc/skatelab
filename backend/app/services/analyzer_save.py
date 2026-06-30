@@ -83,12 +83,20 @@ async def save_analyzer_results(
     phase_dicts: list[dict] = []
     element_type: str | None = None
     if phases is not None:
-        element_type = getattr(phases, "name", None)
-        start = getattr(phases, "start", 0) or 0
-        takeoff = getattr(phases, "takeoff", 0) or 0
-        peak = getattr(phases, "peak", 0) or 0
-        landing = getattr(phases, "landing", 0) or 0
-        end = getattr(phases, "end", 0) or 0
+        # The prod Vast.ai path delivers phases as a plain dict (phases.__dict__,
+        # ml/gpu_server/server.py:574) — NOT an ElementPhase dataclass. getattr on a dict
+        # returns the default for every field, so read dict-style when it's a dict. #445.
+        def _field(key: str, default: Any = 0) -> Any:
+            if isinstance(phases, dict):
+                return phases.get(key, default)
+            return getattr(phases, key, default)
+
+        element_type = _field("name", None)
+        start = _field("start", 0) or 0
+        takeoff = _field("takeoff", 0) or 0
+        peak = _field("peak", 0) or 0
+        landing = _field("landing", 0) or 0
+        end = _field("end", 0) or 0
 
         if takeoff > 0 and landing > 0:
             landing_mid = landing + max(1, (end - landing) // 2)
