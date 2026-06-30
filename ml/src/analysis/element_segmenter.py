@@ -101,6 +101,18 @@ class ElementSegmenter:
         Returns:
             SegmentationResult with detected segments.
         """
+        # Degenerate input (<2 frames) — np.diff / np.pad(mode="edge") in
+        # _compute_motion_energy crash on an empty axis (no edge value to
+        # replicate). Degrade gracefully to an empty result instead of
+        # crashing the process_video_task worker job (#476).
+        if len(poses) < 2:
+            return SegmentationResult(
+                segments=[],
+                video_path=video_path,
+                video_meta=video_meta,
+                method=method,
+                confidence=0.0,
+            )
         # ML v2 backend (preferred when model path is set)
         if method in ("adaptive", "tas_ml_v2") and self._tas_model_path is not None:
             result = self._segment_with_tas_v2(poses, video_meta.fps, video_meta)
