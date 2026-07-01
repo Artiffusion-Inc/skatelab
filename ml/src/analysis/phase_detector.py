@@ -26,13 +26,21 @@ def count_rotations(angles: np.ndarray) -> int:
         angles: Shoulder/hip orientation angles in radians, shape (N,).
 
     Returns:
-        Number of full 360 degree turns, rounded to nearest int.
+        Number of FULL completed 360 degree turns.
     """
     if len(angles) < 2:
         return 0
     unwrapped = np.unwrap(angles)
     total_radians = float(np.abs(unwrapped[-1] - unwrapped[0]))
-    return round(total_radians / (2.0 * np.pi))
+    # #514: rotation LEVEL = full completed turns. A half-turn overshoot is an
+    # over-rotation of the LOWER level, not a completed next level: 3.5 turns =
+    # an over-rotated triple (3), NOT a quad (4). But a slight UNDER-rotation
+    # (2.97) is still credited as the intended level (triple 3). So:
+    #   round-to-nearest for non-.5, but a .5 overshoot rounds DOWN (half-down).
+    #   → ceil(x - 0.5): ceil(3.5-0.5)=3, ceil(3.6-0.5)=4, ceil(2.97-0.5)=3.
+    # The previous round() used banker's round-half-to-even, inflating 3.5→4
+    # (triple misclassified as quad, 4Lz BV ~11 vs 3Lz BV ~5.9).
+    return int(np.ceil(total_radians / (2.0 * np.pi) - 0.5))
 
 
 def _compute_flight_rotations(poses: NormalizedPose, takeoff_idx: int, landing_idx: int) -> int:
