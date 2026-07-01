@@ -173,7 +173,8 @@ class TestElementPhase:
         )
 
         assert phase.has_takeoff is True
-        assert phase.airtime_frames == 30
+        # #518: landing is inclusive → airtime_frames = landing - takeoff + 1.
+        assert phase.airtime_frames == 31
 
     def test_airtime_calculation(self):
         """Should calculate airtime correctly."""
@@ -186,8 +187,9 @@ class TestElementPhase:
             end=80,
         )
 
-        assert phase.airtime_frames == 30
-        assert phase.airtime_sec(fps=30.0) == pytest.approx(1.0)
+        # #518: inclusive landing → count +1 (was span).
+        assert phase.airtime_frames == 31
+        assert phase.airtime_sec(fps=30.0) == pytest.approx(31 / 30)
 
     def test_step_element_no_takeoff(self):
         """Step elements should have takeoff == start."""

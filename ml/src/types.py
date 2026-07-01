@@ -474,8 +474,14 @@ class ElementPhase:
 
     @property
     def airtime_frames(self) -> int:
-        """Airtime in frames."""
-        return self.landing - self.takeoff
+        """Airtime in frames (inclusive landing → count = landing - takeoff + 1)."""
+        # No flight for step/turn elements (takeoff==0 or landing==0 → 0).
+        if self.takeoff == 0 or self.landing == 0:
+            return 0
+        # #518: `landing` is a CONCRETE INCLUSIVE frame index (physics_engine.py
+        # slices com[takeoff:landing+1] knowing inclusive). A flight takeoff=20
+        # → landing=28 spans 9 inclusive frames; landing-takeoff=8 undercounts.
+        return self.landing - self.takeoff + 1
 
     @property
     def has_takeoff(self) -> bool:
@@ -483,10 +489,11 @@ class ElementPhase:
         return self.takeoff > 0
 
     def airtime_sec(self, fps: float) -> float:
-        """Calculate airtime in seconds."""
+        """Calculate airtime in seconds (inclusive landing → +1 frame)."""
         if self.takeoff == 0 or self.landing == 0:
             return 0.0
-        return (self.landing - self.takeoff) / fps
+        # #518: count, not span (see airtime_frames).
+        return (self.landing - self.takeoff + 1) / fps
 
 
 @dataclass
