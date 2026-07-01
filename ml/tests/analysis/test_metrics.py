@@ -34,7 +34,8 @@ class TestBiomechanicsAnalyzer:
 
         airtime = analyzer.compute_airtime(phases, fps=30.0)
 
-        assert airtime == pytest.approx(1.0)  # 30 frames / 30 fps
+        # #518: inclusive landing → 31 frames (takeoff=30..landing=60), not 30.
+        assert airtime == pytest.approx(31 / 30)  # 31 frames / 30 fps
 
     def test_compute_angle_series(self, sample_normalized_poses):
         """Should compute angle series correctly."""

@@ -647,7 +647,8 @@ class TestMetricsAirtimeValidation:
                     end=landing + 10,
                 )
                 airtime = analyzer.compute_airtime(phases, fps)
-                expected = (landing - takeoff) / fps
+                # #518: landing is inclusive → airtime = (landing - takeoff + 1)/fps.
+                expected = (landing - takeoff + 1) / fps
                 np.testing.assert_allclose(
                     airtime,
                     expected,
@@ -669,7 +670,8 @@ class TestMetricsAirtimeValidation:
         phases = ElementPhase(name="jump", start=10, takeoff=15, peak=30, landing=45, end=55)
 
         airtime = analyzer.compute_airtime(phases, fps=30.0)
-        expected = 30 / 30.0  # 1.0 s
+        # #518: inclusive landing → 31 frames (takeoff=15..landing=45), not 30.
+        expected = 31 / 30.0
         np.testing.assert_allclose(airtime, expected, rtol=1e-10)
 
 
@@ -1008,19 +1010,19 @@ class TestElementPhaseValidation:
     """Validate ElementPhase airtime computation."""
 
     def test_airtime_frames(self):
-        """airtime_frames = landing - takeoff."""
+        """airtime_frames = landing - takeoff + 1 (inclusive landing)."""
         phases = ElementPhase(name="axel", start=5, takeoff=10, peak=25, landing=40, end=50)
-        assert phases.airtime_frames == 30
+        assert phases.airtime_frames == 31
 
     def test_airtime_sec(self):
-        """airtime_sec = (landing - takeoff) / fps."""
+        """airtime_sec = (landing - takeoff + 1) / fps (inclusive landing)."""
         phases = ElementPhase(name="axel", start=5, takeoff=10, peak=25, landing=40, end=50)
-        assert phases.airtime_sec(30.0) == pytest.approx(1.0)
+        assert phases.airtime_sec(30.0) == pytest.approx(31 / 30)
 
     def test_airtime_sec_60fps(self):
-        """Airtime at 60fps."""
+        """Airtime at 60fps (inclusive landing → +1 frame)."""
         phases = ElementPhase(name="axel", start=10, takeoff=20, peak=50, landing=80, end=90)
-        assert phases.airtime_sec(60.0) == pytest.approx(1.0)
+        assert phases.airtime_sec(60.0) == pytest.approx(61 / 60)
 
     def test_airtime_zero_when_no_takeoff(self):
         """airtime_sec = 0 when takeoff or landing is 0."""
