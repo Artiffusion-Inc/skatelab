@@ -450,7 +450,12 @@ class ElementSegmenter:
 
         # Duration
         num_frames = len(poses)
-        features["duration_sec"] = round(num_frames / fps, 3)
+        # #505: fps=0.0 (cv2 returns 0.0 for broken-header/remuxed videos) makes
+        # pure-int / 0.0 raise ZeroDivisionError, killing the worker job. Fall
+        # back to 0.0 duration for a degenerate fps; the frame count is still
+        # recorded. (types.py fps=0 is guarded by #499/#501; these analysis
+        # siblings were missed.)
+        features["duration_sec"] = round(num_frames / fps, 3) if fps > 0 else 0.0
         features["duration_frames"] = num_frames
 
         # Motion energy

@@ -87,7 +87,11 @@ def detect_spin(
         return False, 0.0, 0.0
 
     spin_frames = np.where(is_spinning)[0]
-    duration_s = (spin_frames[-1] - spin_frames[0]) / fps
+    # #505: fps=0.0 (cv2 broken-header) makes numpy /0.0 yield inf, and
+    # `inf >= 1.0` is True, so a degenerate spin is accepted with infinite
+    # duration. Treat fps<=0 as 0.0 duration (fails the >= 1.0 spin gate).
+    # #499/#501-class sibling.
+    duration_s = (spin_frames[-1] - spin_frames[0]) / fps if fps > 0 else 0.0
     hip_y_range = float(np.ptp(hip_y_series[is_spinning])) if np.any(is_spinning) else 0.0
 
     return duration_s >= 1.0, duration_s, hip_y_range
