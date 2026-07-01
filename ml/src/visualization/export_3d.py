@@ -198,6 +198,13 @@ def poses_to_glb_sequence(
     paths: list[str] = []
     for i in range(len(poses_3d)):
         glb = poses_to_glb(poses_3d, i, bone_radius, joint_radius)
+        # #523: poses_to_glb returns "" for all-NaN / empty-scene frames.
+        # Path("") normalizes to PosixPath(".") (CWD) → .rename(dst) tries to
+        # rename the working directory → OSError (Device busy / cross-device
+        # link), crashing the whole sequence export on the first degenerate
+        # frame. Skip empty results (no GLB to write).
+        if not glb:
+            continue
         dst = out_dir / f"frame_{i:04d}.glb"
         Path(glb).rename(dst)
         paths.append(str(dst))
