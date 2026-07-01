@@ -93,7 +93,13 @@ def compute_subscores(metrics: dict[str, float]) -> MultiDimensionalScore:
     ]
 
     weights = [0.30, 0.25, 0.15, 0.25, 0.10]
-    overall = sum(s.value * w for s, w in zip(subscores, weights, strict=True))
+    # #512: weights sum to 1.05, not 1.0 — a perfect session (all subscores
+    # 10.0) gave overall = 10 * 1.05 = 10.5, exceeding the /10 ceiling and
+    # crossing gamification skill-unlock thresholds (>=8.0 gold) early.
+    # Normalize the weighted sum by the weight total so overall stays in
+    # [0, 10] regardless of the weight vector (preserves relative balance).
+    weight_total = sum(weights)
+    overall = sum(s.value * w for s, w in zip(subscores, weights, strict=True)) / weight_total
 
     return MultiDimensionalScore(
         subscores=subscores,
