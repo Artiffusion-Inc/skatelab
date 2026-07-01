@@ -140,7 +140,6 @@ def create_app(
             "/v1/auth/resend-verification",
             "/v1/health",
             "/v1/models",
-            "/v1/outputs",
             "/v1/metrics/registry",
             "/v1/metrics/elements",
             "/v1/choreography/elements/registry",
