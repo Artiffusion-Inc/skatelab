@@ -507,8 +507,12 @@ class MotionDTWAligner:
         if joints is None:
             joints = list(range(user.shape[1]))
 
-        # Empty input — guard before the reshape crash (see compute_distance, #452).
-        if len(user) == 0 or len(reference) == 0:
+        # Degenerate input — a single-frame 3D reference/user produces a
+        # one-row warp the DTW library rejects, or a misleading finite distance.
+        # The 2D compute_distance guards len<2 -> inf (#478); the 3D path only
+        # guarded len==0, so a single-frame 3D reference slipped through.
+        # Extend the guard to len<2 for parity.
+        if len(user) < 2 or len(reference) < 2:
             return float("inf")
 
         # Flatten to 2D: (num_frames, num_joints * 3)

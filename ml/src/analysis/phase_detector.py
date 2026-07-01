@@ -81,6 +81,23 @@ class PhaseDetector:
         Returns:
             PhaseDetectionResult with detected boundaries and confidence.
         """
+        # Short-input guard: np.gradient on a 1-element CoM array raises
+        # ValueError (phase_detector.py:151), and three_turn/diff paths crash
+        # similarly. Pipeline (pipeline.py:274/:306) calls detect_phases with no
+        # len<2 guard, so a 1-frame valid video crashes process_video_task.
+        # Degrade to the default single-phase result for <2 frames.
+        if len(poses) < 2:
+            return PhaseDetectionResult(
+                phases=ElementPhase(
+                    name=element_type,
+                    start=0,
+                    takeoff=0,
+                    peak=0,
+                    landing=0,
+                    end=max(len(poses) - 1, 0),
+                ),
+                confidence=0.0,
+            )
         if element_type in ("waltz_jump", "toe_loop", "flip", "salchow", "loop", "lutz", "axel"):
             return self.detect_jump_phases(poses, fps, poses_3d=poses_3d)
         elif element_type == "three_turn":
