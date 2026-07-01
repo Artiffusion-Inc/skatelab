@@ -948,7 +948,8 @@ class TestPhysicsEngine2DValidation:
         poses = np.random.default_rng(42).random((N, 17, 2)).astype(np.float32)
         result = engine.analyze_2d(poses, takeoff_idx=takeoff, landing_idx=landing, fps=fps)
 
-        expected_time = (landing - takeoff) / fps  # 1.0s
+        # #519: inclusive landing → count = landing - takeoff + 1 (31 frames).
+        expected_time = (landing - takeoff + 1) / fps  # 31/30 ≈ 1.033s
         np.testing.assert_allclose(
             result["flight_time"],
             expected_time,
