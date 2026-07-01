@@ -25,8 +25,15 @@ def remap_to_isu(tas_type: str, rotations: int) -> str | None:
     family = ML_TYPE_TO_FAMILY.get(tas_type)
     if family is None:
         return None
-    if family == "1A":  # waltz_jump — fixed single axel code
+    if family == "1A":  # waltz_jump — fixed single axel code (180° half-revolution)
         return "1A"
+    # #533: euler / half_loop (family "Eu") is a 180° half-revolution — count_rotations
+    # returns 0 (full turns only), so `1 <= rotations <= 4` rejected it and the
+    # element was dropped (None) → gamification lost the Euler element. waltz_jump
+    # was special-cased to "1A"; Euler is the asymmetric sibling — it is always
+    # level 1 (a half-revolution, no multi-rotation variants), so map to "1Eu".
+    if family == "Eu":
+        return "1Eu"
     if not 1 <= rotations <= 4:
         return None
     return f"{rotations}{family}"
