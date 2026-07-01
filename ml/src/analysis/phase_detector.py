@@ -219,7 +219,11 @@ class PhaseDetector:
             landing_idx = min(len(poses) - 1, peak_idx + 10)
 
         # Validate physical plausibility
-        airtime = (landing_idx - takeoff_idx) / fps
+        # #505: fps=0.0 (cv2 broken-header) makes numpy /0.0 yield inf, and
+        # `inf < 0.3` is False, so the plausibility gate accepts an impossible
+        # infinite-airtime segment. Treat fps<=0 as a degenerate 0.0 airtime
+        # (fails the < 0.3 gate → rejected). #499/#501-class sibling.
+        airtime = (landing_idx - takeoff_idx) / fps if fps > 0 else 0.0
 
         # Minimum airtime validation (0.3 seconds)
         if airtime < 0.3:
@@ -440,7 +444,11 @@ class PhaseDetector:
                     landing_idx = min(N - 1, peak_frame + 5)
 
                 # Validate physical plausibility
-                airtime = (landing_idx - takeoff_idx) / fps
+                # #505: fps=0.0 (cv2 broken-header) makes numpy /0.0 yield inf, and
+                # `inf < 0.3` is False, so the plausibility gate accepts an impossible
+                # infinite-airtime segment. Treat fps<=0 as a degenerate 0.0 airtime
+                # (fails the < 0.3 gate → rejected). #499/#501-class sibling.
+                airtime = (landing_idx - takeoff_idx) / fps if fps > 0 else 0.0
                 if airtime < 0.3:
                     continue
 
