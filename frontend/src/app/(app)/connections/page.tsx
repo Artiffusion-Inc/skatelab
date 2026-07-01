@@ -106,7 +106,7 @@ export default function ConnectionsPage() {
               key={r.id ?? `pending-${i}`}
               className="flex items-center justify-between rounded-xl border border-hairline p-3"
             >
-              <span className="text-sm truncate mr-2">{r.from_user_name ?? r.from_user_id}</span>
+              <span className="text-sm truncate mr-2">{r.from_user_name || r.from_user_id}</span>
               <button
                 type="button"
                 onClick={() => acceptConn.mutateAsync(r.id)}
@@ -127,7 +127,7 @@ export default function ConnectionsPage() {
               key={r.id ?? `conn-${i}`}
               className="flex items-center justify-between rounded-xl border border-hairline p-3"
             >
-              <span className="text-sm truncate mr-2">{r.to_user_name ?? r.to_user_id}</span>
+              <span className="text-sm truncate mr-2">{r.to_user_name || r.to_user_id}</span>
               <button
                 type="button"
                 onClick={() => endConn.mutateAsync(r.id)}

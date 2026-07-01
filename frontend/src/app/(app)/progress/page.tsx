@@ -115,11 +115,13 @@ function ProgressContent() {
             >
               <div className="flex items-center gap-3">
                 <div className="flex h-10 w-10 items-center justify-center rounded-full bg-muted text-sm font-medium">
-                  {(conn.to_user_name ?? "?")[0].toUpperCase()}
+                  {/* `||` (not `??`) — empty string is falsy-but-not-nullish, so
+                     `??` would return ""[0]=undefined → .toUpperCase() throws (#477). */}
+                  {(conn.to_user_name || "?")[0].toUpperCase()}
                 </div>
                 <div>
                   <p className="text-sm font-medium">
-                    {conn.to_user_name ?? tc("studentFallback")}
+                    {conn.to_user_name || tc("studentFallback")}
                   </p>
                   <p className="text-xs text-muted-foreground">{ts("progress")}</p>
                 </div>
