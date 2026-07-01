@@ -1,4 +1,9 @@
-"""Tests for misc routes (health check, S3 output streaming)."""
+"""Tests for misc routes (health check, S3 output streaming).
+
+#513: /v1/outputs now requires auth + ownership (the key must live under the
+caller's `uploads/{user_id}/` prefix). serve_output tests therefore send auth
+headers and use the authed user's own upload key. Health remains public.
+"""
 
 from __future__ import annotations
 
@@ -8,6 +13,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 if TYPE_CHECKING:
+    from app.models.user import User
     from litestar.testing import AsyncTestClient
 
 
@@ -22,17 +28,18 @@ async def test_health_returns_ok(client: AsyncTestClient):
 
 
 @pytest.mark.asyncio
-async def test_serve_output_not_found(client: AsyncTestClient):
+async def test_serve_output_not_found(client: AsyncTestClient, authed_user: User, auth_headers):
     """GET /outputs/{key} returns 404 when object does not exist in S3."""
+    key = f"uploads/{authed_user.id}/nonexistent/video.mp4"
     with patch("app.routes.misc.object_exists_async", new_callable=AsyncMock, return_value=False):
-        response = await client.get("/v1/outputs/nonexistent/video.mp4")
+        response = await client.get(f"/v1/outputs/{key}", headers=auth_headers)
     assert response.status_code == 404
     data = response.json()
     assert data["message"] == "File not found"
 
 
 @pytest.mark.asyncio
-async def test_serve_output_streams_file(client: AsyncTestClient):
+async def test_serve_output_streams_file(client: AsyncTestClient, authed_user: User, auth_headers):
     """GET /outputs/{key} streams the file from S3 with correct content-type."""
     fake_chunks = [b"chunk1", b"chunk2", b"chunk3"]
 
@@ -43,6 +50,7 @@ async def test_serve_output_streams_file(client: AsyncTestClient):
     mock_body = MagicMock()
     mock_body.iter_chunks = fake_iter_chunks
 
+    key = f"uploads/{authed_user.id}/session123/result.mp4"
     with (
         patch("app.routes.misc.object_exists_async", new_callable=AsyncMock, return_value=True),
         patch(
@@ -51,7 +59,7 @@ async def test_serve_output_streams_file(client: AsyncTestClient):
             return_value=(mock_body, 999, "application/octet-stream"),
         ),
     ):
-        response = await client.get("/v1/outputs/session123/result.mp4")
+        response = await client.get(f"/v1/outputs/{key}", headers=auth_headers)
 
     assert response.status_code == 200
     assert response.content == b"chunk1chunk2chunk3"
@@ -62,7 +70,9 @@ async def test_serve_output_streams_file(client: AsyncTestClient):
 
 
 @pytest.mark.asyncio
-async def test_serve_output_content_type_by_extension(client: AsyncTestClient):
+async def test_serve_output_content_type_by_extension(
+    client: AsyncTestClient, authed_user: User, auth_headers
+):
     """GET /outputs/{key} overrides S3 content-type with extension-based type."""
 
     async def fake_iter_chunks(*, chunk_size):
@@ -71,6 +81,7 @@ async def test_serve_output_content_type_by_extension(client: AsyncTestClient):
     mock_body = MagicMock()
     mock_body.iter_chunks = fake_iter_chunks
 
+    key = f"uploads/{authed_user.id}/session123/metrics.csv"
     with (
         patch("app.routes.misc.object_exists_async", new_callable=AsyncMock, return_value=True),
         patch(
@@ -79,14 +90,16 @@ async def test_serve_output_content_type_by_extension(client: AsyncTestClient):
             return_value=(mock_body, 9, "application/octet-stream"),
         ),
     ):
-        response = await client.get("/v1/outputs/session123/metrics.csv")
+        response = await client.get(f"/v1/outputs/{key}", headers=auth_headers)
 
     assert response.status_code == 200
     assert "text/csv" in response.headers["content-type"]
 
 
 @pytest.mark.asyncio
-async def test_serve_output_preserves_unknown_extension(client: AsyncTestClient):
+async def test_serve_output_preserves_unknown_extension(
+    client: AsyncTestClient, authed_user: User, auth_headers
+):
     """GET /outputs/{key} uses S3-reported content-type for unknown extensions."""
 
     async def fake_iter_chunks(*, chunk_size):
@@ -95,6 +108,7 @@ async def test_serve_output_preserves_unknown_extension(client: AsyncTestClient)
     mock_body = MagicMock()
     mock_body.iter_chunks = fake_iter_chunks
 
+    key = f"uploads/{authed_user.id}/session123/data.xyz"
     with (
         patch("app.routes.misc.object_exists_async", new_callable=AsyncMock, return_value=True),
         patch(
@@ -103,16 +117,18 @@ async def test_serve_output_preserves_unknown_extension(client: AsyncTestClient)
             return_value=(mock_body, 3, "application/special-type"),
         ),
     ):
-        response = await client.get("/v1/outputs/session123/data.xyz")
+        response = await client.get(f"/v1/outputs/{key}", headers=auth_headers)
 
     assert response.status_code == 200
     assert response.headers["content-type"] == "application/special-type"
 
 
 @pytest.mark.asyncio
-async def test_serve_output_path_with_slashes(client: AsyncTestClient):
+async def test_serve_output_path_with_slashes(
+    client: AsyncTestClient, authed_user: User, auth_headers
+):
     """GET /outputs/{key:path} handles nested paths with slashes."""
+    key = f"uploads/{authed_user.id}/session/7/video.webm"
     with patch("app.routes.misc.object_exists_async", new_callable=AsyncMock, return_value=False):
-        response = await client.get("/v1/outputs/user/42/session/7/video.webm")
-
+        response = await client.get(f"/v1/outputs/{key}", headers=auth_headers)
     assert response.status_code == 404
