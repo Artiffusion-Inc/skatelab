@@ -625,7 +625,12 @@ class PhysicsEngine:
         fit_quality: float | None = None
 
         if takeoff_idx is not None and landing_idx is not None:
-            flight_frames = landing_idx - takeoff_idx
+            # #519: landing_idx is an INCLUSIVE frame index (the slice below
+            # uses landing_idx+1). flight_frames must be the COUNT
+            # (landing - takeoff + 1), not the exclusive span, so flight_time
+            # matches the com[takeoff:landing+1] slice duration and t_flight
+            # aligns with flight_com_y (both length = flight_frames).
+            flight_frames = landing_idx - takeoff_idx + 1
             flight_time = flight_frames / fps
 
             flight_com_y = com[takeoff_idx : landing_idx + 1, 1]
@@ -638,7 +643,7 @@ class PhysicsEngine:
                 takeoff_velocity = abs(takeoff_velocity_y)
 
             try:
-                t_flight = np.arange(flight_frames + 1) / fps
+                t_flight = np.arange(flight_frames) / fps
                 coeffs = np.polyfit(t_flight, flight_com_y, 2)
                 y_pred = np.polyval(coeffs, t_flight)
                 ss_res = np.sum((flight_com_y - y_pred) ** 2)

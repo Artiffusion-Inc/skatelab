@@ -258,7 +258,8 @@ class TestPhysicsEngine2D:
 
     def test_analyze_2d_flight_time(self, engine_2d, poses_2d_jump):
         result = engine_2d.analyze_2d(poses_2d_jump, takeoff_idx=10, landing_idx=25, fps=30.0)
-        assert result["flight_time"] == pytest.approx(15 / 30.0, abs=0.01)  # (25-10)/30
+        # #519: inclusive landing → count = landing - takeoff + 1 = 16 frames.
+        assert result["flight_time"] == pytest.approx(16 / 30.0, abs=0.01)  # (25-10+1)/30
 
     def test_analyze_2d_without_takeoff_landing(self, engine_2d, poses_2d_jump):
         """Without takeoff/landing, should return None for height/time."""
