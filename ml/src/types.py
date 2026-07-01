@@ -736,8 +736,12 @@ class ElementSegment:
 
     @property
     def duration_frames(self) -> int:
-        """Duration in frames."""
-        return self.end - self.start
+        """Duration in frames (inclusive end → count = end - start + 1)."""
+        # #516: `end` is an INCLUSIVE last-frame index (tas/inference.py:129
+        # returns end-1; element_segmenter.py:207 slices poses[start:end+1]
+        # knowing inclusive). A [0, 29] segment spans 30 frames; end-start=29
+        # undercounts by one.
+        return self.end - self.start + 1
 
 
 @dataclass
