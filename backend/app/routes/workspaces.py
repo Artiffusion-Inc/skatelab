@@ -9,7 +9,7 @@ if TYPE_CHECKING:
 
 from litestar import Controller, delete, get, patch, post
 from litestar.exceptions import ClientException, NotFoundException
-from litestar.status_codes import HTTP_201_CREATED, HTTP_204_NO_CONTENT
+from litestar.status_codes import HTTP_201_CREATED, HTTP_204_NO_CONTENT, HTTP_409_CONFLICT
 
 from app.auth.deps import CurrentUser, DbDep, VerifiedUser, require_workspace_role
 from app.crud.user import get_by_email
@@ -80,6 +80,13 @@ class WorkspacesController(Controller):
         target = await get_by_email(db, data.email)
         if not target:
             raise ClientException(detail="User not found")
+        # #508: re-inviting an existing member hit the uq_workspace_member
+        # unique(workspace_id, user_id) index → unhandled IntegrityError → 500.
+        # add_workspace_member has no check-existing/upsert. Pre-check and
+        # return a clean 409 Conflict instead of a server fault.
+        existing = await get_workspace_member(db, workspace_id, target.id)
+        if existing is not None:
+            raise ClientException(status_code=HTTP_409_CONFLICT, detail="Already a member")
         member = await add_workspace_member(
             db,
             workspace_id=workspace_id,
