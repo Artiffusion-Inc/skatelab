@@ -189,7 +189,17 @@ export function useBulkDeleteSessions() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (ids: string[]) => apiDelete(`/sessions/bulk?ids=${ids.join(",")}`),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["sessions"] }),
+    onSuccess: (_data, ids) => {
+      // Remove each deleted id's detail key — the sessions no longer exist, so
+      // there is nothing to refetch (invalidate would re-fetch and 404; the
+      // orphaned completed-session objects would otherwise sit in cache and
+      // resurface on browser-back within gcTime). Mirrors useDeleteSession
+      // (#456) for each id in the bulk set.
+      for (const id of ids) {
+        qc.removeQueries({ queryKey: ["session", id] })
+      }
+      qc.invalidateQueries({ queryKey: ["sessions"] })
+    },
   })
 }
 
