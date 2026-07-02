@@ -281,6 +281,7 @@ export default function SessionDetailPage() {
                       label={label}
                       value={m.metric_value}
                       unit={unit}
+                      format={def?.format}
                       direction={direction}
                       isInRange={m.is_in_range}
                       isPr={m.is_pr}
@@ -365,6 +366,7 @@ export default function SessionDetailPage() {
                       label={label}
                       value={m.metric_value}
                       unit={unit}
+                      format={def?.format}
                       direction={direction}
                       isInRange={m.is_in_range}
                       isPr={m.is_pr}

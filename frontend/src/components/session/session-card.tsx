@@ -5,7 +5,14 @@ import Link from "next/link"
 import type React from "react"
 import { useTranslations } from "@/i18n"
 import type { Session } from "@/types"
-import { useElementLabel } from "@/hooks/use-metric-registry"
+import { useElementLabel, useMetricRegistry } from "@/hooks/use-metric-registry"
+
+/** Decimal count from a backend format spec like ".3f" / ".0f" / ".1f".
+ * Mirrors personal-records.tsx:47 (#446) and metric-row.tsx (#510). Defaults
+ * to 2 when the spec is absent/unparseable. */
+function decimalsFromFormat(format: string | null | undefined): number {
+  return Number(format?.match(/\d+(?=f)/)?.[0] ?? 2)
+}
 
 function relativeTime(
   dateStr: string,
@@ -38,6 +45,7 @@ interface SessionCardProps {
 export function SessionCard({ session, selectable, selected, onSelect }: SessionCardProps) {
   const hasPR = session.metrics.some(m => m.is_pr)
   const elementLabel = useElementLabel()
+  const { data: registry } = useMetricRegistry()
   const ts = useTranslations("session")
 
   return (
@@ -83,7 +91,8 @@ export function SessionCard({ session, selectable, selected, onSelect }: Session
           <div className="mt-2 flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-muted-foreground">
             {session.metrics.slice(0, 3).map(m => (
               <span key={m.metric_name}>
-                {m.metric_name}: {m.metric_value.toFixed(2)}
+                {m.metric_name}:{" "}
+                {m.metric_value.toFixed(decimalsFromFormat(registry?.[m.metric_name]?.format))}
               </span>
             ))}
           </div>
