@@ -299,11 +299,27 @@ export function useDeleteProgram() {
           }
         },
       )
-      return { previous }
+      // Carry the id through context so onSettled can removeQueries the detail
+      // key (onSettled's variables arg is not reliably populated across RQ
+      // versions).
+      return { previous, id }
     },
     onError: (_err, _id, context) => {
       if (context?.previous) {
         qc.setQueryData(["programs"], context.previous)
+      }
+    },
+    onSuccess: (_data, _id, context) => {
+      // Remove the detail key for the deleted id — the program no longer
+      // exists, so there is nothing to refetch (invalidate would re-fetch and
+      // 404; the orphaned program object would otherwise sit in cache and
+      // resurface on browser-back within gcTime). removeQueries drops it.
+      // "program" (singular) != "programs" (plural list), so the list
+      // invalidation below does not touch it. Mirrors useDeleteSession (#456).
+      // id is carried via the onMutate context (onSettled's variables arg is
+      // not reliably populated across RQ versions).
+      if (context?.id) {
+        qc.removeQueries({ queryKey: ["program", context.id] })
       }
     },
     onSettled: () => {
