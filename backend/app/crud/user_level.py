@@ -15,7 +15,7 @@ LEVEL_THRESHOLDS = [
 ]
 
 
-async def get_by_user_id(db: AsyncSession, user_id: str) -> UserLevel:
+async def get_by_user_id(db: AsyncSession, user_id: str) -> UserLevel | None:
     # #485: use pg_insert with on_conflict_do_nothing for race-safe create,
     # then re-read. Mirrors the #459 skill_progress fix. Also tolerate
     # legacy duplicate state by using .first() (instead of scalar_one_or_none)
@@ -37,7 +37,14 @@ async def get_by_user_id(db: AsyncSession, user_id: str) -> UserLevel:
     # Use .first() (not .scalar_one_or_none()) so users with legacy
     # duplicate rows (pre-#485) don't crash gamification permanently —
     # we return the first row, which is good enough for read-modify-write.
-    return result.scalars().first()  # type: ignore[return-value]
+    # The new constraint prevents NEW duplicates; .first() is the
+    # safety net for EXISTING duplicates. The return type is `UserLevel`
+    # — the post-insert re-read should always find the row we just
+    # inserted (or that already existed). Legacy-duplicate users get
+    # the first row, which is consistent with the read-modify-write
+    # pattern in add_xp.
+    result = await db.execute(select(UserLevel).where(UserLevel.user_id == user_id))
+    return result.scalars().first()
 
 
 async def add_xp(db: AsyncSession, user_id: str, xp: int) -> UserLevel:
