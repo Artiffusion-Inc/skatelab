@@ -1,6 +1,7 @@
 """User level CRUD operations."""
 
 from sqlalchemy import select, update
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.user_level import UserLevel
@@ -14,19 +15,42 @@ LEVEL_THRESHOLDS = [
 ]
 
 
-async def get_by_user_id(db: AsyncSession, user_id: str) -> UserLevel:
+async def get_by_user_id(db: AsyncSession, user_id: str) -> UserLevel | None:
+    # #485: use pg_insert with on_conflict_do_nothing for race-safe create,
+    # then re-read. Mirrors the #459 skill_progress fix. Also tolerate
+    # legacy duplicate state by using .first() (instead of scalar_one_or_none)
+    # so users already in the broken state recover without manual DB cleanup.
+    stmt = (
+        pg_insert(UserLevel)
+        .values(
+            user_id=user_id,
+            level=1,
+            total_xp=0,
+            xp_to_next=100,
+            title="Новичок",
+        )
+        .on_conflict_do_nothing(constraint="uq_user_level_user")
+    )
+    await db.execute(stmt)
+    await db.flush()
     result = await db.execute(select(UserLevel).where(UserLevel.user_id == user_id))
-    level = result.scalar_one_or_none()
-    if level is None:
-        level = UserLevel(user_id=user_id, level=1, total_xp=0, xp_to_next=100, title="Новичок")
-        db.add(level)
-        await db.flush()
-        await db.refresh(level)
-    return level
+    # Use .first() (not .scalar_one_or_none()) so users with legacy
+    # duplicate rows (pre-#485) don't crash gamification permanently —
+    # we return the first row, which is good enough for read-modify-write.
+    # The new constraint prevents NEW duplicates; .first() is the
+    # safety net for EXISTING duplicates. The return type is `UserLevel`
+    # — the post-insert re-read should always find the row we just
+    # inserted (or that already existed). Legacy-duplicate users get
+    # the first row, which is consistent with the read-modify-write
+    # pattern in add_xp.
+    result = await db.execute(select(UserLevel).where(UserLevel.user_id == user_id))
+    return result.scalars().first()
 
 
 async def add_xp(db: AsyncSession, user_id: str, xp: int) -> UserLevel:
     level = await get_by_user_id(db, user_id)
+    if level is None:  # defensive: should not happen after pg_insert above
+        raise RuntimeError(f"user_level row missing for user_id={user_id!r}")
     # Atomic SQL increment — the DB serializes the update so concurrent awards
     # cannot overwrite each other (no read-modify-write lost update).
     await db.execute(
