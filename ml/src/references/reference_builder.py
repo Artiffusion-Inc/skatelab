@@ -100,6 +100,14 @@ class ReferenceBuilder:
         save_dict = {
             "element_type": ref.element_type,
             "poses": ref.poses,
+            # #492: persist ref.fps directly (not just meta_fps). Pre-fix
+            # the save_dict had only `meta_fps`; load_reference used
+            # `data.get("fps", meta.fps)` which silently fell back to
+            # meta.fps when ref.fps != meta.fps — a 60fps ref loaded as
+            # 30fps halved every time-derived metric (airtime, DTW, etc).
+            # Persist both: `fps` (the actual fps used for the ref) and
+            # `meta_fps` (the source video's fps, for reference).
+            "fps": ref.fps,
             "meta_fps": ref.meta.fps if ref.meta else 30.0,
             "meta_width": ref.meta.width if ref.meta else 1920,
             "meta_height": ref.meta.height if ref.meta else 1080,
