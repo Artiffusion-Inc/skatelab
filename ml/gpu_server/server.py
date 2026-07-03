@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import math
 import os
 import tempfile
 import time
@@ -589,7 +590,34 @@ async def process(req: ProcessRequest):
                     "element_type": req.element_type,
                     "rotations": rotations,
                 }
-                metrics_json.write_text(_json.dumps(metrics_data, ensure_ascii=False, indent=2))
+                # #488: NaN/Infinity coerce + allow_nan=False. Pre-fix
+                # `json.dumps(..., allow_nan=True)` (the default) serialized
+                # a raw `NaN` literal into the S3 metrics.json artifact,
+                # which is invalid per RFC 8259 (only null + number
+                # literals are valid) and crashes any strict-JSON
+                # consumer (JS JSON.parse, RustFS audit tooling, etc).
+                # The backend worker sanitizes NaN→None in its own
+                # frame-metrics path (worker.py:194-197) but gpu_server
+                # bypasses that — mirror the same pattern here. The
+                # metrics list is dicts (post-PhaseDetectionResult
+                # Pydantic serialization), so we coerce via dict key
+                # access rather than `.value` attribute.
+                sanitized_metrics = []
+                for m in metrics_data["metrics"]:
+                    mm = m if isinstance(m, dict) else m.model_dump()
+                    if math.isfinite(mm.get("value", 0) or 0):
+                        sanitized_metrics.append(mm)
+                    else:
+                        sanitized_metrics.append({**mm, "value": None})
+                sanitized_payload = {**metrics_data, "metrics": sanitized_metrics}
+                metrics_json.write_text(
+                    _json.dumps(
+                        sanitized_payload,
+                        ensure_ascii=False,
+                        indent=2,
+                        allow_nan=False,  # raise on remaining NaN (defense in depth)
+                    )
+                )
                 upload_tasks.append(_s3_upload(s3, req.s3_bucket, metrics_key, str(metrics_json)))
 
                 await asyncio.gather(*upload_tasks)
