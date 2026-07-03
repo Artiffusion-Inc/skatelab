@@ -83,9 +83,19 @@ class Sports2DTracker:
 
     @staticmethod
     def _centroid(keypoints: np.ndarray) -> np.ndarray:
-        """(17,2) -> (2,) centroid [cx, cy]."""
+        """(17,2) -> (2,) centroid [cx, cy].
+
+        #567: returns a finite fallback centroid if all keypoints are NaN
+        (low-confidence / occluded / model-warmup frame). The fallback
+        is (0.0, 0.0) which keeps the Kalman state finite; the track
+        will be re-associated on subsequent frames via the distance
+        matrix + Hungarian matching. A NaN centroid here would poison
+        the Kalman state forever — the track is silently lost.
+        """
         cx = float(np.nanmean(keypoints[:, 0]))
         cy = float(np.nanmean(keypoints[:, 1]))
+        if not (np.isfinite(cx) and np.isfinite(cy)):
+            return np.array([0.0, 0.0])
         return np.array([cx, cy])
 
     def _kalman_predict(self, state: np.ndarray, cov: np.ndarray):
