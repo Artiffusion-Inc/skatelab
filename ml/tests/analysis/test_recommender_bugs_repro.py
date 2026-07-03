@@ -58,18 +58,13 @@ def test_nan_value_reaches_template_format():
     )
 
     recs = r.recommend([nan_metric], "waltz_jump")
-    # The rule fires and the "default" template is selected (since NaN is
-    # not <min and not >max). The default template for airtime is
-    # "Проверь технику отталкивания." which has no format spec — so this
-    # should NOT contain "nan". But the airtime "too_low" template has
-    # `{value:.2f}` and `_is_bad(NaN)` returns True... yet `_determine_severity`
-    # returns "default" for NaN (since nan < min is False). So default fires.
-    assert recs, "Expected at least one recommendation for NaN value"
-    # Document the behavior: the recommendation is the generic default
-    # template, which says "check technique" — NOT acknowledging that the
-    # upstream data is missing/NaN.
-    assert "Проверь технику" in recs[0] or "Следи" in recs[0], (
-        f"Expected generic default template, got: {recs[0]!r}"
+    # #557 fix: NaN values are skipped at the recommender entry, before
+    # the rule fires. No recommendation is generated for a NaN value
+    # (we can't tell if the metric is good or bad, so no advice is
+    # actionable). Pre-fix: NaN triggered the rule, rendered 'nan' in
+    # Russian text on 3.11/3.12, or crashed on 3.13+ via format() ValueError.
+    assert recs == [], (
+        f"NaN metric should produce no recommendations (skipped at the entry), got: {recs}."
     )
 
 
