@@ -137,17 +137,25 @@ class SubtitleParser:
     def _parse_time(self, time_str: str) -> float:
         """Parse VTT timestamp to seconds.
 
-        Args:
-            time_str: Time string like "00:00:25.849".
+        Supports both formats (VTT spec allows either):
+        - HH:MM:SS.mmm (3-part split) → hours * 3600 + minutes * 60 + seconds
+        - MM:SS.mmm (2-part split)    → minutes * 60 + seconds
 
-        Returns:
-            Time in seconds as float.
+        #566: previously only 3-part was supported; MM:SS.mmm raised
+        ValueError on int("25.849"). YouTube auto-captions and most
+        video editors emit MM:SS.mmm for videos < 1 hour.
         """
         parts = time_str.split(":")
-        hours = int(parts[0])
-        minutes = int(parts[1])
-        seconds = float(parts[2])
-        return hours * 3600 + minutes * 60 + seconds
+        if len(parts) == 2:  # MM:SS.mmm
+            minutes = int(parts[0])
+            seconds = float(parts[1])
+            return minutes * 60 + seconds
+        if len(parts) == 3:  # HH:MM:SS.mmm
+            hours = int(parts[0])
+            minutes = int(parts[1])
+            seconds = float(parts[2])
+            return hours * 3600 + minutes * 60 + seconds
+        raise ValueError(f"Invalid VTT timestamp: {time_str!r}")
 
     def _parse_caption(self, start: float, end: float, text: str) -> list[ElementEvent]:
         """Extract element events from a single caption.
