@@ -159,11 +159,15 @@ describe("SkeletalMesh getJointColor (RED repro)", () => {
     // Correct: getJointColor reads metric[15]=100 → green.
     // BUG: Math.min(1500, 29)=29 → reads metric[29]=200 → red (frozen on last).
     const hipR = frames.map((_, i) => (i === 15 ? 100 : 200)) // [15]=green, rest red
+    // #527: BUG #2 is the frame-index clamp; L/R is BUG #1. After the
+    // L/R fix joint 11 reads hip_angles_l (left arm). Set BOTH arrays
+    // to [15]=100 so test 3 stays BUG-2-only regardless of L/R choice.
+    const hipL = frames.map((_, i) => (i === 15 ? 100 : 200))
     const frameMetrics: FrameMetrics = {
       knee_angles_r: [],
       knee_angles_l: [],
       hip_angles_r: hipR,
-      hip_angles_l: [],
+      hip_angles_l: hipL,
       trunk_lean: [],
       com_height: [],
     }
