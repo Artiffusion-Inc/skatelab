@@ -52,18 +52,15 @@ import { SkeletalMesh } from "../skeletal-mesh"
 // H3.6M indices: 11 = left shoulder/elbow region (left arm start),
 // 14 = right arm start. Joints 7,8,9,10 are spine/head (skipped to keep the
 // captured <Line> color list = just joint colors).
-function poseWith(joints: Array<[number, number]>) {
+function poseWith(joints: Array<[number, [number, number]]>) {
   // 17 keypoints, default [0,0,0] (conf 0 → skipped). Place requested joints.
-  const pose: Array<[number, number, number]> = Array.from(
-    { length: 17 },
-    () => [0, 0, 0],
-  )
+  const pose: Array<[number, number, number]> = Array.from({ length: 17 }, () => [0, 0, 0])
   for (const [idx, [x, y]] of joints) pose[idx] = [x, y, 1]
   return pose
 }
 
 function hex(n: number) {
-  return "#" + n.toString(16).padStart(6, "0")
+  return `#${n.toString(16).padStart(6, "0")}`
 }
 
 const GREEN = 0x4ade80 // angle in 90..170
@@ -89,7 +86,12 @@ describe("SkeletalMesh getJointColor (RED repro)", () => {
     }
     const poseData: PoseData = {
       frames: [0],
-      poses: [poseWith([[11, [0.4, 0.5]], [14, [0.6, 0.5]]])],
+      poses: [
+        poseWith([
+          [11, [0.4, 0.5]],
+          [14, [0.6, 0.5]],
+        ]),
+      ],
       fps: 30,
     }
 
@@ -109,7 +111,9 @@ describe("SkeletalMesh getJointColor (RED repro)", () => {
       String(joint11Color) +
       " — uses frameMetrics.hip_angles_r[0]=200 (RIGHT hip) → " +
       "red. Should use hip_angles_l[0]=100 (LEFT hip, matching the 'Left arm' " +
-      "comment) → green " + hex(GREEN) + ". L/R swapped + arms colored by hip angles " +
+      "comment) → green " +
+      hex(GREEN) +
+      ". L/R swapped + arms colored by hip angles " +
       "(biomechanically meaningless). Sibling frame-metrics-chart.tsx:43-44 " +
       "maps hip_angles_r→right hip correctly."
     expect(joint11Color, msg1).toBe(hex(GREEN))
@@ -129,7 +133,12 @@ describe("SkeletalMesh getJointColor (RED repro)", () => {
     }
     const poseData: PoseData = {
       frames: [0],
-      poses: [poseWith([[11, [0.4, 0.5]], [14, [0.6, 0.5]]])],
+      poses: [
+        poseWith([
+          [11, [0.4, 0.5]],
+          [14, [0.6, 0.5]],
+        ]),
+      ],
       fps: 30,
     }
 
@@ -148,7 +157,9 @@ describe("SkeletalMesh getJointColor (RED repro)", () => {
       String(joint14Color) +
       " — uses frameMetrics.hip_angles_l[0]=100 (LEFT hip) → " +
       "green. Should use hip_angles_r[0]=200 (RIGHT hip, matching the 'Right " +
-      "arm' comment) → red " + hex(RED) + ". L/R swapped."
+      "arm' comment) → red " +
+      hex(RED) +
+      ". L/R swapped."
     expect(joint14Color, msg2).toBe(hex(RED))
   })
 
@@ -174,9 +185,7 @@ describe("SkeletalMesh getJointColor (RED repro)", () => {
     const poseData: PoseData = {
       frames,
       // pose at sampled index 15 (absolute frame 1500) has joint 11 present.
-      poses: frames.map((_, i) =>
-        i === 15 ? poseWith([[11, [0.4, 0.5]]]) : poseWith([]),
-      ),
+      poses: frames.map((_, i) => (i === 15 ? poseWith([[11, [0.4, 0.5]]]) : poseWith([]))),
       fps: 30,
     }
 
@@ -192,12 +201,15 @@ describe("SkeletalMesh getJointColor (RED repro)", () => {
 
     const joint11Color = lineRenders[0]?.color
     const msg3 =
-      "BUG #2: joint 11 at currentFrame=1500 colored " + String(joint11Color) + ". " +
+      "BUG #2: joint 11 at currentFrame=1500 colored " +
+      String(joint11Color) +
+      ". " +
       "skeletal-mesh.tsx:113 Math.min(currentFrame, metric.length-1) = " +
       "Math.min(1500, 29) = 29 → reads hip_angles_r[29]=200 → red (frozen on " +
       "last sampled frame). Should resolve currentFrame→sampled index via " +
       "poseData.frames.indexOf(1500)=15 → hip_angles_r[15]=100 → green " +
-      hex(GREEN) + " (component already does this at :134 for pose selection). " +
+      hex(GREEN) +
+      " (component already does this at :134 for pose selection). " +
       "Clamp pins EVERY frame above ~29 to the last sampled entry → joint " +
       "color frozen for entire playback after first ~1s."
     expect(joint11Color, msg3).toBe(hex(GREEN))
