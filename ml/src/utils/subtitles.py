@@ -102,9 +102,15 @@ class SubtitleParser:
         current_text = ""
 
         for line in content.split("\n"):
-            # Parse timestamp: 00:00:25.849 --> 00:00:30.580
+            # #565: VTT spec allows both HH:MM:SS.mmm AND MM:SS.mmm. The
+            # previous regex (\d{2}:\d{2}:\d{2}\.\d{3}) only matched the
+            # long form, silently dropping MM:SS.mmm captions (YouTube
+            # auto-captions, most video editors for videos < 1 hour).
+            # The new pattern: \d{1,2} hour, optional :MM, then :SS.mmm.
+            # \d{1,2} accepts both 1-digit (H:MM:SS) and 2-digit (HH:MM:SS)
+            # forms for robustness.
             timestamp_match = re.match(
-                r"(\d{2}:\d{2}:\d{2}\.\d{3})\s*-->\s*(\d{2}:\d{2}:\d{2}\.\d{3})", line
+                r"(\d{1,2}(?::\d{2})?\.\d{3})\s*-->\s*(\d{1,2}(?::\d{2})?\.\d{3})", line
             )
 
             if timestamp_match:

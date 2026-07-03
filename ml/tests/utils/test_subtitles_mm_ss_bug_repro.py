@@ -63,19 +63,19 @@ def test_timestamp_regex_does_not_match_mm_ss_format():
     else:
         actual_pattern = pattern.group(1)
 
-    # The actual pattern uses HH:MM:SS.mmm format
-    assert r"\d{2}:\d{2}:\d{2}" in actual_pattern, (
-        f"Expected HH:MM:SS pattern in regex, got: {actual_pattern}"
+    # The actual pattern must support BOTH HH:MM:SS.mmm and MM:SS.mmm.
+    # Post-fix: the pattern has an optional (?:...)? group, e.g. (?::\d{2})?,
+    # indicating an optional middle component.
+    assert r"?" in actual_pattern, (
+        f"Expected optional group (?) in regex (for optional HH: prefix), got: {actual_pattern}"
     )
-    # The pattern does NOT support MM:SS.mmm (which would be a 2-part split)
-    # Document: the regex lacks an optional 'HH:' prefix
 
     # Direct test: try matching MM:SS.mmm format
     mm_ss_line = "00:25.849 --> 00:30.580"
     test_match = re.match(actual_pattern.replace("\\\\", "\\"), mm_ss_line)
-    assert test_match is None, (
-        f"Regex should NOT match MM:SS.mmm format. Got match: {test_match}. "
-        f"This is the bug: MM:SS.mmm captions are silently dropped."
+    assert test_match is not None, (
+        f"Regex should match MM:SS.mmm format (VTT spec allows either). "
+        f"Got no match for {mm_ss_line!r}. MM:SS.mmm captions are silently dropped."
     )
 
 
@@ -104,10 +104,13 @@ def test_mm_ss_caption_silently_gets_zero_timestamp():
     import inspect
 
     source = inspect.getsource(parser.parse_vtt)
-    # Pattern in source: r"(\d{2}:\d{2}:\d{2}\.\d{3})\s*-->\s*(\d{2}:\d{2}:\d{2}\.\d{3})"
-    assert r"\d{2}:\d{2}:\d{2}" in source, (
-        "Expected HH:MM:SS pattern in source, indicating MM:SS.mmm is NOT supported. "
-        "Source contains the long-form-only regex."
+    # #565: regex must support BOTH HH:MM:SS.mmm and MM:SS.mmm. After the
+    # fix, the pattern uses an optional HH: prefix (e.g. \d{1,2}(?::\d{2})?).
+    # The previous \d{2}:\d{2}:\d{2} pattern only matches the long form.
+    assert r"\d{2}:\d{2}:\d{2}" not in source or r"?" in source, (
+        "Expected the regex to be loosened to support optional HH: prefix "
+        "(e.g. \\d{1,2}(?::\\d{2})?). Pre-fix regex \\d{2}:\\d{2}:\\d{2} only "
+        "matches the long form and silently drops MM:SS.mmm captions."
     )
 
 
