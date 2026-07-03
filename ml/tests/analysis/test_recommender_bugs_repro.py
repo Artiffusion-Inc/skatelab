@@ -95,16 +95,23 @@ def test_nan_with_formatted_template_renders_nan_string():
 
 
 def test_max_height_rule_missing_too_high_template():
-    """Bug #3a: max_height rule has no 'too_high' key — falls back to default."""
+    """Bug #3a: max_height rule must have a 'too_high' template.
+
+    #558 fix: explicit too_high template added to max_height (and 6 other
+    rules in _COMMON_JUMP_RULES). Post-fix: too_high key IS present.
+    """
     from src.analysis.rules.jump_rules import _COMMON_JUMP_RULES
 
     max_height_rule = next(r for r in _COMMON_JUMP_RULES if r.metric_name == "max_height")
-    assert "too_high" not in max_height_rule.templates, (
-        "Expected 'too_high' to be MISSING from max_height templates — "
-        "this is the bug (falls back to generic 'default' for too-high values)"
+    assert "too_high" in max_height_rule.templates, (
+        "Expected 'too_high' to be PRESENT in max_height templates — "
+        "#558 fix added explicit too_high feedback so the user isn't told "
+        "to 'monitor' something that may be a real defect."
     )
-    # The fallback that gets used
-    assert max_height_rule.templates.get("default", "") != ""
+    # The too_high template must be non-empty
+    assert max_height_rule.templates["too_high"] != "", (
+        "'too_high' template must be non-empty for max_height"
+    )
 
 
 def test_too_high_value_falls_back_to_default_template():
@@ -129,21 +136,17 @@ def test_too_high_value_falls_back_to_default_template():
     )
     recs = r.recommend([too_high_metric], "waltz_jump")
     assert recs, "Expected at least one recommendation for too-high value"
-    # The default template says "Следи за высотой прыжка." — it does NOT
-    # tell the user the value is ABOVE the reference range. This is the bug.
+    # #558 fix: post-fix, the too_high template is used (not the default).
     rec_text = " ".join(recs).lower()
-    assert "следи за высотой" in rec_text or "контролируй" in rec_text, (
-        f"Expected generic 'check the height' message, got: {recs}"
-    )
-    # The text does NOT acknowledge "too high" — that's the bug.
-    # A correct too_high message would say something like "Слишком высокий прыжок"
+    # The text MUST acknowledge "too high" — that's the fix.
     has_too_high_acknowledgement = any(
-        word in rec_text for word in ("слишком высок", "выше референс", "выше норм", "отличн")
+        word in rec_text
+        for word in ("слишком высок", "выше референс", "выше норм", "выше", "необычно высок")
     )
-    # Document: the generic default is used, NOT a too_high-aware message
-    # (this is a code defect, not a test failure — the assertion below
-    # documents the current broken behaviour)
-    assert not has_too_high_acknowledgement, f"Unexpectedly got a too-high-aware message: {recs}"
+    assert has_too_high_acknowledgement, (
+        f"Expected too-high-aware message for max_height=2.0, got: {recs}. "
+        f"Pre-fix: default template 'Следи за высотой' was used (no too-high acknowledgement)."
+    )
 
 
 def test_count_rules_missing_too_high_template():
@@ -151,16 +154,11 @@ def test_count_rules_missing_too_high_template():
     from src.analysis.rules.jump_rules import _COMMON_JUMP_RULES
 
     missing_too_high = [r.metric_name for r in _COMMON_JUMP_RULES if "too_high" not in r.templates]
-    # Document the count. Expectation: at least 6 rules lack "too_high".
-    # airtime has too_high, landing_knee_angle has too_high, rotation_speed has
-    # too_high, approach_torso_lean has too_high, arm_position_score has
-    # too_high, toe_assist_proxy has too_high, toe_pick_clean has too_high.
-    # Missing: max_height, relative_jump_height, landing_com_velocity,
-    # landing_smoothness, landing_trunk_recovery, landing_knee_stability,
-    # hard_landing, goe_score
-    assert len(missing_too_high) >= 6, (
-        f"Expected >= 6 rules missing 'too_high' template, got {len(missing_too_high)}: "
-        f"{missing_too_high}"
+    # #558 fix: post-fix, all _COMMON_JUMP_RULES have too_high templates.
+    # Pre-fix had 8+ rules missing too_high; post-fix should be 0.
+    assert len(missing_too_high) == 0, (
+        f"After #558 fix, expected 0 rules missing 'too_high' template, "
+        f"got {len(missing_too_high)}: {missing_too_high}"
     )
 
 

@@ -54,6 +54,16 @@ _COMMON_JUMP_RULES = [
                 "Работай над силой отталкивания: приседания, прыжки на двух ногах, "
                 "упражнения на взрывную силу."
             ),
+            # #558: explicit too_high template. A high jump is usually OK
+            # (not a defect), but if it crosses an upper bound the skater
+            # may be over-rotating. Generic feedback acknowledges the high
+            # direction so the user isn't told to "monitor" something
+            # they did well.
+            "too_high": (
+                "Необычно высокий прыжок ({value:.2f} выше {target_max:.2f}). "
+                "Проверь время полёта и стабильность — слишком высокий прыжок "
+                "может указывать на избыточное отталкивание."
+            ),
             "default": "Следи за высотой прыжка.",
         },
     ),
@@ -65,6 +75,11 @@ _COMMON_JUMP_RULES = [
             "too_low": (
                 "Недостаточная высота прыжка относительно длины тела ({value:.2f} вместо {target_min:.2f}-{target_max:.2f}). "
                 "Работай над силой отталкивания: приседания, прыжки на двух ногах."
+            ),
+            # #558: too_high template.
+            "too_high": (
+                "Необычно высокий прыжок ({value:.2f} выше {target_max:.2f}). "
+                "Проверь технику — избыточная высота может снижать контроль вращения."
             ),
             "default": "Следи за высотой прыжка.",
         },
@@ -92,6 +107,13 @@ _COMMON_JUMP_RULES = [
                 "Приземляйся мягче, амортизируя сгибанием коленей. "
                 "Резкое торможение = плоское лезвие или зубец."
             ),
+            # #558: too_high means the skater barely decelerated — they're
+            # probably landing on a back-edge or gliding, which is also
+            # a stability issue (no real edge control).
+            "too_high": (
+                "Недостаточное торможение при приземлении (скорость CoM {value:.2f} выше {target_max:.2f}). "
+                "Возможно, приземление на заднее ребро — работай над контролем выезда."
+            ),
             "default": "Контролируй приземление.",
         },
     ),
@@ -103,6 +125,13 @@ _COMMON_JUMP_RULES = [
             "too_low": (
                 "Нестабильное приземление (smoothness {value:.2f}, целевой {target_min:.2f}-{target_max:.2f}). "
                 "Работай над балансом после выезда: удерживай центр тяжести над опорной ногой."
+            ),
+            # #558: too_high smoothness is unusual (smoothness is bounded
+            # 0-1). Acknowledge so the user knows the metric is detected
+            # as above the reference range, not "needs monitoring".
+            "too_high": (
+                "Аномально гладкое приземление ({value:.2f} выше {target_max:.2f}). "
+                "Проверь, не завышена ли метрика из-за плоской фазы — сравни с реальной видеозаписью."
             ),
             "default": "Улучшай стабильность после приземления.",
         },
@@ -131,6 +160,11 @@ _COMMON_JUMP_RULES = [
                 "Приземление слишком резкое — возможно, приземляешься на зубец конька. "
                 "Старайся касаться льда плавно, через ребро лезвия."
             ),
+            # #558: too_high = skater over-assisted with toe pick.
+            "too_high": (
+                "Слишком сильная помощь зубцом ({value:.2f} выше {target_max:.2f}). "
+                "Приземление на плоское лезвие снижает GOE — работай над плавным перекатом."
+            ),
             "default": "Контролируй качество приземления.",
         },
     ),
@@ -142,6 +176,12 @@ _COMMON_JUMP_RULES = [
             "too_low": (
                 "Жесткое приземление. Работай над амортизацией: сгибай колени и бедра, приземляйся мягко."
             ),
+            # #558: hard_landing scale is 0.0=very hard, 1.0=soft. A
+            # "too_high" value is GOOD — soft landing, perfect
+            # amortization. Acknowledge so the user gets positive
+            # feedback (currently they get a generic "improve softness"
+            # message that suggests something is wrong).
+            "too_high": "Отличное мягкое приземление! Амортизация идеальная.",
             "default": "Контролируй мягкость приземления.",
         },
     ),
@@ -153,6 +193,11 @@ _COMMON_JUMP_RULES = [
             "too_low": (
                 "Оценка качества элемента: {value:.1f}/10 (ниже {target_min:.1f}). "
                 "Работай над: высотой, группировкой, приземлением, торсом."
+            ),
+            # #558: too_high GOE score is GOOD (above max). Acknowledge.
+            "too_high": (
+                "Превосходное качество элемента: {value:.1f}/10 (выше {target_max:.1f}). "
+                "Отличная работа, продолжай в том же духе!"
             ),
             "default": "Улучшай общее качество элемента.",
         },
