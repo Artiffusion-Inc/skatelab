@@ -291,8 +291,8 @@ METRIC_REGISTRY: dict[str, MetricDef] = {
         ideal_range=(0, 0.05),
     ),
     # GOE-derived metrics
-    "estimated_score": MetricDef(
-        name="estimated_score",
+    "goe_score": MetricDef(
+        name="goe_score",
         label_ru="Оценка элемента (баллы)",
         unit="score",
         format=".2f",
