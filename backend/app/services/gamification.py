@@ -17,7 +17,11 @@ async def award_session_xp(db: AsyncSession, user_id: str, overall_score: float)
     level/skill-reward economy (L2=100 XP, gold skill reward=300 XP). Old code
     used int(score*10), a 0..1-scale formula that inflated XP 10x (#437).
     """
-    xp_earned = int(overall_score)
+    # #546: round() instead of int(). int(9.9) = 9 (truncates), but
+    # round(9.9) = 10. Users lose 0-1 XP per session on a 0-10 scale
+    # with decimal subscores. round() uses banker's rounding (half-to-even)
+    # which is the Python default and acceptable for XP awards.
+    xp_earned = round(overall_score)
     level = await add_xp(db, user_id, xp_earned)
     return {"xp_earned": xp_earned, "level": level}
 
