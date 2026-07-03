@@ -63,7 +63,13 @@ async def save_analysis_results(
 
         is_in_range = None
         if mdef and ref_value is not None and ref_max is not None:
-            is_in_range = ref_value <= m["value"] <= ref_max
+            # #498: ML emits rotation_discrepancy as a Python bool (True/False);
+            # the numeric range check would coerce True→1 and fail any (0,0)
+            # ideal_range, deflating overall_score for every detected
+            # discrepancy. Treat bool as not-numeric (skip from denominator).
+            value = m["value"]
+            if not isinstance(value, bool):
+                is_in_range = ref_value <= value <= ref_max
 
         # Check PR using batch-fetched best
         current_best = bests.get(m["name"])
