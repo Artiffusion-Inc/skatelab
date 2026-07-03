@@ -76,6 +76,20 @@ class ConnectionsController(Controller):
                 status_code=HTTP_409_CONFLICT,
                 detail="Connection already exists",
             )
+        # #549: bidirectional check. The Connection model has no
+        # bidirectional unique constraint, so a B→A ACTIVE connection
+        # would not be detected by get_active(from=A, to=B). Without
+        # this check, A and B could end up with TWO parallel coaching
+        # connections (one in each direction), doubling the visible
+        # sessions in metrics/trends for both users.
+        reverse_existing = await get_active_conn(
+            db, from_user_id=to_user.id, to_user_id=verified_user.id, connection_type=conn_type
+        )
+        if reverse_existing:
+            raise ClientException(
+                status_code=HTTP_409_CONFLICT,
+                detail="Connection already exists (in opposite direction)",
+            )
 
         conn = await create_conn(
             db,
