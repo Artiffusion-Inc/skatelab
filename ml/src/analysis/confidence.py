@@ -48,6 +48,16 @@ def compute_phase_confidence(
         + coverage_factor * 0.10
     )
 
+    # #561: explicit NaN guard. Python's min(1.0, NaN) returns 1.0
+    # (NaN comparisons are False, so min defaults to the first arg),
+    # then max(0.0, 1.0) returns 1.0. A phase with completely
+    # missing/NaN upstream confidence was reported as 100% confident.
+    # If confidence is NaN, the phase detection is unreliable —
+    # return 0.0.
+    import math
+
+    if math.isnan(confidence):
+        return 0.0
     return max(0.0, min(1.0, confidence))
 
 
