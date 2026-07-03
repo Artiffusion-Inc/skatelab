@@ -257,6 +257,30 @@ class Sports2DTracker:
                 dists = np.sqrt(np.nansum(d**2, axis=3))
                 lost_matrix = np.nanmean(dists, axis=2)
                 lost_matrix = np.nan_to_num(lost_matrix, nan=1e10, posinf=1e10)
+                # #491: mask all-NaN-person pairings to inf. Pre-fix
+                # np.nansum on an all-NaN slice returns 0.0 (empty-slice
+                # artifact), not NaN — so an all-NaN person matched the
+                # lost track at distance 0.0 (perfect match) and stole
+                # that track's id. The fix mirrors the main matrix's
+                # NaN guard: a fully-NaN person is untrustworthy, push
+                # their cost to inf so they're never assigned a lost id.
+                # Main matrix (line 170) guards `np.nan_to_num` on a
+                # centroid distance — equivalent pattern.
+                all_nan_lost = np.isnan(lost_kps).all(axis=(1, 2))
+                all_nan_unassoc = np.isnan(unassoc_kps).all(axis=(1, 2))
+                # #491: mask all-NaN pairings to a large finite cost
+                # (>max_dist 1e10 threshold but <inf to keep assignment
+                # feasible). Pre-fix np.nansum on an all-NaN slice
+                # returns 0.0 (empty-slice artifact), not NaN — so an
+                # all-NaN person matched the lost track at distance
+                # 0.0 and stole that track's id. An all-NaN keypoint set
+                # is untrustworthy — push their cost above the assignment
+                # threshold so they're never assigned a lost id. Use
+                # 1e15 (well above any sane max_dist) to keep the cost
+                # matrix finite for the Hungarian algorithm.
+                if all_nan_lost.any() or all_nan_unassoc.any():
+                    mask = all_nan_lost[:, np.newaxis] | all_nan_unassoc[np.newaxis, :]
+                    lost_matrix[mask] = 1e15
 
                 lost_ids_idx, unassoc_ids_idx = linear_sum_assignment(lost_matrix)
 
