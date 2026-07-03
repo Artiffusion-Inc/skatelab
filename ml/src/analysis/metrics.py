@@ -373,7 +373,11 @@ class BiomechanicsAnalyzer:
         # Cross-check with yaw delta method (requires 3D poses)
         rotation_discrepancy = False
         if poses_3d is not None and poses_3d.shape[-1] == 3:
-            flight_indices = np.arange(phases.takeoff, phases.landing)
+            # #554: inclusive-end slice to match flight height at 797/1515.
+            # np.arange(takeoff, landing) drops the landing frame — rotation
+            # count ~1 frame short, off by ~1-2° on a triple (crosses the
+            # 0.25-revolution GOE threshold).
+            flight_indices = np.arange(phases.takeoff, phases.landing + 1)
             yaw_total, yaw_count, clamped = self.compute_rotation_yaw_delta(
                 poses_3d, flight_indices, fps
             )

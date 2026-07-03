@@ -35,11 +35,13 @@ def test_yaw_delta_exclusive_end_slice():
     metrics_path = Path(__file__).resolve().parents[2] / "src" / "analysis" / "metrics.py"
     source = metrics_path.read_text()
 
-    # The yaw delta path uses np.arange(takeoff, landing) — exclusive end
-    # This drops the landing frame, making rotation count ~1 frame short
-    # compared to flight height (takeoff:landing+1) which is inclusive end.
-    assert "np.arange(phases.takeoff, phases.landing)" in source, (
-        "Expected exclusive-end slice in yaw delta path"
+    # #554: yaw delta path must use inclusive-end slice to match the rest of
+    # the codebase (flight height at 797/1515). np.arange(takeoff, landing)
+    # drops the landing frame — rotation count ~1 frame short.
+    # After fix: arange upper bound is `phases.landing + 1` (inclusive).
+    assert "np.arange(phases.takeoff, phases.landing + 1)" in source, (
+        "Yaw delta path must use inclusive-end slice (phases.landing + 1) "
+        "to match flight height and not drop the landing frame."
     )
 
     # The flight height path uses inclusive end (landing+1)
@@ -47,13 +49,16 @@ def test_yaw_delta_exclusive_end_slice():
         "Expected inclusive-end slice in flight height path"
     )
 
-    # The inconsistency IS the bug: yaw uses exclusive, height uses inclusive
-    # for the same flight window. Count both patterns to document.
+    # No exclusive-end slices should remain in the flight window range.
     import re
 
-    exclusive = len(re.findall(r"phases\.takeoff.*phases\.landing\)", source))
+    exclusive = len(re.findall(r"np\.arange\(phases\.takeoff,\s*phases\.landing\)", source))
+    assert exclusive == 0, (
+        f"Exclusive-end np.arange(phases.takeoff, phases.landing) still present "
+        f"({exclusive} occurrence(s)) — drops the landing frame."
+    )
+
     inclusive = len(re.findall(r"phases\.landing \+ 1", source))
-    assert exclusive >= 1, "Exclusive-end pattern exists"
     assert inclusive >= 3, "Inclusive-end pattern exists (used by height, phases, etc.)"
 
 
