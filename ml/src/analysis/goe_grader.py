@@ -186,6 +186,11 @@ class GOEGrader:
         )
 
     def _adjusted_base_value(self, clean_bv: float, modifier: str) -> float:
+        # #560: explicit BV multipliers per ISU rules.
+        # Pre-fix: <<, e, ! all returned clean_bv unchanged — downgraded
+        # jumps and edge errors got full base value, inflating estimated_score.
+        # Post-fix: << and e (serious technical errors) get 0.7; ! (less
+        # serious unclear edge) gets 0.85.
         match modifier:
             case "":
                 return clean_bv
@@ -193,8 +198,12 @@ class GOEGrader:
                 return clean_bv
             case "<":
                 return clean_bv * 0.80
-            case "<<" | "e" | "!":
-                return clean_bv  # Downgraded/e/! need external BV lookup
+            case "<<":
+                return clean_bv * 0.70
+            case "e":
+                return clean_bv * 0.70
+            case "!":
+                return clean_bv * 0.85
         return clean_bv
 
     def _negative_weight(self, negatives: list[str], mv: dict[str, float]) -> int:
