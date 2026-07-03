@@ -36,8 +36,19 @@ class Recommender:
         """
         recommendations: list[tuple[int, str]] = []
 
+        # #559: validate element_type against registered rules. A typo
+        # in element_type (e.g. "waltz" instead of "waltz_jump") used
+        # to silently return [] — indistinguishable from "no problems
+        # detected". The end user would see an empty recommendations
+        # list and assume the element was perfect. Raise ValueError
+        # with a clear message listing the registered types.
+        if element_type not in self._rules:
+            raise ValueError(
+                f"Unknown element_type: {element_type!r}. Registered: {sorted(self._rules.keys())}"
+            )
+
         # Get rules for element type
-        element_rules = self._rules.get(element_type, [])
+        element_rules = self._rules[element_type]
 
         # Check each metric against rules
         for metric in metrics:

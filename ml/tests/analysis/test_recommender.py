@@ -161,7 +161,16 @@ class TestRecommender:
             assert airtime_idx < height_idx
 
     def test_recommend_unknown_element(self):
-        """Should handle unknown element type gracefully."""
+        """Unknown element_type must raise ValueError (not silently return []).
+
+        #559: a typo in element_type (e.g. "waltz" instead of "waltz_jump")
+        used to silently return [] — indistinguishable from "no problems
+        detected". The end user would see an empty recommendations list
+        and assume the element was perfect. The recommender now raises
+        ValueError with a clear message listing the registered types.
+        """
+        import pytest
+
         recommender = Recommender()
 
         metrics = [
@@ -174,11 +183,9 @@ class TestRecommender:
             ),
         ]
 
-        # Should not crash
-        recommendations = recommender.recommend(metrics, "unknown_element")
-
-        # May be empty if no rules match
-        assert isinstance(recommendations, list)
+        # #559: must raise ValueError, not silently return [].
+        with pytest.raises(ValueError, match="Unknown element_type"):
+            recommender.recommend(metrics, "unknown_element")
 
     def test_recommend_multiple_errors(self):
         """Should generate recommendations for multiple errors."""
