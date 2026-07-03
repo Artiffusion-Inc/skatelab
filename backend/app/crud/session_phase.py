@@ -20,6 +20,20 @@ async def create(
     element_type: str | None = None,
     fallback_used: bool = False,
 ) -> SessionPhase:
+    # #548: upsert guard. The worker can re-process a session (e.g.
+    # after partial failure + retry). session_id has unique=True, so a
+    # second db.add() would hit the unique constraint → IntegrityError
+    # → unhandled 500. Check for existing row first; update it if
+    # present, otherwise create.
+    existing = await get_by_session_id(db, session_id)
+    if existing is not None:
+        existing.phases = [p.model_dump() if hasattr(p, "model_dump") else p for p in phases]
+        existing.overall_confidence = overall_confidence
+        existing.element_type = element_type
+        existing.fallback_used = fallback_used
+        await db.flush()
+        await db.refresh(existing)
+        return existing
     phase = SessionPhase(
         session_id=session_id,
         phases=[p.model_dump() if hasattr(p, "model_dump") else p for p in phases],

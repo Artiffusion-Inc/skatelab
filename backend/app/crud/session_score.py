@@ -20,6 +20,20 @@ async def create(
     data_quality: str = "good",
     skeleton_reliability: str = "reliable",
 ) -> SessionScore:
+    # #548: upsert guard. The worker can re-process a session (e.g.
+    # after partial failure + retry). session_id has unique=True, so a
+    # second db.add() would hit the unique constraint → IntegrityError
+    # → unhandled 500. Check for existing row first; update it if
+    # present, otherwise create.
+    existing = await get_by_session_id(db, session_id)
+    if existing is not None:
+        existing.subscores = [s.model_dump() if hasattr(s, "model_dump") else s for s in subscores]
+        existing.overall = overall
+        existing.data_quality = data_quality
+        existing.skeleton_reliability = skeleton_reliability
+        await db.flush()
+        await db.refresh(existing)
+        return existing
     score = SessionScore(
         session_id=session_id,
         subscores=[s.model_dump() if hasattr(s, "model_dump") else s for s in subscores],
