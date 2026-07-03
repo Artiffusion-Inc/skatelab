@@ -56,3 +56,15 @@ def hash_token(token: str) -> str:
 def create_password_reset_token() -> str:
     """Create a random opaque password-reset token (hex-encoded 32 bytes)."""
     return secrets.token_hex(32)
+
+
+def create_verification_token() -> str:
+    """Create a random opaque email-verification token (hex-encoded 32 bytes).
+
+    Separate from create_password_reset_token() so the two generators can
+    diverge in the future (e.g., add a 'vr_' prefix for verification vs
+    'pr_' for password reset). #551: previously the verification endpoint
+    reused create_password_reset_token(), a semantic mismatch that would
+    break silently if the generators diverged.
+    """
+    return secrets.token_hex(32)

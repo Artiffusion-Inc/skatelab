@@ -19,6 +19,7 @@ from app.auth.security import (
     create_access_token,
     create_password_reset_token,
     create_refresh_token,
+    create_verification_token,
     hash_password,
     hash_token,
     verify_password,
@@ -403,7 +404,10 @@ class AuthController(Controller):
         # leaked old verification link cannot be used after a new one is issued (#342).
         await invalidate_unused_verification(db, user.id)
 
-        raw_token = create_password_reset_token()
+        # #551: use a dedicated verification-token generator (not the
+        # password-reset one). Same shape today (secrets.token_hex(32)),
+        # but separate functions let the two diverge later (e.g. prefixes).
+        raw_token = create_verification_token()
         token_hash = hash_token(raw_token)
         await create_verification_token_crud(
             db,
