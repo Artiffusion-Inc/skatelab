@@ -60,6 +60,13 @@ export function VideoWithSkeleton({
   const handleTimeUpdate = () => {
     if (!videoRef.current) return
     const video = videoRef.current
+    // #524: mirror the duration guard from the sync effect at :35. Without
+    // this, video.duration=0 (empty/broken source) → Infinity, and
+    // duration=NaN (timeupdate fires before loadedmetadata on some browsers)
+    // → NaN. setCurrentFrame(NaN|Infinity) corrupts the shared zustand
+    // analysis store, breaking ThreeJSkeletonViewer and FrameMetricsChart
+    // until the store is reset.
+    if (!video.duration || Number.isNaN(video.duration)) return
     const frame = Math.floor((video.currentTime / video.duration) * totalFrames)
     setCurrentFrame(frame)
   }
