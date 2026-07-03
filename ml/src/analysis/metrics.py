@@ -853,7 +853,13 @@ class BiomechanicsAnalyzer:
 
         # Extract post-landing frames (landing+1 to end)
         post_landing_start = phases.landing + 1
-        post_landing_poses = poses[post_landing_start : phases.end + 1]
+        # #556: cap at len(poses) — same pattern as compute_landing_smoothness
+        # at :959. Without the cap, phases.end + 1 can be >= len(poses),
+        # returning an empty array → np.mean / np.std over empty returns NaN
+        # silently with a RuntimeWarning. Score becomes NaN → propagates to
+        # overall score and UI.
+        post_landing_end = min(phases.end + 1, len(poses))
+        post_landing_poses = poses[post_landing_start:post_landing_end]
 
         # Compute knee angle series for left and right
         left_knee_angles = self.compute_knee_angle_series(post_landing_poses, side="left")
@@ -893,7 +899,13 @@ class BiomechanicsAnalyzer:
 
         # Extract post-landing frames (landing+1 to end)
         post_landing_start = phases.landing + 1
-        post_landing_poses = poses[post_landing_start : phases.end + 1]
+        # #556: cap at len(poses) — same pattern as compute_landing_smoothness
+        # at :959. Without the cap, phases.end + 1 can be >= len(poses),
+        # returning an empty array → np.mean / np.std over empty returns NaN
+        # silently with a RuntimeWarning. Score becomes NaN → propagates to
+        # overall score and UI.
+        post_landing_end = min(phases.end + 1, len(poses))
+        post_landing_poses = poses[post_landing_start:post_landing_end]
 
         # Compute trunk lean for post-landing frames
         trunk_lean = self.compute_trunk_lean(post_landing_poses)

@@ -112,18 +112,22 @@ def test_landing_stability_no_array_bounds_guard():
         "Expected array bounds guard in compute_landing_smoothness"
     )
 
-    # compute_landing_knee_stability does NOT have the guard
-    # Find the stability function's slice
+    # #556: compute_landing_knee_stability must also have the guard
+    # (same `min(phases.end + 1, len(poses))` pattern as smoothness).
     stability_start = source.find("def compute_landing_knee_stability")
     stability_end = source.find("def compute_landing_trunk_recovery")
     stability_body = source[stability_start:stability_end]
 
-    # It uses phases.end + 1 without capping
-    assert "phases.end + 1" in stability_body, "Expected exclusive-end slice in stability function"
-    assert (
-        "min(" not in stability_body
-        or "min(" in stability_body[: stability_body.find("phases.end")]
-    ), "Stability function should NOT cap the slice (that's the bug)"
+    # Post-fix: the stability function caps the slice via min() at the
+    # end index, mirroring compute_landing_smoothness.
+    assert "min(phases.end + 1, len(poses))" in stability_body, (
+        "Expected array bounds guard in compute_landing_knee_stability — "
+        "the function must cap `phases.end + 1` at `len(poses)` to avoid "
+        "empty-slice NaN on degenerate boundaries. Pre-fix: no cap → "
+        "post_landing_poses = poses[post_landing_start:phases.end + 1] "
+        "returns empty array if phases.end >= len(poses) → np.mean / "
+        "np.std over empty returns NaN silently with RuntimeWarning."
+    )
 
 
 def test_arm_position_math_is_correct():
