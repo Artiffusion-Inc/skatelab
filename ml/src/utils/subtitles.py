@@ -211,6 +211,15 @@ class SubtitleParser:
                     count = 2
                 elif "тройн" in text_lower:
                     count = 3
+                # #494: add a default branch for "одиночн" (single). The
+                # first 3 patterns (одиночн/двойн/тройн) have no capture
+                # group, so `match.group(1)` raises IndexError on the
+                # "одиночн" branch (where neither двойн nor тройн matches).
+                # Add an explicit "одиночн" branch BEFORE the match.group(1)
+                # fallback so the "single" case is handled symmetrically
+                # with двойн/тройн.
+                elif "одиночн" in text_lower:
+                    count = 1
                 elif match.group(1):
                     count = int(match.group(1))
                 break
