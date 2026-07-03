@@ -72,6 +72,16 @@ class ONNXPoseExtractor:
         n_frames = len(poses_2d)
         w = self.temporal_window
 
+        # #483: early-return for empty input. Without this, _infer_window
+        # calls np.concatenate([poses_2d, np.tile(poses_2d[-1:], (w,1,1))])
+        # which fails on empty poses_2d (np.tile of empty is empty, sizes
+        # 0 vs w don't match along the concat axis). The fix is at the
+        # boundary: return an empty (0, 17, 3) array. Downstream callers
+        # (pose_preparation, pipeline) already handle the empty-output
+        # case — see the empty-frame tolerance they document.
+        if n_frames == 0:
+            return np.zeros((0, 17, 3), dtype=np.float32)
+
         if n_frames <= w:
             return self._infer_window(poses_2d)[:n_frames]
 
