@@ -87,13 +87,25 @@ async def count_by_user(
 
 
 async def update(db: AsyncSession, session: Session, **kwargs: Any) -> Session:
+    # #547: distinguish "field not provided" from "field explicitly None".
+    # Pre-fix: `if value is not None: setattr(...)` skipped None values,
+    # making it impossible to intentionally null a field (e.g. clear
+    # `error_message` after resolving an error). Post-fix: check for the
+    # sentinel _UNSET, then set the attribute (including None).
     for key, value in kwargs.items():
-        if value is not None:
-            setattr(session, key, value)
+        if value is _UNSET:
+            continue
+        setattr(session, key, value)
     db.add(session)
     await db.flush()
     await db.refresh(session, attribute_names=["metrics"])
     return session
+
+
+# #547: sentinel for "field not provided" in update() — distinguishes from
+# "field explicitly None". Use `update(session, error_message=_UNSET)` to
+# skip the field, `update(session, error_message=None)` to null it.
+_UNSET = object()
 
 
 async def soft_delete(db: AsyncSession, session: Session) -> None:

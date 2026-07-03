@@ -34,10 +34,19 @@ async def create(db: AsyncSession, *, email: str, hashed_password: str, **kwargs
 
 
 async def update(db: AsyncSession, user: User, **kwargs: Any) -> User:
-    """Update user fields."""
+    """Update user fields.
+
+    #547: distinguish "field not provided" (sentinel) from "field
+    explicitly None" (null). Pre-fix `if value is not None: setattr(...)`
+    skipped None values, making it impossible to intentionally null a
+    field. Post-fix: callers pass `_UNSET` to skip, or `None` to null.
+    """
+    from app.crud.session import _UNSET  # same sentinel, shared
+
     for key, value in kwargs.items():
-        if value is not None:
-            setattr(user, key, value)
+        if value is _UNSET:
+            continue
+        setattr(user, key, value)
     db.add(user)
     await db.flush()
     await db.refresh(user)
