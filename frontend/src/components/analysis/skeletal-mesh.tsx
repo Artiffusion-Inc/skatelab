@@ -94,6 +94,11 @@ function getJointColor(
   jointIndex: number,
   frameMetrics: FrameMetrics | null,
   currentFrame: number,
+  // #527: pass sampled frames array to resolve absolute frame → sampled
+  // index via indexOf (matches the pattern at line 134). Math.min clamp
+  // was freezing colors on the last sampled entry for the entire
+  // playback after ~1s.
+  sampledFrames: number[] | null = null,
 ): number {
   if (!frameMetrics) return 0xc8c8c8 // Default gray
 
@@ -104,13 +109,27 @@ function getJointColor(
   else if (jointIndex <= 6)
     metric = frameMetrics.knee_angles_l // Left leg
   else if (jointIndex >= 11 && jointIndex <= 13)
-    metric = frameMetrics.hip_angles_r // Left arm
-  else if (jointIndex >= 14) metric = frameMetrics.hip_angles_l // Right arm
+    // #527: arm joints share the L/R-suffix with the matching side comment.
+    // Was inverted: left arm read hip_angles_r (right hip), right arm read
+    // hip_angles_l (left hip). Note: arms ideally need arm-angle metrics;
+    // FrameMetrics has none, so hip flexion is a stand-in. L/R is the
+    // minimum correction — see issue for future arm-metric work.
+    metric = frameMetrics.hip_angles_l // Left arm
+  else if (jointIndex >= 14) metric = frameMetrics.hip_angles_r // Right arm
 
   if (!metric || metric.length === 0) return 0xc8c8c8
 
-  // Find closest frame index
-  const frameIdx = Math.min(currentFrame, metric.length - 1)
+  // #527: resolve absolute frame → sampled index via indexOf (mirrors
+  // line 134). Math.min(currentFrame, metric.length - 1) was pinning
+  // every frame above ~29 to the last sampled entry, freezing joint
+  // colors for the entire playback after ~1s.
+  let frameIdx = 0
+  if (sampledFrames) {
+    const idx = sampledFrames.indexOf(currentFrame)
+    if (idx !== -1) frameIdx = idx
+  } else {
+    frameIdx = Math.min(currentFrame, metric.length - 1)
+  }
   const angle = metric[frameIdx]
 
   if (angle === null || angle === undefined) return 0xc8c8c8
@@ -158,7 +177,7 @@ export function SkeletalMesh({
       jointPositions.push({
         index: i,
         position: [(x - 0.5) * scale, (y - 0.5) * scale, 0],
-        color: getJointColor(i, frameMetrics, currentFrame),
+        color: getJointColor(i, frameMetrics, currentFrame, poseData.frames),
       })
     }
 
