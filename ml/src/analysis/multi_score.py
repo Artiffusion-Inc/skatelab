@@ -30,7 +30,8 @@ def compute_subscores(metrics: dict[str, float]) -> MultiDimensionalScore:
     rotation = _normalize(
         min(metrics.get("rotation_speed", 0) / 720, 1.0) * 0.4
         + min(metrics.get("total_rotation_deg", 0) / 1620, 1.0) * 0.3
-        + (1 - metrics.get("under_rotation_deg", 0) / 90) * 0.3
+        # #555: under_rotation_deg is negative on over-rotation (e.g. measured 1100deg vs target 1080deg). Sign-sensitive formula (1 - x/90) REWARDS over-rotation (1 - -20/90 = 1.222 -> 0.367 > nominal 0.3). abs() — both under/over-rotation penalised equally (judges deduct for both).
+        + (1 - abs(metrics.get("under_rotation_deg", 0)) / 90) * 0.3
     )
 
     # arm_coordination: arm position + symmetry
