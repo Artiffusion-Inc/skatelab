@@ -37,7 +37,9 @@ async def create(
         await db.rollback()
         existing = await get_by_session_id(db, session_id)
         if existing is not None:
-            existing.phases = [p.model_dump() if hasattr(p, "model_dump") else p for p in phases]
+            existing.phases = [  # type: ignore[assignment]
+                p.model_dump() if hasattr(p, "model_dump") else p for p in phases
+            ]
             existing.overall_confidence = overall_confidence
             existing.element_type = element_type
             existing.fallback_used = fallback_used
