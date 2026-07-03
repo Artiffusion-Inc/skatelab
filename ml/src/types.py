@@ -492,6 +492,11 @@ class ElementPhase:
         """Calculate airtime in seconds (inclusive landing → +1 frame)."""
         if self.takeoff == 0 or self.landing == 0:
             return 0.0
+        # #501: fps=0 guarded (corrupt video, cv2.CAP_PROP_FPS=0) — 4th
+        # intra-types.py sibling of #499/#505. Mirrors VideoMeta.duration_sec
+        # guard (types.py:~450) and the count not span (see #518).
+        if fps <= 0:
+            return 0.0
         # #518: count, not span (see airtime_frames).
         return (self.landing - self.takeoff + 1) / fps
 
