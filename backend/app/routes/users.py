@@ -59,14 +59,23 @@ class UsersController(Controller):
         user: CurrentUser,
         db: DbDep,
     ) -> UserResponse:
-        """Update current user preferences."""
+        """Update current user preferences.
+
+        #547: pass _UNSET for fields the client didn't send (None), so the
+        #update() sentinel pattern skips them. Explicit None values (rare
+        in this endpoint since language/timezone/theme/angular_unit are
+        NOT NULL) would null the field; callers that want to null a
+        nullable field pass None explicitly.
+        """
+        from app.crud.session import _UNSET
+
         updated = await update(
             db,
             user,
-            language=data.language,
-            timezone=data.timezone,
-            theme=data.theme,
-            angular_unit=data.angular_unit,
+            language=data.language if data.language is not None else _UNSET,
+            timezone=data.timezone if data.timezone is not None else _UNSET,
+            theme=data.theme if data.theme is not None else _UNSET,
+            angular_unit=data.angular_unit if data.angular_unit is not None else _UNSET,
         )
         return UserResponse.model_validate(updated)
 
