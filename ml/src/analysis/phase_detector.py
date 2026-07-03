@@ -293,13 +293,24 @@ class PhaseDetector:
             )
 
         # Combine factors
-        confidence = min(
-            1.0,
-            (
-                min(1.0, prominence / 0.05) * 0.5  # Peak prominence (max 0.05)
-                + velocity_confidence
-            ),
-        )
+        # #562: explicit NaN guard. prominence is NaN if flight_com had
+        # NaN (gap-filled keypoint during flight phase). Python's
+        # builtin min(1.0, NaN) returns 1.0, silently inflating
+        # confidence for a phase with missing data. If prominence is
+        # NaN, the phase detection is unreliable — return 0.0 confidence
+        # instead. Same root cause as #561 confidence.py:51.
+        import math as _math
+
+        if _math.isnan(prominence):
+            confidence = 0.0
+        else:
+            confidence = min(
+                1.0,
+                (
+                    min(1.0, prominence / 0.05) * 0.5  # Peak prominence (max 0.05)
+                    + velocity_confidence
+                ),
+            )
 
         rotations = _compute_flight_rotations(poses, int(phases.takeoff), int(phases.landing))
         return PhaseDetectionResult(
