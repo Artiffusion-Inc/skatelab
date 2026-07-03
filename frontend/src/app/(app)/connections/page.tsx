@@ -41,6 +41,27 @@ export default function ConnectionsPage() {
     }
   }
 
+  // #496: accept/end connection handlers — same try/catch + toast.error
+  // pattern as handleInvite. Pre-fix: bare `mutateAsync` calls rejected
+  // on API failure → unhandled promise rejection + no user-visible
+  // feedback. Post-fix: same pattern as handleInvite for consistency
+  // (the user sees a toast on every error path).
+  const handleAccept = async (connId: string) => {
+    try {
+      await acceptConn.mutateAsync(connId)
+    } catch {
+      toast.error(t("inviteSendError"))
+    }
+  }
+
+  const handleEnd = async (connId: string) => {
+    try {
+      await endConn.mutateAsync(connId)
+    } catch {
+      toast.error(t("inviteSendError"))
+    }
+  }
+
   if (isFirstLoad)
     return (
       <div className="mx-auto max-w-2xl sm:max-w-3xl">
@@ -109,7 +130,7 @@ export default function ConnectionsPage() {
               <span className="text-sm truncate mr-2">{r.from_user_name || r.from_user_id}</span>
               <button
                 type="button"
-                onClick={() => acceptConn.mutateAsync(r.id)}
+                onClick={() => handleAccept(r.id)}
                 className="shrink-0 rounded-lg bg-primary px-3 py-1.5 text-xs text-primary-foreground"
               >
                 {tc("accept")}
@@ -130,7 +151,7 @@ export default function ConnectionsPage() {
               <span className="text-sm truncate mr-2">{r.to_user_name || r.to_user_id}</span>
               <button
                 type="button"
-                onClick={() => endConn.mutateAsync(r.id)}
+                onClick={() => handleEnd(r.id)}
                 className="shrink-0 text-xs text-ink-mute hover:text-destructive"
               >
                 {tc("endConnection")}
