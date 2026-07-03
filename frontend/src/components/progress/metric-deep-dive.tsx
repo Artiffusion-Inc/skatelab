@@ -4,6 +4,7 @@ import Link from "next/link"
 import { useState } from "react"
 import { ArrowLeft, Trophy } from "lucide-react"
 import { useTranslations } from "@/i18n"
+import { parseFormatDecimals } from "@/lib/format"
 import { useMetricRegistry, useTrend, useDiagnostics, usePRs } from "@/lib/api/metrics"
 import { TrendChart } from "@/components/progress/trend-chart"
 import { PeriodSelector } from "@/components/progress/period-selector"
@@ -66,7 +67,7 @@ export function MetricDeepDive({ elementId, metricName }: MetricDeepDiveProps) {
         <h2 className="text-lg font-semibold">{label}</h2>
         {trendQuery.data && trendQuery.data.data_points.length > 0 && (
           <p className="text-2xl font-bold tabular-nums">
-            {latestValue.toFixed(metricDef?.format === "pct" ? 1 : 3)}
+            {latestValue.toFixed(parseFormatDecimals(metricDef?.format))}
             {unit && <span className="ml-1 text-sm font-normal text-muted-foreground">{unit}</span>}
           </p>
         )}
@@ -77,7 +78,7 @@ export function MetricDeepDive({ elementId, metricName }: MetricDeepDiveProps) {
 
       {/* Trend chart */}
       {trendQuery.data && trendQuery.data.data_points.length > 0 && (
-        <TrendChart data={trendQuery.data as TrendResponse} />
+        <TrendChart data={trendQuery.data as TrendResponse} format={metricDef?.format} />
       )}
 
       {/* PR section */}
@@ -87,7 +88,7 @@ export function MetricDeepDive({ elementId, metricName }: MetricDeepDiveProps) {
           <div>
             <p className="text-xs text-muted-foreground">{tp("personalRecord")}</p>
             <p className="text-sm font-semibold tabular-nums">
-              {pr.value.toFixed(metricDef?.format === "pct" ? 1 : 3)}
+              {pr.value.toFixed(parseFormatDecimals(metricDef?.format))}
               {unit && (
                 <span className="ml-0.5 text-xs font-normal text-muted-foreground">{unit}</span>
               )}

@@ -57,6 +57,11 @@ export function ElementDetail({ elementId, elementName, findings }: ElementDetai
       isPr: !!pr,
       isWarning,
       trend: trendForMetric,
+      // #495: thread the backend format-spec to MetricCard so the
+      // shared parseFormatDecimals helper derives the right decimal
+      // count. Pre-fix MetricCard ignored format and used
+      // direction-based decimals.
+      format: def.format,
     }
   })
 
@@ -112,10 +117,10 @@ export function ElementDetail({ elementId, elementName, findings }: ElementDetai
               label={card.label}
               value={card.value}
               unit={card.unit}
-              direction={card.direction}
               trend={card.trend}
               isPr={card.isPr}
               isWarning={card.isWarning}
+              format={card.format}
               onClick={() => {
                 router.push(`/progress?element=${elementId}&metric=${card.name}`)
               }}
