@@ -52,6 +52,16 @@ class Recommender:
 
         # Check each metric against rules
         for metric in metrics:
+            # #557: skip non-finite metric values. _is_bad(NaN, range) returns
+            # True (NaN comparisons fail), the rule would fire, and
+            # template.format(value=NaN) renders 'nan' silently in Russian
+            # text on 3.11/3.12 or raises ValueError on 3.13+. We can't
+            # tell if the metric is good or bad with NaN, so no advice is
+            # actionable — skip the metric entirely.
+            import math
+
+            if not math.isfinite(metric.value):
+                continue
             for rule in element_rules:
                 if rule.metric_name != metric.name:
                     continue
