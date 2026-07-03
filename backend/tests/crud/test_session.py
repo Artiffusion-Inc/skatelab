@@ -179,21 +179,21 @@ async def test_update_session_with_metrics(db_session):
 
 
 async def test_update_session_ignores_none(db_session):
-    from app.crud.session import _UNSET
+    from app.crud.session import UNSET
 
     _make_user(db_session)
     await db_session.flush()
 
     session = await create(db_session, user_id="user-1", element_type="axel", status="uploading")
-    # #547: passing _UNSET skips the field; passing None sets it to NULL.
-    updated = await update(db_session, session, status=_UNSET, overall_score=7.0)
-    # status should remain unchanged because _UNSET was passed
+    # #547: passing UNSET skips the field; passing None sets it to NULL.
+    updated = await update(db_session, session, status=UNSET, overall_score=7.0)
+    # status should remain unchanged because UNSET was passed
     assert updated.status == "uploading"
     assert updated.overall_score == 7.0
 
 
 async def test_update_session_can_null_field(db_session):
-    from app.crud.session import _UNSET
+    from app.crud.session import UNSET
 
     _make_user(db_session)
     await db_session.flush()

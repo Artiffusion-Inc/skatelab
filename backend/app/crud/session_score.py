@@ -44,7 +44,7 @@ async def create(
         await db.rollback()
         existing = await get_by_session_id(db, session_id)
         if existing is not None:
-            existing.subscores = [
+            existing.subscores = [  # type: ignore[assignment]
                 s.model_dump() if hasattr(s, "model_dump") else s for s in subscores
             ]
             existing.overall = overall
