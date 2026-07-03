@@ -23,7 +23,14 @@ def compute_subscores(metrics: dict[str, float]) -> MultiDimensionalScore:
     takeoff = _normalize(
         metrics.get("airtime", 0) / 0.7 * 0.4
         + metrics.get("relative_jump_height", 0) / 1.0 * 0.4
-        + (1 - abs(metrics.get("approach_consistency", 0)) / 90) * 0.2
+        # #500: align with ML emit key. metrics.py:348 emits
+        # `approach_direction_change` (the angle in degrees), not
+        # `approach_consistency`. The old name was a typo in the
+        # consumer; the metrics dict never contained it, so the term
+        # was always (1 - abs(0)/90) * 0.2 = 0.2 — a constant bonus
+        # for every jump regardless of approach variability. Now
+        # takeoff_power responds to approach direction.
+        + (1 - abs(metrics.get("approach_direction_change", 0)) / 90) * 0.2
     )
 
     # rotation_axis — combines rotation speed, total rotation, and under-rotation
