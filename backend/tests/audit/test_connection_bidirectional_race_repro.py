@@ -28,7 +28,9 @@ def test_invite_route_checks_reverse_direction():
     """
     import importlib.util
 
-    spec = importlib.util.spec_from_file_location("connections_mod", "app/routes/connections.py")
+    spec = importlib.util.spec_from_file_location(
+        "connections_mod", "backend/app/routes/connections.py"
+    )
     connections_module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(connections_module)
 

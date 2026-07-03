@@ -1,6 +1,7 @@
 """Session phase CRUD operations."""
 
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.session_phase import SessionPhase
@@ -20,6 +21,8 @@ async def create(
     element_type: str | None = None,
     fallback_used: bool = False,
 ) -> SessionPhase:
+    # #548: upsert via try/except IntegrityError. See session_score.py
+    # for the same fix and rationale.
     phase = SessionPhase(
         session_id=session_id,
         phases=[p.model_dump() if hasattr(p, "model_dump") else p for p in phases],
@@ -28,6 +31,19 @@ async def create(
         fallback_used=fallback_used,
     )
     db.add(phase)
-    await db.flush()
+    try:
+        await db.flush()
+    except IntegrityError:
+        await db.rollback()
+        existing = await get_by_session_id(db, session_id)
+        if existing is not None:
+            existing.phases = [p.model_dump() if hasattr(p, "model_dump") else p for p in phases]
+            existing.overall_confidence = overall_confidence
+            existing.element_type = element_type
+            existing.fallback_used = fallback_used
+            await db.flush()
+            await db.refresh(existing)
+            return existing
+        raise
     await db.refresh(phase)
     return phase
