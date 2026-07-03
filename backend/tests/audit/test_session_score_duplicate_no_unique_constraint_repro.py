@@ -43,36 +43,42 @@ def test_session_phase_unique_constraint_exists():
 def test_session_score_create_no_upsert_guard():
     """Verify session_score create() has upsert guard.
 
-    #548 fix: create() now checks get_by_session_id first and updates
-    existing rows instead of failing on the unique constraint.
+    #548 fix: create() now wraps db.flush() in try/except IntegrityError.
+    On integrity error, fetch existing row and update in place. This
+    pattern is compatible with mocked test sessions (test_worker_tasks
+    uses AsyncMock db) — the upsert path triggers only on a real
+    IntegrityError, which AsyncMock doesn't raise by default.
     """
     import inspect
 
     from app.crud.session_score import create
 
     source = inspect.getsource(create)
-    # Post-fix: create() calls get_by_session_id at the start of the
-    # function to detect existing rows and update them instead of
-    # failing on the unique constraint.
-    assert "get_by_session_id" in source, (
-        "session_score.create() must check for existing row first "
-        "(upsert guard) to avoid IntegrityError on re-process."
+    # Post-fix: try/except IntegrityError around db.flush() with
+    # rollback + update-existing fallback.
+    assert "IntegrityError" in source, (
+        "session_score.create() must catch IntegrityError on db.flush() "
+        "and update the existing row instead of failing the request."
+    )
+    assert "rollback" in source, (
+        "session_score.create() must rollback the failed insert before fetching the existing row."
     )
 
 
 def test_session_phase_create_no_upsert_guard():
     """Verify session_phase create() has upsert guard.
 
-    #548 fix: same as session_score — check existing first, update
-    if present, otherwise create.
+    #548 fix: same IntegrityError pattern as session_score.
     """
     import inspect
 
     from app.crud.session_phase import create
 
     source = inspect.getsource(create)
-    # Post-fix: create() calls get_by_session_id at the start.
-    assert "get_by_session_id" in source, (
-        "session_phase.create() must check for existing row first "
-        "(upsert guard) to avoid IntegrityError on re-process."
+    assert "IntegrityError" in source, (
+        "session_phase.create() must catch IntegrityError on db.flush() "
+        "and update the existing row instead of failing the request."
+    )
+    assert "rollback" in source, (
+        "session_phase.create() must rollback the failed insert before fetching the existing row."
     )
