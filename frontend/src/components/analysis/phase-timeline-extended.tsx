@@ -34,6 +34,11 @@ export function PhaseTimelineExtended({ totalFrames, result }: PhaseTimelineExte
   )
 
   if (!result?.phases || result.phases.length === 0) return null
+  // #484: guard totalFrames=0 to avoid divide-by-zero (NaN/Infinity in
+  // CSS styles + negative frame seek on ArrowRight). Reachable when
+  // pose_data.frames is an empty array (worker sample_poses gets
+  // n_frames=0, ?? 120 in page.tsx:389 doesn't catch empty array).
+  if (!totalFrames) return null
 
   const percentage = (currentFrame / totalFrames) * 100
 
@@ -47,7 +52,9 @@ export function PhaseTimelineExtended({ totalFrames, result }: PhaseTimelineExte
           setCurrentFrame(Math.max(0, currentFrame - 1))
         } else if (e.key === "ArrowRight") {
           e.preventDefault()
-          setCurrentFrame(Math.min(totalFrames - 1, currentFrame + 1))
+          // #484: Math.max(0, ...) prevents negative frame on totalFrames=0
+          // (Math.min(-1, 1) = -1 → video desyncs to frame -1).
+          setCurrentFrame(Math.max(0, Math.min(totalFrames - 1, currentFrame + 1)))
         }
       }}
       role="slider"
