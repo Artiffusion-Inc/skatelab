@@ -231,7 +231,13 @@ class PhaseDetector:
         # `inf < 0.3` is False, so the plausibility gate accepts an impossible
         # infinite-airtime segment. Treat fps<=0 as a degenerate 0.0 airtime
         # (fails the < 0.3 gate → rejected). #499/#501-class sibling.
-        airtime = (landing_idx - takeoff_idx) / fps if fps > 0 else 0.0
+        # #520: inclusive-end frame index count, not span. takeoff_idx /
+        # landing_idx are INCLUSIVE concrete frame indices (per
+        # _scan_to_baseline docstring + physics_engine.py:631 `+ 1`
+        # slice convention). 9 inclusive flight frames = (28 - 20 + 1) / 30
+        # = 0.300 s, which passes the 0.3 gate. Pre-fix span (28 - 20) / 30
+        # = 0.267 s fails the gate → valid jump rejected.
+        airtime = (landing_idx - takeoff_idx + 1) / fps if fps > 0 else 0.0
 
         # Minimum airtime validation (0.3 seconds)
         if airtime < 0.3:
@@ -467,7 +473,13 @@ class PhaseDetector:
                 # `inf < 0.3` is False, so the plausibility gate accepts an impossible
                 # infinite-airtime segment. Treat fps<=0 as a degenerate 0.0 airtime
                 # (fails the < 0.3 gate → rejected). #499/#501-class sibling.
-                airtime = (landing_idx - takeoff_idx) / fps if fps > 0 else 0.0
+                # #520: inclusive-end frame index count, not span. takeoff_idx /
+                # landing_idx are INCLUSIVE concrete frame indices (per
+                # _scan_to_baseline docstring + physics_engine.py:631 `+ 1`
+                # slice convention). 9 inclusive flight frames = (28 - 20 + 1) / 30
+                # = 0.300 s, which passes the 0.3 gate. Pre-fix span (28 - 20) / 30
+                # = 0.267 s fails the gate → valid jump rejected.
+                airtime = (landing_idx - takeoff_idx + 1) / fps if fps > 0 else 0.0
                 if airtime < 0.3:
                     continue
 
