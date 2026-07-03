@@ -47,7 +47,7 @@ class TestMetricRegistry:
             # Universal metrics
             "symmetry",
             # GOE-derived metrics
-            "estimated_score",
+            "goe_score",
         }
         actual_metrics = set(METRIC_REGISTRY.keys())
         assert actual_metrics == expected_metrics, (
@@ -132,7 +132,7 @@ class TestMetricRegistry:
             "under_rotation_deg",
             "jump_type",
             "symmetry",
-            "estimated_score",
+            "goe_score",
         }
         assert set(jump_metrics.keys()) == expected_jump_metrics
 
@@ -153,7 +153,7 @@ class TestMetricRegistry:
             "rotation_count",
             "rotation_discrepancy",
             "symmetry",
-            "estimated_score",
+            "goe_score",
         }
         assert set(spin_metrics.keys()) == expected_spin_metrics
 
@@ -181,7 +181,7 @@ class TestMetricRegistry:
             "ina_bauer_score",
             "spiral_indicator",
             "symmetry",
-            "estimated_score",
+            "goe_score",
         }
         assert set(step_metrics.keys()) == expected_step_metrics
 

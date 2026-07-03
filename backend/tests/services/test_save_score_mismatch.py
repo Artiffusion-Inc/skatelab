@@ -44,7 +44,6 @@ _UNREGISTERED_ML_METRICS = [
     ("toe_assist_proxy", 0.0),
     ("approach_torso_lean", 12.0),
     ("approach_direction_change", 30.0),
-    ("goe_score", 2.0),
 ]
 
 
