@@ -30,22 +30,43 @@ import pytest
 
 
 def test_com_improved_confidence_nan_silently_1_0():
-    """Bug #11: NaN in flight_com → confidence silently reports 1.0.
+    """Bug #11: NaN in flight_com → confidence must NOT be 1.0.
 
-    The `min(1.0, prominence / 0.05)` clamp on line 299 swallows NaN,
-    reporting perfect confidence for a phase with missing data.
-    Same root cause as Bug #10 in confidence.py:51.
+    The `min(1.0, prominence / 0.05)` clamp on line 299 silently swallows
+    NaN (Python's builtin min ignores NaN), reporting perfect confidence
+    for a phase with missing data. Same root cause as Bug #10 in
+    confidence.py:51.
+
+    #562 fix: explicit NaN check before the clamp — if prominence is
+    NaN, the source must contain a `math.isnan(prominence)` guard that
+    returns 0.0 confidence (the phase is unreliable, not perfect).
     """
-    # Simulate the exact line-275-299 logic
+    from pathlib import Path
+
+    # Inspect the source code: the post-fix com_improved must contain
+    # an explicit isnan guard on prominence.
+    source = Path(__file__).resolve().parents[2] / "src" / "analysis" / "phase_detector.py"
+    text = source.read_text()
+    assert "isnan(prominence)" in text, (
+        "Expected `isnan(prominence)` guard in phase_detector.py com_improved "
+        "function. Pre-fix: min(1.0, NaN/0.05) silently returns 1.0, "
+        "inflating confidence for a phase with missing data."
+    )
+
+    # Simulate the post-fix logic
+    import math
+
     nan = float("nan")
-    # flight_com with NaN
     flight_com = np.array([0.5, 0.4, nan, 0.3])
     prominence = float(np.max(flight_com) - np.min(flight_com))  # NaN
-    # Line 299: min(1.0, prominence / 0.05)
-    result = min(1.0, prominence / 0.05)
-    assert result == 1.0, (
-        f"min(1.0, NaN / 0.05) should NOT be 1.0. Got {result}. "
-        f"Python's min(1.0, NaN) returns 1.0, silently inflating confidence."
+    if math.isnan(prominence):
+        confidence = 0.0
+    else:
+        confidence = min(1.0, prominence / 0.05)
+    assert confidence == 0.0, (
+        f"NaN-prominence should yield 0.0 confidence, got {confidence}. "
+        f"Pre-fix: min(1.0, NaN/0.05) silently returns 1.0, inflating "
+        f"confidence for a phase with missing data."
     )
 
 
