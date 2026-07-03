@@ -392,7 +392,14 @@ export default function SessionDetailPage() {
         {activeTab === "analyzer" && (
           <AnalyzerTab
             sessionId={session.id}
-            totalFrames={session.pose_data?.frames?.length ?? 120}
+            // #539: totalFrames must be the MAX frame index (absolute), not
+            // the sampled-count. worker.py:403 samples every 10 frames, so
+            // frames.length=30 for a 300-frame video, but phase.start_frame
+            // / end_frame are ABSOLUTE. Passing frames.length makes
+            // PhaseTimelineExtended's percent math produce values ~10x too
+            // large → phase zones render off-screen on every session.
+            // Mirrors the correct pattern at line 61.
+            totalFrames={Math.max(...(session.pose_data?.frames ?? [120]))}
           />
         )}
 
