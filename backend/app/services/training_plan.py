@@ -95,7 +95,18 @@ def generate_training_plan(
     sorted_scores = sorted(subscores, key=lambda s: s.value)
     items = []
     for i, score in enumerate(sorted_scores[:4], 1):
-        recs = EXERCISE_RECOMMENDATIONS.get(score.name, [])
+        # #550: validate subscore.name against EXERCISE_RECOMMENDATIONS. A
+        # typo / new subscore name used to silently return an empty
+        # training plan (no items for that subscore) — indistinguishable
+        # from "no exercises needed". The user thinks the plan is
+        # complete when the new subscore was dropped. Raise ValueError
+        # with a clear message listing the registered categories.
+        if score.name not in EXERCISE_RECOMMENDATIONS:
+            raise ValueError(
+                f"Unknown subscore: {score.name!r}. "
+                f"Registered: {sorted(EXERCISE_RECOMMENDATIONS.keys())}"
+            )
+        recs = EXERCISE_RECOMMENDATIONS[score.name]
         if recs:
             rec = recs[0]  # Pick first recommendation
             items.append(
