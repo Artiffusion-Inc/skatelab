@@ -2,15 +2,23 @@
 
 import { TrendingUp, TrendingDown, Minus } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { parseFormatDecimals } from "@/lib/format"
 
 interface MetricCardProps {
   label: string
   value: number
   unit: string
-  direction?: "higher" | "lower"
   trend?: "improving" | "stable" | "declining"
   isPr?: boolean
   isWarning?: boolean
+  // #495: format prop is the backend's Python format-spec (e.g. ".0f" for
+  // rotation_speed=540, ".2f" for airtime=0.85). The component uses
+  // parseFormatDecimals to derive the decimal count from this string
+  // (single source of truth from metrics_registry.py). Pre-fix the
+  // component hardcoded decimals based on a `direction` prop (removed
+  // in #495 — direction-based decimal heuristics were wrong by design
+  // for the backend's per-metric format spec).
+  format?: string
   onClick?: () => void
 }
 
@@ -18,10 +26,10 @@ export function MetricCard({
   label,
   value,
   unit,
-  direction,
   trend,
   isPr,
   isWarning,
+  format,
   onClick,
 }: MetricCardProps) {
   const TrendIcon =
@@ -46,7 +54,8 @@ export function MetricCard({
       <p className="text-xs text-ink-mute">{label}</p>
       <div className="mt-1 flex items-baseline gap-1.5">
         <span className="text-xl font-semibold">
-          {value.toFixed(direction === "lower" ? 1 : 2)}
+          {/* #495: use the backend's format spec to derive decimals. */}
+          {value.toFixed(parseFormatDecimals(format))}
         </span>
         <span className="text-xs text-ink-mute">{unit}</span>
         {trend && <TrendIcon className={cn("ml-auto h-4 w-4", trendColor)} />}
