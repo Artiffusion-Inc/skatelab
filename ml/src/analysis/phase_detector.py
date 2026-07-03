@@ -627,7 +627,14 @@ class PhaseDetector:
             if accel_y[i] > threshold:
                 # Verify it's the start of sustained acceleration
                 window = min(3, search_end - i)
-                if np.all(accel_y[i : i + window] > 0):
+                # #564: NaN-skip. accel_y from np.gradient(np.gradient(com_y))
+                # is NaN-poisoned when com_y has gap-filled NaN values.
+                # NaN > 0 is False, so the pre-fix all-positive check fails
+                # and the takeoff frame is never detected at the right
+                # position. Filter to finite values before the check.
+                slice_view = accel_y[i : i + window]
+                finite_slice = slice_view[np.isfinite(slice_view)]
+                if finite_slice.size > 0 and np.all(finite_slice > 0):
                     return i
 
         # Fallback: use derivative-based method
@@ -671,7 +678,11 @@ class PhaseDetector:
             if accel_y[i] < threshold:
                 # Verify it's followed by sustained low acceleration
                 window = min(5, search_end - i)
-                if np.mean(accel_y[i : i + window]) < 0:
+                # #564: NaN-skip (same as takeoff fix). np.mean of NaN-tainted
+                # array returns NaN, NaN < 0 is False, so landing is never
+                # detected when accel_y contains NaN. Use nanmean which
+                # ignores NaN entries.
+                if np.nanmean(accel_y[i : i + window]) < 0:
                     return i
 
         # Fallback: use baseline return method
