@@ -55,7 +55,12 @@ export default function DemoSessionPage() {
         </p>
         {demo.overall_score !== null && (
           <p className="text-sm font-medium" style={{ color: "oklch(var(--score-good))" }}>
-            {tSession("overallScore")}: {demo.overall_score.toFixed(1)} {tSession("scoreOutOf")}
+            {/* #504/#507: backend emits overall_score as a 0..1 ratio
+             * (session_saver.py:94). The "из 10" label implies a 0..10 scale,
+             * so scale x10 for display (1.0 → "10.0 из 10"), not the raw 0..1
+             * ("1.0 из 10" reads as 10% deflation). */}
+            {tSession("overallScore")}: {(demo.overall_score * 10).toFixed(1)}{" "}
+            {tSession("scoreOutOf")}
           </p>
         )}
 
