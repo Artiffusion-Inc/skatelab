@@ -617,11 +617,23 @@ class AnalysisPipeline:
         if not metrics:
             return 5.0
 
-        good_count = sum(1 for m in metrics if m.is_good)
-        total_count = len(metrics)
-
-        if total_count == 0:
+        # #487: exclude unregistered descriptive metrics (those whose
+        # `reference_range == (0, 0)` — the init default for "not graded").
+        # Pre-fix, all metrics were counted in both numerator and
+        # denominator — unregistered ones (total_rotation_deg,
+        # rotation_count, jump_type, etc) permanently had is_good=False,
+        # deflating the score. The "gradable" filter mirrors #432's
+        # session_saver fix: only metrics with a real ideal range
+        # participate in the score. `reference_range` is the reliable
+        # sentinel — every legitimate ideal_metrics entry in
+        # element_defs.py has min_good < max_good; (0, 0) is reserved
+        # for "not graded".
+        gradable = [m for m in metrics if m.reference_range != (0, 0)]
+        if not gradable:
             return 5.0
+
+        good_count = sum(1 for m in gradable if m.is_good)
+        total_count = len(gradable)
 
         ratio = good_count / total_count
         score = ratio * 10
