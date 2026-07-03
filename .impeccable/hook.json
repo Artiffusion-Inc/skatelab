@@ -1,0 +1,10 @@
+{
+  "enabled": true,
+  "ignoreRules": [],
+  "ignoreFiles": [],
+  "ignoreValues": [],
+  "limits": {
+    "maxFindings": 5,
+    "maxChars": 8000
+  }
+}
