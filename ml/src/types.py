@@ -783,7 +783,10 @@ class SegmentationResult:
         lines.append("")
 
         for i, seg in enumerate(self.segments, 1):
-            duration = seg.duration_frames / self.video_meta.fps
+            # #499: fps=0 guard, mirrors VideoMeta.duration_sec (line 466).
+            # Corrupt video / pre-fps VideoMeta would otherwise
+            # ZeroDivisionError on the user-facing timeline.
+            duration = seg.duration_frames / self.video_meta.fps if self.video_meta.fps > 0 else 0.0
             lines.append(
                 f"  {i}. {seg.element_type:20s} [{seg.start:4d}:{seg.end:4d}] "
                 f"({duration:.2f}s) conf={seg.confidence:.2f}"
@@ -809,7 +812,10 @@ class SegmentationResult:
                     "end": s.end,
                     "confidence": s.confidence,
                     "duration_frames": s.duration_frames,
-                    "duration_sec": s.duration_frames / self.video_meta.fps,
+                    # #499: fps=0 guard, mirrors VideoMeta.duration_sec.
+                    "duration_sec": (
+                        s.duration_frames / self.video_meta.fps if self.video_meta.fps > 0 else 0.0
+                    ),
                 }
                 for s in self.segments
             ],
