@@ -176,7 +176,13 @@ class PoseTracker:
         # Innovation covariance
         S = H @ P @ H.T + R
         # Kalman gain
-        K = P @ H.T @ np.linalg.inv(S)
+        # #611: prefer np.linalg.pinv (Moore-Penrose pseudoinverse) over
+        # np.linalg.inv (raises LinAlgError on singular S). When S is
+        # singular (e.g. R all-zeros, all measurements identical, or
+        # degenerate P), pinv gives a graceful-degradation K. The
+        # result is a valid K matrix; the tracker keeps the prior
+        # state (effectively a no-op update) instead of crashing.
+        K = P @ H.T @ np.linalg.pinv(S)
         # Updated state
         x_upd = x + K @ y
         # Updated covariance (Joseph form for numerical stability)
