@@ -81,6 +81,15 @@ class PoseTracker:
         self.min_hits = min_hits
         self.next_id = 0
         self.tracks: list[Track] = []
+        # #610: validate fps > 0. Pre-fix, a caller passing fps=0 (from
+        # a corrupted video where FPS detection failed, or an explicit
+        # bad config) crashed the constructor with ZeroDivisionError at
+        # `self.dt = 1.0 / fps`. Fail loudly with a clear error message
+        # rather than silently allowing a degenerate dt = inf. The
+        # alternative of `1.0 / max(fps, 1e-6)` would silently produce
+        # a huge dt that breaks downstream Kalman predictions.
+        if fps <= 0:
+            raise ValueError(f"fps must be positive, got {fps!r}")
         self.fps = fps
         self.dt = 1.0 / fps
 
