@@ -167,7 +167,17 @@ class MotionDTWAligner:
         aligned_user = self._warp_with_path(user, full_warp_path, len(reference))
 
         # Compute total distance
-        total_distance = sum(p.distance for p in phase_alignments) / max(len(phase_alignments), 1)
+        # #613: empty phase_alignments → return inf instead of 0.0. A 0.0
+        # distance is a silent "perfect match" that inflates the score
+        # for degenerate input (e.g. very short clip, malformed
+        # reference). Mirror the #478 fix used in compute_distance /
+        # compute_distance_3d for empty/single-frame input.
+        if len(phase_alignments) == 0:
+            total_distance = float("inf")
+        else:
+            total_distance = sum(p.distance for p in phase_alignments) / max(
+                len(phase_alignments), 1
+            )
 
         return MotionDTWResult(
             total_distance=total_distance,
