@@ -183,21 +183,21 @@ class TestMotionAlignerEdgeCases:
     """Test edge cases and error handling."""
 
     def test_align_empty_sequences(self):
-        """Should handle empty sequences gracefully."""
+        """Should handle empty sequences gracefully.
+
+        #612: post-fix compute_distance returns inf for degenerate input
+        (empty / single-frame). This is the correct behavior — DTW
+        on <2 frames is undefined and downstream code can handle
+        `inf` as "no match".
+        """
         aligner = MotionAligner()
 
         user = np.zeros((0, 33, 2), dtype=np.float32)
         reference = np.zeros((50, 33, 2), dtype=np.float32)
 
-        # May raise error or return nan/inf
-        try:
-            distance = aligner.compute_distance(user, reference)
-            # If it doesn't raise, check it's a valid float
-            assert not np.isnan(distance)
-            assert not np.isinf(distance)
-        except (ValueError, IndexError):
-            # Also acceptable to raise error
-            pass
+        # Post-fix: returns inf for degenerate input (no crash).
+        distance = aligner.compute_distance(user, reference)
+        assert distance == float("inf"), f"Empty user should return inf, got {distance}"
 
     def test_align_single_frame(self):
         """Should handle single-frame sequences."""
