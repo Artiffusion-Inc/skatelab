@@ -87,6 +87,15 @@ class MotionAligner:
         Returns:
             DTW distance (normalized).
         """
+        # #612: mirror the #478 motion_dtw fix. Empty or single-frame
+        # inputs crash the reshape (`cannot reshape array of size 0`)
+        # and the normalization divide (`ZeroDivisionError` when both
+        # are empty). Return inf so downstream code can handle the
+        # degenerate case as "no match" rather than crashing the
+        # whole pipeline. DTW on <2 frames is undefined.
+        if len(user) < 2 or len(reference) < 2:
+            return float("inf")
+
         if joints is None:
             joints = list(range(user.shape[1]))
 
@@ -121,6 +130,11 @@ class MotionAligner:
         Returns:
             DTW distance (normalized).
         """
+        # #612: mirror the #478 motion_dtw fix. Empty or single-frame
+        # inputs crash the 3D reshape. Return inf.
+        if len(user) < 2 or len(reference) < 2:
+            return float("inf")
+
         if joints is None:
             joints = list(range(user.shape[1]))
 
