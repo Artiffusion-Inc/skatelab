@@ -883,6 +883,7 @@ class AnalysisPipeline:
             overall_score=overall_score if overall_score is not None else 0.0,
             dtw_distance=dtw_distance if dtw_distance is not None else 0.0,
             physics=physics_dict,
+            profiling=self._profiler.to_dict(),
         )
 
     async def _detect_phases_async(
