@@ -1,0 +1,54 @@
+# Traefik static config — Dokploy-managed, deployed to /etc/dokploy/traefik/traefik.yml.
+# Replaces Dokploy default httpChallenge with Cloudflare DNS-01 challenge (matches
+# the previous Caddy `tls { dns cloudflare {env.CLOUDFLARE_API_TOKEN} }` flow).
+# Container must receive CLOUDFLARE_DNS_API_TOKEN env (lego var name; NOT CLOUDFLARE_API_TOKEN).
+# Token needs Zone:Read + DNS:Edit on skatelab.ru + hypcat.net zones.
+global:
+  sendAnonymousUsage: false
+log:
+  level: DEBUG
+providers:
+  swarm:
+    exposedByDefault: false
+    watch: true
+  docker:
+    exposedByDefault: false
+    watch: true
+    network: dokploy-network
+  file:
+    directory: /etc/dokploy/traefik/dynamic
+    watch: true
+entryPoints:
+  web:
+    address: :80
+    http:
+      redirections:
+        entryPoint:
+          to: websecure
+          scheme: https
+          permanent: true
+  websecure:
+    address: :443
+    http3:
+      advertisedPort: 443
+    http:
+      tls:
+        certResolver: letsencrypt
+        domains:
+          - main: "*.skatelab.ru"
+            sans:
+              - "skatelab.ru"
+          - main: "*.hypcat.net"
+            sans:
+              - "hypcat.net"
+api:
+  insecure: true
+certificatesResolvers:
+  letsencrypt:
+    acme:
+      # LE account email (expiration notices). Set real ops email on deploy.
+      email: ops-skatelab@example.invalid
+      storage: /etc/dokploy/traefik/dynamic/acme.json
+      dnsChallenge:
+        provider: cloudflare
+        resolvers: ['1.1.1.1:53', '8.8.8.8:53']

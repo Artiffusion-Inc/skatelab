@@ -11,7 +11,7 @@ http:
         - security-headers
     api-root:
       rule: "Host(`api.skatelab.ru`) && !PathPrefix(`/v1/`)"
-      service: api-404
+      service: backend
       tls:
         certResolver: letsencrypt
       middlewares:

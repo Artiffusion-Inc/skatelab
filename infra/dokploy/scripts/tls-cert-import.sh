@@ -38,6 +38,14 @@ if acme_file.exists() and acme_file.stat().st_size > 0:
     except json.JSONDecodeError:
         print("WARN: existing acme.json unreadable, starting fresh")
 
+# Traefik acme.json stores certs as base64-encoded PEM text (WITH -----BEGIN/END
+# headers), NOT DER. Verified via Traefik error: "failed to find any PEM data in
+# certificate input" when DER was used. Caddy .crt is fullchain PEM (multi-block),
+# .key is single PEM block — both encode whole-file bytes as-is. Store: "default"
+# field is REQUIRED per cert entry (without it Traefik silently loads 0 certs).
+def pem_to_acme_b64(pem_bytes: bytes) -> str:
+    return base64.b64encode(pem_bytes).decode()
+
 certs = data.setdefault("letsencrypt", {}).setdefault("Certificates", [])
 imported = 0
 for cert_dir in sorted(caddy_dir.iterdir()):
@@ -55,8 +63,9 @@ for cert_dir in sorted(caddy_dir.iterdir()):
             continue
     cert_entry = {
         "domain": {"main": domain},
-        "certificate": base64.b64encode(cert_file.read_bytes()).decode(),
-        "key": base64.b64encode(key_file.read_bytes()).decode(),
+        "certificate": pem_to_acme_b64(cert_file.read_bytes()),
+        "key": pem_to_acme_b64(key_file.read_bytes()),
+        "Store": "default",
     }
     certs.append(cert_entry)
     print(f"Imported: {domain}")
