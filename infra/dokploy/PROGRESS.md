@@ -25,6 +25,23 @@ Status: 2026-07-05. Phase 1 CLI-verifiable tasks complete. Remaining tasks need 
 2. **Create two projects in Dokploy UI** — `skatelab` and `infra`. Deploy a hello-world app to `skatelab` project to confirm the deploy pipeline works end-to-end.
 3. Tell me when admin is registered — I'll resume via API for the rest (deploy backend/frontend/workers, DB warm-start, RustFS, pglogical, cutover).
 
+## Updated 2026-07-05 (via API)
+
+- Admin registered by user, API key created: `hBrvL...`
+- 18080 iptables temporarily relaxed for user, then re-VPN-only after registration
+- Projects created via API:
+  - `skatelab` (id `NSZmXVVeRW06Dr_-E5ct4`, env `lpXEJMh2BkRSKp2oOVJTm`)
+  - `infra` (id `Uo8a1y_cispcTtp_06zz_`, env `cYQ3NKH90xZdw9mI8Gy_Q`)
+- Hello-world compose stack (id `rP3UT7hffCq0E2KViemRd`, appName `hello-world-kqgrmn`) deployed via `compose.create`+`compose.update`+`compose.deploy`. **BLOCKER #1 verified end-to-end**: nginx returned 200 on 19999, `docker network connect infra_app_network` worked, Caddy reached it by IP and name. Cleaned up.
+- API wrapper: `/tmp/dk.sh <METHOD> /endpoint <json>` with x-api-key.
+- OpenAPI spec: `/tmp/dokploy-cli/cli-0.29.4/openapi.json` (525 paths, full schema for all endpoints).
+
+**Next steps autonomous via API:**
+- Phase 2 Tasks 9-15: deploy backend, frontend, workers, prometheus as compose stacks
+- Phase 3 Tasks 16-22: pglogical, Valkey DB 4, RustFS, Batch A/B migration
+- Phase 4 Tasks 23-25: Traefik dynamic.yml, cert import, full cutover
+- Phase 5 Tasks 26-30: archive, docs, secrets rotation, validation
+
 ## Deviation from plan (intentional)
 - Plan said use official `curl … install.sh | sudo sh` with Traefik on 80/443. **Patched** installer so Traefik = 8080/8443, Caddy stays 80/443 as fallback. Reduces migration risk — if Traefik cutover fails, Caddy still serves. Phase 4 swaps them.
 - Plan's iptables used INPUT chain. **Fixed** to DOCKER-USER (swarm host-mode DNAT bypasses INPUT).
