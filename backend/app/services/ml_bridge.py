@@ -2,36 +2,48 @@
 
 from __future__ import annotations
 
+import logging
 from typing import Any
+
+log = logging.getLogger(__name__)
 
 
 def compute_subscores_safe(metrics: dict[str, float]) -> Any:
     """Call ML compute_subscores with safe fallback.
 
-    Returns MultiDimensionalScore dataclass. If ML import fails, returns a
-    neutral score so the pipeline doesn't crash.
+    #648: the previous "safe" fallback returned a hardcoded 5.0/10 score
+    on any failure — indistinguishable from a real ML result of 5.0.
+    Downstream consumers (training_plan, gamification) only look at
+    `overall` and silently treated the fallback as truth.
+
+    New contract: on any failure (import error, NaN metrics, divide by
+    zero, anything), return a sentinel `MultiDimensionalScore` with
+    `overall=NaN`, `data_quality="failed"`,
+    `skeleton_reliability="unreliable"`. The caller is responsible for
+    checking these markers (e.g. `analyzer_save._build_subscores_dict`
+    propagates them into the SessionScore row).
+
+    Returns:
+        MultiDimensionalScore dataclass, OR a sentinel "failed" instance
+        on ML error. The `data_quality` field is the discriminator.
     """
     try:
         from src.analysis.multi_score import compute_subscores  # type: ignore[import-untyped]
 
         return compute_subscores(metrics)
-    except Exception:
-        # Fallback: neutral 5.0/10 score
-        from src.analysis.types import (  # type: ignore[import-untyped]
-            MultiDimensionalScore,
-            SubScore,
+    except Exception as exc:
+        # #648: never silently substitute a fake 5.0 score. Surface the
+        # failure with markers that downstream consumers can detect.
+        log.warning(
+            "ml_bridge.compute_subscores_safe: ML scoring failed (%s); "
+            "returning sentinel failure marker.",
+            exc,
         )
+        from src.analysis.types import MultiDimensionalScore  # type: ignore[import-untyped]
 
-        subscores = [
-            SubScore("takeoff_power", "Взлётная мощь", 5.0, 0.5, ["airtime"]),
-            SubScore("rotation_axis", "Ось вращения", 5.0, 0.5, ["rotation_speed"]),
-            SubScore("arm_coordination", "Координация рук", 5.0, 0.5, ["symmetry"]),
-            SubScore("landing_absorption", "Амортизация", 5.0, 0.5, ["landing_knee_angle"]),
-            SubScore("core_stability", "Стабильность корпуса", 5.0, 0.5, ["trunk_lean"]),
-        ]
         return MultiDimensionalScore(
-            subscores=subscores,
-            overall=5.0,
-            data_quality="partial",
-            skeleton_reliability="uncertain",
+            subscores=[],
+            overall=float("nan"),
+            data_quality="failed",
+            skeleton_reliability="unreliable",
         )
