@@ -83,9 +83,7 @@ describe("accept connection — unhandled rejection on API failure (RED repro)",
       // Existing active connections (empty — so the pending section renders).
       http.get("*/connections", () => HttpResponse.json({ connections: [] })),
       // Pending connection list — contains our pending row.
-      http.get("*/connections/pending", () =>
-        HttpResponse.json({ connections: [pendingConn] }),
-      ),
+      http.get("*/connections/pending", () => HttpResponse.json({ connections: [pendingConn] })),
       // Accept endpoint → 500 (server error).
       http.post("*/connections/conn-pending-1/accept", () =>
         HttpResponse.json({ detail: "Internal Server Error" }, { status: 500 }),

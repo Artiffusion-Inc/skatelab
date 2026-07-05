@@ -262,28 +262,26 @@ export function LandingClient() {
   })
 
   return (
-    <>
-      <div className="landing-page overflow-x-hidden" ref={containerRef}>
-        <a
-          href="#main-content"
-          className="sr-only focus-visible:not-sr-only focus-visible:absolute focus-visible:top-4 focus-visible:left-4 focus-visible:z-[100] focus-visible:bg-primary focus-visible:text-primary-foreground focus-visible:px-4 focus-visible:py-2 focus-visible:rounded"
-        >
-          Перейти к основному содержимому
-        </a>
-        <StickyHeader />
-        <main id="main-content" tabIndex={-1}>
-          <HeroSection />
-          <FeaturesSection />
-          <HowItWorksSection />
-          <AccuracySection />
-          <VisualShowcaseSection />
-          <PricingSection />
-          <FAQSection />
-          <CTASection />
-        </main>
-        <FooterSection />
-        <MobileCTABar hidden={false} />
-      </div>
-    </>
+    <div className="landing-page overflow-x-hidden" ref={containerRef}>
+      <a
+        href="#main-content"
+        className="sr-only focus-visible:not-sr-only focus-visible:absolute focus-visible:top-4 focus-visible:left-4 focus-visible:z-[100] focus-visible:bg-primary focus-visible:text-primary-foreground focus-visible:px-4 focus-visible:py-2 focus-visible:rounded"
+      >
+        Перейти к основному содержимому
+      </a>
+      <StickyHeader />
+      <main id="main-content" tabIndex={-1}>
+        <HeroSection />
+        <FeaturesSection />
+        <HowItWorksSection />
+        <AccuracySection />
+        <VisualShowcaseSection />
+        <PricingSection />
+        <FAQSection />
+        <CTASection />
+      </main>
+      <FooterSection />
+      <MobileCTABar hidden={false} />
+    </div>
   )
 }
