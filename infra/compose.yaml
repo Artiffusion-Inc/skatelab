@@ -39,23 +39,8 @@ services:
       - infra
 
   # ── Caddy (reverse proxy, owns :80/:443) ────────────────────────
-  caddy:
-    image: ghcr.io/caddybuilds/caddy-cloudflare:latest
-    restart: unless-stopped
-    ports:
-      - "80:80"
-      - "443:443"
-      - "443:443/udp"
-    environment:
-      DOMAIN: ${DOMAIN:-skatelab.ru}
-      CLOUDFLARE_API_TOKEN: ${CLOUDFLARE_API_TOKEN}
-    volumes:
-      - ./services/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
-      - caddy-data:/data
-      - caddy-config:/config
-    networks:
-      - infra
-      - dev
+  # Caddy removed 2026-07-05 — Traefik (dokploy-traefik) now fronts 80/443 with
+  # Cloudflare DNS-01. Caddyfile kept at services/caddy/ as archive reference.
 
   # ── RustFS (S3-compatible) ─────────────────────────────────────
   rustfs:
@@ -240,8 +225,6 @@ services:
 volumes:
   valkey-data:
   postgres-data:
-  caddy-data:
-  caddy-config:
   rustfs-data:
   mosquitto-data:
   mosquitto-log:
