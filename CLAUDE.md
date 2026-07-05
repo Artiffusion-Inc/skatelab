@@ -217,3 +217,15 @@ Lessons:
 - Centroid jump: `> 0.15` (normalized coords)
 - Skeletal anomaly: `> 0.25` (bone ratio change)
 - **Logic: AND** — both exceed threshold same time
+
+## Deploy
+
+Dokploy-managed PaaS on Hetzner VPS 176.9.0.156. Traefik reverse proxy (Cloudflare DNS challenge TLS). UI: `http://10.99.0.1:18080` — VPN-only (AmneziaWG subnet 10.99.0.0/24, iptables blocks external).
+
+**Flow:** GitHub Actions builds + pushes images to GHCR (`:latest` + `:$sha`) → Dokploy watchtower auto-pulls `:latest` → Traefik routes.
+
+**Rollback:** Dokploy UI → service → redeploy with `:$sha` tag from deploy history.
+
+**Migration:** See `docs/specs/2026-07-05-dokploy-migration-design.md` (design) + `docs/plans/2026-07-05-dokploy-migration.md` (30-task plan). Legacy SSH deploy archived at `.github/workflows/deploy.yml.legacy-pre-dokploy`.
+
+**Key scripts:** `infra/dokploy/scripts/` — backups, network-connect (BLOCKER #1: `docker network connect`, not `host.docker.internal`), pglogical replication (BLOCKER #5), cert import (BLOCKER #4), Valkey DB 4 worker isolation (BLOCKER #2), secrets rotation (Phase 5.5, `shred -u`).

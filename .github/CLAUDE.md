@@ -6,7 +6,7 @@
 |----------|---------|---------|
 | `ci.yml` | PR/push to master | Entry point → calls `ci-reusable.yml` |
 | `ci-reusable.yml` | `workflow_call` | Full CI: lint, typecheck, test, build, docker. Path-filtered. |
-| `deploy.yml` | Push to master (excl. docs/ml-gpu) | CI → build GHCR images → SSH deploy to VPS |
+| `deploy.yml` | Push to master (excl. docs/ml-gpu) | CI + matrix build GHCR images → SSH trigger Dokploy `compose.deploy` (VPN-only API 10.99.0.1:18080) → `docker compose up -d --pull always` on `skatelab-dk` stack. Legacy SSH deploy: git history pre-2026-07-05. |
 | `container.yml` | Push to master (ml/gpu_server/**) | Build + push GPU worker image to GHCR |
 | `mobile.yml` | PR/push (mobile/**, backend/app/**) | KMP shared tests, Android lint/test/build debug APK |
 | `secrets.yml` | PR/push | GitGuardian secret scanning |
@@ -43,13 +43,17 @@ Path-filtered via `dorny/paths-filter`. Runs only relevant jobs per changed file
 Coverage: Codecov (backend+ml flags, frontend flag, shared flag, android flag).
 All jobs gated by `needs` — lint/typecheck must pass before test/build.
 
-## Deploy Pipeline (deploy.yml)
+## Deploy Pipeline (deploy.yml) — Dokploy
 
-1. Full CI (ci-reusable, `run-all: true`, `skip-docker: true`)
-2. Build + push frontend/backend images to GHCR **+ SCP deploy files to VPS** (all parallel)
-3. Write .env + run `deploy.sh` on VPS via SSH (zero-downtime rollout, alembic, health check)
+1. Full CI (ci-reusable, `run-all: true`, `skip-docker: true`) — runs in parallel with builds
+2. Matrix build + push frontend/backend/arq-worker images to GHCR (`:latest` + `:$sha`), GHA cache, no `needs:ci` gate (critical path ~7-10 min, was ~17-25)
+3. `deploy` job — SSH to VPS → `curl http://10.99.0.1:18080/api/compose.deploy` (Dokploy tRPC, `x-api-key` auth) → Dokploy runs `docker compose -p skatelab-dk-lsenvh up -d --pull always --remove-orphans` (custom `command` on the stack). SSH is a thin trigger only; deploy logic lives in Dokploy.
 
 `concurrency: deploy-production` — no cancel-in-progress (never kill a deploy mid-way).
+
+Secrets required: `DOKPLOY_API_KEY`, `DOKPLOY_COMPOSE_ID` (add to GitHub). SSH secrets (`VPS_HOST`, `VPS_USER`, `VPS_SSH_KEY`) reused for the trigger.
+
+Rollback: Dokploy UI → `skatelab-dk` stack → redeploy, or pin image tag in compose. Legacy SSH pipeline (`deploy.sh`, SCP .env) preserved in git history pre-2026-07-05.
 
 ## Mobile CI (mobile.yml)
 
@@ -74,10 +78,12 @@ Blacksmith (useblacksmith) for CPU-heavy jobs. ubuntu-latest for lightweight (ac
 
 | Secret | Used by | Purpose |
 |--------|---------|---------|
-| `VPS_SSH_KEY` | deploy.yml | SSH deploy key |
+| `VPS_SSH_KEY` | deploy.yml | SSH trigger key (Dokploy API call only) |
 | `VPS_HOST` | deploy.yml | Server IP |
 | `VPS_USER` | deploy.yml | SSH user |
-| `GHCR_PAT` | deploy.sh on VPS | GHCR login |
+| `DOKPLOY_API_KEY` | deploy.yml | Dokploy tRPC `x-api-key` (VPN-only API) |
+| `DOKPLOY_COMPOSE_ID` | deploy.yml | `skatelab-dk` compose stack ID |
+| `GHCR_PAT` | VPS docker login | GHCR pull (image pull on VPS) |
 | `JWT_SECRET_KEY` | deploy.yml env | JWT signing |
 | `SKATELAB_DB_PASSWORD` | deploy.yml env | Postgres |
 | `S3_*` | container.yml, deploy.yml | S3-compatible storage (RustFS) |

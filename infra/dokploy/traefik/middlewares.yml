@@ -1,0 +1,14 @@
+# Traefik middlewares — SSE flush + long timeouts. Mirrors Caddy transport http block:
+#   read_timeout 300s, write_timeout 300s, dial_timeout 30s, flush_interval -1
+# BLOCKER #1 cont.: validate flushInterval parity in Phase 1 (test-sse-streaming.sh).
+# If Dokploy UI does not expose these, mount via raw dynamic config (this file).
+http:
+  middlewares:
+    sse-transport:
+      forwardingTimeouts:
+        flushInterval: -1
+    long-timeout:
+      forwardingTimeouts:
+        dialTimeout: "30s"
+        responseTimeout: "300s"
+        idleTimeout: "300s"

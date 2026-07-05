@@ -171,37 +171,84 @@ jobs:
 
           EOF
 
-  deploy:
-    name: Trigger Dokploy Redeploy
-    needs: [build-frontend, build-backend, build-arq-worker]
+  deploy-files:
+    name: Deploy Files to VPS
+    needs: ci
     runs-on: blacksmith-2vcpu-ubuntu-2404
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Setup SSH key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.VPS_SSH_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -p 43210 ${{ secrets.VPS_HOST }} >> ~/.ssh/known_hosts 2>/dev/null
+
+      - name: SCP deploy files to VPS
+        run: |
+          SSH="${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}"
+          SSH_KEY="-i ~/.ssh/deploy_key -o StrictHostKeyChecking=no"
+          ssh $SSH_KEY -p 43210 $SSH "mkdir -p /opt/skatelab/prometheus/rules /opt/infra/services/caddy && rm -rf /opt/skatelab/prometheus/prometheus.yml"
+          scp $SSH_KEY -P 43210 \
+            infra/deploy.sh \
+            infra/compose.prod.yaml \
+            infra/caddy/Caddyfile \
+            $SSH:/opt/skatelab/
+          scp $SSH_KEY -P 43210 \
+            infra/prometheus/prometheus.yml \
+            $SSH:/opt/skatelab/prometheus/
+          scp $SSH_KEY -P 43210 \
+            infra/prometheus/rules/alerts.yml \
+            infra/prometheus/rules/recording.yml \
+            $SSH:/opt/skatelab/prometheus/rules/
+
+  deploy:
+    name: Deploy to VPS
+    needs: [build-frontend, build-backend, build-arq-worker, deploy-files]
+    runs-on: blacksmith-4vcpu-ubuntu-2404
     environment: production
     steps:
-      - name: Trigger Dokploy compose.deploy via SSH
+      - uses: actions/checkout@v6
+
+      - name: Lowercase GHCR owner
+        id: ghcr
+        run: echo "owner=${GITHUB_REPOSITORY_OWNER,,}" >> "$GITHUB_OUTPUT"
+
+      - name: Setup SSH key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.VPS_SSH_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -p 43210 ${{ secrets.VPS_HOST }} >> ~/.ssh/known_hosts 2>/dev/null
+
+      - name: Write .env and deploy
         uses: appleboy/ssh-action@v1.2.5
         with:
           host: ${{ secrets.VPS_HOST }}
           port: 43210
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
-          command_timeout: 10m
+          command_timeout: 15m
           request_pty: true
           script: |
-            set -e
-            # New :latest images already pushed to GHCR by build jobs.
-            # Dokploy compose.deploy runs `docker compose up -d --pull always`
-            # (command set on the skatelab-dk stack) → pulls fresh images + recreates.
-            for i in $(seq 1 30); do
-              RESP=$(curl -s -X POST http://10.99.0.1:18080/api/compose.deploy \
-                -H "x-api-key: ${{ secrets.DOKPLOY_API_KEY }}" \
-                -H "Content-Type: application/json" \
-                -d '{"composeId":"${{ secrets.DOKPLOY_COMPOSE_ID }}"}' \
-                --max-time 15 || true)
-              echo "$RESP"
-              echo "$RESP" | grep -q '"success":true' && break
-              echo "retry $i..."; sleep 5
-            done
-            echo "$RESP" | grep -q '"success":true' || { echo "::error::Dokploy deploy trigger failed"; exit 1; }
+            cat > /opt/skatelab/.env <<ENVEOF
+            GHCR_PAT=${{ secrets.GHCR_PAT }}
+            GHCR_OWNER=${{ steps.ghcr.outputs.owner }}
+            POSTGRES_PASSWORD=${{ secrets.SKATELAB_DB_PASSWORD }}
+            S3_ENDPOINT_URL=${{ secrets.S3_ENDPOINT_URL }}
+            S3_ACCESS_KEY_ID=${{ secrets.S3_ACCESS_KEY_ID }}
+            S3_SECRET_ACCESS_KEY=${{ secrets.S3_SECRET_ACCESS_KEY }}
+            S3_BUCKET=${{ secrets.S3_BUCKET }}
+            S3_REGION=${{ secrets.S3_REGION }}
+            S3_PATH_STYLE=true
+            JWT_SECRET_KEY=${{ secrets.JWT_SECRET_KEY }}
+            VASTAI_API_KEY=${{ secrets.VASTAI_API_KEY }}
+            RESEND_API_KEY=${{ secrets.RESEND_API_KEY }}
+            APP_DATA_DIR=/app/data
+            ENVEOF
+            chmod +x /opt/skatelab/deploy.sh
+            bash /opt/skatelab/deploy.sh
 
       - name: Deploy summary
         if: always()
@@ -211,13 +258,12 @@ jobs:
 
           **Commit:** \`${{ github.sha }}\`
           **Triggered by:** @${{ github.actor }}
-          **Path:** GHCR push → Dokploy \`compose.deploy\` (VPN-only API) → \`docker compose up -d --pull always\`
 
           EOF
 
   deploy-summary:
     name: Pipeline Summary
-    needs: [ci, build-frontend, build-backend, build-arq-worker, deploy]
+    needs: [ci, build-frontend, build-backend, build-arq-worker, deploy-files, deploy]
     runs-on: blacksmith-4vcpu-ubuntu-2404
     if: always()
     steps:
@@ -232,6 +278,7 @@ jobs:
           | Build Frontend | \`${{ needs.build-frontend.result }}\` |
           | Build Backend | \`${{ needs.build-backend.result }}\` |
           | Build ARQ Worker | \`${{ needs.build-arq-worker.result }}\` |
+          | Deploy Files | \`${{ needs.deploy-files.result }}\` |
           | Deploy | \`${{ needs.deploy.result }}\` |
 
           **Commit:** \`${{ github.sha }}\`
