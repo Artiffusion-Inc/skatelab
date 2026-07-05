@@ -150,9 +150,41 @@ docker network connect infra_app_network dokploy-traefik
 ```
 Verify: `curl -sk https://skatelab.ru -o /dev/null -w "%{http_code}"` → 200.
 
-### TLS renewal — follow-up
+### TLS — Cloudflare DNS-01 DONE 2026-07-05 21:50
 
-Caddy certs imported (~90-day validity). Traefik `certResolver: letsencrypt` uses `httpChallenge` on entryPoint `web` (:80). On expiry Traefik will request new certs via HTTP-01. Cloudflare orange-cloud MAY interfere with LE HTTP-01 validation. Safer: switch Traefik to Cloudflare DNS-01 challenge (matching Caddy's method) before certs expire. Deferred — 1-week observation window first.
+Native Traefik `dnsChallenge` + Cloudflare API (replaces Caddy `tls { dns cloudflare }`). No cert-import crutch, no HTTP-01.
+
+**Config** (`/etc/dokploy/traefik/traefik.yml`, source `infra/dokploy/traefik/traefik.yml`):
+```yaml
+certificatesResolvers:
+  letsencrypt:
+    acme:
+      email: <real ops email>   # set on VPS; repo has example.invalid placeholder
+      storage: /etc/dokploy/traefik/dynamic/acme.json
+      dnsChallenge:
+        provider: cloudflare
+        resolvers: ['1.1.1.1:53', '8.8.8.8:53']   # bypass Docker 127.0.0.11 for TXT propagation check
+```
+- Container env: `CLOUDFLARE_DNS_API_TOKEN` (lego var name, NOT Caddy's `CLOUDFLARE_API_TOKEN`). Token = same Cloudflare token, needs Zone:Read + DNS:Edit on skatelab.ru + hypcat.net zones.
+- `resolvers` REQUIRED: container `/etc/resolv.conf` = `127.0.0.11` (Docker embedded DNS) → lego TXT propagation check fails without public resolvers.
+- Official `traefik:v3.6.7` image bundles cloudflare lego provider — no custom build.
+- HTTP→HTTPS 301 redirect on entryPoint `web`.
+- 15 per-subdomain LE certs issued fresh via DNS-01 (acme.json wiped first). Auto-renew via DNS-01. Matches Caddy behavior (Caddy also issued per-domain, not wildcard).
+
+**Runbook** — recreate dokploy-traefik with DNS-01 (after Dokploy update or any reset):
+```bash
+docker rm -f dokploy-traefik
+docker run -d --name dokploy-traefik --restart always --network dokploy-network \
+  -p 80:80 -p 443:443 -p 443:443/udp \
+  -e CLOUDFLARE_DNS_API_TOKEN='<cf-token>' \
+  -v /etc/dokploy/traefik/dynamic:/etc/dokploy/traefik/dynamic \
+  -v /etc/dokploy/traefik/traefik.yml:/etc/traefik/traefik.yml \
+  -v /var/run/docker.sock:/var/run/docker.sock:ro traefik:v3.6.7
+docker network connect infra_app_network dokploy-traefik
+```
+Verify: `curl -s https://skatelab.ru -o /dev/null -w "%{http_code} verify=%{ssl_verify_result}\n"` → `200 verify=0`.
+
+**Cert-import script DEPRECATED** — `tls-cert-import.sh` kept as emergency fallback only. Primary path = native DNS-01. Earlier import attempts hit 2 bugs (now fixed in script for fallback use): Traefik acme.json stores base64(PEM-text) not base64(DER), and requires `Store: "default"` field per cert entry.
 
 ## Follow-up for USER (cannot do via API)
 
