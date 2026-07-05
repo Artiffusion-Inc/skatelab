@@ -64,6 +64,45 @@ Status: 2026-07-05. Phase 1 CLI-verifiable tasks complete. Remaining tasks need 
 - Valkey: DB4 (dk) 2 keys, DB3 (prod legacy workers) 3 keys — queue isolation
 - Dokploy UI `10.99.0.1:18080` 200 (VPN-only)
 
+## Full CI/CD pipeline VERIFIED end-to-end 2026-07-05 20:12
+
+PR #661 (squash `5c6b8d6a`) → push master → `deploy.yml` run `28749958599` SUCCESS (4m33s):
+- ✓ Biome+tsc, Vitest, Build (Next.js) green
+- ✓ Build Frontend/Backend/ARQ Worker images → push GHCR `:latest`+`:$sha`
+- ✓ Trigger Dokploy Redeploy (7s) → `compose.deploy` API `{"success":true}`
+- ✓ Dokploy `docker compose -p skatelab-dk-lsenvh up -d --pull always` → 4 containers Recreated+Started, healthy
+- ✓ New images live: frontend-dk `bb37af58` (5min, code changed), backend-dk `876a22c1` (cache hit, code unchanged)
+- ✓ `api.skatelab.ru/v1/health` `{"status":"ok","valkey":true}`, `skatelab.ru` 200
+
+## CRITICAL: Two Dokploy deploy bugs found + fixed (2026-07-05)
+
+First real `compose.deploy` after merge revealed two latent bugs (deploys never ran before — biome blocked CI, builds skipped, deploy skipped on all prior runs).
+
+### BUG 1: `command` field must NOT include `docker` prefix
+
+Dokploy wraps the `command` field as `docker <command>`. Setting `command: "docker compose -p ... up -d"` produces `docker docker compose -p ...` → `unknown shorthand flag: 'p' in -p` → deploy fails.
+
+**Fix:** `command: "compose -p skatelab-dk-lsenvh up -d --pull always --remove-orphans"` (no `docker` prefix; Dokploy prepends it).
+
+### BUG 2: Dokploy container can't see host `/root/.docker/config.json` → GHCR pull `unauthorized`
+
+Dokploy container mounts `/var/lib/docker/volumes/dokploy/_data` → `/root/.docker` (inside container). This volume is EMPTY by default — host `/root/.docker/config.json` (GHCR auth) is NOT visible. `docker compose up --pull always` → `error from registry: unauthorized` for all GHCR images.
+
+**Fix:** copy GHCR auth into the volume:
+```bash
+cp /root/.docker/config.json /var/lib/docker/volumes/dokploy/_data/config.json
+chmod 600 /var/lib/docker/volumes/dokploy/_data/config.json
+# verify inside container:
+docker exec dokploy.1.<id> docker pull ghcr.io/artiffusion-inc/skatelab-backend:latest
+```
+Re-do this after any `docker logout` / PAT rotation / Dokploy reinstall. Add to setup runbook.
+
+### BUG 3 (caution): `compose.update` is FULL replace, not partial
+
+Sending `compose.update` with `composeFile: ""` WIPES the compose file (length 0) — the stack then has empty composeFile and deploy recreates nothing. Always send the FULL `composeFile` content on every `compose.update`, even when only changing `command`.
+
+Recovery: restore from `/tmp/dokploy-migrate/skatelab-dk.compose.yml` (or Dokploy deploy log base64 dump).
+
 ## Ponytail deviations (intentional)
 
 - **Phase 3 data services**: Postgres/Valkey/RustFS NOT migrated to Dokploy. Kept shared on `infra_app_network`, DK stack connects via external network. pglogical/RustFS-sync skipped entirely — no value, high risk. `network-connect` pattern (BLOCKER #1) makes this work.
