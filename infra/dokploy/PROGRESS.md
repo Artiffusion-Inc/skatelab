@@ -106,9 +106,53 @@ Recovery: restore from `/tmp/dokploy-migrate/skatelab-dk.compose.yml` (or Dokplo
 ## Ponytail deviations (intentional)
 
 - **Phase 3 data services**: Postgres/Valkey/RustFS NOT migrated to Dokploy. Kept shared on `infra_app_network`, DK stack connects via external network. pglogical/RustFS-sync skipped entirely — no value, high risk. `network-connect` pattern (BLOCKER #1) makes this work.
-- **Phase 4 Traefik cutover**: SKIPPED. Traefik stays on 8080/8443 for Dokploy UI; Caddy remains on 80/443 proxying to DK containers. Caddy works, TLS via Cloudflare DNS challenge intact. Traefik→80/443 swap is pure risk, no CI/CD value (Dokploy manages compose lifecycle regardless of which proxy fronts it). Revisit only if Dokploy-native domain routing/auto-TLS becomes a real need.
+- **Phase 4 Traefik cutover**: DONE 2026-07-05 20:43 — see "Phase 4 Traefik cutover DONE" below. Caddy stopped + disabled.
 - **Phase 5 archive**: legacy `deploy.sh` / SCP-`.env` / `compose.prod.yaml` flow preserved in git history (pre-2026-07-05) — sufficient as 30-day rollback reference. No `.archive/` dir needed.
 - **Phase 5.5 secrets rotation**: DEFERRED. Working system on rotated-mid-migration secrets = unnecessary risk. Rotate `JWT_SECRET_KEY`, `POSTGRES_PASSWORD`, API keys, root password after 1-week observation (run `infra/dokploy/scripts/secrets-rotation.sh` with `shred -u` on old values).
+
+## Phase 4 Traefik cutover DONE 2026-07-05 20:43
+
+User authorized full cutover ("полный переезд, нахер нам caddy"). Traefik забрал все 15 субдоменов, Caddy остановлен + disabled в compose.
+
+**Result — 14/15 subdomains verified via Traefik on 80/443 (real DNS, Cloudflare):**
+- 200: skatelab.ru (frontend), mf, rss, feeds, search, ntfy, sub + api/v1/health `{"status":"ok","valkey":true}`
+- 403: s3, s3c (S3 root, normal)
+- 307/302: 9r, ov, dav
+- 200 (was 401): qbit — auth disabled now, normal
+- 502: mqtt — mosquitto :9001 is WebSocket listener, plain GET / has no handler (WS clients work). Edge case, not a block.
+
+### Steps performed
+
+1. **Cert import** — `tls-cert-import.sh /opt/infra/.../acme-... /etc/dokploy/traefik/dynamic/acme.json` (NOT default `/opt/dokploy/...`). Static config storage path = `/etc/dokploy/traefik/dynamic/acme.json`. Imported 36 Caddy certs (skatelab.ru + hypcat.net + extras). acme.json 152KB, mode 600. Traefik `certResolver: letsencrypt` reuses these (no new LE requests → no rate limit).
+2. **Traefik → infra_app_network** — `docker network connect infra_app_network dokploy-traefik`. Without this Traefik can't resolve `miniflux`, `rsshub`, `rustfs`, etc. Verified: all 14 service DNS names resolve from Traefik container.
+3. **dynamic.yml → `/etc/dokploy/traefik/dynamic/skatelab.yml`** — all 15 routers + services with DNS names (not IPs). File provider watches dir → auto-reload. Did NOT overwrite `dokploy.yml` (Dokploy UI router) or `middlewares.yml` (redirect-to-https for Dokploy).
+4. **Caddy stop + Traefik recreate on 80/443** — `docker compose stop caddy` (free 80/443) → `docker rm -f dokploy-traefik` → `docker run` with `-p 80:80 -p 443:443` (was 8080:80, 8443:443) + same mounts + `--network dokploy-network` → `docker network connect infra_app_network`.
+5. **Caddy disabled in compose** — `profiles: ["disabled"]` added to `caddy:` service in `/opt/infra/compose.yaml` (backup `compose.yaml.pre-caddy-disable.<ts>`). `docker compose up -d` no longer starts Caddy. Reversible: remove the profile line.
+
+### 4 Traefik gotchas found
+
+1. **Traefik file provider parses YAML comments as Go templates.** Comment text containing `{{.Names}}` or `{{.NetworkSettings...}}` → `template: executing "" at <.Names>: can't evaluate field Names in type bool`. Keep `{{...}}` OUT of comments in dynamic config files.
+2. **Traefik v3.6: `forwardingTimeouts` is NOT a middleware field.** It belongs in `serversTransport` / entryPoint config. Defining `sse-transport`/`long-timeout` middlewares with `forwardingTimeouts` → `field not found, node: forwardingTimeouts`. SSE flush (`flushInterval: -1`) must be configured via `serversTransport` or entryPoint, not middleware. Deferred — SSE may buffer without it; revisit if streaming regresses.
+3. **iptables REDIRECT 80→8080/443→8443 did NOT work (all 000).** Likely conntrack/Cloudflare interaction. Recreating the Traefik container with `80:80`/`443:443` publish worked first try. Use container recreate, not iptables REDIRECT.
+4. **`dokploy-traefik` is a standalone container, NOT a swarm service** (in Dokploy v0.29.8). `docker service` commands fail. Use `docker run`/`docker network connect`. Dokploy install script creates it directly.
+
+### RISK: Dokploy update may recreate traefik
+
+If Dokploy (or a Dokploy update) recreates `dokploy-traefik`, it will reset to the install-time config (ports 8080:80/8443:443, no `infra_app_network`, default traefik.yml) and Caddy-style 80/443 routing breaks. **Runbook after any Dokploy traefik change:**
+```bash
+docker rm -f dokploy-traefik
+docker run -d --name dokploy-traefik --restart always --network dokploy-network \
+  -p 80:80 -p 443:443 -p 443:443/udp \
+  -v /etc/dokploy/traefik/dynamic:/etc/dokploy/traefik/dynamic \
+  -v /etc/dokploy/traefik/traefik.yml:/etc/traefik/traefik.yml \
+  -v /var/run/docker.sock:/var/run/docker.sock:ro traefik:v3.6.7
+docker network connect infra_app_network dokploy-traefik
+```
+Verify: `curl -sk https://skatelab.ru -o /dev/null -w "%{http_code}"` → 200.
+
+### TLS renewal — follow-up
+
+Caddy certs imported (~90-day validity). Traefik `certResolver: letsencrypt` uses `httpChallenge` on entryPoint `web` (:80). On expiry Traefik will request new certs via HTTP-01. Cloudflare orange-cloud MAY interfere with LE HTTP-01 validation. Safer: switch Traefik to Cloudflare DNS-01 challenge (matching Caddy's method) before certs expire. Deferred — 1-week observation window first.
 
 ## Follow-up for USER (cannot do via API)
 
