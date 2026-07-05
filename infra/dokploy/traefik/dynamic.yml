@@ -1,0 +1,192 @@
+# Traefik dynamic config — replaces /opt/infra/services/caddy/Caddyfile.
+# All 15+ subdomain routes. IPs filled at Phase 4 cutover from `docker inspect` of
+# Dokploy containers on infra_app_network. Port-per-service from current Caddyfile.
+#
+# NOTE: prefer service DNS names over IPs where Dokploy containers join infra_app_network.
+# Format: <dokploy-project>-<service>-<replicaId> — confirm exact names via
+# `docker ps --filter label=com.docker.compose.project=infra --format '{{.Names}}'`.
+http:
+  routers:
+    api:
+      rule: "Host(`api.skatelab.ru`) && PathPrefix(`/v1/`)"
+      service: backend
+      tls:
+        certResolver: letsencrypt
+      middlewares:
+        - security-headers
+        - long-timeout
+        - sse-transport
+    api-root:
+      rule: "Host(`api.skatelab.ru`) && !PathPrefix(`/v1/`)"
+      service: api-404
+      tls:
+        certResolver: letsencrypt
+      middlewares:
+        - security-headers
+    frontend:
+      rule: "Host(`skatelab.ru`)"
+      service: frontend
+      tls:
+        certResolver: letsencrypt
+      middlewares:
+        - security-headers
+        - long-timeout
+        - sse-transport
+    rss:
+      rule: "Host(`rss.skatelab.ru`)"
+      service: miniflux
+      tls: { certResolver: letsencrypt }
+    feeds:
+      rule: "Host(`feeds.skatelab.ru`)"
+      service: rsshub
+      tls: { certResolver: letsencrypt }
+    search:
+      rule: "Host(`search.skatelab.ru`)"
+      service: searxng
+      tls: { certResolver: letsencrypt }
+    ntfy:
+      rule: "Host(`ntfy.skatelab.ru`)"
+      service: ntfy
+      tls: { certResolver: letsencrypt }
+      middlewares: [ntfy-ws]
+    9r:
+      rule: "Host(`9r.skatelab.ru`)"
+      service: 9router
+      tls: { certResolver: letsencrypt }
+    ov-api:
+      rule: "Host(`ov.skatelab.ru`) && !PathPrefix(`/console`)"
+      service: openviking-api
+      tls: { certResolver: letsencrypt }
+    ov-console:
+      rule: "Host(`ov.skatelab.ru`) && PathPrefix(`/console`)"
+      service: openviking-console
+      tls: { certResolver: letsencrypt }
+    qbit:
+      rule: "Host(`qbit.skatelab.ru`)"
+      service: qbittorrent
+      tls: { certResolver: letsencrypt }
+    dav:
+      rule: "Host(`dav.skatelab.ru`)"
+      service: baikal
+      tls: { certResolver: letsencrypt }
+    mqtt:
+      rule: "Host(`mqtt.skatelab.ru`)"
+      service: mosquitto
+      tls: { certResolver: letsencrypt }
+    mf-api:
+      rule: "Host(`mf.skatelab.ru`) && (PathPrefix(`/api/`) || Path(`/health`))"
+      service: mirofish-api
+      tls: { certResolver: letsencrypt }
+    mf-web:
+      rule: "Host(`mf.skatelab.ru`)"
+      service: mirofish-web
+      tls: { certResolver: letsencrypt }
+      middlewares: [sse-transport]
+    s3:
+      rule: "Host(`s3.skatelab.ru`)"
+      service: rustfs
+      tls: { certResolver: letsencrypt }
+    s3c:
+      rule: "Host(`s3c.skatelab.ru`)"
+      service: rustfs-console
+      tls: { certResolver: letsencrypt }
+    sub:
+      rule: "Host(`sub.skatelab.ru`)"
+      service: vless-sub
+      tls: { certResolver: letsencrypt }
+
+  services:
+    # Replace <..._NAME> with actual Dokploy container hostnames on infra_app_network.
+    # Get via: docker inspect <container> --format '{{.NetworkSettings.Networks.infra_app_network.IPAddress}}'
+    # or use DNS name if Dokploy project network bridges to infra_app_network.
+    backend:
+      loadBalancer:
+        servers:
+          - url: "http://__BACKEND_ADDR__:8000"
+    frontend:
+      loadBalancer:
+        servers:
+          - url: "http://__FRONTEND_ADDR__:3000"
+    miniflux:
+      loadBalancer:
+        servers:
+          - url: "http://__MINIFLUX_ADDR__:8080"
+    rsshub:
+      loadBalancer:
+        servers:
+          - url: "http://__RSSHUB_ADDR__:1200"
+    searxng:
+      loadBalancer:
+        servers:
+          - url: "http://__SEARXNG_ADDR__:8080"
+    ntfy:
+      loadBalancer:
+        servers:
+          - url: "http://__NTFY_ADDR__:80"
+    9router:
+      loadBalancer:
+        servers:
+          - url: "http://__9ROUTER_ADDR__:20128"
+    openviking-api:
+      loadBalancer:
+        servers:
+          - url: "http://__OPENVIKING_ADDR__:1933"
+    openviking-console:
+      loadBalancer:
+        servers:
+          - url: "http://__OPENVIKING_ADDR__:8020"
+    qbittorrent:
+      loadBalancer:
+        servers:
+          - url: "http://__QBITTORRENT_ADDR__:8080"
+    baikal:
+      loadBalancer:
+        servers:
+          - url: "http://__BAIKAL_ADDR__:80"
+    mosquitto:
+      loadBalancer:
+        servers:
+          - url: "http://__MOSQUITTO_ADDR__:9001"
+    mirofish-api:
+      loadBalancer:
+        servers:
+          - url: "http://__MIROFISH_ADDR__:5001"
+    mirofish-web:
+      loadBalancer:
+        servers:
+          - url: "http://__MIROFISH_ADDR__:3000"
+    rustfs:
+      loadBalancer:
+        servers:
+          - url: "http://__RUSTFS_ADDR__:9000"
+    rustfs-console:
+      loadBalancer:
+        servers:
+          - url: "http://__RUSTFS_ADDR__:9001"
+    vless-sub:
+      loadBalancer:
+        servers:
+          - url: "http://__VLESS_SUB_ADDR__:8080"
+    api-404:
+      loadBalancer:
+        servers:
+          - url: "http://127.0.0.1:9999"  # dummy — 404 via middleware instead
+
+  middlewares:
+    security-headers:
+      headers:
+        stsSeconds: 31536000
+        stsIncludeSubdomains: true
+        stsPreload: true
+        contentTypeNosniff: true
+        frameDeny: true
+        browserXssFilter: true
+        referrerPolicy: "strict-origin-when-cross-origin"
+        customResponseHeaders:
+          Permissions-Policy: "accelerometer=(), camera=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), payment=(), usb=()"
+    ntfy-ws:
+      headers:
+        customRequestHeaders:
+          Upgrade: "websocket"
+          Connection: "upgrade"
+          X-Forwarded-Proto: "https"
