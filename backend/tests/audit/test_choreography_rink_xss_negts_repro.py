@@ -70,24 +70,23 @@ def test_short_duration_with_peaks_no_negative_timestamps():
     With duration=4.0 and peaks present, the upper-bound-only clamp
     `min(target_time, duration - 5.0)` yields -1.0 for every element.
     Downstream timeline rendering/sorting breaks silently.
+
+    #639 fix: instead of letting the degenerate layout through, raise
+    ValueError so the caller surfaces a 400 to the user.
     """
+    import pytest
+
     inv = {
         "jumps": ["3Lz", "3F", "3Lo", "3S", "2A", "2T", "1Eu"],
         "spins": ["CSp4", "LSp4", "FSp4"],
         "combinations": ["3Lz+2T", "3F+2T"],
     }
     mf = {"duration": 4.0, "peaks": [10.0, 20.0], "structure": []}
-    out = solve_layout(
-        inventory=inv,
-        music_features=mf,
-        discipline="mens_singles",
-        segment="free_skate",
-        seed=2,
-    )
-
-    # solve_layout returns a list of layouts; collect every element timestamp.
-    ts = [e["timestamp"] for layout in out for e in layout["elements"]]
-    assert ts, "expected at least one layout with timestamps from this inventory"
-    assert all(t >= 0.0 for t in ts), (
-        f"BUG #2: negative timestamps when duration<5.0 + peaks present: {ts}"
-    )
+    with pytest.raises(ValueError, match="duration"):
+        solve_layout(
+            inventory=inv,
+            music_features=mf,
+            discipline="mens_singles",
+            segment="free_skate",
+            seed=2,
+        )

@@ -282,9 +282,19 @@ def solve_layout(
     if seed is not None:
         random.seed(seed)
 
-    candidates = _generate_candidates(inventory, segment)
+    # #639: reject explicit empty/short music. duration=0 collapses every
+    # element timestamp to 0.0 (min(t, -5) → 0 clamp). duration<5s also fails
+    # because the #465 rescue `min(., duration-5)` goes negative. Floor at 5s.
+    # Missing key still falls through to 180s default (back-compat with
+    # callers/tests that pass an empty dict).
+    if "duration" in music_features:
+        duration = music_features["duration"]
+        if not duration or duration < 5.0:
+            raise ValueError(f"Music duration too short for layout: {duration}s (need >= 5s)")
+    else:
+        duration = 180.0
 
-    duration = music_features.get("duration", 180.0)
+    candidates = _generate_candidates(inventory, segment)
     peaks = music_features.get("peaks", [])
 
     for layout in candidates:
