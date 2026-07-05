@@ -128,6 +128,12 @@ class ONNXPoseExtractor:
         w = self.temporal_window
         batch_size = len(windows)
 
+        # Empty input → empty output (skip ONNX call, avoid pad/conf concat crash)
+        if batch_size == 0:
+            return []
+        if any(len(win) == 0 for win in windows):
+            return [np.zeros((0, 17, 3), dtype=np.float32) for _ in windows]
+
         # Pad all windows to temporal_window size
         padded_windows = []
         for window in windows:
@@ -176,6 +182,10 @@ class ONNXPoseExtractor:
         """Run inference on a single window (pad if needed). (N, 17, 2) → (N, 17, 3)."""
         n = len(poses_2d)
         w = self.temporal_window
+
+        # Empty input → empty output (skip ONNX call, avoid pad/conf concat crash)
+        if n == 0:
+            return np.zeros((0, 17, 3), dtype=np.float32)
 
         # Pad to window size if needed
         if n < w:
