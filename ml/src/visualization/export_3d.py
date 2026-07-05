@@ -84,6 +84,11 @@ def poses_to_glb(
     Returns:
         Path to the exported .glb file (in tempdir).
     """
+    # Empty input: no frame to export. Returning "" matches the existing
+    # "no renderable frame" convention (all-NaN frame also returns "").
+    if len(poses_3d) == 0:
+        return ""
+
     if frame_idx >= len(poses_3d):
         frame_idx = len(poses_3d) - 1
 
