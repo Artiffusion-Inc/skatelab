@@ -18,6 +18,12 @@ class Finding:
     detail: str
 
 
+# #633: single source of truth for the R² threshold used by both /trend
+# (backend/app/routes/metrics.py) and check_declining_trend below. Matches
+# backend/CLAUDE.md:150 — was 0.3 in /trend, 0.5 in /diagnostics (drift).
+R_SQUARED_TREND_THRESHOLD = 0.3
+
+
 def linear_regression(values: list[float]) -> tuple[float, float]:
     """Return (slope, r_squared) for a simple linear regression."""
     n = len(values)
@@ -71,12 +77,12 @@ def check_declining_trend(
     metric_label: str,
     direction: str = "higher",
 ) -> Finding | None:
-    """Warning when linear regression shows decline with R² > 0.5."""
+    """Warning when linear regression shows decline with R² above threshold."""
     if len(values) < 5:
         return None
     slope, r_squared = linear_regression(values)
     is_decline = (slope < 0) if direction == "higher" else (slope > 0)
-    if is_decline and r_squared > 0.5:
+    if is_decline and r_squared > R_SQUARED_TREND_THRESHOLD:
         return Finding(
             severity="warning",
             element=element,

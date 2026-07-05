@@ -27,6 +27,7 @@ from app.schemas import (
 )
 from app.services.choreography.elements_db import ELEMENTS
 from app.services.diagnostics import (
+    R_SQUARED_TREND_THRESHOLD,
     check_consistently_below_range,
     check_declining_trend,
     check_high_variability,
@@ -151,9 +152,12 @@ class MetricsController(Controller):
             slope, r_sq = linear_regression(values)
             improving = (slope > 0) if mdef.direction == "higher" else (slope < 0)
             declining = (slope < 0) if mdef.direction == "higher" else (slope > 0)
-            if improving and r_sq > 0.3:
+            # #633: use the constant from diagnostics module — /trend and
+            # /diagnostics must share a single R² threshold to avoid
+            # inconsistent UX (one says "improving", the other silent).
+            if improving and r_sq > R_SQUARED_TREND_THRESHOLD:
                 trend = "improving"
-            elif declining and r_sq > 0.3:
+            elif declining and r_sq > R_SQUARED_TREND_THRESHOLD:
                 trend = "declining"
 
         # Current PR
