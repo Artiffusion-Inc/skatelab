@@ -64,12 +64,95 @@ Status: 2026-07-05. Phase 1 CLI-verifiable tasks complete. Remaining tasks need 
 - Valkey: DB4 (dk) 2 keys, DB3 (prod legacy workers) 3 keys — queue isolation
 - Dokploy UI `10.99.0.1:18080` 200 (VPN-only)
 
+## Full CI/CD pipeline VERIFIED end-to-end 2026-07-05 20:12
+
+PR #661 (squash `5c6b8d6a`) → push master → `deploy.yml` run `28749958599` SUCCESS (4m33s):
+- ✓ Biome+tsc, Vitest, Build (Next.js) green
+- ✓ Build Frontend/Backend/ARQ Worker images → push GHCR `:latest`+`:$sha`
+- ✓ Trigger Dokploy Redeploy (7s) → `compose.deploy` API `{"success":true}`
+- ✓ Dokploy `docker compose -p skatelab-dk-lsenvh up -d --pull always` → 4 containers Recreated+Started, healthy
+- ✓ New images live: frontend-dk `bb37af58` (5min, code changed), backend-dk `876a22c1` (cache hit, code unchanged)
+- ✓ `api.skatelab.ru/v1/health` `{"status":"ok","valkey":true}`, `skatelab.ru` 200
+
+## CRITICAL: Two Dokploy deploy bugs found + fixed (2026-07-05)
+
+First real `compose.deploy` after merge revealed two latent bugs (deploys never ran before — biome blocked CI, builds skipped, deploy skipped on all prior runs).
+
+### BUG 1: `command` field must NOT include `docker` prefix
+
+Dokploy wraps the `command` field as `docker <command>`. Setting `command: "docker compose -p ... up -d"` produces `docker docker compose -p ...` → `unknown shorthand flag: 'p' in -p` → deploy fails.
+
+**Fix:** `command: "compose -p skatelab-dk-lsenvh up -d --pull always --remove-orphans"` (no `docker` prefix; Dokploy prepends it).
+
+### BUG 2: Dokploy container can't see host `/root/.docker/config.json` → GHCR pull `unauthorized`
+
+Dokploy container mounts `/var/lib/docker/volumes/dokploy/_data` → `/root/.docker` (inside container). This volume is EMPTY by default — host `/root/.docker/config.json` (GHCR auth) is NOT visible. `docker compose up --pull always` → `error from registry: unauthorized` for all GHCR images.
+
+**Fix:** copy GHCR auth into the volume:
+```bash
+cp /root/.docker/config.json /var/lib/docker/volumes/dokploy/_data/config.json
+chmod 600 /var/lib/docker/volumes/dokploy/_data/config.json
+# verify inside container:
+docker exec dokploy.1.<id> docker pull ghcr.io/artiffusion-inc/skatelab-backend:latest
+```
+Re-do this after any `docker logout` / PAT rotation / Dokploy reinstall. Add to setup runbook.
+
+### BUG 3 (caution): `compose.update` is FULL replace, not partial
+
+Sending `compose.update` with `composeFile: ""` WIPES the compose file (length 0) — the stack then has empty composeFile and deploy recreates nothing. Always send the FULL `composeFile` content on every `compose.update`, even when only changing `command`.
+
+Recovery: restore from `/tmp/dokploy-migrate/skatelab-dk.compose.yml` (or Dokploy deploy log base64 dump).
+
 ## Ponytail deviations (intentional)
 
 - **Phase 3 data services**: Postgres/Valkey/RustFS NOT migrated to Dokploy. Kept shared on `infra_app_network`, DK stack connects via external network. pglogical/RustFS-sync skipped entirely — no value, high risk. `network-connect` pattern (BLOCKER #1) makes this work.
-- **Phase 4 Traefik cutover**: SKIPPED. Traefik stays on 8080/8443 for Dokploy UI; Caddy remains on 80/443 proxying to DK containers. Caddy works, TLS via Cloudflare DNS challenge intact. Traefik→80/443 swap is pure risk, no CI/CD value (Dokploy manages compose lifecycle regardless of which proxy fronts it). Revisit only if Dokploy-native domain routing/auto-TLS becomes a real need.
+- **Phase 4 Traefik cutover**: DONE 2026-07-05 20:43 — see "Phase 4 Traefik cutover DONE" below. Caddy stopped + disabled.
 - **Phase 5 archive**: legacy `deploy.sh` / SCP-`.env` / `compose.prod.yaml` flow preserved in git history (pre-2026-07-05) — sufficient as 30-day rollback reference. No `.archive/` dir needed.
 - **Phase 5.5 secrets rotation**: DEFERRED. Working system on rotated-mid-migration secrets = unnecessary risk. Rotate `JWT_SECRET_KEY`, `POSTGRES_PASSWORD`, API keys, root password after 1-week observation (run `infra/dokploy/scripts/secrets-rotation.sh` with `shred -u` on old values).
+
+## Phase 4 Traefik cutover DONE 2026-07-05 20:43
+
+User authorized full cutover ("полный переезд, нахер нам caddy"). Traefik забрал все 15 субдоменов, Caddy остановлен + disabled в compose.
+
+**Result — 14/15 subdomains verified via Traefik on 80/443 (real DNS, Cloudflare):**
+- 200: skatelab.ru (frontend), mf, rss, feeds, search, ntfy, sub + api/v1/health `{"status":"ok","valkey":true}`
+- 403: s3, s3c (S3 root, normal)
+- 307/302: 9r, ov, dav
+- 200 (was 401): qbit — auth disabled now, normal
+- 502: mqtt — mosquitto :9001 is WebSocket listener, plain GET / has no handler (WS clients work). Edge case, not a block.
+
+### Steps performed
+
+1. **Cert import** — `tls-cert-import.sh /opt/infra/.../acme-... /etc/dokploy/traefik/dynamic/acme.json` (NOT default `/opt/dokploy/...`). Static config storage path = `/etc/dokploy/traefik/dynamic/acme.json`. Imported 36 Caddy certs (skatelab.ru + hypcat.net + extras). acme.json 152KB, mode 600. Traefik `certResolver: letsencrypt` reuses these (no new LE requests → no rate limit).
+2. **Traefik → infra_app_network** — `docker network connect infra_app_network dokploy-traefik`. Without this Traefik can't resolve `miniflux`, `rsshub`, `rustfs`, etc. Verified: all 14 service DNS names resolve from Traefik container.
+3. **dynamic.yml → `/etc/dokploy/traefik/dynamic/skatelab.yml`** — all 15 routers + services with DNS names (not IPs). File provider watches dir → auto-reload. Did NOT overwrite `dokploy.yml` (Dokploy UI router) or `middlewares.yml` (redirect-to-https for Dokploy).
+4. **Caddy stop + Traefik recreate on 80/443** — `docker compose stop caddy` (free 80/443) → `docker rm -f dokploy-traefik` → `docker run` with `-p 80:80 -p 443:443` (was 8080:80, 8443:443) + same mounts + `--network dokploy-network` → `docker network connect infra_app_network`.
+5. **Caddy disabled in compose** — `profiles: ["disabled"]` added to `caddy:` service in `/opt/infra/compose.yaml` (backup `compose.yaml.pre-caddy-disable.<ts>`). `docker compose up -d` no longer starts Caddy. Reversible: remove the profile line.
+
+### 4 Traefik gotchas found
+
+1. **Traefik file provider parses YAML comments as Go templates.** Comment text containing `{{.Names}}` or `{{.NetworkSettings...}}` → `template: executing "" at <.Names>: can't evaluate field Names in type bool`. Keep `{{...}}` OUT of comments in dynamic config files.
+2. **Traefik v3.6: `forwardingTimeouts` is NOT a middleware field.** It belongs in `serversTransport` / entryPoint config. Defining `sse-transport`/`long-timeout` middlewares with `forwardingTimeouts` → `field not found, node: forwardingTimeouts`. SSE flush (`flushInterval: -1`) must be configured via `serversTransport` or entryPoint, not middleware. Deferred — SSE may buffer without it; revisit if streaming regresses.
+3. **iptables REDIRECT 80→8080/443→8443 did NOT work (all 000).** Likely conntrack/Cloudflare interaction. Recreating the Traefik container with `80:80`/`443:443` publish worked first try. Use container recreate, not iptables REDIRECT.
+4. **`dokploy-traefik` is a standalone container, NOT a swarm service** (in Dokploy v0.29.8). `docker service` commands fail. Use `docker run`/`docker network connect`. Dokploy install script creates it directly.
+
+### RISK: Dokploy update may recreate traefik
+
+If Dokploy (or a Dokploy update) recreates `dokploy-traefik`, it will reset to the install-time config (ports 8080:80/8443:443, no `infra_app_network`, default traefik.yml) and Caddy-style 80/443 routing breaks. **Runbook after any Dokploy traefik change:**
+```bash
+docker rm -f dokploy-traefik
+docker run -d --name dokploy-traefik --restart always --network dokploy-network \
+  -p 80:80 -p 443:443 -p 443:443/udp \
+  -v /etc/dokploy/traefik/dynamic:/etc/dokploy/traefik/dynamic \
+  -v /etc/dokploy/traefik/traefik.yml:/etc/traefik/traefik.yml \
+  -v /var/run/docker.sock:/var/run/docker.sock:ro traefik:v3.6.7
+docker network connect infra_app_network dokploy-traefik
+```
+Verify: `curl -sk https://skatelab.ru -o /dev/null -w "%{http_code}"` → 200.
+
+### TLS renewal — follow-up
+
+Caddy certs imported (~90-day validity). Traefik `certResolver: letsencrypt` uses `httpChallenge` on entryPoint `web` (:80). On expiry Traefik will request new certs via HTTP-01. Cloudflare orange-cloud MAY interfere with LE HTTP-01 validation. Safer: switch Traefik to Cloudflare DNS-01 challenge (matching Caddy's method) before certs expire. Deferred — 1-week observation window first.
 
 ## Follow-up for USER (cannot do via API)
 

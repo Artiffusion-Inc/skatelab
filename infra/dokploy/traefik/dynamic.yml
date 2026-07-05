@@ -1,10 +1,5 @@
 # Traefik dynamic config — replaces /opt/infra/services/caddy/Caddyfile.
-# All 15+ subdomain routes. IPs filled at Phase 4 cutover from `docker inspect` of
-# Dokploy containers on infra_app_network. Port-per-service from current Caddyfile.
-#
-# NOTE: prefer service DNS names over IPs where Dokploy containers join infra_app_network.
-# Format: <dokploy-project>-<service>-<replicaId> — confirm exact names via
-# `docker ps --filter label=com.docker.compose.project=infra --format '{{.Names}}'`.
+# All 15 subdomain routes. Service DNS names resolve on infra_app_network.
 http:
   routers:
     api:
@@ -14,8 +9,6 @@ http:
         certResolver: letsencrypt
       middlewares:
         - security-headers
-        - long-timeout
-        - sse-transport
     api-root:
       rule: "Host(`api.skatelab.ru`) && !PathPrefix(`/v1/`)"
       service: api-404
@@ -30,8 +23,6 @@ http:
         certResolver: letsencrypt
       middlewares:
         - security-headers
-        - long-timeout
-        - sse-transport
     rss:
       rule: "Host(`rss.skatelab.ru`)"
       service: miniflux
@@ -81,7 +72,6 @@ http:
       rule: "Host(`mf.skatelab.ru`)"
       service: mirofish-web
       tls: { certResolver: letsencrypt }
-      middlewares: [sse-transport]
     s3:
       rule: "Host(`s3.skatelab.ru`)"
       service: rustfs
@@ -96,77 +86,74 @@ http:
       tls: { certResolver: letsencrypt }
 
   services:
-    # Replace <..._NAME> with actual Dokploy container hostnames on infra_app_network.
-    # Get via: docker inspect <container> --format '{{.NetworkSettings.Networks.infra_app_network.IPAddress}}'
-    # or use DNS name if Dokploy project network bridges to infra_app_network.
     backend:
       loadBalancer:
         servers:
-          - url: "http://__BACKEND_ADDR__:8000"
+          - url: "http://backend-dk:8000"
     frontend:
       loadBalancer:
         servers:
-          - url: "http://__FRONTEND_ADDR__:3000"
+          - url: "http://frontend-dk:3000"
     miniflux:
       loadBalancer:
         servers:
-          - url: "http://__MINIFLUX_ADDR__:8080"
+          - url: "http://miniflux:8080"
     rsshub:
       loadBalancer:
         servers:
-          - url: "http://__RSSHUB_ADDR__:1200"
+          - url: "http://rsshub:1200"
     searxng:
       loadBalancer:
         servers:
-          - url: "http://__SEARXNG_ADDR__:8080"
+          - url: "http://searxng:8080"
     ntfy:
       loadBalancer:
         servers:
-          - url: "http://__NTFY_ADDR__:80"
+          - url: "http://ntfy:80"
     9router:
       loadBalancer:
         servers:
-          - url: "http://__9ROUTER_ADDR__:20128"
+          - url: "http://9router:20128"
     openviking-api:
       loadBalancer:
         servers:
-          - url: "http://__OPENVIKING_ADDR__:1933"
+          - url: "http://openviking:1933"
     openviking-console:
       loadBalancer:
         servers:
-          - url: "http://__OPENVIKING_ADDR__:8020"
+          - url: "http://openviking:8020"
     qbittorrent:
       loadBalancer:
         servers:
-          - url: "http://__QBITTORRENT_ADDR__:8080"
+          - url: "http://qbittorrent:8080"
     baikal:
       loadBalancer:
         servers:
-          - url: "http://__BAIKAL_ADDR__:80"
+          - url: "http://baikal:80"
     mosquitto:
       loadBalancer:
         servers:
-          - url: "http://__MOSQUITTO_ADDR__:9001"
+          - url: "http://mosquitto:9001"
     mirofish-api:
       loadBalancer:
         servers:
-          - url: "http://__MIROFISH_ADDR__:5001"
+          - url: "http://mirofish:5001"
     mirofish-web:
       loadBalancer:
         servers:
-          - url: "http://__MIROFISH_ADDR__:3000"
+          - url: "http://mirofish:3000"
     rustfs:
       loadBalancer:
         servers:
-          - url: "http://__RUSTFS_ADDR__:9000"
+          - url: "http://rustfs:9000"
     rustfs-console:
       loadBalancer:
         servers:
-          - url: "http://__RUSTFS_ADDR__:9001"
+          - url: "http://rustfs:9001"
     vless-sub:
       loadBalancer:
         servers:
-          - url: "http://__VLESS_SUB_ADDR__:8080"
+          - url: "http://vless-sub:8080"
     api-404:
       loadBalancer:
         servers:
