@@ -154,6 +154,16 @@ Verify: `curl -sk https://skatelab.ru -o /dev/null -w "%{http_code}"` → 200.
 
 Caddy certs imported (~90-day validity). Traefik `certResolver: letsencrypt` uses `httpChallenge` on entryPoint `web` (:80). On expiry Traefik will request new certs via HTTP-01. Cloudflare orange-cloud MAY interfere with LE HTTP-01 validation. Safer: switch Traefik to Cloudflare DNS-01 challenge (matching Caddy's method) before certs expire. Deferred — 1-week observation window first.
 
+## Legacy cleanup DONE 2026-07-05 21:55
+
+User authorized full cleanup. Migration now single-stack (Dokploy only).
+
+- **Legacy prod stack removed** — `docker rm -f skatelab-backend-108 skatelab-frontend-146 skatelab-worker-fast-1 skatelab-worker-heavy-1 skatelab-prometheus-1`. Was rollback fallback (shared PG/S3 with DK, workers on Valkey DB 3 idle). DB 3 keys expire via TTL (~25min).
+- **Caddy fully removed** — service block + `caddy-data`/`caddy-config` volumes deleted from `/opt/infra/compose.yaml` (backup `compose.yaml.pre-caddy-rm.<ts>`). Container + volumes + `caddy-cloudflare` image removed. Traefik owns 80/443. Caddyfile kept at `infra/services/caddy/Caddyfile` as archive reference.
+- **`/opt/skatelab` archived** → `/opt/skatelab.legacy-archive-20260705` (29M). Contains legacy `compose.yaml`, `compose.prod.yaml`, `deploy.sh`, `Caddyfile`, `prometheus.yml`. No container mounts from it. DK stack managed entirely by Dokploy (compose in Dokploy DB, not /opt/skatelab).
+
+**Final state**: 24 containers (was 29). DK stack = single prod. All subdomains 200/307/403/404 via Traefik + DNS-01 certs, `ssl_verify=0`.
+
 ## Follow-up for USER (cannot do via API)
 
 1. **GitHub secrets** (required for deploy.yml to work):
