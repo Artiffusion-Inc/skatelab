@@ -6,6 +6,7 @@ for coaches: declining trends, stagnation, instability, PRs.
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass
 
 
@@ -19,17 +20,26 @@ class Finding:
 
 
 def linear_regression(values: list[float]) -> tuple[float, float]:
-    """Return (slope, r_squared) for a simple linear regression."""
-    n = len(values)
+    """Return (slope, r_squared) for a simple linear regression.
+
+    #634: filter NaN/inf from `values` at the entry. Without this, one NaN
+    poisons the mean → ss_yy → ss_xy → slope (all NaN) and r² falls back
+    to 0.0 (NaN > 0 is False, takes the else branch). Downstream consumers
+    then classify the series as 'stable' for any R² < threshold, silently
+    hiding real regressions in data with even one missing-frame session.
+    """
+    # Drop NaN/inf so they don't poison the mean and sum-of-squares.
+    finite = [v for v in values if math.isfinite(v)]
+    n = len(finite)
     if n < 2:
         return 0.0, 0.0
     x = list(range(n))
     x_mean = sum(x) / n
-    y_mean = sum(values) / n
+    y_mean = sum(finite) / n
 
     ss_xx = sum((xi - x_mean) ** 2 for xi in x)
-    ss_xy = sum((xi - x_mean) * (yi - y_mean) for xi, yi in zip(x, values, strict=False))
-    ss_yy = sum((yi - y_mean) ** 2 for yi in values)
+    ss_xy = sum((xi - x_mean) * (yi - y_mean) for xi, yi in zip(x, finite, strict=False))
+    ss_yy = sum((yi - y_mean) ** 2 for yi in finite)
 
     if ss_xx == 0:
         return 0.0, 0.0
