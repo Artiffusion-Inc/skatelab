@@ -36,11 +36,24 @@ Status: 2026-07-05. Phase 1 CLI-verifiable tasks complete. Remaining tasks need 
 - API wrapper: `/tmp/dk.sh <METHOD> /endpoint <json>` with x-api-key.
 - OpenAPI spec: `/tmp/dokploy-cli/cli-0.29.4/openapi.json` (525 paths, full schema for all endpoints).
 
+## Cutover DONE 2026-07-05 18:43 — prod via Dokploy stack
+
+- **`skatelab-dk` compose stack** deployed via Dokploy API (`compose.create`+`compose.update`+`compose.deploy`), composeId `Yshf8i7x20Xzg7Qol4EAb`, appName `skatelab-dk-lsenvh`. Services: `backend-dk`, `worker-heavy-dk`, `worker-fast-dk`, `frontend-dk` on `infra_app_network` (external). Compose file: `/tmp/dokploy-migrate/skatelab-dk.compose.yml` (all env literals inlined). Workers on Valkey DB 4 (queue isolation vs prod DB 3).
+- **Key fix: `composeType=docker-compose`** (NOT `stack`). `stack` triggers `docker stack deploy` which requires swarm-scope external networks; `infra_app_network` is local bridge → "not in the right scope: local instead of swarm". `docker-compose` runs `docker compose up` (local), works with local external network. `sourceType=raw` (NOT `github`) set via `compose.update` — otherwise deploy tries git clone ("Github Provider not found").
+- **Caddy cutover**: `/opt/infra/services/caddy/Caddyfile` `reverse_proxy backend:8000` → `backend-dk:8000`, `frontend:3000` → `frontend-dk:3000`. Backup at `Caddyfile.pre-dk-cutover-1843`. Verified: `skatelab.ru` 200, `api.skatelab.ru/v1/health` 200 `{"status":"ok","valkey":true}`. DK backend serves prod traffic.
+- **Valkey queue split**: DB 4 (dk workers) 2 keys, DB 3 (prod workers) 3 keys — isolation confirmed.
+- **Prod stack** (`skatelab-backend-108` etc) left running as rollback (idle, shares Postgres/S3 with DK).
+
+## CRITICAL: Docker daemon restart breaks embedded DNS (127.0.0.11)
+
+- After `swarm init` + `live-restore` removal + daemon restart (17:39 CEST), embedded DNS lost network aliases for containers that **survived** the restart. `nslookup valkey` → NXDOMAIN from ALL containers on `infra_app_network`, prod went 503. Fresh `docker run --network infra_app_network` also NXDOMAIN.
+- **Fix**: `systemctl restart docker` + `docker compose up -d` in `/opt/infra` and `/opt/skatelab` — recreates containers, aliases re-register. DNS restored, prod 200.
+- **Systemic risk**: any future daemon restart will re-break DNS until containers recreated. Compose `restart: unless-stopped` auto-restarts but does NOT re-register aliases (container survives). Mitigation: after daemon restart, run `docker compose up -d` to recreate. Or re-enable `live-restore: true` (incompatible with swarm — can't). Accept: post-restart `compose up -d` is the recovery runbook.
+
 **Next steps autonomous via API:**
-- Phase 2 Tasks 9-15: deploy backend, frontend, workers, prometheus as compose stacks
-- Phase 3 Tasks 16-22: pglogical, Valkey DB 4, RustFS, Batch A/B migration
-- Phase 4 Tasks 23-25: Traefik dynamic.yml, cert import, full cutover
-- Phase 5 Tasks 26-30: archive, docs, secrets rotation, validation
+- Phase 3: utility services (miniflux/rsshub/searxng/ntfy/mosquitto/qbittorrent/baikal/openviking/mirofish/9router/vless-sub) — Ponytail: keep on Caddy unless real reason to move. Decide per-service.
+- Phase 4: Traefik dynamic.yml + cert import + Traefik→80/443 cutover (Caddy→no-op). Needed for Dokploy native domain routing + auto TLS. Ponytail: Caddy works now; Traefik cutover is the risky final swap.
+- Phase 5: archive old compose, docs, secrets rotation (`shred -u`), strip SSH deploy, final validation.
 
 ## Deviation from plan (intentional)
 - Plan said use official `curl … install.sh | sudo sh` with Traefik on 80/443. **Patched** installer so Traefik = 8080/8443, Caddy stays 80/443 as fallback. Reduces migration risk — if Traefik cutover fails, Caddy still serves. Phase 4 swaps them.
