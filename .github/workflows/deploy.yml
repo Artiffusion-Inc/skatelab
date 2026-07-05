@@ -21,10 +21,6 @@ permissions:
   packages: write
   pull-requests: read
 
-# Post-Dokploy: CI stays on PRs (branch protection enforces). Image builds decoupled
-# from CI — they only need checkout + docker login. Final deploy is Dokploy watchtower
-# auto-pull on :latest tag (no SSH). Critical path ~7-10 min (was ~17-25 min).
-# Legacy SSH deploy preserved at deploy.yml.legacy-pre-dokploy (30-day archive).
 jobs:
   ci:
     uses: ./.github/workflows/ci-reusable.yml
@@ -34,27 +30,10 @@ jobs:
       run-all: true
     secrets: inherit
 
-  build-images:
-    name: Build ${{ matrix.image }}
-    # No needs:ci — builds don't depend on test results. Branch protection
-    # enforces CI on PRs; here builds run in parallel with CI to shorten critical path.
+  build-frontend:
+    name: Build Frontend Image
+    needs: ci
     runs-on: blacksmith-4vcpu-ubuntu-2404
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - image: frontend
-            context: frontend
-            dockerfile: frontend/Containerfile
-            tag: skatelab-frontend
-          - image: backend
-            context: .
-            dockerfile: backend/Containerfile
-            tag: skatelab-backend
-          - image: arq-worker
-            context: .
-            dockerfile: backend/Containerfile.worker
-            tag: skatelab-arq-worker
     steps:
       - uses: actions/checkout@v6
 
@@ -72,61 +51,173 @@ jobs:
       - name: Setup Blacksmith Builder
         uses: useblacksmith/setup-docker-builder@v1
 
-      - name: Build & push ${{ matrix.image }}
+      - name: Build & push Frontend
         id: build
         uses: useblacksmith/build-push-action@v2
         with:
-          context: ${{ matrix.context }}
-          file: ${{ matrix.dockerfile }}
+          context: frontend
+          file: frontend/Containerfile
           push: true
           tags: |
-            ghcr.io/${{ steps.ghcr.outputs.owner }}/${{ matrix.tag }}:latest
-            ghcr.io/${{ steps.ghcr.outputs.owner }}/${{ matrix.tag }}:${{ github.sha }}
-          cache-from: |
-            type=gha
-            type=registry,ref=ghcr.io/${{ steps.ghcr.outputs.owner }}/${{ matrix.tag }}:latest
-          cache-to: type=gha,mode=max
+            ghcr.io/${{ steps.ghcr.outputs.owner }}/skatelab-frontend:latest
+            ghcr.io/${{ steps.ghcr.outputs.owner }}/skatelab-frontend:${{ github.sha }}
+          cache-from: type=registry,ref=ghcr.io/${{ steps.ghcr.outputs.owner }}/skatelab-frontend:latest
+          cache-to: type=inline
 
-      - name: Build summary
+      - name: Frontend build summary
         if: always()
         run: |
           cat >> "$GITHUB_STEP_SUMMARY" <<EOF
-          ## ${{ matrix.image }} Build
+          ## Frontend Build
 
           | Metric | Value |
           |--------|-------|
           | Status | \`${{ steps.build.outcome }}\` |
-          | Image | \`ghcr.io/${{ steps.ghcr.outputs.owner }}/${{ matrix.tag }}:${{ github.sha }}\` |
+          | Image | \`ghcr.io/${{ steps.ghcr.outputs.owner }}/skatelab-frontend:${{ github.sha }}\` |
 
           EOF
 
-  # Gate: production safety check. Deploy itself is now Dokploy watchtower auto-pull
-  # (no SSH job). This job exists so branch protection can require both CI + builds
-  # green before a push to master is considered "deployed". Dokploy polls GHCR for
-  # :latest and rolls automatically.
-  deploy-gate:
-    name: Deploy Gate (CI + builds green)
-    needs: [ci, build-images]
-    runs-on: blacksmith-2vcpu-ubuntu-2404
-    if: always()
+  build-backend:
+    name: Build Backend Image
+    needs: ci
+    runs-on: blacksmith-4vcpu-ubuntu-2404
     steps:
-      - name: Check gates
+      - uses: actions/checkout@v6
+
+      - name: Lowercase GHCR owner
+        id: ghcr
+        run: echo "owner=${GITHUB_REPOSITORY_OWNER,,}" >> "$GITHUB_OUTPUT"
+
+      - name: Login to GHCR
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Blacksmith Builder
+        uses: useblacksmith/setup-docker-builder@v1
+
+      - name: Build & push Backend
+        id: build
+        uses: useblacksmith/build-push-action@v2
+        with:
+          context: .
+          file: backend/Containerfile
+          push: true
+          tags: |
+            ghcr.io/${{ steps.ghcr.outputs.owner }}/skatelab-backend:latest
+            ghcr.io/${{ steps.ghcr.outputs.owner }}/skatelab-backend:${{ github.sha }}
+          cache-from: type=registry,ref=ghcr.io/${{ steps.ghcr.outputs.owner }}/skatelab-backend:latest
+          cache-to: type=inline
+
+      - name: Backend build summary
+        if: always()
         run: |
-          echo "ci: ${{ needs.ci.result }}"
-          echo "build-images: ${{ needs.build-images.result }}"
-          if [[ "${{ needs.ci.result }}" != "success" ]]; then
-            echo "::error::CI failed — deploy blocked"
-            exit 1
-          fi
-          if [[ "${{ needs.build-images.result }}" != "success" ]]; then
-            echo "::error::Image builds failed — deploy blocked"
-            exit 1
-          fi
-          echo "All gates green. Dokploy watchtower will auto-pull :latest."
+          cat >> "$GITHUB_STEP_SUMMARY" <<EOF
+          ## Backend Build
+
+          | Metric | Value |
+          |--------|-------|
+          | Status | \`${{ steps.build.outcome }}\` |
+          | Image | \`ghcr.io/${{ steps.ghcr.outputs.owner }}/skatelab-backend:${{ github.sha }}\` |
+
+          EOF
+
+  build-arq-worker:
+    name: Build ARQ Worker Image
+    needs: ci
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Lowercase GHCR owner
+        id: ghcr
+        run: echo "owner=${GITHUB_REPOSITORY_OWNER,,}" >> "$GITHUB_OUTPUT"
+
+      - name: Login to GHCR
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Blacksmith Builder
+        uses: useblacksmith/setup-docker-builder@v1
+
+      - name: Build & push ARQ Worker
+        id: build
+        uses: useblacksmith/build-push-action@v2
+        with:
+          context: .
+          file: backend/Containerfile.worker
+          push: true
+          tags: |
+            ghcr.io/${{ steps.ghcr.outputs.owner }}/skatelab-arq-worker:latest
+            ghcr.io/${{ steps.ghcr.outputs.owner }}/skatelab-arq-worker:${{ github.sha }}
+          cache-from: type=registry,ref=ghcr.io/${{ steps.ghcr.outputs.owner }}/skatelab-arq-worker:latest
+          cache-to: type=inline
+
+      - name: ARQ Worker build summary
+        if: always()
+        run: |
+          cat >> "$GITHUB_STEP_SUMMARY" <<EOF
+          ## ARQ Worker Build
+
+          | Metric | Value |
+          |--------|-------|
+          | Status | \`${{ steps.build.outcome }}\` |
+          | Image | \`ghcr.io/${{ steps.ghcr.outputs.owner }}/skatelab-arq-worker:${{ github.sha }}\` |
+
+          EOF
+
+  deploy:
+    name: Trigger Dokploy Redeploy
+    needs: [build-frontend, build-backend, build-arq-worker]
+    runs-on: blacksmith-2vcpu-ubuntu-2404
+    environment: production
+    steps:
+      - name: Trigger Dokploy compose.deploy via SSH
+        uses: appleboy/ssh-action@v1.2.5
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          port: 43210
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          command_timeout: 10m
+          request_pty: true
+          script: |
+            set -e
+            # New :latest images already pushed to GHCR by build jobs.
+            # Dokploy compose.deploy runs `docker compose up -d --pull always`
+            # (command set on the skatelab-dk stack) → pulls fresh images + recreates.
+            for i in $(seq 1 30); do
+              RESP=$(curl -s -X POST http://10.99.0.1:18080/api/compose.deploy \
+                -H "x-api-key: ${{ secrets.DOKPLOY_API_KEY }}" \
+                -H "Content-Type: application/json" \
+                -d '{"composeId":"${{ secrets.DOKPLOY_COMPOSE_ID }}"}' \
+                --max-time 15 || true)
+              echo "$RESP"
+              echo "$RESP" | grep -q '"success":true' && break
+              echo "retry $i..."; sleep 5
+            done
+            echo "$RESP" | grep -q '"success":true' || { echo "::error::Dokploy deploy trigger failed"; exit 1; }
+
+      - name: Deploy summary
+        if: always()
+        run: |
+          cat >> "$GITHUB_STEP_SUMMARY" <<EOF
+          ## Deploy
+
+          **Commit:** \`${{ github.sha }}\`
+          **Triggered by:** @${{ github.actor }}
+          **Path:** GHCR push → Dokploy \`compose.deploy\` (VPN-only API) → \`docker compose up -d --pull always\`
+
+          EOF
 
   deploy-summary:
     name: Pipeline Summary
-    needs: [ci, build-images, deploy-gate]
+    needs: [ci, build-frontend, build-backend, build-arq-worker, deploy]
     runs-on: blacksmith-4vcpu-ubuntu-2404
     if: always()
     steps:
@@ -138,17 +229,18 @@ jobs:
           | Stage | Status |
           |-------|--------|
           | CI | \`${{ needs.ci.result }}\` |
-          | Build Images | \`${{ needs.build-images.result }}\` |
-          | Deploy Gate | \`${{ needs.deploy-gate.result }}\` |
+          | Build Frontend | \`${{ needs.build-frontend.result }}\` |
+          | Build Backend | \`${{ needs.build-backend.result }}\` |
+          | Build ARQ Worker | \`${{ needs.build-arq-worker.result }}\` |
+          | Deploy | \`${{ needs.deploy.result }}\` |
 
           **Commit:** \`${{ github.sha }}\`
           **Triggered by:** @${{ github.actor }}
           **Branch:** \`${{ github.ref_name }}\`
-          **Deploy:** Dokploy watchtower auto-pulls \`ghcr.io/.../:latest\` on success.
 
           EOF
 
-          if [[ "${{ needs.build-images.result }}" != "success" ]]; then
-            echo "::error::Build pipeline failed"
+          if [[ "${{ needs.deploy.result }}" != "success" ]]; then
+            echo "::error::Deploy pipeline failed"
             exit 1
           fi
