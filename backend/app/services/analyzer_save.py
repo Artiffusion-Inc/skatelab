@@ -63,6 +63,16 @@ async def save_analyzer_results(
     Returns:
         Dict with overall_score, element_type, and rotations for gamification.
     """
+    # #647: validate fps at the trust boundary. fps=0 (or negative, NaN)
+    # causes the first phase dict's `start / fps` to raise
+    # ZeroDivisionError, crashing the whole save with HTTP 500. NaN
+    # comparison always returns False, so a plain `<= 0` check passes
+    # through NaN — also need `not math.isfinite` to catch it.
+    import math as _math
+
+    if not _math.isfinite(fps) or fps <= 0:
+        raise ValueError(f"fps must be > 0, got {fps}")
+
     from app.crud.session_phase import create as create_phase
     from app.crud.session_score import create as create_score
 
