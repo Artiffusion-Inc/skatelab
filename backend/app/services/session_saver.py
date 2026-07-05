@@ -5,6 +5,7 @@ Called after successful video processing to persist sessions and metrics.
 
 from __future__ import annotations
 
+import math
 from typing import TYPE_CHECKING, Any
 
 from app.crud.session import get_by_id, update
@@ -94,7 +95,19 @@ async def save_analysis_results(
     # range (is_in_range is not None), not all metric rows. Unregistered ML
     # metrics (is_in_range=None) must not inflate the denominator and deflate
     # the score for an otherwise perfect session. #432
-    eligible = [m for m in metric_rows if m["is_in_range"] is not None]
+    # #630: also filter NaN/inf out of the denominator. A NaN value compares
+    # False to every range bound, so its is_in_range is False (not None) — it
+    # passes the `is not None` filter and inflates len(eligible) while
+    # contributing nothing to in_range_count. Result: score deflates for any
+    # session with even one NaN metric. Filter via math.isfinite.
+    eligible = [
+        m
+        for m in metric_rows
+        if m["is_in_range"] is not None
+        and isinstance(m.get("metric_value"), (int, float))
+        and not isinstance(m.get("metric_value"), bool)
+        and math.isfinite(m["metric_value"])
+    ]
     in_range_count = sum(1 for m in eligible if m["is_in_range"])
     if eligible:
         overall_score = in_range_count / len(eligible)
