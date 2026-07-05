@@ -43,11 +43,16 @@ imported = 0
 for cert_dir in sorted(caddy_dir.iterdir()):
     if not cert_dir.is_dir():
         continue
-    cert_file = cert_dir / "cert.pem"
-    key_file = cert_dir / "key.pem"
-    if not (cert_file.exists() and key_file.exists()):
-        continue
     domain = cert_dir.name
+    # Caddy stores <domain>.crt + <domain>.key (not cert.pem/key.pem)
+    cert_file = cert_dir / f"{domain}.crt"
+    key_file = cert_dir / f"{domain}.key"
+    if not (cert_file.exists() and key_file.exists()):
+        # Fallback: some Caddy versions use cert.pem/key.pem
+        cert_file = cert_dir / "cert.pem"
+        key_file = cert_dir / "key.pem"
+        if not (cert_file.exists() and key_file.exists()):
+            continue
     cert_entry = {
         "domain": {"main": domain},
         "certificate": base64.b64encode(cert_file.read_bytes()).decode(),
@@ -62,7 +67,8 @@ acme_file.chmod(0o600)
 print(f"Wrote {acme_file} ({imported} certs)")
 EOF
 
-# Restart Traefik to load certs
-docker restart dokploy-traefik-1 2>/dev/null || docker restart dokploy-router-1 2>/dev/null || \
-  echo "NOTE: Traefik container name not found — restart manually after Dokploy install"
+# Restart Traefik to load certs (Dokploy runs Traefik as a swarm service)
+docker service update --force dokploy-traefik 2>/dev/null || \
+  docker restart dokploy-traefik 2>/dev/null || \
+  echo "NOTE: Traefik service not found — restart manually (docker service update --force dokploy-traefik)"
 echo "Done"
