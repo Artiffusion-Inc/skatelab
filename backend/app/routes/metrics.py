@@ -207,6 +207,11 @@ class MetricsController(Controller):
                 Session.status == "done",
                 SessionMetric.is_pr,
             )
+            # #632: order newest-first so the seen-set dedup keeps the most
+            # recent PR per (element_type, metric_name). Without this the
+            # route returns the first-encountered row in DB-insertion order
+            # (the oldest PR), silently dropping newer PRs.
+            .order_by(Session.created_at.desc())
         )
         if element_type:
             query = query.where(Session.element_type == element_type)
