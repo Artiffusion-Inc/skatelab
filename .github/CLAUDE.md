@@ -6,7 +6,7 @@
 |----------|---------|---------|
 | `ci.yml` | PR/push to master | Entry point → calls `ci-reusable.yml` |
 | `ci-reusable.yml` | `workflow_call` | Full CI: lint, typecheck, test, build, docker. Path-filtered. |
-| `deploy.yml` | Push to master (excl. docs/ml-gpu) | CI → build GHCR images → SSH deploy to VPS |
+| `deploy.yml` | Push to master (excl. docs/ml-gpu) | CI + matrix build GHCR images → Dokploy watchtower auto-pull (no SSH). Legacy: `deploy.yml.legacy-pre-dokploy` |
 | `container.yml` | Push to master (ml/gpu_server/**) | Build + push GPU worker image to GHCR |
 | `mobile.yml` | PR/push (mobile/**, backend/app/**) | KMP shared tests, Android lint/test/build debug APK |
 | `secrets.yml` | PR/push | GitGuardian secret scanning |
@@ -43,13 +43,16 @@ Path-filtered via `dorny/paths-filter`. Runs only relevant jobs per changed file
 Coverage: Codecov (backend+ml flags, frontend flag, shared flag, android flag).
 All jobs gated by `needs` — lint/typecheck must pass before test/build.
 
-## Deploy Pipeline (deploy.yml)
+## Deploy Pipeline (deploy.yml) — Dokploy
 
-1. Full CI (ci-reusable, `run-all: true`, `skip-docker: true`)
-2. Build + push frontend/backend images to GHCR **+ SCP deploy files to VPS** (all parallel)
-3. Write .env + run `deploy.sh` on VPS via SSH (zero-downtime rollout, alembic, health check)
+1. Full CI (ci-reusable, `run-all: true`, `skip-docker: true`) — runs in parallel with builds
+2. Matrix build + push frontend/backend/arq-worker images to GHCR (`:latest` + `:$sha`), GHA cache, no `needs:ci` gate (critical path ~7-10 min, was ~17-25)
+3. `deploy-gate` — requires both CI + builds green (branch protection anchor)
+4. Dokploy watchtower on VPS auto-pulls `:latest` — no SSH deploy job
 
 `concurrency: deploy-production` — no cancel-in-progress (never kill a deploy mid-way).
+
+Rollback: Dokploy UI → service → redeploy `:$sha`. Legacy SSH pipeline at `deploy.yml.legacy-pre-dokploy` (30-day archive).
 
 ## Mobile CI (mobile.yml)
 

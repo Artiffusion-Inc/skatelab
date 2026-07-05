@@ -21,6 +21,10 @@ permissions:
   packages: write
   pull-requests: read
 
+# Post-Dokploy: CI stays on PRs (branch protection enforces). Image builds decoupled
+# from CI — they only need checkout + docker login. Final deploy is Dokploy watchtower
+# auto-pull on :latest tag (no SSH). Critical path ~7-10 min (was ~17-25 min).
+# Legacy SSH deploy preserved at deploy.yml.legacy-pre-dokploy (30-day archive).
 jobs:
   ci:
     uses: ./.github/workflows/ci-reusable.yml
@@ -30,10 +34,27 @@ jobs:
       run-all: true
     secrets: inherit
 
-  build-frontend:
-    name: Build Frontend Image
-    needs: ci
+  build-images:
+    name: Build ${{ matrix.image }}
+    # No needs:ci — builds don't depend on test results. Branch protection
+    # enforces CI on PRs; here builds run in parallel with CI to shorten critical path.
     runs-on: blacksmith-4vcpu-ubuntu-2404
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - image: frontend
+            context: frontend
+            dockerfile: frontend/Containerfile
+            tag: skatelab-frontend
+          - image: backend
+            context: .
+            dockerfile: backend/Containerfile
+            tag: skatelab-backend
+          - image: arq-worker
+            context: .
+            dockerfile: backend/Containerfile.worker
+            tag: skatelab-arq-worker
     steps:
       - uses: actions/checkout@v6
 
@@ -51,219 +72,61 @@ jobs:
       - name: Setup Blacksmith Builder
         uses: useblacksmith/setup-docker-builder@v1
 
-      - name: Build & push Frontend
+      - name: Build & push ${{ matrix.image }}
         id: build
         uses: useblacksmith/build-push-action@v2
         with:
-          context: frontend
-          file: frontend/Containerfile
+          context: ${{ matrix.context }}
+          file: ${{ matrix.dockerfile }}
           push: true
           tags: |
-            ghcr.io/${{ steps.ghcr.outputs.owner }}/skatelab-frontend:latest
-            ghcr.io/${{ steps.ghcr.outputs.owner }}/skatelab-frontend:${{ github.sha }}
-          cache-from: type=registry,ref=ghcr.io/${{ steps.ghcr.outputs.owner }}/skatelab-frontend:latest
-          cache-to: type=inline
+            ghcr.io/${{ steps.ghcr.outputs.owner }}/${{ matrix.tag }}:latest
+            ghcr.io/${{ steps.ghcr.outputs.owner }}/${{ matrix.tag }}:${{ github.sha }}
+          cache-from: |
+            type=gha
+            type=registry,ref=ghcr.io/${{ steps.ghcr.outputs.owner }}/${{ matrix.tag }}:latest
+          cache-to: type=gha,mode=max
 
-      - name: Frontend build summary
+      - name: Build summary
         if: always()
         run: |
           cat >> "$GITHUB_STEP_SUMMARY" <<EOF
-          ## Frontend Build
+          ## ${{ matrix.image }} Build
 
           | Metric | Value |
           |--------|-------|
           | Status | \`${{ steps.build.outcome }}\` |
-          | Image | \`ghcr.io/${{ steps.ghcr.outputs.owner }}/skatelab-frontend:${{ github.sha }}\` |
+          | Image | \`ghcr.io/${{ steps.ghcr.outputs.owner }}/${{ matrix.tag }}:${{ github.sha }}\` |
 
           EOF
 
-  build-backend:
-    name: Build Backend Image
-    needs: ci
-    runs-on: blacksmith-4vcpu-ubuntu-2404
-    steps:
-      - uses: actions/checkout@v6
-
-      - name: Lowercase GHCR owner
-        id: ghcr
-        run: echo "owner=${GITHUB_REPOSITORY_OWNER,,}" >> "$GITHUB_OUTPUT"
-
-      - name: Login to GHCR
-        uses: docker/login-action@v4
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Setup Blacksmith Builder
-        uses: useblacksmith/setup-docker-builder@v1
-
-      - name: Build & push Backend
-        id: build
-        uses: useblacksmith/build-push-action@v2
-        with:
-          context: .
-          file: backend/Containerfile
-          push: true
-          tags: |
-            ghcr.io/${{ steps.ghcr.outputs.owner }}/skatelab-backend:latest
-            ghcr.io/${{ steps.ghcr.outputs.owner }}/skatelab-backend:${{ github.sha }}
-          cache-from: type=registry,ref=ghcr.io/${{ steps.ghcr.outputs.owner }}/skatelab-backend:latest
-          cache-to: type=inline
-
-      - name: Backend build summary
-        if: always()
-        run: |
-          cat >> "$GITHUB_STEP_SUMMARY" <<EOF
-          ## Backend Build
-
-          | Metric | Value |
-          |--------|-------|
-          | Status | \`${{ steps.build.outcome }}\` |
-          | Image | \`ghcr.io/${{ steps.ghcr.outputs.owner }}/skatelab-backend:${{ github.sha }}\` |
-
-          EOF
-
-  build-arq-worker:
-    name: Build ARQ Worker Image
-    needs: ci
-    runs-on: blacksmith-4vcpu-ubuntu-2404
-    steps:
-      - uses: actions/checkout@v6
-
-      - name: Lowercase GHCR owner
-        id: ghcr
-        run: echo "owner=${GITHUB_REPOSITORY_OWNER,,}" >> "$GITHUB_OUTPUT"
-
-      - name: Login to GHCR
-        uses: docker/login-action@v4
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Setup Blacksmith Builder
-        uses: useblacksmith/setup-docker-builder@v1
-
-      - name: Build & push ARQ Worker
-        id: build
-        uses: useblacksmith/build-push-action@v2
-        with:
-          context: .
-          file: backend/Containerfile.worker
-          push: true
-          tags: |
-            ghcr.io/${{ steps.ghcr.outputs.owner }}/skatelab-arq-worker:latest
-            ghcr.io/${{ steps.ghcr.outputs.owner }}/skatelab-arq-worker:${{ github.sha }}
-          cache-from: type=registry,ref=ghcr.io/${{ steps.ghcr.outputs.owner }}/skatelab-arq-worker:latest
-          cache-to: type=inline
-
-      - name: ARQ Worker build summary
-        if: always()
-        run: |
-          cat >> "$GITHUB_STEP_SUMMARY" <<EOF
-          ## ARQ Worker Build
-
-          | Metric | Value |
-          |--------|-------|
-          | Status | \`${{ steps.build.outcome }}\` |
-          | Image | \`ghcr.io/${{ steps.ghcr.outputs.owner }}/skatelab-arq-worker:${{ github.sha }}\` |
-
-          EOF
-
-  deploy-files:
-    name: Deploy Files to VPS
-    needs: ci
+  # Gate: production safety check. Deploy itself is now Dokploy watchtower auto-pull
+  # (no SSH job). This job exists so branch protection can require both CI + builds
+  # green before a push to master is considered "deployed". Dokploy polls GHCR for
+  # :latest and rolls automatically.
+  deploy-gate:
+    name: Deploy Gate (CI + builds green)
+    needs: [ci, build-images]
     runs-on: blacksmith-2vcpu-ubuntu-2404
+    if: always()
     steps:
-      - uses: actions/checkout@v6
-
-      - name: Setup SSH key
+      - name: Check gates
         run: |
-          mkdir -p ~/.ssh
-          echo "${{ secrets.VPS_SSH_KEY }}" > ~/.ssh/deploy_key
-          chmod 600 ~/.ssh/deploy_key
-          ssh-keyscan -p 43210 ${{ secrets.VPS_HOST }} >> ~/.ssh/known_hosts 2>/dev/null
-
-      - name: SCP deploy files to VPS
-        run: |
-          SSH="${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}"
-          SSH_KEY="-i ~/.ssh/deploy_key -o StrictHostKeyChecking=no"
-          ssh $SSH_KEY -p 43210 $SSH "mkdir -p /opt/skatelab/prometheus/rules /opt/infra/services/caddy && rm -rf /opt/skatelab/prometheus/prometheus.yml"
-          scp $SSH_KEY -P 43210 \
-            infra/deploy.sh \
-            infra/compose.prod.yaml \
-            infra/caddy/Caddyfile \
-            $SSH:/opt/skatelab/
-          scp $SSH_KEY -P 43210 \
-            infra/prometheus/prometheus.yml \
-            $SSH:/opt/skatelab/prometheus/
-          scp $SSH_KEY -P 43210 \
-            infra/prometheus/rules/alerts.yml \
-            infra/prometheus/rules/recording.yml \
-            $SSH:/opt/skatelab/prometheus/rules/
-
-  deploy:
-    name: Deploy to VPS
-    needs: [build-frontend, build-backend, build-arq-worker, deploy-files]
-    runs-on: blacksmith-4vcpu-ubuntu-2404
-    environment: production
-    steps:
-      - uses: actions/checkout@v6
-
-      - name: Lowercase GHCR owner
-        id: ghcr
-        run: echo "owner=${GITHUB_REPOSITORY_OWNER,,}" >> "$GITHUB_OUTPUT"
-
-      - name: Setup SSH key
-        run: |
-          mkdir -p ~/.ssh
-          echo "${{ secrets.VPS_SSH_KEY }}" > ~/.ssh/deploy_key
-          chmod 600 ~/.ssh/deploy_key
-          ssh-keyscan -p 43210 ${{ secrets.VPS_HOST }} >> ~/.ssh/known_hosts 2>/dev/null
-
-      - name: Write .env and deploy
-        uses: appleboy/ssh-action@v1.2.5
-        with:
-          host: ${{ secrets.VPS_HOST }}
-          port: 43210
-          username: ${{ secrets.VPS_USER }}
-          key: ${{ secrets.VPS_SSH_KEY }}
-          command_timeout: 15m
-          request_pty: true
-          script: |
-            cat > /opt/skatelab/.env <<ENVEOF
-            GHCR_PAT=${{ secrets.GHCR_PAT }}
-            GHCR_OWNER=${{ steps.ghcr.outputs.owner }}
-            POSTGRES_PASSWORD=${{ secrets.SKATELAB_DB_PASSWORD }}
-            S3_ENDPOINT_URL=${{ secrets.S3_ENDPOINT_URL }}
-            S3_ACCESS_KEY_ID=${{ secrets.S3_ACCESS_KEY_ID }}
-            S3_SECRET_ACCESS_KEY=${{ secrets.S3_SECRET_ACCESS_KEY }}
-            S3_BUCKET=${{ secrets.S3_BUCKET }}
-            S3_REGION=${{ secrets.S3_REGION }}
-            S3_PATH_STYLE=true
-            JWT_SECRET_KEY=${{ secrets.JWT_SECRET_KEY }}
-            VASTAI_API_KEY=${{ secrets.VASTAI_API_KEY }}
-            RESEND_API_KEY=${{ secrets.RESEND_API_KEY }}
-            APP_DATA_DIR=/app/data
-            ENVEOF
-            chmod +x /opt/skatelab/deploy.sh
-            bash /opt/skatelab/deploy.sh
-
-      - name: Deploy summary
-        if: always()
-        run: |
-          cat >> "$GITHUB_STEP_SUMMARY" <<EOF
-          ## Deploy
-
-          **Commit:** \`${{ github.sha }}\`
-          **Triggered by:** @${{ github.actor }}
-
-          EOF
+          echo "ci: ${{ needs.ci.result }}"
+          echo "build-images: ${{ needs.build-images.result }}"
+          if [[ "${{ needs.ci.result }}" != "success" ]]; then
+            echo "::error::CI failed — deploy blocked"
+            exit 1
+          fi
+          if [[ "${{ needs.build-images.result }}" != "success" ]]; then
+            echo "::error::Image builds failed — deploy blocked"
+            exit 1
+          fi
+          echo "All gates green. Dokploy watchtower will auto-pull :latest."
 
   deploy-summary:
     name: Pipeline Summary
-    needs: [ci, build-frontend, build-backend, build-arq-worker, deploy-files, deploy]
+    needs: [ci, build-images, deploy-gate]
     runs-on: blacksmith-4vcpu-ubuntu-2404
     if: always()
     steps:
@@ -275,19 +138,17 @@ jobs:
           | Stage | Status |
           |-------|--------|
           | CI | \`${{ needs.ci.result }}\` |
-          | Build Frontend | \`${{ needs.build-frontend.result }}\` |
-          | Build Backend | \`${{ needs.build-backend.result }}\` |
-          | Build ARQ Worker | \`${{ needs.build-arq-worker.result }}\` |
-          | Deploy Files | \`${{ needs.deploy-files.result }}\` |
-          | Deploy | \`${{ needs.deploy.result }}\` |
+          | Build Images | \`${{ needs.build-images.result }}\` |
+          | Deploy Gate | \`${{ needs.deploy-gate.result }}\` |
 
           **Commit:** \`${{ github.sha }}\`
           **Triggered by:** @${{ github.actor }}
           **Branch:** \`${{ github.ref_name }}\`
+          **Deploy:** Dokploy watchtower auto-pulls \`ghcr.io/.../:latest\` on success.
 
           EOF
 
-          if [[ "${{ needs.deploy.result }}" != "success" ]]; then
-            echo "::error::Deploy pipeline failed"
+          if [[ "${{ needs.build-images.result }}" != "success" ]]; then
+            echo "::error::Build pipeline failed"
             exit 1
           fi
