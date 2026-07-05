@@ -417,9 +417,9 @@ class AnalysisPipeline:
             phases=phases,
             metrics=metrics,
             recommendations=recommendations,
-            overall_score=overall_score if overall_score is not None else 0.0,
+            overall_score=overall_score,
             goe_grade=goe_grade,
-            dtw_distance=dtw_distance if dtw_distance is not None else 0.0,
+            dtw_distance=dtw_distance,
             physics=physics_dict,
             profiling=self._profiler.to_dict(),
         )
@@ -664,7 +664,10 @@ class AnalysisPipeline:
 
         # DTW distance
         lines.append("\n--- Сходство с референсом ---")
-        lines.append(f"  DTW-расстояние: {report.dtw_distance:.3f} (0 = идеально)")
+        if report.dtw_distance is not None:
+            lines.append(f"  DTW-расстояние: {report.dtw_distance:.3f} (0 = идеально)")
+        else:
+            lines.append("  DTW-расстояние: н/д")
 
         # Recommendations
         if report.recommendations:
@@ -676,7 +679,10 @@ class AnalysisPipeline:
             lines.append("  Отличное выполнение! Продолжай в том же духе.")
 
         # Overall score
-        lines.append(f"\nОбщий балл: {report.overall_score:.1f} / 10")
+        if report.overall_score is not None:
+            lines.append(f"\nОбщий балл: {report.overall_score:.1f} / 10")
+        else:
+            lines.append("\nОбщий балл: н/д")
 
         lines.append("=" * 60)
 
@@ -880,9 +886,10 @@ class AnalysisPipeline:
             phases=phases,
             metrics=metrics,
             recommendations=recommendations,
-            overall_score=overall_score if overall_score is not None else 0.0,
-            dtw_distance=dtw_distance if dtw_distance is not None else 0.0,
+            overall_score=overall_score,
+            dtw_distance=dtw_distance,
             physics=physics_dict,
+            profiling=self._profiler.to_dict(),
         )
 
     async def _detect_phases_async(

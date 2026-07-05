@@ -561,11 +561,11 @@ class AnalysisReport:
     element_type: str
     phases: ElementPhase
     metrics: list[MetricResult]
-    dtw_distance: float
     recommendations: list[str]
-    overall_score: float
     goe_grade: GOEGrade | None = None
     physics: dict[str, Any] = field(default_factory=dict)
+    dtw_distance: float | None = None
+    overall_score: float | None = None
     profiling: dict[str, Any] | None = None
 
     def format(self) -> str:
@@ -596,7 +596,9 @@ class AnalysisReport:
             [
                 "",
                 "--- Сходство с референсом ---",
-                f"  DTW-расстояние: {self.dtw_distance:.3f} (0 = идеально)",
+                f"  DTW-расстояние: {self.dtw_distance:.3f} (0 = идеально)"
+                if self.dtw_distance is not None
+                else "  DTW-расстояние: н/д",
                 "",
                 "--- РЕКОМЕНДАЦИИ ---",
             ]
@@ -648,7 +650,9 @@ class AnalysisReport:
         lines.extend(
             [
                 "",
-                f"Общий балл: {self.overall_score:.1f} / 10",
+                f"Общий балл: {self.overall_score:.1f} / 10"
+                if self.overall_score is not None
+                else "Общий балл: н/д",
                 "=" * 60,
             ]
         )
