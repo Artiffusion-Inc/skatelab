@@ -1,5 +1,7 @@
 """Personal record detection logic."""
 
+import math
+
 
 def check_pr(
     direction: str,
@@ -16,6 +18,13 @@ def check_pr(
     Returns:
         (is_pr, prev_best) where prev_best is the old best if it's a PR.
     """
+    # #629: NaN/inf must never be a PR. Guard BEFORE the `current_best is None`
+    # early-return — otherwise a missing-data first session silently marks NaN
+    # as PR, triggers `check_new_pr` diagnostic on a NaN value, and stores
+    # is_pr=True in DB.
+    if not math.isfinite(new_value):
+        return False, current_best
+
     if current_best is None:
         return True, None
 
