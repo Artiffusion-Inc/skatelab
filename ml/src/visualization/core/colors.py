@@ -7,6 +7,7 @@ Provides functions for:
 - Color blending and interpolation
 """
 
+import math
 from typing import Final
 
 import numpy as np
@@ -60,6 +61,11 @@ def get_depth_color(
     """
     if color_map is None:
         color_map = DEPTH_COLORS
+
+    # NaN/Inf: gray "unknown" so missing data is visually distinct from
+    # real "max" color (which min/max clamp would silently produce).
+    if not math.isfinite(depth):
+        return (128, 128, 128)
 
     # Clamp depth to range
     depth_clamped = max(depth_min, min(depth_max, depth))
@@ -164,6 +170,11 @@ def get_heatmap_color(
         >>> get_heatmap_color(0.5, 0.0, 1.0, "jet")
         (0, 255, 255)  # Cyan (midpoint)
     """
+    # NaN/Inf: gray "unknown" so missing data is visually distinct from
+    # "max heat" red (which min/max clamp would silently produce).
+    if not math.isfinite(value):
+        return (128, 128, 128)
+
     # Normalize to [0, 1]
     t = (value - vmin) / (vmax - vmin) if vmax > vmin else 0.5
     t = max(0.0, min(1.0, t))
@@ -302,6 +313,9 @@ def interpolate_color(c1: Color, c2: Color, t: float) -> Color:
         >>> interpolate_color((255, 0, 0), (0, 0, 255), 0.5)
         (128, 0, 128)  # Purple (midpoint of red and blue)
     """
+    # NaN/Inf t: gray "unknown" (don't pick c1 or c2 arbitrarily)
+    if not math.isfinite(t):
+        return (128, 128, 128)
     t = max(0.0, min(1.0, t))
     r = int(c1[2] * (1 - t) + c2[2] * t)
     g = int(c1[1] * (1 - t) + c2[1] * t)
@@ -360,6 +374,9 @@ def fade_color(color: Color, alpha: float) -> Color:
         >>> fade_color((255, 0, 0), 0.5)
         (128, 0, 0)  # Dimmed red
     """
+    # NaN/Inf alpha: gray "unknown" (don't silently pick original or black)
+    if not math.isfinite(alpha):
+        return (128, 128, 128)
     alpha = max(0.0, min(1.0, alpha))
     return (int(color[0] * alpha), int(color[1] * alpha), int(color[2] * alpha))
 
