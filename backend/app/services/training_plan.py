@@ -1,5 +1,7 @@
 """Training plan generation from weakest subscores."""
 
+import math
+
 from app.schemas import SubScoreSchema, TrainingPlanItemSchema
 
 EXERCISE_RECOMMENDATIONS = {
@@ -92,7 +94,13 @@ def generate_training_plan(
     """
     label_key = "label_en" if lang == "en" else "label_ru"
     desc_key = "description_en" if lang == "en" else "description_ru"
-    sorted_scores = sorted(subscores, key=lambda s: s.value)
+    # #646: filter non-finite values BEFORE the sort. NaN compares False to
+    # every other value in `sorted(..., key=...)`, so without filtering the
+    # NaN slot ends up in the top-4 via stable sort and the user gets a
+    # training plan item for a weakness that wasn't actually computed
+    # (failed ML upstream). Filter the uncomputable slots out.
+    finite_scores = [s for s in subscores if math.isfinite(s.value)]
+    sorted_scores = sorted(finite_scores, key=lambda s: s.value)
     items = []
     for i, score in enumerate(sorted_scores[:4], 1):
         # #550: validate subscore.name against EXERCISE_RECOMMENDATIONS. A
