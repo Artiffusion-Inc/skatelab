@@ -6,6 +6,7 @@ Provides functions for:
 - Skeleton line colors
 """
 
+import math
 from typing import Any, Final
 
 from src.types import H36Key
@@ -142,6 +143,10 @@ def get_joint_radius(
         >>> get_joint_radius(0.8)
         4  # Full radius (confidence above threshold)
     """
+    # NaN/Inf: treat as invalid (no draw). Avoids int(NaN) ValueError
+    # and stops NaN from silently propagating through max/min clamps.
+    if not math.isfinite(confidence):
+        return 0
     if confidence < threshold:
         return 0  # Don't draw low-confidence joints
 
@@ -173,6 +178,11 @@ def get_joint_radius_3d(
         >>> get_joint_radius_3d(1.0)
         4  # Medium depth, medium radius
     """
+    # NaN/Inf: collapse to mid-range (scale=0.75, near min radius) so
+    # missing depth doesn't crash and doesn't silently pick "max" color.
+    if not math.isfinite(depth):
+        depth = (depth_min + depth_max) / 2
+
     # Normalize depth to [0, 1]
     t = (depth - depth_min) / (depth_max - depth_min) if depth_max > depth_min else 0.5
     t = max(0.0, min(1.0, t))
@@ -274,6 +284,9 @@ def get_confidence_radius(
         >>> get_confidence_radius(0.7)
         5  # Slightly smaller than base_radius
     """
+    # NaN/Inf: same invalid-joint treatment as get_joint_radius.
+    if not math.isfinite(confidence):
+        return 0
     radius = int(base_radius * confidence)
     return max(min_radius, min(max_radius, radius))
 
