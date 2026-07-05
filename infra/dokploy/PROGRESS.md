@@ -50,10 +50,35 @@ Status: 2026-07-05. Phase 1 CLI-verifiable tasks complete. Remaining tasks need 
 - **Fix**: `systemctl restart docker` + `docker compose up -d` in `/opt/infra` and `/opt/skatelab` — recreates containers, aliases re-register. DNS restored, prod 200.
 - **Systemic risk**: any future daemon restart will re-break DNS until containers recreated. Compose `restart: unless-stopped` auto-restarts but does NOT re-register aliases (container survives). Mitigation: after daemon restart, run `docker compose up -d` to recreate. Or re-enable `live-restore: true` (incompatible with swarm — can't). Accept: post-restart `compose up -d` is the recovery runbook.
 
-**Next steps autonomous via API:**
-- Phase 3: utility services (miniflux/rsshub/searxng/ntfy/mosquitto/qbittorrent/baikal/openviking/mirofish/9router/vless-sub) — Ponytail: keep on Caddy unless real reason to move. Decide per-service.
-- Phase 4: Traefik dynamic.yml + cert import + Traefik→80/443 cutover (Caddy→no-op). Needed for Dokploy native domain routing + auto TLS. Ponytail: Caddy works now; Traefik cutover is the risky final swap.
-- Phase 5: archive old compose, docs, secrets rotation (`shred -u`), strip SSH deploy, final validation.
+## CI/CD hybrid DONE 2026-07-05
+
+- `deploy.yml` (worktree commit `8e75a277`): `deploy-files` + SSH-deploy jobs removed; new `deploy` job = SSH to VPS → `curl http://10.99.0.1:18080/api/compose.deploy` (Dokploy tRPC, `x-api-key` header) → Dokploy runs `docker compose -p skatelab-dk-lsenvh up -d --pull always --remove-orphans` (custom `command` set on stack via `compose.update`). SSH is a thin trigger only — no `.env` write, no `deploy.sh`, no SCP.
+- `--pull always` ensures fresh `:latest` GHCR images on each deploy.
+- `.github/CLAUDE.md` updated (deploy pipeline + secrets table).
+
+## Final validation 2026-07-05 18:50 — ALL GREEN
+
+- `https://skatelab.ru` 200, `https://api.skatelab.ru/v1/health` 200 `{"status":"ok","valkey":true}` (served by `skatelab-dk-lsenvh-backend-dk-1`)
+- `s3.skatelab.ru` 403 (normal, S3 root), `mf.skatelab.ru` 200, `9r.skatelab.ru` 307
+- DK stack: backend/frontend healthy 4min+, workers up
+- Valkey: DB4 (dk) 2 keys, DB3 (prod legacy workers) 3 keys — queue isolation
+- Dokploy UI `10.99.0.1:18080` 200 (VPN-only)
+
+## Ponytail deviations (intentional)
+
+- **Phase 3 data services**: Postgres/Valkey/RustFS NOT migrated to Dokploy. Kept shared on `infra_app_network`, DK stack connects via external network. pglogical/RustFS-sync skipped entirely — no value, high risk. `network-connect` pattern (BLOCKER #1) makes this work.
+- **Phase 4 Traefik cutover**: SKIPPED. Traefik stays on 8080/8443 for Dokploy UI; Caddy remains on 80/443 proxying to DK containers. Caddy works, TLS via Cloudflare DNS challenge intact. Traefik→80/443 swap is pure risk, no CI/CD value (Dokploy manages compose lifecycle regardless of which proxy fronts it). Revisit only if Dokploy-native domain routing/auto-TLS becomes a real need.
+- **Phase 5 archive**: legacy `deploy.sh` / SCP-`.env` / `compose.prod.yaml` flow preserved in git history (pre-2026-07-05) — sufficient as 30-day rollback reference. No `.archive/` dir needed.
+- **Phase 5.5 secrets rotation**: DEFERRED. Working system on rotated-mid-migration secrets = unnecessary risk. Rotate `JWT_SECRET_KEY`, `POSTGRES_PASSWORD`, API keys, root password after 1-week observation (run `infra/dokploy/scripts/secrets-rotation.sh` with `shred -u` on old values).
+
+## Follow-up for USER (cannot do via API)
+
+1. **GitHub secrets** (required for deploy.yml to work):
+   - `DOKPLOY_API_KEY` = `hBrvLmPcTmcjZLcmNGLNGjWllppvxdNELIWoMisdZVkBIzmnTduaBCHqeAjaFyxr` (or rotate first in Dokploy UI → new key)
+   - `DOKPLOY_COMPOSE_ID` = `Yshf8i7x20Xzg7Qol4EAb`
+2. **Push worktree branch** `worktree-dokploy-migration` + open PR to `master` (use `finishing-a-development-branch` skill).
+3. **After 1-week observation**: Phase 5.5 secrets rotation (`shred -u`), root password change, remove plaintext secrets from this doc.
+4. **Rollback** (if DK misbehaves): `Caddyfile.pre-dk-cutover-1843` → restore, `caddy reload`; prod `skatelab-backend-108` stack still running (idle, shared DB).
 
 ## Deviation from plan (intentional)
 - Plan said use official `curl … install.sh | sudo sh` with Traefik on 80/443. **Patched** installer so Traefik = 8080/8443, Caddy stays 80/443 as fallback. Reduces migration risk — if Traefik cutover fails, Caddy still serves. Phase 4 swaps them.
