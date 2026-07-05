@@ -69,7 +69,11 @@ class PoseNormalizer:
             spine_vector = thorax - hip_center
             spine_length = np.linalg.norm(spine_vector)
 
-            scale = 1.0 if spine_length < 1e-6 else self._target_spine_length / spine_length
+            scale = (
+                1.0
+                if not np.isfinite(spine_length) or spine_length < 1e-6
+                else self._target_spine_length / spine_length
+            )
 
             # 3. Project to 2D (x, y) - drop z coordinate
             normalized[frame_idx] = centered[:, :2] * scale
@@ -110,7 +114,11 @@ class PoseNormalizer:
             spine_vector = thorax - hip_center
             spine_length = np.linalg.norm(spine_vector)
 
-            scale = 1.0 if spine_length < 1e-6 else self._target_spine_length / spine_length
+            scale = (
+                1.0
+                if not np.isfinite(spine_length) or spine_length < 1e-6
+                else self._target_spine_length / spine_length
+            )
 
             # 3. Preserve Z — no [:, :2] projection
             normalized[frame_idx] = centered * scale
