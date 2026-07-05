@@ -199,8 +199,8 @@ class TestAnalysisPipelineAnalyze:
         assert report.element_type == "unknown"
         assert report.metrics == []
         assert report.recommendations == []
-        assert report.overall_score == 0.0
-        assert report.dtw_distance == 0.0
+        assert report.overall_score is None
+        assert report.dtw_distance is None
 
         pipeline._get_phase_detector.assert_not_called()
         pipeline._get_analyzer_factory.assert_not_called()
@@ -362,7 +362,7 @@ class TestAnalysisPipelineAnalyze:
 
         report = pipeline.analyze(Path("test.mp4"), element_type="waltz_jump")
 
-        assert report.dtw_distance == 0.0
+        assert report.dtw_distance is None
         pipeline._get_aligner().compute_distance.assert_not_called()
 
     @patch("src.pipeline.get_video_meta")
