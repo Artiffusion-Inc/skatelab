@@ -59,7 +59,10 @@ class ProcessController(Controller):
         if data.session_id is not None:
             await assert_session_owned(db, data.session_id, user)
 
-        task_id = f"proc_{uuid.uuid4().hex[:12]}"
+        # #698: full uuid4 hex (128 bits). The old 12-char truncation (48 bits)
+        # hit birthday-paradox collisions at ~10M tasks (~16%), clobbering two
+        # tasks' Valkey state — one user's cancel signal could kill another's.
+        task_id = f"proc_{uuid.uuid4().hex}"
 
         await create_task_state(task_id, video_key=data.video_key, user_id=str(user.id))
 
