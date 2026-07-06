@@ -170,6 +170,8 @@ async def store_error(
         f"{TASK_KEY_PREFIX}{task_id}",
         mapping={
             "status": TaskStatus.FAILED,
+            "progress": "0.0",
+            "message": "Failed",
             "completed_at": now,
             "error": error_message,
         },
@@ -183,6 +185,7 @@ async def mark_cancelled(task_id: str) -> None:
         f"{TASK_KEY_PREFIX}{task_id}",
         mapping={
             "status": TaskStatus.CANCELLED,
+            "progress": "0.0",
             "completed_at": now,
             "message": "Cancelled",
         },
