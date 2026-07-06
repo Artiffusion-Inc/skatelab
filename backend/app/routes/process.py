@@ -10,7 +10,7 @@ from collections.abc import Sequence  # noqa: TC003
 from typing import Any, ClassVar
 
 from litestar import Controller, Request, get, post
-from litestar.exceptions import NotAuthorizedException
+from litestar.exceptions import ClientException, NotAuthorizedException
 from litestar.response import ServerSentEvent
 
 from app.auth.deps import CurrentUser, DbDep
@@ -26,6 +26,7 @@ from app.task_manager import (
     TASK_EVENTS_PREFIX,
     TaskStatus,
     create_task_state,
+    delete_task_state,
     get_task_state,
     get_valkey,
     set_cancel_signal,
@@ -67,19 +68,34 @@ class ProcessController(Controller):
             "inpainting": data.inpainting,
         }
 
-        await request.app.state.arq_pool.enqueue_job(
-            "process_video_task",
-            task_id=task_id,
-            video_key=data.video_key,
-            person_click={"x": data.person_click.x, "y": data.person_click.y},
-            frame_skip=data.frame_skip,
-            tracking=data.tracking,
-            ml_flags=ml_flags,
-            session_id=data.session_id,
-            user_id=str(user.id),
-            lang=user.language,
-            _queue_name="skatelab:queue:heavy",
-        )
+        # #700: rollback task state if enqueue_job raised (Valkey full, queue
+        # missing, serialization error). Without this the hash stays "pending"
+        # for the TTL — the client polls a task that will never run and the
+        # per-user rate limit still counts the orphan.
+        try:
+            await request.app.state.arq_pool.enqueue_job(
+                "process_video_task",
+                task_id=task_id,
+                video_key=data.video_key,
+                person_click={"x": data.person_click.x, "y": data.person_click.y},
+                frame_skip=data.frame_skip,
+                tracking=data.tracking,
+                ml_flags=ml_flags,
+                session_id=data.session_id,
+                user_id=str(user.id),
+                lang=user.language,
+                _queue_name="skatelab:queue:heavy",
+            )
+        except Exception:
+            logger.exception("Failed to enqueue process_video_task for %s", task_id)
+            try:
+                await delete_task_state(task_id)
+            except Exception:
+                logger.warning("Failed to roll back task state for %s", task_id)
+            raise ClientException(
+                status_code=503,
+                detail="Failed to enqueue task",
+            ) from None
 
         return QueueProcessResponse(task_id=task_id)
 
