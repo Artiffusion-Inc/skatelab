@@ -811,13 +811,26 @@ class BiomechanicsAnalyzer:
         # Get CoM at takeoff (baseline)
         takeoff_com = com_trajectory[phases.takeoff]
 
-        # Find minimum CoM during flight (maximum height)
-        # Y is inverted in normalized coords, so min Y = max height
+        # Find minimum CoM during flight (maximum height).
+        # Y is inverted in normalized coords, so min Y = max height.
+        # #879: np.nanmin (NOT np.min) so a NaN CoM frame (fully-occluded
+        # flight frame) does not poison the min into nan. The NaN-aware CoM
+        # (#871) keeps CoM finite when a few keypoints are occluded, but a
+        # fully-occluded flight frame still yields NaN. nanmin skips NaN
+        # frames; if every flight frame is NaN there is no data -- return 0.0
+        # (neutral "no height") instead of nan, which leaks into max_height
+        # value and breaks JSON serialization (RFC 8259), the recommender, and
+        # frontend display.
         flight_com = com_trajectory[phases.takeoff : phases.landing + 1]
-        peak_com = np.min(flight_com)
+        peak_com = float(np.nanmin(flight_com))
+        if not np.isfinite(peak_com):
+            return 0.0
 
         # Height = takeoff CoM - peak CoM (both inverted, so difference is positive)
-        return float(takeoff_com - peak_com)
+        height = float(takeoff_com - peak_com)
+        if not np.isfinite(height):
+            return 0.0
+        return height
 
     def compute_landing_quality(self, poses: NormalizedPose, phases: ElementPhase) -> float:
         """Compute landing knee angle.
