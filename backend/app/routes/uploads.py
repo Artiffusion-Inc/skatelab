@@ -42,10 +42,18 @@ def sanitize_file_name(name: str) -> str:
     return base
 
 
+class UploadPart(BaseModel):
+    # #683: typed model — missing/non-int part_number or missing etag is
+    # rejected at the schema layer (400) instead of KeyError/ValueError → 500
+    # mid-handler. int coerces stringified numbers from loose clients.
+    part_number: int
+    etag: str
+
+
 class CompleteUploadRequest(BaseModel):
     upload_id: str
     key: str
-    parts: list[dict]
+    parts: list[UploadPart]
 
 
 class UploadsController(Controller):
@@ -135,7 +143,7 @@ class UploadsController(Controller):
         # or duplicates. S3 silently completes a multipart upload with missing
         # parts → unplayable video that retries can't fix (multipart state
         # corrupted) and a storage leak. Reject before the S3 call.
-        part_numbers = [int(p["part_number"]) for p in data.parts]
+        part_numbers = [p.part_number for p in data.parts]
         expected = set(range(1, len(part_numbers) + 1))
         if set(part_numbers) != expected:
             raise ClientException(
@@ -144,8 +152,8 @@ class UploadsController(Controller):
             )
 
         multipart_parts = [
-            {"PartNumber": p["part_number"], "ETag": p["etag"]}
-            for p in sorted(data.parts, key=lambda x: int(x["part_number"]))
+            {"PartNumber": p.part_number, "ETag": p.etag}
+            for p in sorted(data.parts, key=lambda x: x.part_number)
         ]
 
         s3.complete_multipart_upload(
