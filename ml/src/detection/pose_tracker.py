@@ -81,17 +81,16 @@ class PoseTracker:
         self.min_hits = min_hits
         self.next_id = 0
         self.tracks: list[Track] = []
-        # #610: validate fps > 0. Pre-fix, a caller passing fps=0 (from
-        # a corrupted video where FPS detection failed, or an explicit
-        # bad config) crashed the constructor with ZeroDivisionError at
-        # `self.dt = 1.0 / fps`. Fail loudly with a clear error message
-        # rather than silently allowing a degenerate dt = inf. The
-        # alternative of `1.0 / max(fps, 1e-6)` would silently produce
-        # a huge dt that breaks downstream Kalman predictions.
-        if fps <= 0:
-            raise ValueError(f"fps must be positive, got {fps!r}")
-        self.fps = fps
-        self.dt = 1.0 / fps
+        # #952: a corrupted video can report fps=0 (cv2.CAP_PROP_FPS=0 when
+        # the container lacks a framerate tag). Pre-fix (#610) raised
+        # ValueError, which killed the worker job at the FIRST pipeline stage
+        # rather than degrading. The Sports2D sibling is inherently fps=0-safe
+        # (dt=1, frame-based); mirror that: fall back to dt=1.0 (one sample per
+        # step, frame-index time) so the Kalman matrices stay finite and the
+        # job runs. A degenerate dt=inf would break downstream predictions, so
+        # never compute 1.0/fps when fps<=0.
+        self.fps = fps if fps > 0 else 0.0
+        self.dt = 1.0 / fps if fps > 0 else 1.0
 
         # Kalman filter parameters (shared, read-only during predict/update)
         self.F, self.H, self.Q, self.R, self.P0 = self._init_kalman_params()
