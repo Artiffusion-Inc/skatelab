@@ -95,9 +95,9 @@ def _seq(n: int = 12, nan_keypoint: int | None = None) -> np.ndarray:
     """
     poses = np.zeros((n, 17, 2), dtype=np.float32)
     for f in range(n):
-        poses[f, 0] = [0.0, 0.0]      # head
-        poses[f, 1] = [-0.2, 0.1]     # lshoulder
-        poses[f, 2] = [0.2, 0.1]      # rshoulder
+        poses[f, 0] = [0.0, 0.0]  # head
+        poses[f, 1] = [-0.2, 0.1]  # lshoulder
+        poses[f, 2] = [0.2, 0.1]  # rshoulder
         poses[f, 4] = [-0.1, 0.5 + f * 0.01]  # lhip (drift)
         poses[f, 5] = [0.1, 0.5 + f * 0.01]  # rhip (drift)
     if nan_keypoint is not None:
@@ -222,9 +222,7 @@ def test_nan_knee_align_with_keyframes_does_not_crash_repro():
     rp = ElementPhase(name="j", start=0, takeoff=2, peak=6, landing=10, end=11)
 
     try:
-        result = aligner.align_with_keyframes(
-            _seq(12, 1), up, _seq(12, None), rp
-        )
+        result = aligner.align_with_keyframes(_seq(12, 1), up, _seq(12, None), rp)
     except Exception as e:
         raise AssertionError(
             f"BUG: MotionDTWAligner.align_with_keyframes raised "
@@ -264,39 +262,41 @@ def test_all_valid_compute_distance_unchanged_repro():
 
 
 def test_motion_dtw_nan_crash_source_repro():
-    """Source check: `compute_distance` guards `len(user) < 2 or
-    len(reference) < 2` (returns `float("inf")`, line 470) but has NO NaN guard
-    on the data, then calls `result = self.align_with_keyframes(...)` (line
-    484) unguarded. Root cause locked.
+    """Source check: the NaN-crash fix lives in `_compute_dtw` (the shared
+    root — both the 2D phase path via `_align_phase` and the 3D
+    `compute_distance_3d` path route through it). A `nan_to_num` guard there
+    sanitizes the cost matrix so an occluded keypoint degrades to a finite
+    NaN-masked distance instead of raising `ValueError`. Identity on
+    all-finite input — the all-valid case is unchanged.
 
-    RED now: the degenerate-length guard + unguarded
-    `align_with_keyframes` call are present (PASS — root cause locked). After
-    the fix: a NaN guard (`np.isnan` / `np.isfinite` / `nan_to_num` /
-    `np.nanmean`) appears in `compute_distance` or `align_with_keyframes` /
-    `_align_phase` / `_compute_dtw` — this test FAILS, signaling the
-    observable tests above should flip to GREEN.
+    GREEN contract: `_compute_dtw` source contains `np.nan_to_num` (the
+    NaN-guard), and `compute_distance` still has the degenerate-length
+    `inf` sentinel + the phase-aware `align_with_keyframes` call.
     """
+    dtw_src = inspect.getsource(MotionDTWAligner._compute_dtw)
+    assert "np.nan_to_num" in dtw_src, (
+        "BUG: _compute_dtw must sanitize NaN in the cost matrix via "
+        "`np.nan_to_num` (the #888 NaN-crash guard). A NaN keypoint must not "
+        "poison the DTW accumulator and raise ValueError — the guard degrades "
+        "to a finite NaN-masked distance."
+    )
     cd_src = inspect.getsource(MotionDTWAligner.compute_distance)
-    # The degenerate-length guard exists (returns inf) — proves the codebase
-    # already uses an inf sentinel for degenerate input, so a NaN guard fits
-    # the same pattern.
-    assert "if len(user) < 2 or len(reference) < 2:" in cd_src and \
-           "return float(\"inf\")" in cd_src, (
-        "BUG: compute_distance must guard `len(user) < 2 or len(reference) < "
-        "2: return float('inf')` (degenerate-length sentinel) for this repro "
-        "to be valid. If the guard was removed/changed, the repro is invalid."
+    # The degenerate-length guard still exists (returns inf) — the NaN guard
+    # is an addition, not a replacement of the existing inf sentinel.
+    assert (
+        "if len(user) < 2 or len(reference) < 2:" in cd_src and 'return float("inf")' in cd_src
+    ), (
+        "BUG: compute_distance must still guard `len(user) < 2 or "
+        "len(reference) < 2: return float('inf')` (degenerate-length sentinel); "
+        "the #888 NaN guard is an addition, not a replacement."
     )
-    # The unguarded align_with_keyframes call is present.
-    assert "result = self.align_with_keyframes(user, user_phases, reference, ref_phases, joints)" in cd_src, (
-        "BUG: compute_distance must call "
+    # The phase-aware alignment call is still present (the fix did not bypass it).
+    assert (
+        "result = self.align_with_keyframes(user, user_phases, reference, ref_phases, joints)"
+        in cd_src
+    ), (
+        "BUG: compute_distance must still call "
         "`result = self.align_with_keyframes(user, user_phases, reference, "
-        "ref_phases, joints)` (unguarded) for this repro to be valid. If a NaN "
-        "guard was added before this call, the crash bug is fixed — update the "
-        "observable tests to the GREEN contract."
-    )
-    assert "np.isnan" not in cd_src and "np.isfinite" not in cd_src and \
-        "nan_to_num" not in cd_src and "nanmean" not in cd_src, (
-        "BUG: a NaN guard (`np.isnan` / `np.isfinite` / `nan_to_num` / "
-        "`nanmean`) appeared in compute_distance — the NaN-crash bug is fixed; "
-        "update the observable tests to the GREEN contract."
+        "ref_phases, joints)`; the #888 fix lives in _compute_dtw, not by "
+        "bypassing the phase-aware path."
     )
