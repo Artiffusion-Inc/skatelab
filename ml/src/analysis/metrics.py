@@ -1730,13 +1730,26 @@ class BiomechanicsAnalyzer:
         # Get CoM at takeoff
         takeoff_com = com_trajectory[phases.takeoff]
 
-        # Find minimum CoM during flight (maximum height)
-        # Y is inverted in normalized coords, so min Y = max height
+        # Find minimum CoM during flight (maximum height).
+        # Y is inverted in normalized coords, so min Y = max height.
+        # #875: np.nanmin (NOT np.min) so a NaN CoM frame (fully-occluded flight
+        # frame — calculate_com_trajectory is NaN-aware (#871) and masks a few
+        # occluded keypoints, but a fully-occluded frame still yields NaN) does
+        # not poison the min into nan. Mirrors the sibling compute_max_height
+        # guard (#879, line 832). nanmin skips NaN frames; if every flight frame
+        # is NaN there is no data -- return 0.0 (neutral "no height") instead of
+        # nan, which leaks into the GOE height_score via min(1.0, nan)=1.0
+        # (#454 arg-order trap) and inflates the GOE by ~+0.20 (height weight
+        # 0.20) -- occlusion rewarded as the BEST jump. Identity on all-finite.
         flight_com = com_trajectory[phases.takeoff : phases.landing + 1]
-        peak_com = np.min(flight_com)
+        peak_com = float(np.nanmin(flight_com))
+        if not np.isfinite(peak_com):
+            return 0.0
 
         # CoM displacement = takeoff - peak (both inverted, so difference is positive)
         com_displacement = float(takeoff_com - peak_com)
+        if not np.isfinite(com_displacement):
+            return 0.0
 
         # Return normalized height
         return com_displacement / avg_spine
@@ -1760,7 +1773,14 @@ class BiomechanicsAnalyzer:
         Returns: GOE proxy score in [0.0, 10.0]
         """
         rel_height = self.compute_relative_jump_height(poses, phases)
-        height_score = min(1.0, rel_height / 1.0)
+        # #875: np.nan_to_num before the Python min — min(1.0, nan) = 1.0
+        # (#454 arg-order trap) would inflate the GOE height_score to BEST on a
+        # NaN rel_height. compute_relative_jump_height now returns finite 0.0 on
+        # no-data (#875 guard), but guard anyway in case a caller passes a NaN
+        # path. NaN -> neutral 0.0 (worst height), not best 1.0. Mirrors the
+        # approach_score guard below (#878).
+        height_score = float(np.nan_to_num(rel_height / 1.0, nan=0.0))
+        height_score = min(1.0, height_score)
 
         rot_speed = self.compute_rotation_speed(poses, phases, fps)
         rot_score = min(1.0, rot_speed / 720.0)
