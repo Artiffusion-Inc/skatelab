@@ -21,7 +21,7 @@ from pathlib import Path
 from typing import Any, Literal
 from urllib.parse import urlparse
 
-from pydantic import Field, SecretStr
+from pydantic import Field, SecretStr, field_validator
 from pydantic_settings import BaseSettings as _BaseSettings
 from pydantic_settings import SettingsConfigDict
 
@@ -196,7 +196,15 @@ class AppConfig(BaseSettings):
     worker_retry_delays: list[int] = [30, 120]
     log_level: str = "INFO"
     omp_num_threads: int = 2
-    task_ttl_seconds: int = 86400
+    task_ttl_seconds: int = 86400  # #642: must be > 0, validator below
+
+    @field_validator("task_ttl_seconds")
+    @classmethod
+    def _ttl_positive(cls, v: int) -> int:
+        if v <= 0:
+            raise ValueError(f"task_ttl_seconds must be > 0, got {v}")
+        return v
+
     skip_auth: bool = False
     cookie_secure: bool = False
     cookie_samesite: Literal["lax", "strict", "none"] = "lax"
