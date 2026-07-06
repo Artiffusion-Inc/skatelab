@@ -107,19 +107,19 @@ def _poses(n: int = 12) -> np.ndarray:
     """
     poses = np.zeros((n, 17, 2), dtype=np.float32)
     for f in range(n):
-        poses[f, 0] = [0.0, 0.0]            # HEAD
-        poses[f, 1] = [-0.2, 0.1]           # LSHOULDER
-        poses[f, 2] = [0.2, 0.1]            # RSHOULDER
-        poses[f, 4] = [-0.1, 0.5]           # LHIP
-        poses[f, 5] = [0.1, 0.5]            # RHIP
-        poses[f, 7] = [-0.1, 0.9]           # LFOOT
-        poses[f, 8] = [0.1, 0.9]            # RFOOT
-        poses[f, 9] = [-0.1, 0.95]          # LELBOW
-        poses[f, 10] = [0.1, 0.95]          # RELBOW
-        poses[f, 11] = [0.1, 0.7]           # RKNEE
-        poses[f, 12] = [-0.1, 0.7]          # LKNEE
-        poses[f, 13] = [-0.15, 0.4]         # LWRIST
-        poses[f, 14] = [0.15, 0.4]          # RWRIST
+        poses[f, 0] = [0.0, 0.0]  # HEAD
+        poses[f, 1] = [-0.2, 0.1]  # LSHOULDER
+        poses[f, 2] = [0.2, 0.1]  # RSHOULDER
+        poses[f, 4] = [-0.1, 0.5]  # LHIP
+        poses[f, 5] = [0.1, 0.5]  # RHIP
+        poses[f, 7] = [-0.1, 0.9]  # LFOOT
+        poses[f, 8] = [0.1, 0.9]  # RFOOT
+        poses[f, 9] = [-0.1, 0.95]  # LELBOW
+        poses[f, 10] = [0.1, 0.95]  # RELBOW
+        poses[f, 11] = [0.1, 0.7]  # RKNEE
+        poses[f, 12] = [-0.1, 0.7]  # LKNEE
+        poses[f, 13] = [-0.15, 0.4]  # LWRIST
+        poses[f, 14] = [0.15, 0.4]  # RWRIST
     for f in range(2, 8):
         poses[f, :, 1] -= 0.02 * (f - 2) * (7 - f)
     return poses
@@ -176,7 +176,7 @@ def test_nan_knee_flight_height_finite_repro():
         f"for frames 3..6 → `flight_com` contains NaN → `peak_com = np.min(...)` "
         f"= NaN (np.min, NOT np.nanmin) → `takeoff_com - peak_com` = NaN. "
         f"`analyze` (line 203) packs this NaN into `MetricResult(name="
-        f"\"max_height\", value=NaN)` → the NaN flows into the report JSON / "
+        f'"max_height", value=NaN)` → the NaN flows into the report JSON / '
         f"GOE. The user gets a NaN hole in the report instead of a "
         f"degraded-but-finite estimate. (Sanity: all-valid = {h_valid}.)"
     )
@@ -241,9 +241,7 @@ def test_analyze_max_height_metric_finite_on_nan_knee_repro():
         poses[f, 11] = [np.nan, np.nan]  # RKNEE NaN on flight frames
 
     results = an.analyze(poses, _phases(), fps=30.0)
-    max_height = next(
-        (r for r in results if r.name == "max_height"), None
-    )
+    max_height = next((r for r in results if r.name == "max_height"), None)
     assert max_height is not None, (
         "BUG: analyze() did not produce a `max_height` metric; the metric "
         "name or the analyze() output changed — update the repro fixture."
@@ -252,7 +250,7 @@ def test_analyze_max_height_metric_finite_on_nan_knee_repro():
         f"BUG: analyze() `max_height` metric value = {max_height.value} (NaN) "
         f"for a NaN landing-leg knee (RKNEE) on the flight frames 3..6. "
         f"`analyze` (line 203) calls `compute_jump_height_com` and packs the "
-        f"result into `MetricResult(name=\"max_height\", value=height)` — the "
+        f'result into `MetricResult(name="max_height", value=height)` — the '
         f"NaN height flows unchanged into the metric list → recommender → "
         f"report JSON → GOE proxy score. The user's report gets a NaN jump "
         f"height instead of a degraded-but-finite estimate. This is the real "
@@ -323,73 +321,66 @@ def test_all_valid_jump_height_unchanged_repro():
 
 
 # --------------------------------------------------------------------------- #
-# Source check: root cause locked — calculate_com_trajectory has NO NaN-aware
-# path; compute_jump_height_com uses np.min (not np.nanmin).
+# Source check: GREEN contract — NaN-leak fixes locked.
+#   - calculate_com_trajectory: NaN-aware (#871, shared root).
+#   - compute_jump_height_com: np.nanmin + finite-guard (#879).
+#   - compute_jump_height (deprecated): np.nanmin + finite-guard (#899).
 # --------------------------------------------------------------------------- #
 
 
 def test_compute_jump_height_nan_leak_source_repro():
-    """Source check: `calculate_com_trajectory` is a plain weighted sum with NO
-    NaN-aware path (no `np.isnan` / `np.nanmean` / `np.nan_to_num` /
-    `np.isfinite`), and `compute_jump_height_com` uses `np.min(flight_com)` (NOT
-    `np.nanmin`) on line 798. Root cause locked.
+    """Source check (GREEN contract): the NaN-leak fixes are present.
 
-    RED now: the plain weighted sum + `np.min` are present (PASS — root cause
-    locked). After the fix: a NaN-aware path appears in
-    `calculate_com_trajectory` (root cause) OR `np.nanmin` /
-    NaN-guard appears in `compute_jump_height_com` (local fix) — this test
-    FAILS, signaling the observable tests above should flip to GREEN.
+    - `calculate_com_trajectory` has a NaN-aware path (#871, shared root —
+      fixes this, BV #883, BW #884, and the phase detector).
+    - `compute_jump_height_com` uses `np.nanmin` + a finite-guard (#879).
+    - `compute_jump_height` (deprecated) uses `np.nanmin` + a finite-guard
+      (#899) — the deprecation does not excuse a NaN-leak.
+
+    The degenerate-phases sentinel (`phases.takeoff >= phases.landing → 0.0`,
+    #424) is still present.
     """
     com_src = inspect.getsource(calculate_com_trajectory)
-    # calculate_com_trajectory has NO NaN-aware path — plain weighted sum.
-    assert not (
-        "np.isnan" in com_src
+    # calculate_com_trajectory IS NaN-aware (#871).
+    assert (
+        "np.isfinite" in com_src
+        or "np.isnan" in com_src
         or "np.nanmean" in com_src
         or "np.nan_to_num" in com_src
-        or "np.isfinite" in com_src
         or "np.nansum" in com_src
     ), (
-        "BUG: a NaN-aware path (`np.isnan` / `np.nanmean` / `np.nan_to_num` / "
-        "`np.isfinite` / `np.nansum`) appeared in `calculate_com_trajectory` — "
-        "the shared CoM NaN-leak root cause is fixed (fixes this, BV #883, BW "
-        "#884, and the phase detector). Update the observable tests to the "
-        "GREEN contract."
+        "BUG: calculate_com_trajectory must have a NaN-aware path (#871, "
+        "shared CoM root cause). A NaN keypoint must not poison the CoM."
     )
 
     h_src = inspect.getsource(BiomechanicsAnalyzer.compute_jump_height_com)
-    # The unguarded np.min(flight_com) is present (NOT np.nanmin).
-    assert "peak_com = np.min(flight_com)" in h_src, (
-        "BUG: compute_jump_height_com must use `peak_com = np.min(flight_com)` "
-        "(unguarded np.min, line 798) for this repro to be valid. If it was "
-        "changed to `np.nanmin` or a NaN-guard was added, the local NaN-leak "
-        "is fixed — update the observable tests to the GREEN contract."
+    # compute_jump_height_com uses np.nanmin + finite-guard (#879).
+    assert "np.nanmin" in h_src, (
+        "BUG: compute_jump_height_com must use `np.nanmin` (#879) so a NaN "
+        "CoM frame does not poison the peak into NaN."
     )
-    assert "np.nanmin" not in h_src and "np.isnan" not in h_src and \
-           "np.isfinite" not in h_src, (
-        "BUG: a NaN guard (`np.nanmin` / `np.isnan` / `np.isfinite`) appeared "
-        "in compute_jump_height_com — the local NaN-leak is fixed; update the "
-        "observable tests to the GREEN contract."
+    assert "np.isfinite" in h_src, (
+        "BUG: compute_jump_height_com must have a finite-guard (#879) so a "
+        "fully-NaN flight slice degrades to 0.0 instead of leaking NaN."
     )
 
-    # The degenerate-phases guard exists (returns 0.0, #424) — proves the
-    # codebase already uses a 0.0 sentinel for degenerate input, so a NaN
-    # sentinel fits the same pattern.
-    assert "if phases.takeoff >= phases.landing:" in h_src and \
-           "return 0.0" in h_src, (
-        "BUG: compute_jump_height_com must guard `phases.takeoff >= "
-        "phases.landing: return 0.0` (degenerate-phases sentinel, #424) for "
-        "this repro to be valid. If the guard was removed, the repro is "
-        "invalid."
+    # The degenerate-phases guard still exists (returns 0.0, #424).
+    assert "if phases.takeoff >= phases.landing:" in h_src and "return 0.0" in h_src, (
+        "BUG: compute_jump_height_com must still guard `phases.takeoff >= "
+        "phases.landing: return 0.0` (degenerate-phases sentinel, #424); the "
+        "NaN guard is an addition, not a replacement."
     )
 
-    # The deprecated compute_jump_height has the same np.min-NaN-leak.
+    # The deprecated compute_jump_height uses np.nanmin + finite-guard (#899).
     with warnings.catch_warnings():
         warnings.simplefilter("ignore", DeprecationWarning)
         dh_src = inspect.getsource(BiomechanicsAnalyzer.compute_jump_height)
-    assert "peak_y = np.min(hip_y_series" in dh_src, (
-        "BUG: deprecated compute_jump_height must use `peak_y = np.min("
-        "hip_y_series[phases.takeoff : phases.landing])` (unguarded np.min, "
-        "line 753) for this repro to be valid. If it was changed to "
-        "`np.nanmin` or a NaN-guard was added, the deprecated NaN-leak is "
-        "fixed — update the observable tests to the GREEN contract."
+    assert "np.nanmin" in dh_src, (
+        "BUG: deprecated compute_jump_height must use `np.nanmin` (#899) so a "
+        "NaN hip Y on a flight frame does not poison the peak into NaN. The "
+        "deprecation does not excuse a NaN-leak."
+    )
+    assert "np.isfinite" in dh_src, (
+        "BUG: deprecated compute_jump_height must have a finite-guard (#899) "
+        "so a fully-NaN flight slice degrades to 0.0 instead of leaking NaN."
     )

@@ -767,7 +767,14 @@ class BiomechanicsAnalyzer:
         landing_y = hip_y_series[phases.landing]
 
         # Get minimum hip Y (peak height)
-        peak_y = np.min(hip_y_series[phases.takeoff : phases.landing])
+        # #899: np.nanmin (NOT np.min) so a NaN hip Y on a flight frame
+        # (occluded hip) does not poison the min into NaN. Deprecated code
+        # still runs and feeds reports until removed; the deprecation does
+        # not excuse a NaN-leak.
+        flight_y = hip_y_series[phases.takeoff : phases.landing]
+        peak_y = np.nanmin(flight_y)
+        if not np.isfinite(landing_y) or not np.isfinite(peak_y):
+            return 0.0
 
         return float(landing_y - peak_y)
 
