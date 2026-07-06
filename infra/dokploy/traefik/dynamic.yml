@@ -84,6 +84,11 @@ http:
       rule: "Host(`sub.skatelab.ru`)"
       service: vless-sub
       tls: { certResolver: letsencrypt }
+    dokploy:
+      rule: "Host(`dokploy.skatelab.ru`)"
+      service: dokploy
+      tls: { certResolver: letsencrypt }
+      middlewares: [security-headers]
 
   services:
     backend:
@@ -154,6 +159,10 @@ http:
       loadBalancer:
         servers:
           - url: "http://vless-sub:8080"
+    dokploy:
+      loadBalancer:
+        servers:
+          - url: "http://dokploy:3000"
     api-404:
       loadBalancer:
         servers:
