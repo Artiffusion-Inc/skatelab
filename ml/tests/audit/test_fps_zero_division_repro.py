@@ -119,7 +119,7 @@ def test_detect_spin_fps_zero_no_infinite_duration():
     angular_velocity[10] = 300.0
     hip_y = np.linspace(0.4, 0.5, 15).astype(np.float32)
 
-    is_spin, duration_s, _hip_range = detect_spin(angular_velocity, hip_y, fps=0.0)
+    is_spin, duration_s, _hip_range, _mask = detect_spin(angular_velocity, hip_y, fps=0.0)
 
     assert not (is_spin and not np.isfinite(duration_s)), (
         f"BUG 3: detect_spin reports a spin with infinite duration under fps=0: "

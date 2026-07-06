@@ -42,7 +42,7 @@ def test_detect_spin_exact_one_second_is_detected():
     vel = np.full(n_frames, 350.0, dtype=np.float32)  # every frame > 200 deg/s
     hip_y = np.full(n_frames, 0.5, dtype=np.float32)
 
-    is_spin, duration_s, _hip_range = detect_spin(vel, hip_y, fps=fps)
+    is_spin, duration_s, _hip_range, _mask = detect_spin(vel, hip_y, fps=fps)
 
     assert bool(is_spin) is True, (
         f"BUG #515: detect_spin rejected an exact 1.0 s spin — is_spin={is_spin}, "

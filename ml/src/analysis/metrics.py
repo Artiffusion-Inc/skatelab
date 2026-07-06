@@ -587,14 +587,21 @@ class BiomechanicsAnalyzer:
         hip_y = (poses[:, H36Key.LHIP][:, 1] + poses[:, H36Key.RHIP][:, 1]) / 2.0
 
         # Detect spin
-        is_spinning, duration_s, hip_y_range = detect_spin(
+        is_spin, duration_s, hip_y_range, spin_mask = detect_spin(
             angular_velocity_series=angular_velocity,
             hip_y_series=hip_y,
             fps=fps,
         )
 
-        # Spin peak velocity (maximum angular velocity during spin)
-        peak_velocity = float(np.max(angular_velocity)) if len(angular_velocity) > 0 else 0.0
+        # Spin peak velocity (maximum angular velocity DURING the spin).
+        # #858: np.max over the whole sequence let a transient shoulder-vector
+        # jump OUTSIDE the spin (entry arm swing, exit flail, tracking glitch)
+        # — a gradient spike unrelated to the spin — become the reported peak.
+        # Restrict to the detected spin frames; 0.0 when no spin is detected.
+        if is_spin and np.any(spin_mask):
+            peak_velocity = float(np.max(angular_velocity[spin_mask]))
+        else:
+            peak_velocity = 0.0
         results.append(
             MetricResult(
                 name="spin_peak_velocity",
@@ -608,7 +615,7 @@ class BiomechanicsAnalyzer:
         # Classify spin type
         mean_velocity = float(np.mean(angular_velocity)) if len(angular_velocity) > 0 else 0.0
         _spin_type_name, spin_type_confidence = classify_spin(
-            duration_s=duration_s if is_spinning else 0.0,
+            duration_s=duration_s if is_spin else 0.0,
             hip_y_range=hip_y_range,
             angular_velocity_mean=mean_velocity,
         )
