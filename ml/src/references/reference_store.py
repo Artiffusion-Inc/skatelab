@@ -86,7 +86,13 @@ class ReferenceStore:
         references: list[ReferenceData] = []  # type: ignore[valid-type]
         skipped: list[Path] = []
 
-        for npz_file in element_dir.glob("*.npz"):
+        # #804: sorted() so glob order is lexicographic, not filesystem readdir
+        # order (inode order). get_best_match returns references[0] — the FIRST
+        # glob result — so an unsorted glob makes the "best" reference (and the
+        # DTW alignment / GOE proxy score downstream) filesystem-dependent and
+        # non-reproducible across runs. Deterministic best-match is a
+        # prerequisite for reproducible scores.
+        for npz_file in sorted(element_dir.glob("*.npz")):
             try:
                 ref = self._builder.load_reference(npz_file)
                 references.append(ref)
