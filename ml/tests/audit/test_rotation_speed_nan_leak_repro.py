@@ -162,7 +162,7 @@ def test_nan_shoulder_rotation_speed_finite_repro():
         f"nan)` = NaN, `np.gradient(nan)` = NaN) → `velocity` NaN → "
         f"`flight_velocity` contains NaN → `np.max(np.abs(NaN))` = NaN (np.max, "
         f"NOT np.nanmax) → returns NaN. `analyze` (line 230) packs this NaN into "
-        f"`MetricResult(name=\"rotation_speed\", value=NaN)` → the NaN flows "
+        f'`MetricResult(name="rotation_speed", value=NaN)` → the NaN flows '
         f"into the report JSON / GOE proxy (`rotation_speed` is a primary "
         f"jump-quality signal). The user gets a NaN hole in the report instead "
         f"of a degraded-but-finite estimate. (Sanity: all-valid = {v_valid}.)"
@@ -225,9 +225,7 @@ def test_analyze_rotation_speed_metric_finite_on_nan_shoulder_repro():
         poses[f, H36Key.RSHOULDER] = [np.nan, np.nan]
 
     results = an.analyze(poses, _phases(), fps=30.0)
-    rot_metric = next(
-        (r for r in results if r.name == "rotation_speed"), None
-    )
+    rot_metric = next((r for r in results if r.name == "rotation_speed"), None)
     assert rot_metric is not None, (
         "BUG: analyze() did not produce a `rotation_speed` metric; the metric "
         "name or the analyze() output changed — update the repro fixture."
@@ -236,7 +234,7 @@ def test_analyze_rotation_speed_metric_finite_on_nan_shoulder_repro():
         f"BUG: analyze() `rotation_speed` metric value = {rot_metric.value} "
         f"(NaN) for a NaN RSHOULDER on the flight frames 3..6. `analyze` (line "
         f"230) calls `compute_rotation_speed` and packs the result into "
-        f"`MetricResult(name=\"rotation_speed\", value=rot_speed)` — the NaN "
+        f'`MetricResult(name="rotation_speed", value=rot_speed)` — the NaN '
         f"speed flows unchanged into the metric list → recommender → report "
         f"JSON → GOE proxy (`rotation_speed` is a primary jump-quality signal). "
         f"The user's report gets a NaN rotation speed instead of a "
@@ -275,46 +273,43 @@ def test_all_valid_rotation_speed_unchanged_repro():
 
 
 def test_rotation_speed_nan_leak_source_repro():
-    """Source check: `compute_rotation_speed` computes the shoulder-axis angle
-    with unguarded `np.arctan2(shoulder_vector[:, 1], shoulder_vector[:, 0])`,
-    computes the angular velocity via `compute_angular_velocity`, and returns
-    `np.max(np.abs(flight_velocity))` (NOT `np.nanmax`) on line 1405. NO NaN
-    guard. Root cause locked.
+    """Source check (GREEN contract): the NaN-leak fix is locked.
 
-    RED now: the unguarded `np.arctan2` + `np.max(np.abs(...))` are present (PASS
-    — root cause locked). After the fix: a NaN guard / `np.nanmax` /
-    `np.isfinite` appears in `compute_rotation_speed` — this test FAILS,
-    signaling the observable tests above should flip to GREEN.
+    - `compute_rotation_speed` still computes the shoulder-axis angle via
+      `np.arctan2(shoulder_vector[:, 1], shoulder_vector[:, 0])` (the fix is
+      at the peak, not the angle).
+    - the peak uses `np.nanmax(np.abs(flight_velocity))` (#903, NOT
+      `np.max`) so a NaN shoulder frame does not poison the peak into NaN.
+    - a finite-guard returns 0.0 when every flight frame is NaN.
+    - the degenerate-phases sentinel (`return 0.0`) is still present.
     """
     src = inspect.getsource(BiomechanicsAnalyzer.compute_rotation_speed)
-    # The unguarded np.arctan2 shoulder-axis angle is present.
+    # The shoulder-axis arctan2 is still present (the fix is at the peak).
     assert "np.arctan2(shoulder_vector[:, 1], shoulder_vector[:, 0])" in src, (
-        "BUG: compute_rotation_speed must compute `np.arctan2(shoulder_vector[:, "
-        "1], shoulder_vector[:, 0])` (unguarded, line 1397) for this repro to "
-        "be valid. If a NaN guard was added before the arctan2, the NaN-leak is "
-        "fixed — update the observable tests to the GREEN contract."
+        "BUG: compute_rotation_speed must still compute the shoulder-axis "
+        "angle via `np.arctan2(shoulder_vector[:, 1], shoulder_vector[:, 0])`; "
+        "the #903 fix is at the peak, not the angle."
     )
-    # The np.max(np.abs(flight_velocity)) return (NOT np.nanmax) is present.
-    assert "np.max(np.abs(flight_velocity))" in src, (
-        "BUG: compute_rotation_speed must return `np.max(np.abs("
-        "flight_velocity))` (NOT `np.nanmax`, line 1405) for this repro to be "
-        "valid. If it was changed to `np.nanmax` or a NaN-guard was added, the "
-        "NaN-leak is fixed — update the observable tests to the GREEN contract."
+    # np.nanmax (NOT np.max) skips NaN frames at the peak.
+    assert "np.nanmax(np.abs(flight_velocity))" in src, (
+        "BUG: compute_rotation_speed must peak with `np.nanmax(np.abs("
+        "flight_velocity))` (#903, NOT `np.max`) so a NaN shoulder on a "
+        "flight frame does not poison the peak into NaN."
     )
-    assert "np.nanmax" not in src and "np.isnan" not in src and \
-           "np.isfinite" not in src, (
-        "BUG: a NaN guard (`np.nanmax` / `np.isnan` / `np.isfinite`) appeared "
-        "in compute_rotation_speed — the NaN-leak is fixed; update the "
-        "observable tests to the GREEN contract."
+    # A finite-guard returns 0.0 when every flight frame is NaN.
+    assert "np.isfinite(peak)" in src, (
+        "BUG: compute_rotation_speed must guard `if not np.isfinite(peak): "
+        "return 0.0` (#903) so a fully-NaN flight slice degrades to 0.0 "
+        "instead of leaking NaN into rotation_speed / GOE."
     )
 
-    # The degenerate-phases guard exists (returns 0.0) — proves the codebase
-    # already uses a 0.0 sentinel for degenerate input, so a NaN sentinel fits
-    # the same pattern.
-    assert "if phases.takeoff < phases.landing and phases.landing < len(velocity)" in src and \
-           "return 0.0" in src, (
-        "BUG: compute_rotation_speed must guard `if phases.takeoff < "
+    # The degenerate-phases guard still exists (returns 0.0).
+    assert (
+        "if phases.takeoff < phases.landing and phases.landing < len(velocity)" in src
+        and "return 0.0" in src
+    ), (
+        "BUG: compute_rotation_speed must still guard `if phases.takeoff < "
         "phases.landing and phases.landing < len(velocity): ... return 0.0` "
-        "(degenerate-phases sentinel) for this repro to be valid. If the guard "
-        "was removed, the repro is invalid."
+        "(degenerate-phases sentinel); the #903 NaN guard is an addition, not "
+        "a replacement."
     )
