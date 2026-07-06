@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING, cast
 
-from sqlalchemy import delete, select
+from sqlalchemy import delete, select, update
 
 from app.models.refresh_token import RefreshToken
 
@@ -63,6 +63,26 @@ async def revoke_family(db: AsyncSession, family_id: str) -> int:
         count += 1
     await db.flush()
     return count
+
+
+async def revoke_all_for_user(db: AsyncSession, user_id: str) -> int:
+    """Revoke every active refresh token for a user (#843).
+
+    Password reset is the canonical "credential leaked" action — the user
+    expects ``reset my password = kick everyone out``. Without this, a stolen
+    refresh token survives the reset and keeps minting access tokens via
+    ``/auth/refresh``. Bulk UPDATE over all non-revoked rows for the user.
+    """
+    result = await db.execute(
+        update(RefreshToken)
+        .where(
+            RefreshToken.user_id == user_id,
+            RefreshToken.is_revoked == False,  # noqa: E712
+        )
+        .values(is_revoked=True)
+    )
+    await db.flush()
+    return cast("int", getattr(result, "rowcount", 0))
 
 
 async def mark_used(db: AsyncSession, token: RefreshToken) -> None:
