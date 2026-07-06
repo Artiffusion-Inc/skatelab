@@ -118,9 +118,13 @@ class VelocityLayer(Layer):
             self._prev_pose_2d = context.pose_2d.copy()
             self._prev_pose_3d = context.pose_3d.copy() if context.pose_3d is not None else None
         elif context.pose_2d is None:
+            # #797: occlusion / person-switch frame — reset BOTH. A pasted-twice
+            # unconditional `self._prev_pose_3d = ...` line used to run after this
+            # and undo the 3D reset when pose_3d was set (3D lift ok, 2D detection
+            # failed), so a stale 3D pose survived → spurious velocity arrow next
+            # frame, and the 2D person-switch guard never fired (2D was None).
             self._prev_pose_2d = None
             self._prev_pose_3d = None
-        self._prev_pose_3d = context.pose_3d.copy() if context.pose_3d is not None else None
 
         return frame
 
