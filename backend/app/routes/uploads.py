@@ -102,16 +102,28 @@ class UploadsController(Controller):
         s3 = get_s3_client()
         bucket = get_settings().s3.bucket
 
-        multipart_parts = [
-            {"PartNumber": p["part_number"], "ETag": p["etag"]}
-            for p in sorted(data.parts, key=lambda x: int(x["part_number"]))
-        ]
-
-        if not multipart_parts:
+        if not data.parts:
             raise ClientException(
                 status_code=HTTP_400_BAD_REQUEST,
                 detail="No parts provided",
             )
+
+        # #684: validate part numbers form a contiguous 1..N set with no gaps
+        # or duplicates. S3 silently completes a multipart upload with missing
+        # parts → unplayable video that retries can't fix (multipart state
+        # corrupted) and a storage leak. Reject before the S3 call.
+        part_numbers = [int(p["part_number"]) for p in data.parts]
+        expected = set(range(1, len(part_numbers) + 1))
+        if set(part_numbers) != expected:
+            raise ClientException(
+                status_code=HTTP_400_BAD_REQUEST,
+                detail="Part numbers must be contiguous 1..N with no gaps or duplicates",
+            )
+
+        multipart_parts = [
+            {"PartNumber": p["part_number"], "ETag": p["etag"]}
+            for p in sorted(data.parts, key=lambda x: int(x["part_number"]))
+        ]
 
         s3.complete_multipart_upload(
             Bucket=bucket,
