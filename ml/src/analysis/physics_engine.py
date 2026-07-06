@@ -364,6 +364,17 @@ class PhysicsEngine:
                 "takeoff_velocity": 0.0,
                 "fit_quality": 0.0,
             }
+        # #937: corrupt video reports fps=0 (cv2.CAP_PROP_FPS sentinel). Guard
+        # before any /fps — mirrors the degenerate-phase guard above. Sibling
+        # pose_tracker (#952) / smoothing (#948) fall back to dt=1.0; physics
+        # has no meaningful per-frame time without fps, so return zeros.
+        if fps <= 0:
+            return {
+                "height": 0.0,
+                "flight_time": 0.0,
+                "takeoff_velocity": 0.0,
+                "fit_quality": 0.0,
+            }
         # Extract flight phase (vertical component = Y axis)
         flight_com = com_trajectory[takeoff_idx : landing_idx + 1, 1]  # Y coordinate
         n_frames = len(flight_com)
@@ -449,6 +460,15 @@ class PhysicsEngine:
 
         # Guard reversed/degenerate phases. #428
         if takeoff_idx > landing_idx:
+            return {
+                "height": 0.0,
+                "flight_time": 0.0,
+                "takeoff_velocity": 0.0,
+                "fit_quality": 0.0,
+            }
+        # #937: corrupt video reports fps=0 — guard before any /fps (mirrors
+        # the degenerate-phase guard above and _fit_jump_trajectory_with_com).
+        if fps <= 0:
             return {
                 "height": 0.0,
                 "flight_time": 0.0,
