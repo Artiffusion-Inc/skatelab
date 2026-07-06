@@ -112,7 +112,9 @@ class MetricsController(Controller):
             )
 
         # Calculate date filter
-        now = datetime.now(UTC)
+        # #694: use naive cutoff so comparison works with both tz-aware and
+        # tz-naive DB columns (SQLite TIMESTAMP WITHOUT TIME ZONE)
+        now = datetime.now(UTC).replace(tzinfo=None)
         period_map = {"7d": 7, "30d": 30, "90d": 90, "all": None}
         days = period_map.get(period)
         date_filter = Session.created_at >= (now - timedelta(days=days)) if days else True

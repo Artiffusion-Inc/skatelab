@@ -111,12 +111,14 @@ def check_stagnation(
     metric_label: str,
 ) -> Finding | None:
     """Info when standard deviation < 5% of mean."""
-    if len(values) < 5:
+    # #692: filter NaN/inf before computing mean
+    finite = [v for v in values if math.isfinite(v)]
+    if len(finite) < 5:
         return None
-    mean = sum(values) / len(values)
+    mean = sum(finite) / len(finite)
     if mean == 0:
         return None
-    variance = sum((v - mean) ** 2 for v in values) / len(values)
+    variance = sum((v - mean) ** 2 for v in finite) / len(finite)
     std = variance**0.5
     cv = std / abs(mean)
     if cv < 0.05:
@@ -124,7 +126,7 @@ def check_stagnation(
             severity="info",
             element=element,
             metric=metric,
-            message=f"{metric_label}: нет улучшений за {len(values)} сессий",
+            message=f"{metric_label}: нет улучшений за {len(finite)} сессий",
             detail=f"Среднее: {mean:.3f}, CV: {cv:.1%}",
         )
     return None
@@ -141,6 +143,9 @@ def check_new_pr(
 ) -> Finding | None:
     """Info when the most recent session is a PR."""
     if not is_latest_pr:
+        return None
+    # #693: NaN latest_value renders as "NaN" in UI — skip it
+    if not math.isfinite(latest_value):
         return None
     prev_str = f"{prev_best:.3f}" if prev_best is not None else "—"
     return Finding(
@@ -160,12 +165,14 @@ def check_high_variability(
     metric_label: str,
 ) -> Finding | None:
     """Warning when coefficient of variation > 20%."""
-    if len(values) < 5:
+    # #692: filter NaN/inf before computing mean
+    finite = [v for v in values if math.isfinite(v)]
+    if len(finite) < 5:
         return None
-    mean = sum(values) / len(values)
+    mean = sum(finite) / len(finite)
     if mean == 0:
         return None
-    variance = sum((v - mean) ** 2 for v in values) / len(values)
+    variance = sum((v - mean) ** 2 for v in finite) / len(finite)
     std = variance**0.5
     cv = std / abs(mean)
     if cv > 0.20:
