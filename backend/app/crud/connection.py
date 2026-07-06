@@ -37,7 +37,7 @@ async def create(
 async def get_by_id(db: AsyncSession, conn_id: str) -> Connection | None:
     """Get a connection by its ID."""
     result = await db.execute(select(Connection).where(Connection.id == conn_id))
-    return result.scalar_one_or_none()
+    return result.scalars().first()
 
 
 async def get_active(
@@ -49,22 +49,25 @@ async def get_active(
 ) -> Connection | None:
     """Get a non-ended connection between two users of a given type."""
     result = await db.execute(
-        select(Connection).where(
+        select(Connection)
+        .where(
             Connection.from_user_id == from_user_id,
             Connection.to_user_id == to_user_id,
             Connection.connection_type == connection_type,
             Connection.status != ConnectionStatus.ENDED,
         )
+        .limit(1)
     )
-    return result.scalar_one_or_none()
+    return result.scalars().first()
 
 
 async def list_for_user(db: AsyncSession, user_id: str) -> list[Connection]:
-    """List all connections where user is either party, newest first."""
+    """List active/pending connections where user is either party, newest first."""
     result = await db.execute(
         select(Connection)
         .where(
             (Connection.from_user_id == user_id) | (Connection.to_user_id == user_id),
+            Connection.status != ConnectionStatus.ENDED,
         )
         .order_by(Connection.created_at.desc())
     )
@@ -96,11 +99,13 @@ async def is_connected_as(
     Only ACTIVE connections grant access (INVITED does not).
     """
     result = await db.execute(
-        select(Connection).where(
+        select(Connection)
+        .where(
             Connection.from_user_id == from_user_id,
             Connection.to_user_id == to_user_id,
             Connection.connection_type == connection_type,
             Connection.status == ConnectionStatus.ACTIVE,
         )
+        .limit(1)
     )
-    return result.scalar_one_or_none() is not None
+    return result.scalars().first() is not None
