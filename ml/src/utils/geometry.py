@@ -62,6 +62,14 @@ def angle_3pt(a: NDArray[np.float64], b: NDArray[np.float64], c: NDArray[np.floa
     b = np.asarray(b, dtype=np.float64)
     c = np.asarray(c, dtype=np.float64)
 
+    # #863: the @njit(fastmath=True) core divides by ``norm*norm + 1e-8``. Under
+    # fastmath NaN does not propagate through the division — a NaN vertex (e.g.
+    # an occluded knee keypoint) raises ZeroDivisionError instead of returning
+    # NaN, which crashes analyze() and kills the whole session. Guard before
+    # the jitted core: propagate NaN so callers can skip/mask the leg.
+    if not (np.all(np.isfinite(a)) and np.all(np.isfinite(b)) and np.all(np.isfinite(c))):
+        return float("nan")
+
     angle_rad = angle_3pt_rad(a, b, c)
     return float(np.degrees(angle_rad))
 
