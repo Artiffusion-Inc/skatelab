@@ -313,7 +313,8 @@ class TaskStatusResponse(BaseModel):
     status: str
     progress: float
     message: str
-    result: ProcessResponse | None = None
+    # #757: result can be either ProcessResponse (for /process) or DetectResultResponse (for /detect)
+    result: ProcessResponse | DetectResultResponse | None = None
     error: str | None = None
 
 
