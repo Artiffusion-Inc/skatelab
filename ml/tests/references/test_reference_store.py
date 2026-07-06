@@ -131,6 +131,35 @@ class TestReferenceStoreGet:
         assert len(result) == 1
         assert "Failed to load" in caplog.text
 
+    def test_get_all_corrupt_raises_not_silent_empty(self, tmp_path: Path, mock_builder, caplog):
+        """#805: all-corrupt element dir must raise, NOT return [].
+
+        Returning [] is indistinguishable from "element type not found" — a
+        truncated download / partial write / schema drift hid behind a warning
+        log. Surface the corruption so the caller (DTW via get_best_match) sees
+        the real cause instead of a silent "no references" skip.
+        """
+        store = ReferenceStore(tmp_path)
+        store.set_builder(mock_builder)
+
+        element_dir = tmp_path / "waltz_jump"
+        element_dir.mkdir()
+        (element_dir / "a.npz").touch()
+        (element_dir / "b.npz").touch()
+        (element_dir / "c.npz").touch()
+
+        # Every file corrupt
+        mock_builder.load_reference.side_effect = [
+            ValueError("corrupt a"),
+            ValueError("corrupt b"),
+            ValueError("corrupt c"),
+        ]
+
+        with caplog.at_level(logging.WARNING):
+            with pytest.raises(RuntimeError, match=r"All 3 reference\(s\) corrupt"):
+                store.get("waltz_jump")
+        assert "Failed to load" in caplog.text
+
 
 class TestReferenceStoreListElements:
     def test_list_elements_empty_store(self, tmp_path: Path):

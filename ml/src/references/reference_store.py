@@ -84,14 +84,30 @@ class ReferenceStore:
             return []
 
         references: list[ReferenceData] = []  # type: ignore[valid-type]
+        skipped: list[Path] = []
 
         for npz_file in element_dir.glob("*.npz"):
             try:
                 ref = self._builder.load_reference(npz_file)
                 references.append(ref)
             except Exception as e:  # noqa: BLE001
-                # Skip invalid files
+                # Skip invalid files, but track them so an all-corrupt element
+                # dir does not look like "element type not found" (#805).
                 logger.warning("Failed to load %s: %s", npz_file, e)
+                skipped.append(npz_file)
+
+        # #805: every .npz in the dir failed to load — surface the corruption
+        # to the caller instead of returning [] (indistinguishable from a
+        # missing element type). A truncated download / partial write / schema
+        # drift was hiding behind a warning log nobody reads; the caller (DTW
+        # alignment via get_best_match) saw "no references" and skipped
+        # silently. Partial corruption (some valid, some bad) still returns
+        # the valid ones — only the all-corrupt case raises.
+        if not references and skipped:
+            raise RuntimeError(
+                f"All {len(skipped)} reference(s) corrupt in {element_dir} "
+                f"(loaded 0, skipped {len(skipped)})"
+            )
 
         return references
 
