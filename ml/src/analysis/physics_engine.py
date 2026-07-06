@@ -119,44 +119,54 @@ class PhysicsEngine:
         n_frames = poses_3d.shape[0]
         com_trajectory = np.zeros((n_frames, 3), dtype=np.float32)
 
+        # #884: NaN-aware CoM — an occluded keypoint must NOT poison the CoM and
+        # leak NaN into fit_jump_trajectory height. Mask each segment's
+        # contribution to 0 when NaN (its mass is simply absent for that frame).
+        # All-valid case is byte-identical: np.where(isfinite, term, 0) == term
+        # when finite. Segment masses sum to body_mass, so dividing by
+        # body_mass is unchanged on the all-valid path.
+        def _w(name: str, seg: np.ndarray) -> np.ndarray:
+            term = self.segment_masses[name] * seg
+            return np.where(np.isfinite(seg), term, 0.0)
+
         # Head: direct keypoint
-        com_trajectory += self.segment_masses["head"] * head
+        com_trajectory += _w("head", head)
 
         # Torso: weighted average of spine and thorax
         torso_pos = (spine + thorax) / 2
-        com_trajectory += self.segment_masses["torso"] * torso_pos
+        com_trajectory += _w("torso", torso_pos)
 
         # Upper arm: shoulder to elbow midpoint
         l_upper_arm = (l_shoulder + l_elbow) / 2
         r_upper_arm = (r_shoulder + r_elbow) / 2
-        com_trajectory += self.segment_masses["left_upper_arm"] * l_upper_arm
-        com_trajectory += self.segment_masses["right_upper_arm"] * r_upper_arm
+        com_trajectory += _w("left_upper_arm", l_upper_arm)
+        com_trajectory += _w("right_upper_arm", r_upper_arm)
 
         # Forearm: elbow to wrist midpoint
         l_forearm = (l_elbow + l_wrist) / 2
         r_forearm = (r_elbow + r_wrist) / 2
-        com_trajectory += self.segment_masses["left_forearm"] * l_forearm
-        com_trajectory += self.segment_masses["right_forearm"] * r_forearm
+        com_trajectory += _w("left_forearm", l_forearm)
+        com_trajectory += _w("right_forearm", r_forearm)
 
         # Hands: wrist position
-        com_trajectory += self.segment_masses["left_hand"] * l_wrist
-        com_trajectory += self.segment_masses["right_hand"] * r_wrist
+        com_trajectory += _w("left_hand", l_wrist)
+        com_trajectory += _w("right_hand", r_wrist)
 
         # Thigh: hip to knee midpoint
         l_thigh = (l_hip + l_knee) / 2
         r_thigh = (r_hip + r_knee) / 2
-        com_trajectory += self.segment_masses["left_thigh"] * l_thigh
-        com_trajectory += self.segment_masses["right_thigh"] * r_thigh
+        com_trajectory += _w("left_thigh", l_thigh)
+        com_trajectory += _w("right_thigh", r_thigh)
 
         # Shin: knee to ankle midpoint
         l_shin = (l_knee + l_foot) / 2
         r_shin = (r_knee + r_foot) / 2
-        com_trajectory += self.segment_masses["left_shin"] * l_shin
-        com_trajectory += self.segment_masses["right_shin"] * r_shin
+        com_trajectory += _w("left_shin", l_shin)
+        com_trajectory += _w("right_shin", r_shin)
 
         # Feet: ankle position
-        com_trajectory += self.segment_masses["left_foot"] * l_foot
-        com_trajectory += self.segment_masses["right_foot"] * r_foot
+        com_trajectory += _w("left_foot", l_foot)
+        com_trajectory += _w("right_foot", r_foot)
 
         # Normalize by total mass
         com_trajectory /= self.body_mass
@@ -395,9 +405,16 @@ class PhysicsEngine:
             }
 
         except Exception:
-            # Fallback: simple height difference
+            # Fallback: simple height difference. #884: NaN-safe — a fully
+            # occluded flight frame must not leak NaN into height.
+            finite_com = flight_com[np.isfinite(flight_com)]
+            fallback_height = (
+                float(np.max(finite_com) - np.min(finite_com)) if finite_com.size > 0 else 0.0
+            )
+            if not np.isfinite(fallback_height):
+                fallback_height = 0.0
             return {
-                "height": np.max(flight_com) - np.min(flight_com),
+                "height": fallback_height,
                 "flight_time": n_frames / fps,  # #423: was / 30.0
                 "takeoff_velocity": 0.0,
                 "fit_quality": 0.0,
@@ -479,9 +496,16 @@ class PhysicsEngine:
             }
 
         except Exception:
-            # Fallback: simple height difference
+            # Fallback: simple height difference. #884: NaN-safe — a fully
+            # occluded flight frame must not leak NaN into height.
+            finite_com = flight_com[np.isfinite(flight_com)]
+            fallback_height = (
+                float(np.max(finite_com) - np.min(finite_com)) if finite_com.size > 0 else 0.0
+            )
+            if not np.isfinite(fallback_height):
+                fallback_height = 0.0
             return {
-                "height": np.max(flight_com) - np.min(flight_com),
+                "height": fallback_height,
                 "flight_time": n_frames / fps,  # #423: was / 30.0
                 "takeoff_velocity": 0.0,
                 "fit_quality": 0.0,
