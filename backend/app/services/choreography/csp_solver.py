@@ -28,9 +28,14 @@ def _base_jump(code: str) -> str:
     return code.lstrip("0123456789")
 
 
-def _layout_fingerprint(elements: list[dict]) -> frozenset[str]:
-    """Fingerprint layout by element codes (order-independent)."""
-    return frozenset(e["code"] for e in elements)
+def _layout_fingerprint(elements: list[dict]) -> tuple[str, ...]:
+    """#666: Fingerprint layout by element codes (order-dependent).
+
+    Previously frozenset lost element order — Zayak-violating layout
+    [3A, 3T] got the same fingerprint as Zayak-compliant [3T, 3A],
+    causing dedup to silently drop the better layout.
+    """
+    return tuple(e["code"] for e in elements)
 
 
 def _score_layout(
@@ -97,6 +102,11 @@ def _generate_candidates(
     spins = inventory.get("spins", [])
     combos = inventory.get("combinations", [])
 
+    # #665: empty inventory → silent [] return. Fail fast instead.
+    total_elements = len(jumps) + len(spins) + len(combos)
+    if total_elements == 0:
+        raise ValueError("Cannot generate layout: inventory is empty")
+
     # Separate single jumps from combos; exclude 1Eu from singles (half-jump only for combos)
     single_jumps = [j for j in jumps if j != "1Eu"]
     combo_passes: list[list[str]] = []
@@ -113,7 +123,7 @@ def _generate_candidates(
     max_passes = 7 if segment == "free_skate" else min(7, len(single_jumps) + len(combo_passes))
 
     # best[fp] = (tes, layout) — keep highest TES per unique element set
-    best_by_fp: dict[frozenset[str], tuple[float, dict]] = {}
+    best_by_fp: dict[tuple[str, ...], tuple[float, dict]] = {}
 
     for _ in range(500):
         # Shuffle options for variety
