@@ -1,6 +1,10 @@
 """User API routes: profile and settings."""
 
+from __future__ import annotations
+
 import asyncio
+import hashlib
+import logging
 from collections.abc import Sequence  # noqa: TC003
 from typing import Annotated, ClassVar
 
@@ -9,20 +13,29 @@ from litestar.datastructures import UploadFile  # noqa: TC002
 from litestar.enums import RequestEncodingType
 from litestar.exceptions import ClientException
 from litestar.params import Body
-from litestar.status_codes import HTTP_422_UNPROCESSABLE_ENTITY
+from litestar.status_codes import HTTP_409_CONFLICT, HTTP_422_UNPROCESSABLE_ENTITY
 
-from app.auth.deps import CurrentUser, DbDep
+from app.auth.deps import CurrentUser, DbDep, VerifiedUser
 from app.crud.user import update
+from app.middleware import check_rate_limit
 from app.schemas import (
     UpdateOnboardingRoleRequest,
     UpdateProfileRequest,
     UpdateSettingsRequest,
     UserResponse,
 )
-from app.storage import get_object_url, upload_bytes
+from app.storage import delete_object, get_object_url, upload_bytes
+
+logger = logging.getLogger(__name__)
 
 ALLOWED_CONTENT_TYPES = {"image/png", "image/jpeg", "image/webp"}
 MAX_AVATAR_SIZE = 5 * 1024 * 1024  # 5 MB
+# #747: magic bytes for allowed image types
+_MAGIC_BYTES: dict[str, bytes] = {
+    "image/png": b"\x89PNG",
+    "image/jpeg": b"\xff\xd8\xff",
+    "image/webp": b"RIFF",
+}
 
 
 class UsersController(Controller):
@@ -38,10 +51,12 @@ class UsersController(Controller):
     async def update_profile(
         self,
         data: UpdateProfileRequest,
-        user: CurrentUser,
+        user: VerifiedUser,
         db: DbDep,
     ) -> UserResponse:
         """Update current user profile."""
+        # #750: rate limit profile updates
+        await check_rate_limit(f"profile:{user.id}", max_requests=20, window_seconds=300)
         updated = await update(
             db,
             user,
@@ -56,17 +71,10 @@ class UsersController(Controller):
     async def update_settings(
         self,
         data: UpdateSettingsRequest,
-        user: CurrentUser,
+        user: VerifiedUser,
         db: DbDep,
     ) -> UserResponse:
-        """Update current user preferences.
-
-        #547: pass UNSET for fields the client didn't send (None), so the
-        #update() sentinel pattern skips them. Explicit None values (rare
-        in this endpoint since language/timezone/theme/angular_unit are
-        NOT NULL) would null the field; callers that want to null a
-        nullable field pass None explicitly.
-        """
+        """Update current user preferences."""
         from app.crud.session import UNSET
 
         updated = await update(
@@ -83,21 +91,30 @@ class UsersController(Controller):
     async def update_onboarding_role(
         self,
         data: UpdateOnboardingRoleRequest,
-        user: CurrentUser,
+        user: VerifiedUser,
         db: DbDep,
     ) -> UserResponse:
         """Update user's onboarding role."""
+        # #751: reject if onboarding_role already set
+        if user.onboarding_role is not None:
+            raise ClientException(
+                status_code=HTTP_409_CONFLICT,
+                detail="Onboarding role already set",
+            )
         updated = await update(db, user, onboarding_role=data.onboarding_role)
         return UserResponse.model_validate(updated)
 
     @post("/avatar", status_code=200)
     async def upload_avatar(
         self,
-        user: CurrentUser,
+        user: VerifiedUser,
         db: DbDep,
         data: Annotated[UploadFile, Body(media_type=RequestEncodingType.MULTI_PART)],
     ) -> UserResponse:
         """Upload a profile picture for the current user."""
+        # #749: rate limit avatar uploads
+        await check_rate_limit(f"avatar:{user.id}", max_requests=10, window_seconds=3600)
+
         if data.content_type not in ALLOWED_CONTENT_TYPES:
             raise ClientException(
                 status_code=HTTP_422_UNPROCESSABLE_ENTITY,
@@ -112,17 +129,46 @@ class UsersController(Controller):
                 detail=f"Avatar too large: {len(content)} bytes. Max: {MAX_AVATAR_SIZE} bytes",
             )
 
-        # Derive file extension from content type
+        # #747: verify actual content matches claimed content-type (magic bytes)
+        magic = _MAGIC_BYTES.get(data.content_type, b"")
+        if magic and not content.startswith(magic):
+            raise ClientException(
+                status_code=HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="File content does not match the declared image type",
+            )
+
+        # #754: include content hash in key for cache-busting
         ext = {
             "image/png": ".png",
             "image/jpeg": ".jpg",
             "image/webp": ".webp",
         }[data.content_type]
-        key = f"avatars/{user.id}{ext}"
+        content_hash = hashlib.sha256(content).hexdigest()[:8]
+        key = f"avatars/{user.id}/{content_hash}{ext}"
 
-        # Upload to S3 (sync boto3 — run in thread pool to avoid blocking)
-        await asyncio.to_thread(upload_bytes, content, key)
-        url = await asyncio.to_thread(get_object_url, key)
+        # #748 + #753: upload S3, then update DB; rollback S3 on DB failure
+        try:
+            await asyncio.to_thread(upload_bytes, content, key)
+        except Exception:
+            logger.exception("S3 upload failed for avatar key %s", key)
+            raise ClientException(
+                status_code=503,
+                detail="Storage temporarily unavailable",
+            ) from None
 
-        updated = await update(db, user, avatar_url=url)
+        try:
+            url = await asyncio.to_thread(get_object_url, key)
+            updated = await update(db, user, avatar_url=url)
+        except Exception:
+            logger.exception("DB update failed after avatar upload for key %s", key)
+            # #748: clean up orphaned S3 object
+            try:
+                await asyncio.to_thread(delete_object, key)
+            except Exception:
+                logger.warning("Failed to clean up S3 key %s after DB failure", key)
+            raise ClientException(
+                status_code=503,
+                detail="Storage temporarily unavailable",
+            ) from None
+
         return UserResponse.model_validate(updated)
