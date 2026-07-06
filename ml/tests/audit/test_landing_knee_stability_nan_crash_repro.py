@@ -138,8 +138,7 @@ def _post_landing_nan_pose(nan_side: str = "right", n: int = 10) -> np.ndarray:
 
 
 def _phases(n: int = 10):
-    return ElementPhase(name="waltz_jump", start=0, takeoff=2, peak=4,
-                        landing=7, end=n - 1)
+    return ElementPhase(name="waltz_jump", start=0, takeoff=2, peak=4, landing=7, end=n - 1)
 
 
 # --------------------------------------------------------------------------- #
@@ -227,8 +226,7 @@ def test_nan_post_landing_left_knee_does_not_crash_analyze_repro():
 
     names = [r.name for r in results]
     assert "landing_knee_stability" in names, (
-        f"test fixture broken: analyze() returned {names} with no "
-        f"landing_knee_stability."
+        f"test fixture broken: analyze() returned {names} with no landing_knee_stability."
     )
 
 
@@ -327,53 +325,61 @@ def test_all_valid_landing_stability_unchanged_repro():
 
 
 def test_landing_knee_stability_unguarded_source_repro():
-    """Source check: `_compute_knee_angle_series_numba` calls
-    `angle_3pt_rad(hip, knee, foot)` with no NaN guard (root cause of the
-    crash), and `compute_landing_knee_stability` ends with
-    `max(0.0, 1.0 - avg_std / 15.0)` (Python max — NaN-unsafe, arg-order-
-    dependent, #454: `max(0.0, nan) = 0.0`). Root cause locked.
+    """Source check (GREEN contract): the #868 fix is in place.
 
-    RED now: the unguarded lines are present (PASS — root cause locked).
-    After the fix: a NaN guard appears in the numba series (or `angle_3pt_rad`
-    returns NaN on NaN input) and/or the max becomes NaN-safe (np.nanstd +
-    np.fmax) — this test FAILS, signaling the observable tests above should
-    flip to GREEN.
+    Root cause was two-layer:
+      1. `_compute_knee_angle_series_numba` called `angle_3pt_rad(hip, knee,
+         foot)` with no NaN guard. Under @njit(fastmath=True), `nan/nan` raises
+         ZeroDivisionError (NOT NaN propagation) -- crashing analyze() and
+         killing every session metric. A guard *inside* the @njit core does
+         not help: fastmath reorders / ignores the finite check (verified:
+         NUMBA_DISABLE_JIT=1 -> guard works, with JIT -> still crashes). So
+         the fix lives in the Python wrapper `compute_knee_angle_series`: it
+         masks NaN frames to a finite placeholder before the jitted core, then
+         restores NaN on the occluded frames so callers can skip them.
+      2. `compute_landing_knee_stability` ended with `max(0.0, 1.0 - avg_std /
+         15.0)` (Python max -- NaN-unsafe, arg-order-dependent, #454:
+         `max(0.0, nan) = 0.0`) and used `np.std` (NaN-propagating). Fix:
+         `np.nanstd` + finite-side filter + `np.clip` (NaN-safe after the
+         finite guard).
     """
-    numba_src = inspect.getsource(_compute_knee_angle_series_numba)
-    # The unguarded angle_3pt_rad call is present in the numba series.
-    assert "angle_3pt_rad(hip, knee, foot)" in numba_src, (
-        "BUG: _compute_knee_angle_series_numba must call "
-        "`angle_3pt_rad(hip, knee, foot)` directly (no NaN guard) for this "
-        "repro to be valid. If a NaN pre-check was added (e.g. `np.isnan(knee).any()`) "
-        "or angle_3pt_rad now returns NaN on NaN input, the crash is guarded — "
-        "update the observable tests to the GREEN contract."
+    # Fix layer 1: the Python wrapper masks NaN before the jitted core.
+    wrapper_src = inspect.getsource(BiomechanicsAnalyzer.compute_knee_angle_series)
+    assert "np.isfinite" in wrapper_src, (
+        "BUG: compute_knee_angle_series must guard NaN frames before the "
+        "jitted core (#868). The @njit core cannot guard under fastmath."
     )
-    # And NO NaN check in the numba series (the fix would add one).
-    assert "np.isnan" not in numba_src and "isfinite" not in numba_src, (
-        "BUG: a NaN check (`np.isnan` / `isfinite`) appeared in "
-        "_compute_knee_angle_series_numba — the NaN-passes-guard bug is fixed; "
-        "update the observable tests to the GREEN contract."
+    assert "np.nan_to_num" in wrapper_src, (
+        "BUG: compute_knee_angle_series must mask NaN frames to a finite "
+        "placeholder before _compute_knee_angle_series_numba (#868)."
+    )
+    assert "angles[~finite_frames]" in wrapper_src and "np.nan" in wrapper_src, (
+        "BUG: compute_knee_angle_series must restore NaN on occluded frames "
+        "after the jitted core so callers can skip them (#868)."
+    )
+    # The @njit core stays unguarded (a guard inside fastmath does not work).
+    numba_src = inspect.getsource(_compute_knee_angle_series_numba)
+    assert "angle_3pt_rad(hip, knee, foot)" in numba_src, (
+        "BUG: _compute_knee_angle_series_numba must still call "
+        "`angle_3pt_rad(hip, knee, foot)` -- the guard lives in the wrapper, "
+        "not the @njit core (fastmath ignores finite checks)."
     )
 
+    # Fix layer 2: compute_landing_knee_stability is NaN-safe.
     stab_src = inspect.getsource(BiomechanicsAnalyzer.compute_landing_knee_stability)
-    # The Python `max(0.0, ...)` line is present — NaN-unsafe, arg-order.
-    assert "max(0.0, 1.0 - avg_std / 15.0)" in stab_src, (
-        "BUG: compute_landing_knee_stability must compute "
-        "`max(0.0, 1.0 - avg_std / 15.0)` (Python max — NaN-unsafe, "
-        "arg-order-dependent, #454) for this repro to be valid. If it was "
-        "changed to a NaN-safe form (e.g. `np.fmax`, `np.nanstd` + nan-aware max), "
-        "the arg-order-NaN bug is fixed — update the observable tests to the "
-        "GREEN contract."
+    assert "np.nanstd" in stab_src, (
+        "BUG: compute_landing_knee_stability must use np.nanstd (#868) -- "
+        "np.std propagates NaN over the whole array."
     )
-    # And the std is np.std (NOT nanstd — propagates NaN).
-    assert "np.std(left_knee_angles)" in stab_src, (
-        "BUG: compute_landing_knee_stability must use `np.std(left_knee_angles)` "
-        "(NaN-propagating, not `np.nanstd`) for this repro to be valid. If it was "
-        "changed to `np.nanstd`, the NaN-poisons-std bug is fixed — update the "
-        "observable tests to the GREEN contract."
+    assert "np.std(left_knee_angles)" not in stab_src, (
+        "BUG: compute_landing_knee_stability still uses np.std(left_knee_angles) "
+        "(NaN-propagating) -- must be np.nanstd (#868)."
     )
-    assert "np.nanstd" not in stab_src, (
-        "BUG: compute_landing_knee_stability now uses `np.nanstd` — the "
-        "NaN-poisons-std bug is fixed; update the observable tests to the GREEN "
-        "contract."
+    assert "np.clip(1.0 - avg_std / 15.0, 0.0, 1.0)" in stab_src, (
+        "BUG: compute_landing_knee_stability must use np.clip (NaN-safe after "
+        "the finite guard) instead of max(0.0, ...) (#454, #868)."
+    )
+    assert "max(0.0, 1.0 - avg_std / 15.0)" not in stab_src, (
+        "BUG: compute_landing_knee_stability still uses the Python max(0.0, ...) "
+        "form -- NaN-unsafe arg-order (#454). Must be np.clip (#868)."
     )
