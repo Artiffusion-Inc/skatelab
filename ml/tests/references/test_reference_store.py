@@ -203,6 +203,48 @@ class TestReferenceStoreGetBestMatch:
         result = store.get_best_match("nonexistent")
         assert result is None
 
+    def test_get_best_match_deterministic_lexicographic(
+        self, tmp_path: Path, mock_builder, sample_reference_data
+    ):
+        """#804: get_best_match returns the FIRST glob result. glob order is
+        filesystem readdir order (inode), NOT lexicographic — so the "best"
+        reference (and the DTW alignment / GOE score downstream) was
+        filesystem-dependent and non-reproducible. sorted(glob) makes the
+        first reference lexicographic: a.npz wins over m.npz over z.npz
+        regardless of creation order.
+        """
+        store = ReferenceStore(tmp_path)
+        store.set_builder(mock_builder)
+
+        element_dir = tmp_path / "waltz_jump"
+        element_dir.mkdir()
+        # Create in non-lexicographic order (m, z, a) so FS readdir order
+        # would NOT be a, m, z — assert the loaded path is lexicographic-first.
+        (element_dir / "m.npz").touch()
+        (element_dir / "z.npz").touch()
+        (element_dir / "a.npz").touch()
+
+        # Track which file each call loads
+        loaded_paths: list[Path] = []
+        reference_a = sample_reference_data
+        reference_m = sample_reference_data
+        reference_z = sample_reference_data
+
+        def _load(path: Path, _ref=reference_a):
+            loaded_paths.append(path)
+            return _ref
+
+        mock_builder.load_reference.side_effect = _load
+
+        store.get_best_match("waltz_jump")
+
+        # #804: first loaded path is lexicographic-first (a.npz), NOT FS order.
+        assert loaded_paths[0].name == "a.npz", (
+            f"get_best_match loaded {loaded_paths[0].name} first; "
+            f"expected a.npz (lexicographic-first, #804 sorted glob). "
+            f"FS order was m, z, a."
+        )
+
 
 class TestReferenceStoreEnsureStoreDir:
     def test_ensure_store_dir(self, tmp_path: Path):
