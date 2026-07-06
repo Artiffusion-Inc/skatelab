@@ -218,3 +218,27 @@ User authorized full cleanup. Migration now single-stack (Dokploy only).
 
 ## Decisions to confirm
 - **Keep infra Postgres/Valkey/RustFS shared** (Ponytail: don't move working services) vs deploy duplicates via Dokploy. Plan assumes duplicates + replication; simpler path = network-connect apps to existing infra services, skip pglogical/RustFS-sync entirely. Recommend the simpler path.
+
+## Infra services migrated to Dokploy 2026-07-06
+
+User requested ALL infra services moved to Dokploy (not just skatelab). Reversed earlier Ponytail deviation (kept infra on docker compose). Now single-pane: every container is Dokploy-managed.
+
+- **`infra-dk` compose stack** — composeId `wev0EWTdnUoAbH-Rl0y4i`, appName `infra-dk-mebbbv`. 16 services: valkey, postgres, rustfs, 9router, vless-sub, miniflux, rsshub, searxng, ntfy, mosquitto, qbittorrent, baikal, camofox, openviking, mirofish, neo4j. `composeType=docker-compose`, `sourceType=raw`, `command="compose -p infra-dk-mebbbv up -d --pull always --remove-orphans"`.
+- **External volumes** (14, `name=infra_*`, pre-created) — data preserved: postgres DBs (skatelab/miniflux/baikal), valkey DB4 (worker queue, 2 keys), rustfs `skatelab-data` bucket, neo4j, etc. No data migration needed.
+- **Network aliases** `infra-valkey-1` / `infra-postgres-1` on valkey/postgres — backward compat with skatelab-dk env (still references container-name DNS from old stack). Without aliases: backend ConnectionError `Name or service not known`.
+- **Bind mounts** `/opt/infra/services/9router/data`, `/opt/infra/services/mosquitto/mosquitto.conf` — absolute paths, kept (services/ dir NOT removed).
+- **Source-of-truth**: `infra/compose.yaml` (this repo, `${VAR}` placeholders). Secrets from `/opt/infra/.env`, inlined at deploy. Deploy script: `infra/dokploy/scripts/dk-infra-deploy.sh` (render → compose.update → compose.deploy).
+- **Cutover**: `docker compose down` in `/opt/infra` (volumes preserved) → Dokploy `compose.deploy` → 16 containers up → restart skatelab-dk (reconnect valkey pool). api health ok.
+- **Backup**: `/home/dev/backups/infra-migrate/` (postgres-all.sql.gz 172K, valkey-dump.rdb 395B).
+- **Legacy cleanup**: `/opt/infra/compose.yaml` archived → `compose.yaml.legacy-pre-dokploy.<ts>` (docker compose in /opt/infra now finds nothing → safe). `services/` + `.env` kept (bind mounts + secret source). Old `project=infra` empty/removed.
+
+### Update flow (NEW — replaces `docker compose pull`)
+
+Old: `ssh dedic "cd /opt/infra && sudo docker compose pull 9router && sudo docker compose up -d --force-recreate 9router"`.
+New: edit `infra/compose.yaml` (bump image tag if needed) → `bash infra/dokploy/scripts/dk-infra-deploy.sh` (or just `curl compose.deploy` for redeploy-only, `--pull always` fetches fresh `:latest`). Per-service: Dokploy has no per-service deploy; `compose.deploy` recreates changed services only (compose diff). Manual `docker compose` recreate desyncs Dokploy — avoid.
+
+### Validation 2026-07-06
+- 16 infra-dk containers up (postgres/valkey/mirofish/openviking healthy)
+- All subdomains via Traefik: skatelab.ru 200, api.skatelab.ru/v1/health 200 `{"status":"ok","valkey":true}`, s3 403, mf 200, 9r 307, rss/feeds/search/ntfy/sub 200, ov/dav 302, qbit 200, mqtt 502 (known WebSocket edge case)
+- 24 containers total (16 infra-dk + 4 skatelab-dk + dokploy/traefik/postgres/redis)
+- skatelab DB sessions table query works (postgres data intact)

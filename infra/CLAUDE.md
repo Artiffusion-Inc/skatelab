@@ -27,17 +27,17 @@ Root SSH disabled. `admin` — единственный с sudo. Port 43210, key
 
 SSH connections: `ssh dedic` (admin) / `ssh dedic-dev` → zellij auto-start. If shell shows `dedic` in prompt → remote.
 
-- **All infra managed from repo**: edit files in `./infra/`, then `scp` to dedic
-- **Deploy flow**: edit → `scp <file> dedic:/tmp/<file>` → `ssh dedic "sudo mv /tmp/<file> /opt/infra/..."` → reload if needed
-- **Caddyfile**: always `caddy fmt` before deploy
-- **Secrets**: never hardcode in compose — use env vars from `/opt/infra/.env`
+- **All infra managed from repo**: edit `./infra/compose.yaml` (source-of-truth for Dokploy `infra-dk` stack)
+- **Deploy flow (Dokploy)**: edit `infra/compose.yaml` → `compose.update` (full file, env inlined from `/opt/infra/.env`) → `compose.deploy` via Dokploy API (VPN-only `10.99.0.1:18080`). Dokploy runs `docker compose -p infra-dk-mebbbv up -d --pull always --remove-orphans`. No more `scp`/`docker compose pull`.
+- **Secrets**: never hardcode in compose — use `${VAR}` placeholders, resolved from `/opt/infra/.env` at deploy time
+- **Volumes**: external (`name=infra_*`, pre-created) — data survives redeployes; never delete
 
 ## Three Areas
 
 | Area | Path | Content | Deploy |
 |------|------|---------|--------|
-| **infra** | `/opt/infra/` | Shared services: PG, Valkey, RustFS, Caddy, utility | Manual `docker compose up -d` |
-| **prod** | `/opt/skatelab/` | SkateLab app: backend, frontend, prometheus | CI/CD via GitHub Actions |
+| **infra** | Dokploy `infra-dk` stack (composeId `wev0EWTdnUoAbH-Rl0y4i`, appName `infra-dk-mebbbv`) | Shared services: PG, Valkey, RustFS, Traefik routes, utility | Dokploy API `compose.deploy` (edit `infra/compose.yaml` first) |
+| **prod** | Dokploy `skatelab-dk` stack (composeId `Yshf8i7x20Xzg7Qol4EAb`) | SkateLab app: backend, frontend, workers | CI/CD via GitHub Actions → Dokploy redeploy |
 | **dev** | `/home/dev/skatelab/` | Code and files, no Docker containers | Manual development |
 
 ## Docker Networks
@@ -139,13 +139,12 @@ Subdomain: `mqtt.skatelab.ru`. Caddy proxies WebSocket to `mosquitto:9001`. TCP 
 
 | Action | Command |
 |--------|--------|
-| Start infra | `cd /opt/infra && docker compose up -d` |
-| Pull images | `cd /opt/infra && docker compose pull` |
-| Caddy reload | `docker compose exec caddy caddy reload --config /etc/caddy/Caddyfile` |
-| Caddy fmt | `caddy fmt --overwrite /etc/caddy/Caddyfile` |
+| Deploy infra (edit→deploy) | `bash infra/dokploy/scripts/dk-infra-deploy.sh` (compose.update + compose.deploy) |
+| Redeploy infra (no edit) | `curl -s -X POST http://10.99.0.1:18080/api/compose.deploy -H "x-api-key: $DOKPLOY_API_KEY" -d '{"composeId":"wev0EWTdnUoAbH-Rl0y4i"}'` |
+| Update single service image | edit `infra/compose.yaml` (bump tag) → deploy; `--pull always` fetches fresh `:latest` |
 | Backup all DBs | `sudo /usr/local/bin/backup-dbs.sh` |
-| Valkey DBs info | `docker compose exec valkey valkey-cli INFO keyspace` |
-| SkateLab PG shell | `docker compose exec postgres psql -U skatelab` |
+| Valkey DBs info | `docker exec infra-dk-mebbbv-valkey-1 valkey-cli INFO keyspace` |
+| SkateLab PG shell | `docker exec infra-dk-mebbbv-postgres-1 psql -U skatelab` |
 | AWG up (dedic) | `sudo awg-quick up awg0` |
 | AWG down (dedic) | `sudo awg-quick down awg0` |
 | AWG status | `sudo awg show awg0` |
@@ -155,22 +154,22 @@ Subdomain: `mqtt.skatelab.ru`. Caddy proxies WebSocket to `mosquitto:9001`. TCP 
 
 ## Docker Stacks
 
-### SkateLab Prod — `/opt/skatelab/compose.yaml`
+### SkateLab Prod — Dokploy `skatelab-dk` stack
 
-Backend + Frontend + Prometheus on `infra_app_network`. Uses infra Postgres (`skatelab` DB) + infra Valkey (DB 3).
+Backend + Frontend + Workers on `infra_app_network`. Uses infra Postgres (`skatelab` DB) + infra Valkey (DB 4). composeId `Yshf8i7x20Xzg7Qol4EAb`, appName `skatelab-dk-lsenvh`.
 
-### Infra — `/opt/infra/compose.yaml`
+### Infra — Dokploy `infra-dk` stack
 
-Caddy reverse proxy (owns :80/:443) + self-hosted services. All subdomains on `skatelab.ru`.
+Traefik reverse proxy (owns :80/:443, Cloudflare DNS-01) + self-hosted services. All subdomains on `skatelab.ru`. composeId `wev0EWTdnUoAbH-Rl0y4i`, appName `infra-dk-mebbbv`. Source-of-truth: `infra/compose.yaml` (this repo).
 
 **SkateLab-critical:**
 
 | Service | Subdomain | Notes |
 |---------|-----------|-------|
 | Postgres (PG 17) | — | Shared DB: `skatelab`, `miniflux`, `baikal` |
-| Valkey | — | Shared cache/queue. DB 3 (SkateLab) |
+| Valkey | — | Shared cache/queue. DB 4 (skatelab-dk workers), DB 3 (legacy) |
 | RustFS | s3/s3c.skatelab.ru | S3 storage |
-| Caddy | *.skatelab.ru | TLS via Cloudflare DNS challenge (`caddy-cloudflare` image) |
+| Traefik | *.skatelab.ru | TLS via Cloudflare DNS-01 (Dokploy-managed `dokploy-traefik`) |
 | 9router | 9r.skatelab.ru | AI gateway (LLM + embeddings) |
 | AmneziaWG | — | Point-to-point VPN (host network, port 51820/udp) |
 | vless-sub | sub.skatelab.ru | Proxy subscription aggregator |
@@ -185,28 +184,32 @@ No containers. Dev runs backend locally, connects to infra services via network.
 
 ## Gotchas
 
-- Docker DNS: services resolve by service name (`valkey`, `rustfs`, `9router`) on same network, NOT by container name
-- Valkey DB indices: 0 unused, 2=available, 3=SkateLab — never overlap
+- Docker DNS: services resolve by service name (`valkey`, `rustfs`, `9router`) on same network, NOT by container name. `infra-valkey-1`/`infra-postgres-1` network aliases exist for skatelab-dk container-name compat.
+- Valkey DB indices: 0 unused, 2=available, 3=legacy skatelab workers, 4=skatelab-dk workers — never overlap
 - S3_PATH_STYLE=true required for self-hosted S3 (RustFS). Without `s3={"addressing_style": "path"}` boto3 generates virtual-hosted URLs
 - S3_REGION must be `us-east-1` (not `auto` which is R2-specific) — RustFS doesn't recognize `auto`
 - RustFS credentials: `RUSTFS_ACCESS_KEY`/`RUSTFS_SECRET_KEY` in `.env`, NOT `S3_ACCESS_KEY`
 - 9router inside Docker: use `http://9router:20128/v1` (not `https://9r.hypcat.net/v1` — SSL cert mismatch)
 - 9router models with `ollama/` prefix require local ollama server — use bare model names for combo routing
-- MiroFish: `pull_policy: never` for local image — `docker compose pull` skips it
-- MiroFish: Vite needs `--host 0.0.0.0` + `allowedHosts` for Caddy proxy
+- MiroFish: `pull_policy: missing` (GHCR image `ghcr.io/artiffusion-inc/mirofish:latest`)
+- MiroFish: Vite needs `--host 0.0.0.0` + `allowedHosts` for Traefik proxy
 - MiroFish: `ZEP_BACKEND=graphiti` (not `cloud`) — uses Neo4j, not Zep Cloud
 - AWG iptables: `10.99.0.0/24` ACCEPT in INPUT chain — required for VPN access. If iptables flushed, re-add
 - AWG dev access: services must bind `0.0.0.0` (not `127.0.0.1`) to be reachable via 10.99.0.1
 - AWG split tunnel: only `10.99.0.0/24` routed through VPN — no full tunnel
 - vless-sub: env vars `HWID`, `VLESS_SUB_URLS` required in `/opt/infra/.env`
-- vless-sub image: `docker.io/xpos587/vless-sub-server:latest` — custom, not on Docker Hub
+- vless-sub image: `ghcr.io/xpos587/vless-sub-server:latest`
 - `docker compose down --remove-orphans` destroys containers not in compose.yaml — NEVER use without checking
+- Container names are Dokploy-generated (`infra-dk-mebbbv-<svc>-1`), not stable — use network aliases / service DNS, not container names
 
 ## Deploy
 
-GitHub Actions → `master` → CI → GHCR images → SCP deploy files + .env → `ssh admin@dedic /opt/skatelab/deploy.sh`
+Two stacks, both Dokploy-managed. Edit compose → Dokploy API `compose.update` (full file) → `compose.deploy`. Dokploy runs `docker compose -p <appName> up -d --pull always --remove-orphans`.
 
-Sequence: pull images → `docker rollout` backend/frontend (zero-downtime) → copy Caddyfile → `caddy reload` → `alembic upgrade head` → health check (2min) → image prune. Rollback on alembic failure.
+- **infra-dk** (`infra/compose.yaml`, composeId `wev0EWTdnUoAbH-Rl0y4i`): `bash infra/dokploy/scripts/dk-infra-deploy.sh`
+- **skatelab-dk** (composeId `Yshf8i7x20Xzg7Qol4EAb`): GitHub Actions `deploy.yml` → `curl compose.deploy` on master push (CI builds images → GHCR → Dokploy pulls `:latest`)
+
+`docker` CLI still useful for read-only ops: `docker logs`, `docker exec`, `docker inspect`. But do NOT start/stop/recreate containers via `docker compose` — that desyncs from Dokploy's view of the stack. Use Dokploy Redeploy instead.
 
 ## Backups
 
