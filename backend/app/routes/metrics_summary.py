@@ -2,12 +2,18 @@
 
 from __future__ import annotations
 
-from typing import ClassVar
+from typing import ClassVar, Literal
 
 from litestar import Controller, get
 from litestar.params import Parameter
 
 from app.auth.deps import CurrentUser, DbDep
+
+# #784: whitelist the period param. Description promised 7d/30d/90d/all but
+# nothing enforced it — `999d`/`garbage`/empty were accepted. Once aggregation
+# is wired, an unknown period would build a bad SQL interval or wrong window.
+# Literal lets Litestar reject unknown values with 400 before the handler runs.
+Period = Literal["7d", "30d", "90d", "all"]
 
 
 class ElementSummaryController(Controller):
@@ -20,7 +26,7 @@ class ElementSummaryController(Controller):
         user: CurrentUser,
         db: DbDep,
         element: str = Parameter(description="Element type key"),
-        period: str = Parameter(default="30d", description="7d/30d/90d/all"),
+        period: Period = Parameter(default="30d", description="7d/30d/90d/all"),  # noqa: B008
     ) -> dict:
         """Batched endpoint: trend + diagnostics + registry + PRs for one element."""
         # For now, return a structured empty response — actual data aggregation
