@@ -102,10 +102,14 @@ class Pose3DNormalizer:
             left_foot_y = frame[H36Key.LFOOT, 1]
             right_foot_y = frame[H36Key.RFOOT, 1]
 
-            lowest_foot = min(left_foot_y, right_foot_y)
+            # #861/#454: np.fmin is NaN-safe — a single occluded foot falls back
+            # to the finite one. Python min(nan, val) = nan (arg-order-dependent)
+            # → body_height=NaN → silently dropped from the average, asymmetric
+            # by which foot the tracker lost. Both-NaN still dropped below.
+            lowest_foot = float(np.fmin(left_foot_y, right_foot_y))
             body_height = head_y - lowest_foot
 
-            if body_height > 0.1:  # Filter degenerate cases
+            if np.isfinite(body_height) and body_height > 0.1:  # Filter degenerate
                 heights.append(body_height)
 
         if not heights:
