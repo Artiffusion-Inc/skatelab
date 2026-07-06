@@ -418,7 +418,7 @@ class SessionResponse(BaseModel):
     status: str
     error_message: str | None
     phases: PhasesData | None  # Typed phase markers
-    recommendations: list[str] | None
+    recommendations: list[str] | None  # #678: filtered by validator below
     overall_score: float | None
     process_task_id: str | None
     imu_left_key: str | None = None
@@ -433,6 +433,14 @@ class SessionResponse(BaseModel):
     goe_grade: GOEResponse | None = None
 
     model_config = {"from_attributes": True}
+
+    @field_validator("recommendations", mode="before")
+    @classmethod
+    def _filter_empty_strings(cls, v: Any) -> list[str] | None:
+        # #678: drop empty strings from recommendations list.
+        if v is None:
+            return None
+        return [r for r in v if r]
 
     @field_validator("created_at", "processed_at", mode="before")
     @classmethod
