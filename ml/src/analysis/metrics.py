@@ -919,7 +919,7 @@ class BiomechanicsAnalyzer:
 
         Returns:
             Recovery score in [0.0, 1.0] where 1.0 = perfectly upright.
-            Formula: max(0.0, 1.0 - avg_lean / 30.0)
+            Formula: np.clip(1.0 - avg_lean / 30.0, 0.0, 1.0)
             Returns 1.0 if no post-landing data available.
         """
         # Check if we have post-landing data
@@ -939,12 +939,26 @@ class BiomechanicsAnalyzer:
         # Compute trunk lean for post-landing frames
         trunk_lean = self.compute_trunk_lean(post_landing_poses)
 
-        # Calculate average absolute lean during post-landing
-        avg_lean = float(np.mean(np.abs(trunk_lean)))
+        # Calculate average absolute lean during post-landing — NaN-safe.
+        # #865: a NaN shoulder keypoint (occlusion — normal on landing when the
+        # skater turns away) propagates through mid_shoulder → spine_vector →
+        # arctan2 into trunk_lean. The plain mean of abs(trunk_lean) over a NaN
+        # frame = nan, then 1.0 - nan/30.0 = nan and Python max(0.0, nan) = 0.0
+        # (#454 arg-order NaN-unsafe) — an occluded shoulder reads as the WORST
+        # recovery (0.0), a false "poor recovery" diagnosis when the truth is
+        # "no data for that frame". Skip occluded frames via np.nanmean; if
+        # every frame is occluded, return 1.0 ("no data → no penalty", not 0.0).
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", RuntimeWarning)
+            avg_lean = float(np.nanmean(np.abs(trunk_lean)))
+        if not np.isfinite(avg_lean):
+            return 1.0
 
-        # Convert to recovery score: lower lean = higher recovery
-        # 30 degrees is a reasonable threshold for "poor recovery"
-        recovery = max(0.0, 1.0 - avg_lean / 30.0)
+        # Convert to recovery score: lower lean = higher recovery.
+        # 30 degrees is a reasonable threshold for "poor recovery".
+        # #865: np.clip (NaN-safe after the finite guard) instead of Python
+        # max(0.0, ...) which is arg-order NaN-unsafe (#454).
+        recovery = float(np.clip(1.0 - avg_lean / 30.0, 0.0, 1.0))
 
         return float(recovery)
 
