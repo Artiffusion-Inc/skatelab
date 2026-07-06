@@ -106,25 +106,7 @@ async def mark_used_atomic(db: AsyncSession, token: RefreshToken) -> bool:
         .values(last_used_at=datetime.now(UTC))
     )
     await db.flush()
-    return result.rowcount > 0
-
-
-async def revoke_all_for_user(db: AsyncSession, user_id: str) -> int:
-    """#686: Revoke all active refresh tokens for a user (password reset)."""
-    result = await db.execute(
-        select(RefreshToken).where(
-            RefreshToken.user_id == user_id,
-            RefreshToken.is_revoked == False,  # noqa: E712
-        )
-    )
-    tokens = result.scalars().all()
-    count = 0
-    for token in tokens:
-        token.is_revoked = True
-        db.add(token)
-        count += 1
-    await db.flush()
-    return count
+    return cast("int", getattr(result, "rowcount", 0)) > 0
 
 
 async def get_active_by_hash(db: AsyncSession, token_hash: str) -> RefreshToken | None:
