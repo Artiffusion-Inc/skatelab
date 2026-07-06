@@ -129,8 +129,7 @@ def _symmetric_pose(nan_joint: str | None = None, n: int = 10) -> np.ndarray:
 
 
 def _phases(n: int = 10):
-    return ElementPhase(name="waltz_jump", start=0, takeoff=2, peak=4,
-                        landing=7, end=n - 1)
+    return ElementPhase(name="waltz_jump", start=0, takeoff=2, peak=4, landing=7, end=n - 1)
 
 
 # --------------------------------------------------------------------------- #
@@ -277,44 +276,36 @@ def test_all_valid_symmetry_unchanged_repro():
 
 
 def test_symmetry_nan_unsafe_source_repro():
-    """Source check: `compute_symmetry` computes `asymmetries.append(float(
-    np.mean(distances)))` (NOT `np.nanmean` — propagates NaN), then
-    `avg_asymmetry = float(np.mean(asymmetries))` (NOT `np.nanmean` —
-    propagates NaN), then `max(0, 1 - avg_asymmetry)` (Python max —
-    NaN-unsafe, arg-order-dependent, #454). Root cause locked.
-
-    RED now: the np.mean (not nanmean) lines and the `max(0, 1 -
-    avg_asymmetry)` line are present (PASS — root cause locked). After the
-    fix: the means become `np.nanmean` (or NaN masks) and/or the max becomes
-    NaN-safe — this test FAILS, signaling the observable tests above should
-    flip to GREEN.
-    """
+    """GREEN source check (#869 fix): `compute_symmetry` no longer uses the
+    NaN-propagating `np.mean(distances)` / `np.mean(asymmetries)` or the
+    NaN-unsafe arg-order `max(0, 1 - avg_asymmetry)`. A NaN-safe per-pair
+    `np.nanmean`, a finite-pair aggregate filter, and a `np.clip` clamp
+    replaced them."""
     src = inspect.getsource(BiomechanicsAnalyzer.compute_symmetry)
-    # The per-pair np.mean (NOT nanmean) is present — propagates NaN.
-    assert "asymmetries.append(float(np.mean(distances)))" in src, (
-        "BUG: compute_symmetry must append `float(np.mean(distances))` "
-        "(NaN-propagating, not `np.nanmean`) for this repro to be valid. If it "
-        "was changed to `np.nanmean(distances)` (or a NaN mask), the "
-        "NaN-poisons-pair bug is fixed — update the observable tests to the "
-        "GREEN contract."
+    # The NaN-propagating per-pair np.mean is GONE.
+    assert "asymmetries.append(float(np.mean(distances)))" not in src, (
+        "#869 RED: the NaN-propagating `np.mean(distances)` per-pair line is "
+        "back — one occluded joint NaN-poisons the pair. Use np.nanmean."
     )
-    # The aggregate np.mean (NOT nanmean) is present — propagates NaN.
-    assert "avg_asymmetry = float(np.mean(asymmetries))" in src, (
-        "BUG: compute_symmetry must compute `avg_asymmetry = float(np.mean("
-        "asymmetries))` (NaN-propagating, not `np.nanmean`) for this repro to "
-        "be valid. If it was changed to `np.nanmean(asymmetries)`, the "
-        "NaN-poisons-aggregate bug is fixed — update the observable tests to "
-        "the GREEN contract."
+    # A NaN-safe per-pair mean is present.
+    assert "np.nanmean(distances)" in src, (
+        "#869 RED: compute_symmetry must use np.nanmean(distances) per pair "
+        "— skip NaN frames in a pair instead of letting one occluded joint "
+        "poison the whole pair."
     )
-    assert "np.nanmean" not in src, (
-        "BUG: compute_symmetry now uses `np.nanmean` — the NaN-poisons-mean "
-        "bug is fixed; update the observable tests to the GREEN contract."
+    # The NaN-propagating aggregate np.mean(asymmetries) is GONE.
+    assert "avg_asymmetry = float(np.mean(asymmetries))" not in src, (
+        "#869 RED: the NaN-propagating `np.mean(asymmetries)` aggregate is "
+        "back — one NaN pair poisons the whole metric. Filter finite pairs."
     )
-    # The Python `max(0, 1 - avg_asymmetry)` line is present — NaN-unsafe.
-    assert "max(0, 1 - avg_asymmetry)" in src, (
-        "BUG: compute_symmetry must return `max(0, 1 - avg_asymmetry)` "
-        "(Python max — NaN-unsafe, arg-order-dependent, #454: max(0, nan) = "
-        "0) for this repro to be valid. If it was changed to a NaN-safe form "
-        "(e.g. `np.fmax`, `np.nan_to_num`), the arg-order-NaN bug is fixed — "
-        "update the observable tests to the GREEN contract."
+    # The NaN-unsafe arg-order clamp is GONE, replaced by np.clip.
+    assert "max(0, 1 - avg_asymmetry)" not in src, (
+        "#869 RED: the NaN-unsafe `max(0, 1 - avg_asymmetry)` clamp is back — "
+        "max(0, nan)=0 (arg-order #454) grades a symmetric body with one "
+        "occluded joint as worst. Use np.clip."
+    )
+    assert "np.clip" in src, (
+        "#869 RED: use np.clip(1.0 - avg_asymmetry, 0.0, 1.0) — NaN-safe clamp "
+        "after the finite-pair filter, unlike Python max which is arg-order "
+        "NaN-unsafe (#454)."
     )

@@ -1525,13 +1525,30 @@ class BiomechanicsAnalyzer:
             mirrored_left = left_joints.copy()
             mirrored_left[:, 0] = 2 * midline_x - left_joints[:, 0]
 
-            # Calculate average distance
+            # Calculate average distance.
+            # #869: NaN-safe per pair — np.mean propagates NaN, so one occluded
+            # joint poisons the pair and then the aggregate; np.nanmean skips
+            # NaN frames. all-NaN pair → NaN, filtered from the aggregate below.
+            # Suppress the "Mean of empty slice" warning for the all-NaN case.
             distances = np.linalg.norm(mirrored_left - right_joints, axis=1)
-            asymmetries.append(float(np.mean(distances)))
+            # #869: nanmean of an all-NaN slice emits a "Mean of empty slice"
+            # RuntimeWarning (not an errstate category) — silence it; the NaN
+            # is filtered from the aggregate below.
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore", RuntimeWarning)
+                asymmetries.append(float(np.nanmean(distances)))
 
-        # Symmetry = 1 - average asymmetry
-        avg_asymmetry = float(np.mean(asymmetries))
-        return float(max(0, 1 - avg_asymmetry))
+        # Symmetry = 1 - average asymmetry.
+        # #869: NaN-safe aggregate + clamp. np.nanmean skips NaN pairs; if every
+        # pair is NaN there is no data — return neutral 1.0 (perfect symmetry
+        # default, matches "no data" rather than falsely scoring worst). The
+        # old Python `max(0, 1 - nan)` was arg-order NaN-unsafe (#454): max(0,
+        # nan)=0 graded a symmetric body with one occluded joint as worst.
+        valid = [a for a in asymmetries if np.isfinite(a)]
+        if not valid:
+            return 1.0
+        avg_asymmetry = float(np.mean(valid))
+        return float(np.clip(1.0 - avg_asymmetry, 0.0, 1.0))
 
     def compute_relative_jump_height(
         self,
