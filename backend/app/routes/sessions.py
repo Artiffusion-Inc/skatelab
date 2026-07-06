@@ -22,6 +22,7 @@ from app.crud.connection import is_connected_as
 from app.crud.session import count_by_user, create, get_by_id, list_by_user, soft_delete, update
 from app.middleware.rate_limit import check_rate_limit
 from app.models.connection import ConnectionType
+from app.models.session import Session
 from app.schemas import (
     CLIENT_SETTABLE_STATUSES,
     SESSION_STATUS_WHITELIST,
@@ -273,13 +274,29 @@ class SessionsController(Controller):
         db: DbDep,
     ) -> None:
         session_ids = [sid.strip() for sid in ids.split(",") if sid.strip()]
+
+        # #680: pre-check ownership of ALL ids before deleting any. The old loop
+        # soft-deleted each owned session in turn and raised 403 on the first
+        # non-owned id — sessions processed before the failure were already
+        # gone, leaving the DB inconsistent while the caller saw only the 403.
+        # Resolve every id up front; if any owned-by-another id is present,
+        # reject with 403 listing the offenders and delete nothing.
+        sessions: list[Session] = []
+        forbidden: list[str] = []
         for sid in session_ids:
             session = await get_by_id(db, sid)
-            if not session:
-                continue
+            if session is None:
+                continue  # unknown id — skip, not 404
             if session.user_id != verified_user.id:
-                raise ClientException(
-                    status_code=HTTP_403_FORBIDDEN,
-                    detail="Cannot delete another user's session",
-                )
+                forbidden.append(sid)
+                continue
+            sessions.append(session)
+
+        if forbidden:
+            raise ClientException(
+                status_code=HTTP_403_FORBIDDEN,
+                detail=f"Cannot delete another user's session: {forbidden}",
+            )
+
+        for session in sessions:
             await soft_delete(db, session)
