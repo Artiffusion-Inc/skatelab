@@ -237,6 +237,18 @@ class MotionAligner:
         elif self._window_type == "itakura":
             window_args = {"window_type": "itakura"}
 
+        # #896: NaN keypoint (occluded joint) in the flattened cost matrix
+        # poisons the DTW accumulator -> no finite warping path -> the `dtw`
+        # library raises ValueError("No warping path found ..."), crashing
+        # compute_distance / align / compute_distance_3d (none of which wrap
+        # the call). Sanitize to a finite cost matrix so the aligner degrades
+        # gracefully (finite NaN-masked distance) instead of crashing. Identity
+        # on all-finite input. ponytail: all-NaN segment becomes 0-cost
+        # (biased finite, not inf); upgrade to inf sentinel if a degenerate-
+        # segment signal is needed. Mirrors the MotionDTWAligner #888 guard.
+        x = np.nan_to_num(x, nan=0.0, posinf=0.0, neginf=0.0)
+        y = np.nan_to_num(y, nan=0.0, posinf=0.0, neginf=0.0)
+
         # Compute DTW
         return dtw(
             x,

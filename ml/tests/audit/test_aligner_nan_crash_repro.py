@@ -114,11 +114,11 @@ def _seq(n: int = 12, nan_keypoint: int | None = None) -> np.ndarray:
     """
     poses = np.zeros((n, 17, 2), dtype=np.float32)
     for f in range(n):
-        poses[f, 0] = [0.0, 0.0]      # head
-        poses[f, 1] = [-0.2, 0.1]     # lshoulder
-        poses[f, 2] = [0.2, 0.1]      # rshoulder
+        poses[f, 0] = [0.0, 0.0]  # head
+        poses[f, 1] = [-0.2, 0.1]  # lshoulder
+        poses[f, 2] = [0.2, 0.1]  # rshoulder
         poses[f, 4] = [-0.1, 0.5 + f * 0.01]  # lhip (drift)
-        poses[f, 5] = [0.1, 0.5 + f * 0.01]   # rhip (drift)
+        poses[f, 5] = [0.1, 0.5 + f * 0.01]  # rhip (drift)
     if nan_keypoint is not None:
         poses[:, nan_keypoint] = [np.nan, np.nan]
     return poses
@@ -324,74 +324,53 @@ def test_all_valid_compute_distance_unchanged_repro():
 
 
 # --------------------------------------------------------------------------- #
-# Source check: root cause locked — MotionAligner (SEPARATE class from
-# MotionDTWAligner) has NO NaN guard, calls dtw(...) unguarded in _compute_dtw.
+# Source check: GREEN contract — the MotionAligner NaN-crash guard is locked
+# (separate class from MotionDTWAligner, fixed independently of BZ/#888).
 # --------------------------------------------------------------------------- #
 
 
 def test_aligner_nan_crash_source_repro():
-    """Source check: `MotionAligner` is a SEPARATE class from
-    `MotionDTWAligner` (tranche BZ), and its `_compute_dtw` calls `dtw(...)`
-    (line 227) with NO NaN guard. `compute_distance` / `compute_distance_3d`
-    / `align` flatten the poses and call `_compute_dtw` directly with no NaN
-    guard. Root cause locked.
-
-    RED now: the unguarded `dtw(...)` call and the no-NaN-guard flatten+call
-    are present (PASS — root cause locked). After the fix: a NaN guard
-    (`np.isnan` / `np.isfinite` / `nan_to_num` / `np.nanmean`) appears in
-    `compute_distance` / `compute_distance_3d` / `align` / `_compute_dtw` —
-    this test FAILS, signaling the observable tests above should flip to GREEN.
+    """Source check (GREEN contract): the NaN-crash fix lives in
+    `MotionAligner._compute_dtw` (the shared root — `compute_distance` /
+    `compute_distance_3d` / `align` all route through it). `np.nan_to_num`
+    sanitizes the cost matrix so an occluded keypoint degrades to a finite
+    NaN-masked distance instead of raising ValueError. Identity on all-finite
+    input. MotionAligner remains a SEPARATE class from MotionDTWAligner.
     """
     # MotionAligner is a distinct class from MotionDTWAligner.
     from src.alignment.motion_dtw import MotionDTWAligner
 
     assert MotionAligner is not MotionDTWAligner, (
-        "BUG: MotionAligner must be a SEPARATE class from MotionDTWAligner "
-        "(tranche BZ/#888) for this repro to be valid. If they were merged, "
-        "BZ's fix would cover this — but they are distinct classes with "
-        "distinct code paths."
+        "BUG: MotionAligner must remain a SEPARATE class from "
+        "MotionDTWAligner (tranche BZ/#888) — distinct code paths, the #896 "
+        "fix is independent."
     )
 
     dtw_src = inspect.getsource(MotionAligner._compute_dtw)
-    # The unguarded dtw(...) call is present — the crash point.
+    # The dtw(...) call is still present (the guard is before it, not wrapping it).
     assert "return dtw(" in dtw_src, (
-        "BUG: _compute_dtw must call `return dtw(...)` (unguarded) for this "
-        "repro to be valid. If the dtw call was wrapped in a try/except or a "
-        "NaN guard was added before it, the crash bug is fixed — update the "
-        "observable tests to the GREEN contract."
+        "BUG: _compute_dtw must still call `return dtw(...)`; the #896 guard "
+        "is a nan_to_num before the call, not a wrapper around it."
     )
-    assert "np.isnan" not in dtw_src and "np.isfinite" not in dtw_src and \
-        "nan_to_num" not in dtw_src and "nanmean" not in dtw_src, (
-        "BUG: a NaN guard (`np.isnan` / `np.isfinite` / `nan_to_num` / "
-        "`nanmean`) appeared in _compute_dtw — the NaN-crash bug is fixed; "
-        "update the observable tests to the GREEN contract."
+    # np.nan_to_num sanitizes the cost matrix (#896).
+    assert "np.nan_to_num" in dtw_src, (
+        "BUG: _compute_dtw must sanitize NaN in the cost matrix via "
+        "`np.nan_to_num` (#896) so an occluded keypoint does not poison the "
+        "DTW accumulator and raise ValueError."
     )
 
-    # compute_distance has no NaN guard on the flatten+call path.
+    # compute_distance still routes through _compute_dtw (the shared root).
     cd_src = inspect.getsource(MotionAligner.compute_distance)
     assert "alignment = self._compute_dtw(user_flat, ref_flat)" in cd_src, (
-        "BUG: compute_distance must call "
-        "`alignment = self._compute_dtw(user_flat, ref_flat)` (unguarded) for "
-        "this repro to be valid. If a NaN guard was added before this call, "
-        "the crash bug is fixed — update the observable tests to the GREEN "
-        "contract."
-    )
-    assert "np.isnan" not in cd_src and "np.isfinite" not in cd_src and \
-        "nan_to_num" not in cd_src and "nanmean" not in cd_src, (
-        "BUG: a NaN guard appeared in compute_distance — the NaN-crash bug is "
-        "fixed; update the observable tests to the GREEN contract."
+        "BUG: compute_distance must still call "
+        "`alignment = self._compute_dtw(user_flat, ref_flat)`; the #896 fix "
+        "lives in _compute_dtw, not by bypassing it."
     )
 
-    # align has no NaN guard either.
+    # align still routes through _compute_dtw (the shared root).
     al_src = inspect.getsource(MotionAligner.align)
     assert "alignment = self._compute_dtw(user_flat, ref_flat)" in al_src, (
-        "BUG: align must call "
-        "`alignment = self._compute_dtw(user_flat, ref_flat)` (unguarded) for "
-        "this repro to be valid. If a NaN guard was added, the crash bug is "
-        "fixed — update the observable tests to the GREEN contract."
-    )
-    assert "np.isnan" not in al_src and "np.isfinite" not in al_src and \
-        "nan_to_num" not in al_src and "nanmean" not in al_src, (
-        "BUG: a NaN guard appeared in align — the NaN-crash bug is fixed; "
-        "update the observable tests to the GREEN contract."
+        "BUG: align must still call "
+        "`alignment = self._compute_dtw(user_flat, ref_flat)`; the #896 fix "
+        "lives in _compute_dtw, not by bypassing it."
     )
