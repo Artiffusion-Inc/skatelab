@@ -1007,10 +1007,20 @@ class BiomechanicsAnalyzer:
         if len(velocities) == 0:
             return 1.0
 
-        std_velocity = float(np.std(velocities))
+        # #870: NaN-safe std. The NaN-aware CoM (#871) keeps the CoM finite when
+        # a few keypoints are occluded, but a fully-occluded post-landing frame
+        # still yields NaN velocities. np.std propagates NaN (whole window NaN),
+        # then Python max(0.0, nan)=0.0 (arg-order #454) falsely grades a smooth
+        # landing as the worst. nanstd ignores NaN frames; if every frame is
+        # NaN there is no data — return neutral 1.0 (matches the no-data early
+        # returns above) instead of 0.0.
+        finite = velocities[np.isfinite(velocities)]
+        if len(finite) == 0:
+            return 1.0
+        std_velocity = float(np.std(finite))
         # 0.2 norm/s std threshold for "unstable"
-        smoothness = max(0.0, 1.0 - std_velocity / 0.2)
-        return float(smoothness)
+        smoothness = float(np.clip(1.0 - std_velocity / 0.2, 0.0, 1.0))
+        return smoothness
 
     def compute_hard_landing(
         self,
