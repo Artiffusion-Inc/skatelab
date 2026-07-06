@@ -844,7 +844,11 @@ class BiomechanicsAnalyzer:
         right_foot = poses[landing_frame, H36Key.RFOOT]
         right_angle = angle_3pt(right_hip, right_knee, right_foot)
 
-        return min(left_angle, right_angle)
+        # #863: angle_3pt returns NaN for an occluded (NaN) knee. Python min()
+        # is asymmetric on NaN (min(nan, val) = nan, #454) and would propagate
+        # NaN even when the other leg is valid. np.nanmin ignores NaN and takes
+        # the valid leg's angle; both NaN → nanmin warns + returns NaN.
+        return float(np.nanmin([left_angle, right_angle]))
 
     def compute_landing_knee_stability(self, poses: NormalizedPose, phases: ElementPhase) -> float:
         """Compute post-landing knee stability score.
