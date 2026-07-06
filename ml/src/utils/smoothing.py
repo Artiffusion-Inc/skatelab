@@ -70,7 +70,11 @@ def _one_euro_filter_sequence_numba(
     """
     n = len(x)
     filtered = np.zeros_like(x)
-    dt = 1.0 / freq
+    # #948: corrupt video can report freq=0 (cv2.CAP_PROP_FPS=0). Fall back to
+    # frame-based dt=1.0 (one sample per step, frame-index time) — mirrors the
+    # phase-detector sibling (phase_detector.py:234) and the Sports2D tracker.
+    # Valid freq unchanged; freq<=0 yields finite output instead of ZeroDivisionError.
+    dt = 1.0 / freq if freq > 0 else 1.0
 
     # Initialization
     x_prev = x[0]
@@ -317,7 +321,10 @@ class OneEuroFilter:
             Filtered sequence (num_samples,).
         """
         if timestamps is None:
-            timestamps = np.arange(len(x), dtype=np.float32) / self.freq
+            # #948: freq=0 (corrupt video) → frame-index timestamps (0,1,2,…)
+            # instead of /self.freq ZeroDivision. Matches the kernel fallback.
+            ts_step = 1.0 / self.freq if self.freq > 0 else 1.0
+            timestamps = np.arange(len(x), dtype=np.float32) * ts_step
 
         if len(x) != len(timestamps):
             msg = f"Length mismatch: {len(x)} != {len(timestamps)}"
