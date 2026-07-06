@@ -1121,7 +1121,12 @@ class BiomechanicsAnalyzer:
 
         com = calculate_com_trajectory_2d(approach_poses)
         vx = np.gradient(com[:, 0]) * fps
-        angles = np.degrees(np.arctan2(vx, np.ones_like(vx)))
+        vy = np.gradient(com[:, 1]) * fps
+        # #851: use the full 2D heading arctan2(vy, vx). The previous form
+        # passed a constant 1.0 as the second arctan2 arg, collapsing the
+        # heading to arctan(vx) and ignoring the vertical CoM velocity —
+        # curved / vertical approaches read as 0°.
+        angles = np.degrees(np.arctan2(vy, vx))
         return float(np.sum(np.abs(np.diff(angles))))
 
     def compute_arm_position(self, poses: NormalizedPose) -> float:
