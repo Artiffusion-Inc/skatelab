@@ -91,9 +91,13 @@ class ReferenceBuilder:
         """
         output_dir.mkdir(parents=True, exist_ok=True)
 
-        # Create filename from element type and source
+        # Create filename from element type and source. #802: use .stem so the
+        # source extension is stripped — .name kept "expert.mp4" →
+        # "waltz_jump_expert.mp4.npz" (double extension), and refs differing
+        # only by source extension (expert.mp4 vs expert.mov) collided as
+        # distinct filenames for the same logical ref.
         source_path = Path(ref.source)
-        filename = f"{ref.element_type}_{source_path.name}.npz"
+        filename = f"{ref.element_type}_{source_path.stem}.npz"
         output_path = output_dir / filename
 
         # Save to .npz format
