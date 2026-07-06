@@ -60,14 +60,25 @@ async def app_lifespan(app: Litestar) -> AsyncGenerator[None, None]:
     app.stores = StoreRegistry(default_factory=root_store.with_namespace)
 
     # 4. arq pool
-    app.state.arq_pool = await create_pool(RedisSettings(**settings.valkey.redis_kwargs()))
+    # #644: mirror the valkey pool pattern (line 43-46) — non-fatal.
+    # If Valkey is down at startup, the app starts in degraded mode
+    # (no task processing). Pre-fix: the finally block called
+    # `app.state.arq_pool.close()` on an uninitialized attribute,
+    # raising AttributeError AFTER the real ConnectionError, masking
+    # the actual failure in logs.
+    try:
+        app.state.arq_pool = await create_pool(RedisSettings(**settings.valkey.redis_kwargs()))
+    except (ConnectionError, OSError) as e:
+        logger.warning("arq pool init failed — task processing disabled: %s", e)
+        app.state.arq_pool = None
 
     try:
         yield
     finally:
         # Close in reverse order; use suppress to avoid cascade failures
-        with contextlib.suppress(Exception):
-            await app.state.arq_pool.close()
+        if app.state.arq_pool is not None:
+            with contextlib.suppress(Exception):
+                await app.state.arq_pool.close()
         with contextlib.suppress(Exception):
             await close_valkey_pool()
         with contextlib.suppress(Exception):
