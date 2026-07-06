@@ -1458,16 +1458,35 @@ class BiomechanicsAnalyzer:
             (H36Key.LKNEE, H36Key.RKNEE),
         ]
 
+        # #852: mirror across the per-frame BODY MIDLINE, not the world x=0
+        # axis. The midline is the sagittal axis — the mean x of the central
+        # structural joints (hip, spine, thorax, neck) — which is independent
+        # of the L/R pair being compared. A rigid sideways shift / tilt moves
+        # the whole body, so the midline tracks it and a symmetric pose still
+        # scores 1.0; real anatomical asymmetry (L ≠ mirrored-R about the
+        # midline) survives. The old form (mirrored = -x about x=0) only
+        # matched the midline when the skater sat exactly on x=0, so a
+        # symmetric-but-tilted body read as asymmetric.
+        central_joints = np.stack(
+            [
+                element_poses[:, H36Key.HIP_CENTER],
+                element_poses[:, H36Key.SPINE],
+                element_poses[:, H36Key.THORAX],
+                element_poses[:, H36Key.NECK],
+            ],
+            axis=1,
+        )
+        midline_x = central_joints[:, :, 0].mean(axis=1)  # (N,)
+
         asymmetries: list[float] = []
 
         for left_idx, right_idx in joint_pairs:
-            # Mirror left side and compare to right
             left_joints = element_poses[:, left_idx]
             right_joints = element_poses[:, right_idx]
 
-            # Mirror left across Y-axis: (x, y) -> (-x, y)
+            # Mirror left across the per-frame midline: x -> 2*midline_x - x.
             mirrored_left = left_joints.copy()
-            mirrored_left[:, 0] = -left_joints[:, 0]
+            mirrored_left[:, 0] = 2 * midline_x - left_joints[:, 0]
 
             # Calculate average distance
             distances = np.linalg.norm(mirrored_left - right_joints, axis=1)
