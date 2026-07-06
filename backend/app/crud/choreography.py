@@ -44,14 +44,17 @@ async def get_music_analysis_by_id(db: AsyncSession, music_id: str) -> MusicAnal
     return result.scalar_one_or_none()
 
 
-async def find_music_by_fingerprint(db: AsyncSession, fingerprint: str) -> MusicAnalysis | None:
-    result = await db.execute(
+async def find_music_by_fingerprint(
+    db: AsyncSession, fingerprint: str, user_id: str | None = None
+) -> MusicAnalysis | None:
+    query = (
         select(MusicAnalysis)
         .where(MusicAnalysis.fingerprint == fingerprint)
         .where(MusicAnalysis.status == "completed")
-        .order_by(MusicAnalysis.created_at.desc())
-        .limit(1)
     )
+    if user_id is not None:
+        query = query.where(MusicAnalysis.user_id == user_id)  # #705: scope dedup to own music
+    result = await db.execute(query.order_by(MusicAnalysis.created_at.desc()).limit(1))
     return result.scalar_one_or_none()
 
 

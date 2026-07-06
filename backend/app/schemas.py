@@ -584,7 +584,7 @@ class GenerateRequest(BaseModel):
 
 class LayoutElement(BaseModel):
     code: str
-    goe: int = 0
+    goe: float = 0  # #717: was int, CSP solver returns fractional GOE
     timestamp: float = 0.0
     position: dict | None = None
     is_back_half: bool = False
@@ -684,7 +684,7 @@ class SaveProgramRequest(BaseModel):
 
 
 class ExportRequest(BaseModel):
-    format: str = Field(pattern=r"^(svg|pdf|json)$")
+    format: str = Field(pattern=r"^(svg|json)$")  # #714: removed pdf — was returning SVG, not PDF
 
 
 class ElementDefResponse(BaseModel):
