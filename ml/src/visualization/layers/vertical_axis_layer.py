@@ -104,8 +104,20 @@ class VerticalAxisLayer(Layer):
         if pose is None:
             return frame
 
-        # Bail out if any required joint contains NaN
-        required_keys = (H36Key.LHIP, H36Key.RHIP, H36Key.LSHOULDER, H36Key.RSHOULDER)
+        # Bail out if any required joint contains NaN. #891: H36Key.HEAD is
+        # required too — `_draw_head_alignment` reads head_pt and calls
+        # int(head_pt[0]) (line 308); a NaN HEAD (head off-frame during
+        # rotations — common in skating) crashed int(nan) (pixel) or drew a
+        # garbage indicator from the masked (0,0) origin (normalized). HEAD
+        # was the only required joint for the head-alignment indicator NOT in
+        # this guard — add it so both paths skip on a NaN head.
+        required_keys = (
+            H36Key.LHIP,
+            H36Key.RHIP,
+            H36Key.LSHOULDER,
+            H36Key.RSHOULDER,
+            H36Key.HEAD,
+        )
         if any(np.isnan(pose[k]).any() for k in required_keys):
             return frame
 

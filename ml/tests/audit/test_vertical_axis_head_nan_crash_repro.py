@@ -108,7 +108,6 @@ from src.types import H36Key
 from src.visualization.layers.base import LayerContext
 from src.visualization.layers.vertical_axis_layer import VerticalAxisLayer
 
-
 HEAD_COLOR = (180, 130, 255)  # the head-alignment indicator color (line 310)
 
 
@@ -186,7 +185,9 @@ def test_nan_head_pixel_render_does_not_crash_repro():
     """
     w, h = 640, 480
     ctx = LayerContext(
-        frame_width=w, frame_height=h, normalized=False,
+        frame_width=w,
+        frame_height=h,
+        normalized=False,
         pose_2d=_pose(nan_head=True, normalized=False),
     )
     frame = np.zeros((h, w, 3), dtype=np.uint8)
@@ -214,8 +215,7 @@ def test_nan_head_pixel_render_does_not_crash_repro():
 
     # If it did not crash, the frame must be returned unchanged (no indicator).
     assert out is not None, (
-        "BUG: VerticalAxisLayer.render returned None for a NaN HEAD (pixel); "
-        "expected the frame."
+        "BUG: VerticalAxisLayer.render returned None for a NaN HEAD (pixel); expected the frame."
     )
 
 
@@ -244,7 +244,9 @@ def test_nan_head_normalized_render_no_garbage_indicator_repro():
     """
     w, h = 640, 480
     ctx = LayerContext(
-        frame_width=w, frame_height=h, normalized=True,
+        frame_width=w,
+        frame_height=h,
+        normalized=True,
         pose_2d=_pose(nan_head=True, normalized=True),
     )
     frame = np.zeros((h, w, 3), dtype=np.uint8)
@@ -287,7 +289,9 @@ def test_nan_head_only_render_does_not_crash_repro():
     w, h = 640, 480
     # Pixel path — must not crash.
     ctx_px = LayerContext(
-        frame_width=w, frame_height=h, normalized=False,
+        frame_width=w,
+        frame_height=h,
+        normalized=False,
         pose_2d=_pose(nan_head=True, normalized=False),
     )
     layer = VerticalAxisLayer()
@@ -321,13 +325,13 @@ def test_all_valid_head_alignment_drawn_repro():
     """
     w, h = 640, 480
     ctx = LayerContext(
-        frame_width=w, frame_height=h, normalized=False,
+        frame_width=w,
+        frame_height=h,
+        normalized=False,
         pose_2d=_pose(nan_head=False, normalized=False),
     )
     layer = VerticalAxisLayer()
-    n_head_lines = _count_head_alignment_lines(
-        layer, np.zeros((h, w, 3), dtype=np.uint8), ctx
-    )
+    n_head_lines = _count_head_alignment_lines(layer, np.zeros((h, w, 3), dtype=np.uint8), ctx)
     assert n_head_lines >= 1, (
         f"BUG (regression): all-valid pose (HEAD finite, offset > 3.0) drew "
         f"{n_head_lines} head-alignment indicator line(s); expected >= 1. The "
@@ -357,56 +361,43 @@ def test_vertical_axis_head_nan_crash_source_repro():
     above should flip to GREEN.
     """
     render_src = inspect.getsource(VerticalAxisLayer.render)
-    # The render guard checks only hip/shoulder, NOT HEAD.
-    assert "required_keys = (H36Key.LHIP, H36Key.RHIP, H36Key.LSHOULDER, H36Key.RSHOULDER)" in render_src, (
-        "BUG: render must guard `required_keys = (H36Key.LHIP, H36Key.RHIP, "
-        "H36Key.LSHOULDER, H36Key.RSHOULDER)` (NOT HEAD) for this repro to be "
-        "valid. If H36Key.HEAD was added to `required_keys`, the NaN-HEAD "
-        "crash/garbage bug is fixed — update the observable tests to the "
-        "GREEN contract."
+    # #891 fix: H36Key.HEAD added to render's `required_keys` guard tuple.
+    # A NaN HEAD (head off-frame during rotations) is now skipped at the render
+    # entry — before _draw_head_alignment reads head_pt and calls int(head_pt[0]).
+    # The guard tuple is multi-line now; check HEAD appears in it.
+    guard_block = render_src[
+        render_src.index("required_keys") : render_src.index("if any(np.isnan(pose[k])")
+    ]
+    assert "H36Key.HEAD" in guard_block, (
+        "BUG: render must include H36Key.HEAD in `required_keys` (#891) so a "
+        "NaN HEAD skips the layer before _draw_head_alignment crashes int(nan) "
+        "(pixel) / draws a garbage origin indicator (normalized). If HEAD was "
+        "removed, the NaN-HEAD crash/garbage bug regressed."
     )
-    # The guard's required_keys tuple must NOT include HEAD. (H36Key.HEAD
-    # legitimately appears elsewhere in render — `pose[H36Key.HEAD]` is read
-    # at line 124 to build the head point — so we check the guard tuple
-    # specifically, not the whole render body.)
-    guard_line = next(
-        (ln for ln in render_src.splitlines()
-         if "required_keys" in ln and "(" in ln),
-        None,
-    )
-    assert guard_line is not None and "H36Key.HEAD" not in guard_line, (
-        f"BUG: H36Key.HEAD was added to render's `required_keys` guard tuple "
-        f"({guard_line!r}) — the NaN-HEAD crash/garbage bug is fixed at the "
-        f"render entry; update the observable tests to the GREEN contract."
-    )
+    # The hip/shoulder guards are still present (defence-in-depth).
+    for k in ("H36Key.LHIP", "H36Key.RHIP", "H36Key.LSHOULDER", "H36Key.RSHOULDER"):
+        assert k in guard_block, (
+            f"BUG: render `required_keys` must still include {k} "
+            f"(defence-in-depth); the #891 fix ADDS HEAD, it does not remove "
+            f"the existing guards. If {k} was dropped, a NaN there may regress."
+        )
 
     head_src = inspect.getsource(VerticalAxisLayer._draw_head_alignment)
-    # The unguarded int() conversion is present — the crash point.
+    # _draw_head_alignment keeps its unguarded int() — NaN HEAD is skipped
+    # upstream in render (single entry guard), so head_pt is finite here.
     assert "hx, hy = int(head_pt[0]), int(head_pt[1])" in head_src, (
-        "BUG: _draw_head_alignment must do `hx, hy = int(head_pt[0]), "
-        "int(head_pt[1])` (unguarded int() conversion — `int(nan)` raises "
-        "ValueError) for this repro to be valid. If a NaN guard was added "
-        "(e.g. `if not np.isfinite(head_pt).all(): return`), the crash bug is "
-        "fixed — update the observable tests to the GREEN contract."
+        "BUG: _draw_head_alignment must still do `hx, hy = int(head_pt[0]), "
+        "int(head_pt[1])`; NaN HEAD is skipped upstream in render (#891), so "
+        "head_pt is finite here. A guard in _draw_head_alignment would be "
+        "redundant (render is the single entry point)."
     )
-    # The #454 arg-order trap: `min(1.0, nan) = 1.0`. The clamp uses bare
-    # `min(1.0, t)` without a NaN guard.
+    # The #454 arg-order trap clamp is preserved (harmless once head is finite).
     assert "t = max(0.0, min(1.0, t))" in head_src, (
-        "BUG: _draw_head_alignment must clamp `t = max(0.0, min(1.0, t))` "
-        "(the #454 arg-order trap: `min(1.0, nan) = 1.0`) for this repro to be "
-        "valid. If a NaN guard was added on `t` or `head_pt`, the crash bug is "
-        "fixed — update the observable tests to the GREEN contract."
+        "BUG: _draw_head_alignment must keep `t = max(0.0, min(1.0, t))`; the "
+        "#891 fix is the render-entry guard, not a clamp change."
     )
-    # The spine_len guard checks LENGTH only, NOT NaN in head_pt.
+    # The spine_len LENGTH guard is preserved.
     assert "if spine_len_sq < 1.0:" in head_src, (
-        "BUG: _draw_head_alignment must guard `if spine_len_sq < 1.0: return` "
-        "(LENGTH-only guard, misses NaN in head_pt) for this repro to be "
-        "valid. If a NaN guard was added, the crash bug is fixed — update the "
-        "observable tests to the GREEN contract."
-    )
-    assert "np.isfinite" not in head_src and "np.isnan" not in head_src and \
-        "nan_to_num" not in head_src, (
-        "BUG: a NaN guard (`np.isfinite` / `np.isnan` / `nan_to_num`) appeared "
-        "in _draw_head_alignment — the NaN-HEAD crash/garbage bug is fixed; "
-        "update the observable tests to the GREEN contract."
+        "BUG: _draw_head_alignment must keep `if spine_len_sq < 1.0: return`; "
+        "the #891 fix is the render-entry guard, not a spine_len change."
     )
