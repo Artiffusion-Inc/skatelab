@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 
 from app.models.workspace import (
     Subscription,
@@ -57,6 +57,14 @@ async def get_workspace_by_slug(db: AsyncSession, slug: str) -> Workspace | None
     """Get workspace by slug."""
     result = await db.execute(select(Workspace).where(Workspace.slug == slug))
     return result.scalar_one_or_none()
+
+
+async def count_workspaces_for_user(db: AsyncSession, user_id: str) -> int:
+    """Count workspaces a user is a member of. #740: per-user limit."""
+    result = await db.execute(
+        select(func.count()).select_from(WorkspaceMember).where(WorkspaceMember.user_id == user_id)
+    )
+    return result.scalar_one()
 
 
 async def list_workspaces_for_user(db: AsyncSession, user_id: str) -> list[Workspace]:
