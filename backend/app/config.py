@@ -208,6 +208,8 @@ class AppConfig(BaseSettings):
     skip_auth: bool = False
     cookie_secure: bool = False
     cookie_samesite: Literal["lax", "strict", "none"] = "lax"
+    # #689: None for dev (localhost), ".skatelab.ru" for prod
+    cookie_domain: str | None = None
 
     class Config:
         env_prefix = "APP_"
