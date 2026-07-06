@@ -331,13 +331,28 @@ def calculate_com_trajectory(poses: NormalizedPose) -> NDArray[np.float32]:
     l_leg = (poses[:, H36Key.LKNEE] + poses[:, H36Key.LFOOT]) / 2
     r_leg = (poses[:, H36Key.RKNEE] + poses[:, H36Key.RFOOT]) / 2
 
-    # Weighted sum of Y-coordinates: (N,)
+    # Weighted sum of Y-coordinates: (N,).
+    # #871: NaN-aware CoM — an occluded keypoint must NOT poison the CoM and
+    # flip hard_landing to a false best score. Mask each segment's contribution
+    # to 0 when NaN (its mass is simply absent for that frame). All-valid case
+    # is byte-identical: np.where(isfinite, term, 0) == term when finite. No
+    # renormalization — Dempster masses sum to 1.3 (not 1.0), so renormalizing
+    # would rescale every all-valid frame and regress the no-NaN contract.
+    def _w(mass: float, y: NDArray[np.floating]) -> NDArray[np.floating]:
+        term = mass * y
+        return np.where(np.isfinite(y), term, 0.0)
+
     com_y = (
-        head_mass * head[:, 1]
-        + torso_mass * torso[:, 1]
-        + arm_mass * (l_upper_arm[:, 1] + r_upper_arm[:, 1] + l_forearm[:, 1] + r_forearm[:, 1])
-        + thigh_mass * (l_thigh[:, 1] + r_thigh[:, 1])
-        + leg_mass * (l_leg[:, 1] + r_leg[:, 1])
+        _w(head_mass, head[:, 1])
+        + _w(torso_mass, torso[:, 1])
+        + _w(arm_mass, l_upper_arm[:, 1])
+        + _w(arm_mass, r_upper_arm[:, 1])
+        + _w(arm_mass, l_forearm[:, 1])
+        + _w(arm_mass, r_forearm[:, 1])
+        + _w(thigh_mass, l_thigh[:, 1])
+        + _w(thigh_mass, r_thigh[:, 1])
+        + _w(leg_mass, l_leg[:, 1])
+        + _w(leg_mass, r_leg[:, 1])
     )
 
     return com_y.astype(np.float32)

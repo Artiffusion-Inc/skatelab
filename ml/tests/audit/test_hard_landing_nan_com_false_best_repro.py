@@ -103,8 +103,8 @@ import numpy as np
 
 from src.analysis.element_defs import ELEMENT_DEFS
 from src.analysis.metrics import BiomechanicsAnalyzer
-from src.utils.geometry import calculate_com_trajectory
 from src.types import ElementPhase, H36Key
+from src.utils.geometry import calculate_com_trajectory
 
 
 def _hard_landing_pose(nan_keypoint: str | None = None, n: int = 12) -> np.ndarray:
@@ -132,8 +132,7 @@ def _hard_landing_pose(nan_keypoint: str | None = None, n: int = 12) -> np.ndarr
     for f in range(7, n):
         poses[f, :, 1] += 0.15
     if nan_keypoint:
-        kp = {"rknee": H36Key.RKNEE, "rwrist": H36Key.RWRIST,
-              "lfoot": H36Key.LFOOT}[nan_keypoint]
+        kp = {"rknee": H36Key.RKNEE, "rwrist": H36Key.RWRIST, "lfoot": H36Key.LFOOT}[nan_keypoint]
         # NaN on landing frame AND landing-1 (both feed the backward difference).
         poses[6, kp] = [np.nan, np.nan]
         poses[7, kp] = [np.nan, np.nan]
@@ -141,8 +140,7 @@ def _hard_landing_pose(nan_keypoint: str | None = None, n: int = 12) -> np.ndarr
 
 
 def _phases(n: int = 12):
-    return ElementPhase(name="waltz_jump", start=0, takeoff=2, peak=4,
-                        landing=7, end=n - 1)
+    return ElementPhase(name="waltz_jump", start=0, takeoff=2, peak=4, landing=7, end=n - 1)
 
 
 # --------------------------------------------------------------------------- #
@@ -305,51 +303,37 @@ def test_all_valid_hard_landing_unchanged_repro():
 
 
 def test_hard_landing_nan_unsafe_source_repro():
-    """Source check: `compute_hard_landing` computes
-    `vy_y = (com_trajectory[phases.landing] - com_trajectory[phases.landing - 1]) * fps`
-    (no NaN guard on vy_y) and
-    `score = max(0.0, min(1.0, 1.0 - vy_y / 2.0))` (Python min/max — NaN-unsafe,
-    arg-order-dependent, #454: `min(1.0, nan) = 1.0`, then `max(0.0, 1.0) =
-    1.0`). Root cause locked.
-
-    RED now: the unguarded `vy_y` line and the `max(0.0, min(1.0, 1.0 - vy_y /
-    2.0))` line are present (PASS — root cause locked). After the fix: a NaN
-    guard on `vy_y` appears (or `calculate_com_trajectory` becomes NaN-aware)
-    and/or the min/max becomes NaN-safe — this test FAILS, signaling the
-    observable tests above should flip to GREEN.
+    """GREEN source check (#871 fix): `compute_hard_landing` no longer uses the
+    NaN-unsafe arg-order trap `max(0.0, min(1.0, 1.0 - vy_y / 2.0))` — a NaN
+    guard (`np.isfinite`) on `vy_y` and a NaN-safe clamp (`np.clip`) replaced
+    it. And `calculate_com_trajectory` is NaN-aware — a NaN keypoint is masked
+    out of the CoM weighted sum instead of poisoning every CoM-based metric.
     """
     src = inspect.getsource(BiomechanicsAnalyzer.compute_hard_landing)
-    # The unguarded vy_y line is present.
-    assert "vy_y = (com_trajectory[phases.landing] - com_trajectory[phases.landing - 1]) * fps" in src, (
-        "BUG: compute_hard_landing must compute `vy_y = (com_trajectory["
-        "phases.landing] - com_trajectory[phases.landing - 1]) * fps` (no NaN "
-        "guard) for this repro to be valid. If a NaN guard was added on `vy_y` "
-        "(e.g. `if not np.isfinite(vy_y): return <sentinel>`), the NaN-inflate "
-        "bug is fixed — update the observable tests to the GREEN contract."
+    # The NaN-unsafe arg-order clamp is GONE.
+    assert "max(0.0, min(1.0, 1.0 - vy_y / 2.0))" not in src, (
+        "#871 RED: the NaN-unsafe `max(0.0, min(1.0, 1.0 - vy_y / 2.0))` clamp "
+        "is back — min(1.0, nan)=1.0 then max(0.0,1.0)=1.0 masks a hard impact "
+        "as a false soft landing. Use a NaN guard + np.clip."
     )
-    # The Python max/min clamp line is present — NaN-unsafe, arg-order.
-    assert "max(0.0, min(1.0, 1.0 - vy_y / 2.0))" in src, (
-        "BUG: compute_hard_landing must compute "
-        "`max(0.0, min(1.0, 1.0 - vy_y / 2.0))` (Python min/max — NaN-unsafe, "
-        "arg-order-dependent, #454: min(1.0, nan) = 1.0, then max(0.0, 1.0) = "
-        "1.0) for this repro to be valid. If it was changed to a NaN-safe form "
-        "(e.g. `np.nan_to_num`, `np.clip` with a NaN guard), the arg-order-NaN "
-        "bug is fixed — update the observable tests to the GREEN contract."
+    # A NaN guard on vy_y is present.
+    assert "np.isfinite(vy_y)" in src, (
+        "#871 RED: compute_hard_landing must guard vy_y with np.isfinite — if "
+        "both landing frames are fully occluded the NaN-aware CoM still yields "
+        "NaN vy_y; return a neutral sentinel instead of the arg-order trap."
     )
-    assert "np.isfinite" not in src and "np.isnan" not in src, (
-        "BUG: a NaN guard (`np.isfinite` / `np.isnan`) appeared in "
-        "compute_hard_landing — the NaN-inflate bug is fixed; update the "
-        "observable tests to the GREEN contract."
+    # The clamp is NaN-safe (np.clip, not Python min/max).
+    assert "np.clip(1.0 - vy_y / 2.0, 0.0, 1.0)" in src, (
+        "#871 RED: use np.clip(1.0 - vy_y / 2.0, 0.0, 1.0) — np.clip is "
+        "NaN-safe only after the isfinite guard, unlike Python min/max which "
+        "is arg-order NaN-unsafe (#454)."
     )
 
-    # And the CoM trajectory is a plain weighted sum (no NaN masking) —
-    # proving a NaN keypoint poisons the CoM. Same root cause as BM.
+    # calculate_com_trajectory is now NaN-aware — a NaN keypoint is masked,
+    # not propagated. Fixes every CoM-based metric (BM, BN, peak_com) at once.
     com_src = inspect.getsource(calculate_com_trajectory)
-    assert "np.isnan" not in com_src and "np.isfinite" not in com_src and \
-        "nanmean" not in com_src and "nansum" not in com_src, (
-        "BUG: calculate_com_trajectory now has a NaN-aware path "
-        "(np.isnan / np.isfinite / nanmean / nansum) — the CoM NaN-propagation "
-        "bug is fixed at the source; update the observable tests to the GREEN "
-        "contract. (This would also fix every CoM-based metric — smoothness "
-        "BM, relative_jump_height, peak_com — at once.)"
+    assert "np.isfinite" in com_src, (
+        "#871 RED: calculate_com_trajectory must be NaN-aware — mask NaN "
+        "segment contributions to 0 (np.isfinite) so one occluded keypoint "
+        "does not poison the CoM. All-valid stays byte-identical."
     )

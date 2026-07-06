@@ -1040,10 +1040,18 @@ class BiomechanicsAnalyzer:
         # In normalized coords Y increases downward, so positive vy = downward motion
         vy_y = (com_trajectory[phases.landing] - com_trajectory[phases.landing - 1]) * fps
 
+        # #871: NaN guard — if both landing frames are entirely occluded the
+        # NaN-aware CoM still yields NaN; return neutral 1.0 (soft default,
+        # matching the no-data early returns above) rather than the arg-order
+        # trap min(1.0, nan)=1.0 → max(0.0,1.0)=1.0 which silently masked hard
+        # impacts. np.isfinite keeps the all-valid path identical.
+        if not np.isfinite(vy_y):
+            return 1.0
+
         # Threshold: 2.0 norm/s downward = hard landing
         # 0.0 = soft
-        score = max(0.0, min(1.0, 1.0 - vy_y / 2.0))
-        return float(score)
+        score = float(np.clip(1.0 - vy_y / 2.0, 0.0, 1.0))
+        return score
 
     def compute_toe_assist_proxy(
         self,
