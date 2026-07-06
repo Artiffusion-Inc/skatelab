@@ -1251,10 +1251,18 @@ class BiomechanicsAnalyzer:
             Score [0, 1] where 1 = arms close to body (good for jumps).
         """
         # Calculate average wrist-to-shoulder distance
+        # #902: NaN wrist/shoulder (occluded — common during rotation when arms
+        # cross the body) made np.mean→NaN, then the `max(0, 1 - nan)` clamp
+        # floored NaN to 0.0 — a SILENT BEST score that rewards occlusion and
+        # inflates the GOE proxy. np.nanmean skips occluded frames; if no frame
+        # is finite, return NaN (a flag the recommender/GOE must treat as
+        # "unknown", not "excellent") instead of the false-good 0.0.
         left_dist = np.linalg.norm(poses[:, H36Key.LWRIST] - poses[:, H36Key.LSHOULDER], axis=1)
         right_dist = np.linalg.norm(poses[:, H36Key.RWRIST] - poses[:, H36Key.RSHOULDER], axis=1)
 
-        avg_dist = float(np.mean(left_dist + right_dist) / 2)
+        avg_dist = float(np.nanmean(left_dist + right_dist) / 2)
+        if not np.isfinite(avg_dist):
+            return float("nan")
 
         return float(max(0, 1 - avg_dist))
 
