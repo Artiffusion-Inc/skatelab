@@ -396,3 +396,37 @@ class TestReferenceBuilderLoadReference:
         result = builder.load_reference(npz_path)
         # 'fps' key is not written by save_reference; falls back to meta.fps
         assert result.fps == 25.0
+
+    def test_load_reference_name_is_basename_not_full_path(
+        self, tmp_path: Path, mock_pose_extractor, mock_normalizer
+    ):
+        """#800: build_from_video set name=video_path.name (basename), but
+        load set name=str(data["source"]) (full path) — round-trip changed
+        name from "expert.mp4" to "/data/refs/expert.mp4". load must use the
+        basename so it matches build. source stays the full path string.
+        """
+        builder = ReferenceBuilder(mock_pose_extractor, mock_normalizer)
+        poses = np.linspace(0, 1, 170).reshape(5, 17, 2).astype(np.float32)
+        npz_path = tmp_path / "ref.npz"
+        np.savez_compressed(
+            npz_path,
+            element_type="waltz_jump",
+            poses=poses,
+            meta_fps=30.0,
+            meta_width=1920,
+            meta_height=1080,
+            meta_num_frames=300,
+            meta_path="/videos/expert.mp4",
+            phases_name="waltz_jump",
+            phases_start=0,
+            phases_takeoff=2,
+            phases_peak=3,
+            phases_landing=4,
+            phases_end=5,
+            source="/data/refs/expert.mp4",
+        )
+
+        result = builder.load_reference(npz_path)
+        assert result.name == "expert.mp4", result.name
+        # source keeps the full path
+        assert result.source == "/data/refs/expert.mp4"
