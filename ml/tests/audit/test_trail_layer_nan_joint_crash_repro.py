@@ -181,14 +181,18 @@ def test_nan_joint_pixel_render_does_not_crash_repro():
     # Build a valid trail first (5 frames) so the trail has >= 2 points.
     for i in range(5):
         ctx = LayerContext(
-            frame_width=w, frame_height=h, normalized=False,
+            frame_width=w,
+            frame_height=h,
+            normalized=False,
             pose_2d=_valid_pose(i, normalized=False),
         )
         layer.render(np.zeros((h, w, 3), dtype=np.uint8), ctx)
 
     # NaN tracked joint (rest valid) — partial occlusion.
     ctx_nan = LayerContext(
-        frame_width=w, frame_height=h, normalized=False,
+        frame_width=w,
+        frame_height=h,
+        normalized=False,
         pose_2d=_nan_joint_pose(normalized=False),
     )
     try:
@@ -210,8 +214,7 @@ def test_nan_joint_pixel_render_does_not_crash_repro():
         ) from e
 
     assert out is not None, (
-        "BUG: TrailLayer.render returned None for a NaN tracked joint (pixel); "
-        "expected the frame."
+        "BUG: TrailLayer.render returned None for a NaN tracked joint (pixel); expected the frame."
     )
 
 
@@ -241,24 +244,27 @@ def test_nan_joint_normalized_render_no_garbage_origin_segment_repro():
     # Build a valid trail (5 frames).
     for i in range(5):
         ctx = LayerContext(
-            frame_width=w, frame_height=h, normalized=True,
+            frame_width=w,
+            frame_height=h,
+            normalized=True,
             pose_2d=_valid_pose(i, normalized=True),
         )
         layer.render(np.zeros((h, w, 3), dtype=np.uint8), ctx)
 
     # NaN tracked joint — partial occlusion. Collect the lines drawn this frame.
     ctx_nan = LayerContext(
-        frame_width=w, frame_height=h, normalized=True,
+        frame_width=w,
+        frame_height=h,
+        normalized=True,
         pose_2d=_nan_joint_pose(normalized=True),
     )
-    calls = _render_and_collect_lines(
-        layer, np.zeros((h, w, 3), dtype=np.uint8), ctx_nan
-    )
+    calls = _render_and_collect_lines(layer, np.zeros((h, w, 3), dtype=np.uint8), ctx_nan)
 
     # CORRECT contract: NO line segment may end at or start at the frame origin
     # (0,0) — a NaN tracked joint must not produce a garbage origin vertex.
     origin_segments = [
-        (p1, p2) for p1, p2 in calls
+        (p1, p2)
+        for p1, p2 in calls
         if tuple(int(v) for v in p1) == (0, 0) or tuple(int(v) for v in p2) == (0, 0)
     ]
     assert not origin_segments, (
@@ -297,15 +303,21 @@ def test_nan_tracked_joint_any_joint_does_not_crash_repro():
             pose = np.zeros((17, 2), dtype=np.float32)
             pose[joint] = [100.0 + i * 10.0, 400.0]
             ctx = LayerContext(
-                frame_width=w, frame_height=h, normalized=False, pose_2d=pose,
+                frame_width=w,
+                frame_height=h,
+                normalized=False,
+                pose_2d=pose,
             )
             layer.render(np.zeros((h, w, 3), dtype=np.uint8), ctx)
 
         pose_nan = np.zeros((17, 2), dtype=np.float32)
         pose_nan[H36Key.LHIP] = [250.0, 300.0]  # rest valid
-        pose_nan[joint] = [np.nan, np.nan]       # tracked joint NaN
+        pose_nan[joint] = [np.nan, np.nan]  # tracked joint NaN
         ctx_nan = LayerContext(
-            frame_width=w, frame_height=h, normalized=False, pose_2d=pose_nan,
+            frame_width=w,
+            frame_height=h,
+            normalized=False,
+            pose_2d=pose_nan,
         )
         try:
             layer.render(np.zeros((h, w, 3), dtype=np.uint8), ctx_nan)
@@ -339,12 +351,12 @@ def test_all_valid_trail_drawn_repro():
     layer = TrailLayer(joint=H36Key.LFOOT, smoothing=False)
     for i in range(5):
         ctx = LayerContext(
-            frame_width=w, frame_height=h, normalized=False,
+            frame_width=w,
+            frame_height=h,
+            normalized=False,
             pose_2d=_valid_pose(i, normalized=False),
         )
-        calls = _render_and_collect_lines(
-            layer, np.zeros((h, w, 3), dtype=np.uint8), ctx
-        )
+        calls = _render_and_collect_lines(layer, np.zeros((h, w, 3), dtype=np.uint8), ctx)
     assert len(calls) >= 1, (
         f"BUG (regression): all-valid pose drew {len(calls)} trail segments; "
         f"expected >= 1. The valid case must be unchanged by the NaN-aware fix "
@@ -373,40 +385,39 @@ def test_trail_layer_nan_joint_crash_source_repro():
     tests above should flip to GREEN.
     """
     render_src = inspect.getsource(TrailLayer.render)
-    # The all-NaN guard (passes partial occlusion) is present.
+    # The all-NaN pose guard is still present (defence-in-depth).
     assert "not np.all(np.isnan(context.pose_2d))" in render_src, (
-        "BUG: render must guard `not np.all(np.isnan(context.pose_2d))` "
-        "(all-NaN, passes partial occlusion) for this repro to be valid. If a "
-        "per-joint NaN guard was added (e.g. `if np.isnan(pos).any(): skip`), "
-        "the crash bug is fixed — update the observable tests to the GREEN "
-        "contract."
+        "BUG: render must keep `not np.all(np.isnan(context.pose_2d))` "
+        "(all-NaN pose guard, defence-in-depth); the #892 per-joint guard is "
+        "the primary fix, this is the secondary. If it was removed, an all-NaN "
+        "pose may regress."
     )
-    # The tracked joint is read with no NaN check, then appended.
+    # The tracked joint is still read (the guard is after it, not replacing it).
     assert "pos = context.pose_2d[self.joint]" in render_src, (
-        "BUG: render must read `pos = context.pose_2d[self.joint]` (no NaN "
-        "check) for this repro to be valid. If a NaN guard was added on `pos`, "
-        "the crash bug is fixed — update the observable tests to the GREEN "
-        "contract."
+        "BUG: render must still read `pos = context.pose_2d[self.joint]`; the "
+        "#892 guard is after the read, not a replacement of it."
     )
-    # No per-joint NaN guard in render.
-    assert "np.isnan(pos)" not in render_src and "np.isfinite(pos)" not in render_src, (
-        "BUG: a per-joint NaN guard (`np.isnan(pos)` / `np.isfinite(pos)`) "
-        "appeared in render — the NaN tracked-joint crash bug is fixed; update "
-        "the observable tests to the GREEN contract."
+    # The per-joint NaN guard is present — the #892 fix.
+    assert "np.isnan(pos).any()" in render_src, (
+        "BUG: render must guard the tracked joint with `np.isnan(pos).any()` "
+        "after the read (#892) so a partially-occluded joint (NaN, rest valid) "
+        "is skipped instead of appended to the trail and crashing int(nan) "
+        "(pixel) / drawing a garbage origin segment (normalized)."
+    )
+    # The guard skips the frame (return frame), not a silent append.
+    assert "return frame" in render_src, (
+        "BUG: render must `return frame` after the per-joint NaN guard (#892) "
+        "— skip the occluded vertex this frame. If the guard does not return, "
+        "the NaN vertex may still be appended."
     )
 
     draw_src = inspect.getsource(TrailLayer._draw_trail_2d)
-    # The unguarded int() conversion is present — the crash point.
+    # _draw_trail_2d keeps its unguarded int() — NaN vertices are skipped
+    # upstream in render, so they never reach this point. Guarding here too
+    # would be redundant (render is the single append point).
     assert "trail_px = [(int(pos[0]), int(pos[1])) for pos in self._trail_2d]" in draw_src, (
-        "BUG: _draw_trail_2d must do `trail_px = [(int(pos[0]), int(pos[1])) "
-        "for pos in self._trail_2d]` (unguarded int() — `int(nan)` raises "
-        "ValueError) for this repro to be valid. If a NaN guard / skip was "
-        "added (e.g. `if not np.isnan(pos).any()`), the crash bug is fixed — "
-        "update the observable tests to the GREEN contract."
-    )
-    assert "np.isnan" not in draw_src and "np.isfinite" not in draw_src and \
-        "nan_to_num" not in draw_src, (
-        "BUG: a NaN guard (`np.isnan` / `np.isfinite` / `nan_to_num`) appeared "
-        "in _draw_trail_2d — the NaN tracked-joint crash bug is fixed; update "
-        "the observable tests to the GREEN contract."
+        "BUG: _draw_trail_2d must still do `trail_px = [(int(pos[0]), int(pos["
+        "1])) for pos in self._trail_2d]`; NaN vertices are skipped upstream "
+        "in render (#892), so they never reach this int() conversion. A guard "
+        "here would be redundant."
     )
