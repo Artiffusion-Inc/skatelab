@@ -1127,13 +1127,25 @@ class BiomechanicsAnalyzer:
         if len(ay) == 0:
             return 1.0
 
-        # Peak deceleration (most negative = hardest impact)
-        peak_decel = np.min(ay)
+        # Peak deceleration (most negative = hardest impact). #877: np.nanmin
+        # (NOT np.min) so a NaN acceleration frame (fully-occluded CoM, no
+        # keypoint visible) does not poison the min. The NaN-aware CoM (#871)
+        # keeps CoM finite when a few keypoints are occluded, but a fully-
+        # occluded landing frame still yields NaN vy_y -> NaN ay.
+        peak_decel = float(np.nanmin(ay))
+        if not np.isfinite(peak_decel):
+            # No finite acceleration data — cannot assess. Return neutral
+            # (clean-edge proxy), not 0.0 (toe assist) and not 1.0-via-NaN.
+            return 1.0
 
         # Threshold: -5.0 norm/s^2 = toe assist territory
         # 0.0 = gentle deceleration
-        score = max(0.0, min(1.0, 1.0 + peak_decel / 5.0))
-        return float(score)
+        # #877: np.clip (NaN-safe after the finite guard) instead of Python
+        # max(0.0, min(1.0, ...)) which is arg-order NaN-unsafe (#454:
+        # min(1.0, nan) = 1.0, then max(0.0, 1.0) = 1.0 — a hard toe-assist
+        # impact with one occluded keypoint read as a perfectly clean edge).
+        score = float(np.clip(1.0 + peak_decel / 5.0, 0.0, 1.0))
+        return score
 
     def compute_approach_torso_lean(self, poses: NormalizedPose, phases: ElementPhase) -> float:
         """Compute average torso lean during the approach phase.

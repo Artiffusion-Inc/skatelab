@@ -116,8 +116,8 @@ import numpy as np
 
 from src.analysis.element_defs import ELEMENT_DEFS
 from src.analysis.metrics import BiomechanicsAnalyzer
-from src.utils.geometry import calculate_com_trajectory
 from src.types import ElementPhase, H36Key
+from src.utils.geometry import calculate_com_trajectory
 
 
 def _toe_assist_pose(nan_keypoint: str | None = None, n: int = 12) -> np.ndarray:
@@ -163,8 +163,7 @@ def _toe_assist_pose(nan_keypoint: str | None = None, n: int = 12) -> np.ndarray
     for f in range(7, n):
         poses[f, :, 1] += shifts.get(f, 0.37)
     if nan_keypoint:
-        kp = {"rknee": H36Key.RKNEE, "rwrist": H36Key.RWRIST,
-              "lfoot": H36Key.LFOOT}[nan_keypoint]
+        kp = {"rknee": H36Key.RKNEE, "rwrist": H36Key.RWRIST, "lfoot": H36Key.LFOOT}[nan_keypoint]
         # NaN on landing frame AND landing-1 (both feed the vy_y diff window).
         poses[6, kp] = [np.nan, np.nan]
         poses[7, kp] = [np.nan, np.nan]
@@ -172,8 +171,7 @@ def _toe_assist_pose(nan_keypoint: str | None = None, n: int = 12) -> np.ndarray
 
 
 def _phases(n: int = 12):
-    return ElementPhase(name="waltz_jump", start=0, takeoff=2, peak=4,
-                        landing=7, end=n - 1)
+    return ElementPhase(name="waltz_jump", start=0, takeoff=2, peak=4, landing=7, end=n - 1)
 
 
 # --------------------------------------------------------------------------- #
@@ -339,56 +337,53 @@ def test_all_valid_toe_assist_unchanged_repro():
 
 
 def test_toe_assist_nan_unsafe_source_repro():
-    """Source check: `compute_toe_assist_proxy` computes
-    `peak_decel = np.min(ay)` (NOT `np.nanmin` — propagates NaN) and
-    `score = max(0.0, min(1.0, 1.0 + peak_decel / 5.0))` (Python min/max —
-    NaN-unsafe, arg-order-dependent, #454: `min(1.0, nan) = 1.0`, then
-    `max(0.0, 1.0) = 1.0`). Root cause locked.
+    """Source check (GREEN contract): the #877 fix is in place.
 
-    RED now: the np.min (not nanmin) line and the
-    `max(0.0, min(1.0, 1.0 + peak_decel / 5.0))` line are present (PASS — root
-    cause locked). After the fix: the min becomes `np.nanmin` (or a NaN guard)
-    and/or the max/min becomes NaN-safe — this test FAILS, signaling the
-    observable tests above should flip to GREEN.
+    Root cause: `compute_toe_assist_proxy` computed `peak_decel = np.min(ay)`
+    (NOT np.nanmin -- propagates NaN over the whole array from one occluded
+    keypoint) and `score = max(0.0, min(1.0, 1.0 + peak_decel / 5.0))` (Python
+    min/max, NaN-unsafe, arg-order-dependent, #454: min(1.0, nan) = 1.0, then
+    max(0.0, 1.0) = 1.0). A hard toe-assist impact with one occluded keypoint
+    read as the BEST score 1.0 = "perfectly clean edge" -- a false clean-edge
+    diagnosis masking the real toe assist. The NaN-aware CoM (#871) keeps CoM
+    finite when a few keypoints are occluded, so the observable tests already
+    flip GREEN from #871 alone; this source check locks the remaining fix:
+    np.nanmin + finite guard + np.clip so a fully-occluded landing frame (NaN
+    CoM) does not re-introduce the false-BEST via NaN.
+
+    Fix: np.nanmin (skip NaN frames) + finite guard (return 1.0 -- cannot
+    assess, neutral) + np.clip (NaN-safe after the finite guard) instead of
+    Python max(0.0, min(1.0, ...)).
     """
     src = inspect.getsource(BiomechanicsAnalyzer.compute_toe_assist_proxy)
-    # The np.min (NOT nanmin) line is present — propagates NaN.
-    assert "peak_decel = np.min(ay)" in src, (
-        "BUG: compute_toe_assist_proxy must compute "
-        "`peak_decel = np.min(ay)` (NaN-propagating, not `np.nanmin`) for this "
-        "repro to be valid. If it was changed to `np.nanmin(ay)` (or a NaN "
-        "mask), the NaN-poisons-min bug is fixed — update the observable tests "
-        "to the GREEN contract."
+    assert "np.nanmin(ay)" in src, (
+        "BUG: compute_toe_assist_proxy must use np.nanmin(ay) (#877) -- np.min "
+        "propagates NaN over the whole array from one occluded keypoint."
     )
-    assert "np.nanmin" not in src, (
-        "BUG: compute_toe_assist_proxy now uses `np.nanmin` — the "
-        "NaN-poisons-min bug is fixed; update the observable tests to the "
-        "GREEN contract."
+    assert "np.min(ay)" not in src, (
+        "BUG: compute_toe_assist_proxy still uses np.min(ay) (NaN-propagating) "
+        "-- must be np.nanmin (#877)."
     )
-    # The Python max/min clamp line is present — NaN-unsafe, arg-order.
-    assert "max(0.0, min(1.0, 1.0 + peak_decel / 5.0))" in src, (
-        "BUG: compute_toe_assist_proxy must compute "
-        "`max(0.0, min(1.0, 1.0 + peak_decel / 5.0))` (Python min/max — "
-        "NaN-unsafe, arg-order-dependent, #454: min(1.0, nan) = 1.0, then "
-        "max(0.0, 1.0) = 1.0) for this repro to be valid. If it was changed to "
-        "a NaN-safe form (e.g. `np.nan_to_num`, `np.clip` with a NaN guard), "
-        "the arg-order-NaN bug is fixed — update the observable tests to the "
-        "GREEN contract."
+    assert "np.isfinite(peak_decel)" in src, (
+        "BUG: compute_toe_assist_proxy must guard peak_decel with np.isfinite "
+        "and return 1.0 when no finite acceleration data exists (#877) -- "
+        "neutral 'cannot assess', not a false score."
     )
-    assert "np.isfinite" not in src and "np.isnan" not in src, (
-        "BUG: a NaN guard (`np.isfinite` / `np.isnan`) appeared in "
-        "compute_toe_assist_proxy — the NaN-inflate bug is fixed; update the "
-        "observable tests to the GREEN contract."
+    assert "np.clip(1.0 + peak_decel / 5.0, 0.0, 1.0)" in src, (
+        "BUG: compute_toe_assist_proxy must use np.clip (NaN-safe after the "
+        "finite guard) instead of max(0.0, min(1.0, ...)) (#454, #877)."
+    )
+    assert "max(0.0, min(1.0, 1.0 + peak_decel / 5.0))" not in src, (
+        "BUG: compute_toe_assist_proxy still uses the Python max(0.0, min(1.0, "
+        "...)) form -- NaN-unsafe arg-order (#454). Must be np.clip (#877)."
     )
 
-    # And the CoM trajectory is a plain weighted sum (no NaN masking) —
-    # proving a NaN keypoint poisons the CoM. Same root cause as BM/BN/BP.
+    # The CoM trajectory is NaN-aware (#871) -- masks NaN keypoints so a few
+    # occluded joints do not poison the CoM. This is the deep root-cause fix
+    # shared with BM/BN/BP.
     com_src = inspect.getsource(calculate_com_trajectory)
-    assert "np.isnan" not in com_src and "np.isfinite" not in com_src and \
-        "nanmean" not in com_src and "nansum" not in com_src, (
-        "BUG: calculate_com_trajectory now has a NaN-aware path "
-        "(np.isnan / np.isfinite / nanmean / nansum) — the CoM NaN-propagation "
-        "bug is fixed at the source; update the observable tests to the GREEN "
-        "contract. (This would also fix every CoM-based metric — smoothness "
-        "BM, hard_landing BN, relative_jump_height BP, peak_com — at once.)"
+    assert "np.isfinite" in com_src, (
+        "BUG: calculate_com_trajectory must mask NaN keypoints (#871) -- the "
+        "deep root-cause fix shared across every CoM-based metric (smoothness "
+        "BM, hard_landing BN, relative_jump_height BP, peak_com, toe_assist BQ)."
     )
