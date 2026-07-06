@@ -22,6 +22,25 @@ const MAX_RETRIES = 5
 const BASE_BACKOFF_MS = 500
 const TERMINAL_STATUSES = ["completed", "failed", "cancelled"]
 
+// #829: backend SSE emits other terminal/error payloads besides the close-set
+// above — `{"status":"unknown"}` for an unknown/unowned task (process.py:131)
+// and any payload carrying `_timeout:true` after the 60s inactivity timeout
+// (process.py:148). Neither matched TERMINAL_STATUSES, so onmessage left the
+// EventSource open forever and state.status stayed "unknown"/"running" —
+// ProcessingBanner rendered "analyzing" indefinitely for a task that no longer
+// exists. Treat both as terminal-failure: close the stream and surface a
+// failed status so the UI stops spinning.
+const TIMEOUT_FAILED_STATUS = "failed"
+
+function isTerminalPayload(data: ProcessState): boolean {
+  if (TERMINAL_STATUSES.includes(data.status)) return true
+  // unknown task — no point reconnecting, the task isn't there
+  if (data.status === "unknown") return true
+  // backend inactivity timeout — stream is already closed server-side
+  if ((data as ProcessState & { _timeout?: boolean })._timeout === true) return true
+  return false
+}
+
 export function useProcessStream(taskId: string | null) {
   const [state, setState] = useState<ProcessState | null>(null)
   const [isConnected, setIsConnected] = useState(false)
@@ -51,8 +70,18 @@ export function useProcessStream(taskId: string | null) {
         } catch {
           return
         }
-        setState(data)
-        if (TERMINAL_STATUSES.includes(data.status)) {
+        // #829: normalize unknown/timeout payloads to a failed terminal state
+        // so ProcessingBanner stops rendering "analyzing" for a dead/unknown
+        // task. Backend's terminal set (completed/failed/cancelled) is the
+        // happy path; unknown + _timeout are failure signals that must also
+        // close the EventSource.
+        const normalized: ProcessState =
+          data.status === "unknown" ||
+          (data as ProcessState & { _timeout?: boolean })._timeout === true
+            ? { ...data, status: TIMEOUT_FAILED_STATUS }
+            : data
+        setState(normalized)
+        if (isTerminalPayload(data)) {
           es.close()
           setIsConnected(false)
         }
