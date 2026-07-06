@@ -2,14 +2,27 @@
 
 from __future__ import annotations
 
+import asyncio
+import logging
 from collections.abc import Sequence  # noqa: TC003
+from functools import lru_cache
 from pathlib import Path
 from typing import ClassVar
 
 from litestar import Controller, get
 from pydantic import BaseModel
 
-_MODELS_DIR = Path(__file__).resolve().parent.parent.parent.parent / "data" / "models"
+from app.auth.deps import CurrentUser
+from app.config import get_settings
+
+logger = logging.getLogger(__name__)
+
+
+# #777: config-based path instead of fragile parent⁴ chain
+@lru_cache(maxsize=1)
+def _get_models_dir() -> Path:
+    return Path(get_settings().app.data_dir) / "models"
+
 
 _MODEL_FILES: dict[str, str] = {
     "lift_3d": "depth_anything_v2_small.onnx",
@@ -24,7 +37,7 @@ _MODEL_FILES: dict[str, str] = {
 class ModelStatus(BaseModel):
     id: str
     available: bool
-    size_mb: float | None = None
+    # #778: size_mb removed from anonymous response (infra leak)
 
 
 class ModelsController(Controller):
@@ -32,11 +45,13 @@ class ModelsController(Controller):
     tags: ClassVar[Sequence[str]] = ["models"]
 
     @get("")
-    async def list_models(self) -> list[ModelStatus]:
+    async def list_models(self, user: CurrentUser) -> list[ModelStatus]:
+        # #775: auth required (removed /v1/models from JWTAuth.exclude)
+        # #776: async filesystem I/O via to_thread
+        models_dir = _get_models_dir()
         results = []
         for model_id, filename in _MODEL_FILES.items():
-            path = _MODELS_DIR / filename
-            available = path.exists()
-            size_mb = round(path.stat().st_size / (1024 * 1024), 1) if available else None
-            results.append(ModelStatus(id=model_id, available=available, size_mb=size_mb))
+            path = models_dir / filename
+            available = await asyncio.to_thread(path.exists)
+            results.append(ModelStatus(id=model_id, available=available))
         return results
