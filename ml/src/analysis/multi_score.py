@@ -2,11 +2,21 @@
 
 from __future__ import annotations
 
+import math
+
 from .types import MultiDimensionalScore, SubScore
 
 
 def _normalize(value: float, min_val: float = 0.0, max_val: float = 1.0) -> float:
-    """Clamp and normalize to [0, 1]."""
+    """Clamp and normalize to [0, 1].
+
+    #850: NaN must be treated as a missing metric (neutral 0.0), not perfect.
+    Bare ``max(0.0, min(1.0, NaN))`` clips to 1.0 because NaN comparisons are
+    always False (the non-NaN operand wins), inflating broken/failed-metric
+    sessions to a perfect 10.0. Guard before the clamp.
+    """
+    if math.isnan(value):
+        return 0.0
     return max(0.0, min(1.0, (value - min_val) / (max_val - min_val)))
 
 
