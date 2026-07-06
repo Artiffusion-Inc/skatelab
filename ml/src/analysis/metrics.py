@@ -863,7 +863,7 @@ class BiomechanicsAnalyzer:
 
         Returns:
             Stability score in [0.0, 1.0] where 1.0 = perfectly stable.
-            Formula: max(0.0, 1.0 - avg_std / 15.0)
+            Formula: np.clip(1.0 - avg_std / 15.0, 0.0, 1.0)
             Returns 1.0 if no post-landing data available.
         """
         # Check if we have post-landing data
@@ -880,22 +880,32 @@ class BiomechanicsAnalyzer:
         post_landing_end = min(phases.end + 1, len(poses))
         post_landing_poses = poses[post_landing_start:post_landing_end]
 
-        # Compute knee angle series for left and right
+        # Compute knee angle series for left and right.
+        # #868: compute_knee_angle_series emits NaN for occluded frames (NaN
+        # guard in the Python wrapper — the @njit core cannot guard under
+        # fastmath), so std must be NaN-safe.
         left_knee_angles = self.compute_knee_angle_series(post_landing_poses, side="left")
         right_knee_angles = self.compute_knee_angle_series(post_landing_poses, side="right")
 
-        # Calculate standard deviation of knee angles
-        left_std = float(np.std(left_knee_angles))
-        right_std = float(np.std(right_knee_angles))
+        # Calculate standard deviation of knee angles (NaN-safe: skip occluded
+        # frames). np.std propagates NaN over the whole array → avg_std NaN →
+        # max(0.0, nan)=0.0 (#454 arg-order) falsely graded occlusion as worst.
+        left_std = float(np.nanstd(left_knee_angles))
+        right_std = float(np.nanstd(right_knee_angles))
 
-        # Average standard deviation
-        avg_std = (left_std + right_std) / 2.0
+        # Average standard deviation — only over sides with finite data.
+        stds = [s for s in (left_std, right_std) if np.isfinite(s)]
+        if not stds:
+            return 1.0
+        avg_std = sum(stds) / len(stds)
 
-        # Convert to stability score: lower std = higher stability
-        # 15 degrees is a reasonable threshold for "unstable"
-        stability = max(0.0, 1.0 - avg_std / 15.0)
+        # Convert to stability score: lower std = higher stability.
+        # 15 degrees is a reasonable threshold for "unstable".
+        # #868: np.clip (NaN-safe after the finite guard) instead of Python
+        # max(0.0, ...) which is arg-order NaN-unsafe (#454).
+        stability = float(np.clip(1.0 - avg_std / 15.0, 0.0, 1.0))
 
-        return float(stability)
+        return stability
 
     def compute_landing_trunk_recovery(self, poses: NormalizedPose, phases: ElementPhase) -> float:
         """Compute post-landing trunk recovery score.
@@ -1213,6 +1223,25 @@ class BiomechanicsAnalyzer:
         else:
             hip_idx, knee_idx, foot_idx = int(H36Key.RHIP), int(H36Key.RKNEE), int(H36Key.RFOOT)
 
+        # #868: NaN guard in the Python wrapper, not the @njit core. Under
+        # fastmath the jitted angle_3pt_rad raises ZeroDivisionError (nan/nan)
+        # on a NaN knee instead of returning NaN, crashing analyze() and
+        # killing every session metric. A guard inside @njit(fastmath) does
+        # not help (fastmath reorders / ignores the finite check). Mask NaN
+        # frames to a finite placeholder, run the jitted core, then restore
+        # NaN on the occluded frames so callers can skip them (np.nanstd).
+        triplet = poses[:, [hip_idx, knee_idx, foot_idx], :]  # (N, 3, 2)
+        finite_frames = np.all(np.isfinite(triplet), axis=(1, 2))
+        if not finite_frames.all():
+            safe_poses = poses.copy()
+            triplet_safe = np.nan_to_num(triplet, nan=0.0)
+            safe_poses[:, hip_idx, :] = triplet_safe[:, 0, :]
+            safe_poses[:, knee_idx, :] = triplet_safe[:, 1, :]
+            safe_poses[:, foot_idx, :] = triplet_safe[:, 2, :]
+            angles = _compute_knee_angle_series_numba(safe_poses, hip_idx, knee_idx, foot_idx)
+            angles = angles.astype(np.float32, copy=True)
+            angles[~finite_frames] = np.nan
+            return angles
         return _compute_knee_angle_series_numba(poses, hip_idx, knee_idx, foot_idx)
 
     def compute_edge_indicator(
