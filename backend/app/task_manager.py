@@ -222,6 +222,20 @@ async def set_cancel_signal(task_id: str) -> None:
     await valkey.setex(f"{TASK_CANCEL_PREFIX}{task_id}", ttl, "1")
 
 
+async def delete_task_state(task_id: str) -> None:
+    """Remove a task's state hash and cancel signal.
+
+    Used to roll back `create_task_state` when the downstream `enqueue_job`
+    fails (#700) — otherwise the orphaned hash stays "pending" for the TTL and
+    the client polls a task that will never run.
+    """
+    valkey = get_valkey()
+    await valkey.delete(
+        f"{TASK_KEY_PREFIX}{task_id}",
+        f"{TASK_CANCEL_PREFIX}{task_id}",
+    )
+
+
 async def publish_task_event(
     task_id: str,
     data: dict,
