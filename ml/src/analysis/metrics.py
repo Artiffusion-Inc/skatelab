@@ -1570,7 +1570,18 @@ class BiomechanicsAnalyzer:
         # Peak in flight phase
         if phases.takeoff < phases.landing and phases.landing < len(velocity):
             flight_velocity = velocity[phases.takeoff : phases.landing]
-            return float(np.max(np.abs(flight_velocity)))
+            # #903: np.nanmax (NOT np.max) so a NaN shoulder on a flight frame
+            # (occluded during fast rotation — arms cross the body) does not
+            # poison the peak into NaN. arctan2(nan, x) = NaN -> gradient NaN
+            # -> np.max(np.abs(NaN)) = NaN leaked into rotation_speed / GOE.
+            # nanmax skips NaN frames; if every flight frame is NaN there is
+            # no data — 0.0 (neutral "no rotation") instead of NaN, which
+            # breaks JSON serialization and the GOE composite. Identity on
+            # all-finite input.
+            peak = float(np.nanmax(np.abs(flight_velocity)))
+            if not np.isfinite(peak):
+                return 0.0
+            return peak
 
         return 0.0
 
