@@ -96,8 +96,7 @@ from src.types import MetricResult
 
 
 def _metric(name: str, value: float, ref: tuple[float, float] = (0.3, 1.5)) -> MetricResult:
-    return MetricResult(name=name, value=value, unit="s", reference_range=ref,
-                        is_good=False)
+    return MetricResult(name=name, value=value, unit="s", reference_range=ref, is_good=False)
 
 
 # --------------------------------------------------------------------------- #
@@ -285,53 +284,29 @@ def test_valid_off_target_still_triggers_repro():
 
 
 def test_recommender_nan_false_trigger_source_repro():
-    """Source check: `_is_bad` uses `not (ref_range[0] <= value <=
-    ref_range[1])` (NaN-unsafe comparison — `nan <= x` is False, so the chain
-    is False, `not False = True` triggers the rule), and `recommend` calls
-    `rule.condition(metric.value, metric.reference_range)` with no NaN guard
-    on `metric.value`. Root cause locked.
+    """GREEN contract source check: the NaN false-trigger bug is fixed at the
+    shared root.
 
-    RED now: the NaN-unsafe comparison line in `_is_bad` and the unguarded
-    `rule.condition(...)` call in `recommend` are present (PASS — root cause
-    locked). After the fix: a NaN guard (`np.isfinite` / `np.isnan` /
-    `math.isfinite`) appears at entry or in `_is_bad` — this test FAILS,
-    signaling the observable tests above should flip to GREEN.
+    `_is_bad` (jump_rules.py) is NaN-aware — a non-finite value returns False
+    (unknown, not bad), so a NaN metric cannot false-trigger a rule via the
+    `not (low <= nan <= high) = True` trap. `Recommender.recommend` skips
+    non-finite metrics at entry (#584) as the first line of defense.
     """
-    # `_is_bad` is module-level in jump_rules.py — the NaN-unsafe comparison.
+    # `_is_bad` is module-level in jump_rules.py — now NaN-aware.
     is_bad_src = inspect.getsource(jump_rules._is_bad)
     assert "not (ref_range[0] <= value <= ref_range[1])" in is_bad_src, (
-        "BUG: _is_bad must use `not (ref_range[0] <= value <= ref_range[1])` "
-        "(NaN-unsafe comparison — `nan <= x` is False → chain False → "
-        "`not False = True` triggers the rule) for this repro to be valid. If "
-        "a NaN guard was added (e.g. `if not np.isfinite(value): return False`), "
-        "the false-trigger bug is fixed — update the observable tests to the "
-        "GREEN contract."
+        "BUG: _is_bad must still use the range comparison for the finite path."
     )
-    assert "np.isfinite" not in is_bad_src and "np.isnan" not in is_bad_src and \
-        "math.isfinite" not in is_bad_src, (
-        "BUG: a NaN guard (`np.isfinite` / `np.isnan` / `math.isfinite`) "
-        "appeared in _is_bad — the NaN false-trigger bug is fixed; update the "
-        "observable tests to the GREEN contract."
+    assert "math.isfinite(value)" in is_bad_src, (
+        "BUG: _is_bad must guard a non-finite value (return False) so the "
+        "NaN-unsafe `not (low <= nan <= high) = True` comparison cannot "
+        "false-trigger a rule on missing data (#887)."
     )
 
-    # `recommend` calls `rule.condition(metric.value, ...)` with no NaN guard
-    # on `metric.value`.
+    # `recommend` skips non-finite metrics at entry — the first line of defense
+    # (#584), so NaN never reaches `rule.condition`.
     rec_src = inspect.getsource(Recommender.recommend)
-    assert "if rule.condition(metric.value, metric.reference_range):" in rec_src, (
-        "BUG: Recommender.recommend must call "
-        "`if rule.condition(metric.value, metric.reference_range):` (no NaN "
-        "guard on metric.value) for this repro to be valid. If a NaN guard was "
-        "added at entry (e.g. `if not np.isfinite(metric.value): continue`), the "
-        "false-trigger bug is fixed — update the observable tests to the GREEN "
-        "contract."
-    )
-    # And `_determine_severity` is unguarded (nan < min_good is False,
-    # nan > max_good is False → "default").
-    sev_src = inspect.getsource(Recommender._determine_severity)
-    assert "if value < min_good:" in sev_src and "elif value > max_good:" in sev_src, (
-        "BUG: _determine_severity must use `if value < min_good: ... elif value "
-        "> max_good: ...` (NaN-unsafe — `nan < x` False, `nan > x` False → "
-        "'default') for this repro to be valid. If a NaN guard was added, the "
-        "false-trigger bug is fixed — update the observable tests to the GREEN "
-        "contract."
+    assert "if not math.isfinite(metric.value):" in rec_src, (
+        "BUG: Recommender.recommend must skip non-finite metric values at entry "
+        "(#584) so NaN cannot false-trigger a rule."
     )
