@@ -106,8 +106,8 @@ import numpy as np
 
 from src.analysis.element_defs import ELEMENT_DEFS
 from src.analysis.metrics import BiomechanicsAnalyzer
-from src.utils.geometry import calculate_com_trajectory
 from src.types import ElementPhase, H36Key
+from src.utils.geometry import calculate_com_trajectory
 
 
 def _jump_pose(nan_keypoint: str | None = None, n: int = 12) -> np.ndarray:
@@ -137,8 +137,7 @@ def _jump_pose(nan_keypoint: str | None = None, n: int = 12) -> np.ndarray:
     for f in range(4, 7):
         poses[f, :, 1] -= 0.3
     if nan_keypoint:
-        kp = {"rknee": H36Key.RKNEE, "rwrist": H36Key.RWRIST,
-              "lfoot": H36Key.LFOOT}[nan_keypoint]
+        kp = {"rknee": H36Key.RKNEE, "rwrist": H36Key.RWRIST, "lfoot": H36Key.LFOOT}[nan_keypoint]
         # NaN on takeoff frame AND takeoff+1 (the takeoff window 2..3 feeds
         # both takeoff_com and the spine-length average).
         poses[2, kp] = [np.nan, np.nan]
@@ -147,8 +146,7 @@ def _jump_pose(nan_keypoint: str | None = None, n: int = 12) -> np.ndarray:
 
 
 def _phases(n: int = 12):
-    return ElementPhase(name="waltz_jump", start=0, takeoff=2, peak=4,
-                        landing=7, end=n - 1)
+    return ElementPhase(name="waltz_jump", start=0, takeoff=2, peak=4, landing=7, end=n - 1)
 
 
 # --------------------------------------------------------------------------- #
@@ -330,8 +328,11 @@ def test_nan_knee_rel_height_is_symmetric_left_right_repro():
     # Both NaN today (symmetric); after the fix both should be the same finite
     # graceful-degradation value. The symmetry contract must hold either way.
     both_nan = np.isnan(v_right_nan) and np.isnan(v_left_nan)
-    both_finite_close = (np.isfinite(v_right_nan) and np.isfinite(v_left_nan)
-                         and abs(v_right_nan - v_left_nan) < 0.05)
+    both_finite_close = (
+        np.isfinite(v_right_nan)
+        and np.isfinite(v_left_nan)
+        and abs(v_right_nan - v_left_nan) < 0.05
+    )
     assert both_nan or both_finite_close, (
         f"BUG (symmetry): occluding LKNEE vs RKNEE gives different rel_height "
         f"({v_left_nan:.3f} vs {v_right_nan:.3f}). Both poison the CoM weighted "
@@ -388,53 +389,49 @@ def test_relative_jump_height_nan_unsafe_source_repro():
     should flip to GREEN.
     """
     rel_src = inspect.getsource(BiomechanicsAnalyzer.compute_relative_jump_height)
-    # The unguarded CoM displacement line is present.
+    # #875 fix: peak_com uses np.nanmin (NOT np.min) so a NaN CoM frame
+    # (fully-occluded flight frame) does not poison the min into nan. Mirrors
+    # the sibling compute_max_height guard (#879).
+    assert "np.nanmin(flight_com)" in rel_src, (
+        "BUG: compute_relative_jump_height must use `np.nanmin(flight_com)` "
+        "(#875) so a NaN CoM frame does not poison peak_com into nan. If "
+        "np.min was restored, the NaN-poisons-min bug regressed."
+    )
+    # The CoM displacement NaN guard is present (defence-in-depth: takeoff_com
+    # NaN -> com_displacement NaN -> return 0.0 sentinel before divide).
+    assert "np.isfinite" in rel_src, (
+        "BUG: compute_relative_jump_height must keep a `np.isfinite` NaN guard "
+        "on peak_com / com_displacement (#875); np.nanmin alone is not enough "
+        "if every flight frame is NaN (nanmin -> NaN -> must return 0.0)."
+    )
+    # The com_displacement line is still computed (guard is after it).
     assert "com_displacement = float(takeoff_com - peak_com)" in rel_src, (
-        "BUG: compute_relative_jump_height must compute "
-        "`com_displacement = float(takeoff_com - peak_com)` (no NaN guard) "
-        "for this repro to be valid. If a NaN guard was added (e.g. "
-        "`if not np.isfinite(takeoff_com): return <sentinel>`), the "
-        "NaN-rel-height bug is fixed — update the observable tests to the "
-        "GREEN contract."
-    )
-    # The std np.min (NOT nanmin) is present — propagates NaN.
-    assert "peak_com = np.min(flight_com)" in rel_src, (
-        "BUG: compute_relative_jump_height must compute "
-        "`peak_com = np.min(flight_com)` (NaN-propagating, not `np.nanmin`) "
-        "for this repro to be valid. If it was changed to `np.nanmin(flight_"
-        "com)`, the NaN-poisons-min bug is fixed — update the observable "
-        "tests to the GREEN contract."
-    )
-    assert "np.nanmin" not in rel_src, (
-        "BUG: compute_relative_jump_height now uses `np.nanmin` — the "
-        "NaN-poisons-min bug is fixed; update the observable tests to the "
-        "GREEN contract."
-    )
-    assert "np.isfinite" not in rel_src and "np.isnan" not in rel_src, (
-        "BUG: a NaN guard (`np.isfinite` / `np.isnan`) appeared in "
-        "compute_relative_jump_height — the NaN-rel-height bug is fixed; "
-        "update the observable tests to the GREEN contract."
+        "BUG: compute_relative_jump_height must still compute "
+        "`com_displacement = float(takeoff_com - peak_com)`; the #875 guard is "
+        "after it, not a replacement of it."
     )
 
-    # The GOE height_score min(1.0, nan) = 1.0 arg-order trap is present.
     goe_src = inspect.getsource(BiomechanicsAnalyzer.compute_goe_score)
-    assert "height_score = min(1.0, rel_height / 1.0)" in goe_src, (
-        "BUG: compute_goe_score must compute "
-        "`height_score = min(1.0, rel_height / 1.0)` (Python min — NaN-unsafe, "
-        "arg-order-dependent, #454: min(1.0, nan) = 1.0) for this repro to be "
-        "valid. If it was changed to a NaN-safe form (e.g. `np.nan_to_num`, "
-        "`np.clip` with a NaN guard), the arg-order-NaN bug is fixed — update "
-        "the observable tests to the GREEN contract."
+    # #875 fix: GOE height_score uses np.nan_to_num before the Python min —
+    # min(1.0, nan) = 1.0 (#454 arg-order trap) would inflate to BEST. NaN ->
+    # neutral 0.0, not best 1.0. Mirrors the approach_score guard (#878).
+    assert "np.nan_to_num(rel_height / 1.0, nan=0.0)" in goe_src, (
+        "BUG: compute_goe_score must use `np.nan_to_num(rel_height / 1.0, "
+        "nan=0.0)` (#875) before the Python min so min(1.0, nan)=1.0 (#454) "
+        "does not inflate the height_score to BEST. If the bare "
+        "`min(1.0, rel_height / 1.0)` was restored, the arg-order-NaN bug "
+        "regressed."
     )
 
-    # And the CoM trajectory is a plain weighted sum (no NaN masking) —
-    # proving a NaN keypoint poisons the CoM. Same root cause as BM/BN.
+    # calculate_com_trajectory stays NaN-aware (#871) — masks each segment's
+    # contribution to 0 when NaN. This is WHY the observable tests are GREEN
+    # for partial occlusion (a few occluded keypoints do not NaN the CoM).
+    # The #875 np.nanmin guard above is for the residual full-occlusion-flight
+    # case where even the NaN-aware CoM yields NaN (all keypoints occluded).
     com_src = inspect.getsource(calculate_com_trajectory)
-    assert "np.isnan" not in com_src and "np.isfinite" not in com_src and \
-        "nanmean" not in com_src and "nansum" not in com_src, (
-        "BUG: calculate_com_trajectory now has a NaN-aware path "
-        "(np.isnan / np.isfinite / nanmean / nansum) — the CoM NaN-propagation "
-        "bug is fixed at the source; update the observable tests to the GREEN "
-        "contract. (This would also fix every CoM-based metric — smoothness "
-        "BM, hard_landing BN, peak_com — at once.)"
+    assert "np.isfinite" in com_src, (
+        "BUG: calculate_com_trajectory must keep its NaN-aware path (#871, "
+        "np.where(np.isfinite(y), term, 0.0)); it is WHY partial occlusion does "
+        "not NaN the CoM. If the NaN masking was removed, partial occlusion "
+        "regresses to NaN CoM (blast radius all 17 keypoints)."
     )
