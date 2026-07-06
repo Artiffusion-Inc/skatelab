@@ -104,8 +104,8 @@ import numpy as np
 
 from src.analysis.element_defs import ELEMENT_DEFS
 from src.analysis.metrics import BiomechanicsAnalyzer
-from src.utils.geometry import calculate_com_trajectory
 from src.types import ElementPhase, H36Key
+from src.utils.geometry import calculate_com_trajectory
 
 
 def _still_pose(nan_keypoint: str | None = None, n: int = 12) -> np.ndarray:
@@ -129,16 +129,14 @@ def _still_pose(nan_keypoint: str | None = None, n: int = 12) -> np.ndarray:
         poses[f, H36Key.LFOOT] = [-0.1, 1.0]
         poses[f, H36Key.RFOOT] = [0.1, 1.0]
     if nan_keypoint:
-        kp = {"rknee": H36Key.RKNEE, "rwrist": H36Key.RWRIST,
-              "lfoot": H36Key.LFOOT}[nan_keypoint]
+        kp = {"rknee": H36Key.RKNEE, "rwrist": H36Key.RWRIST, "lfoot": H36Key.LFOOT}[nan_keypoint]
         for f in range(8, n):
             poses[f, kp] = [np.nan, np.nan]
     return poses
 
 
 def _phases(n: int = 12):
-    return ElementPhase(name="waltz_jump", start=0, takeoff=2, peak=4,
-                        landing=7, end=n - 1)
+    return ElementPhase(name="waltz_jump", start=0, takeoff=2, peak=4, landing=7, end=n - 1)
 
 
 # --------------------------------------------------------------------------- #
@@ -167,9 +165,7 @@ def test_nan_post_landing_knee_does_not_report_worst_smoothness_repro():
     analyzer = BiomechanicsAnalyzer(ELEMENT_DEFS["waltz_jump"])
 
     # Baseline: all-valid still body → smoothness should be ~1.0.
-    s_valid = analyzer.compute_landing_smoothness(
-        _still_pose(None), _phases(), fps=30.0
-    )
+    s_valid = analyzer.compute_landing_smoothness(_still_pose(None), _phases(), fps=30.0)
     assert s_valid > 0.9, (
         f"test fixture broken: all-valid still body reported smoothness "
         f"{s_valid:.3f}, expected ~1.0. The fixture needs identical frames "
@@ -178,9 +174,7 @@ def test_nan_post_landing_knee_does_not_report_worst_smoothness_repro():
     )
 
     # One occluded knee on post-landing — same still body, one NaN keypoint.
-    s_nan = analyzer.compute_landing_smoothness(
-        _still_pose("rknee"), _phases(), fps=30.0
-    )
+    s_nan = analyzer.compute_landing_smoothness(_still_pose("rknee"), _phases(), fps=30.0)
 
     # CORRECT contract: the occluded-keypoint smoothness must NOT be 0.0
     # (worst). It must be close to the all-valid smoothness (graceful NaN-
@@ -221,9 +215,7 @@ def test_nan_wrist_post_landing_does_not_report_worst_smoothness_repro():
     occluded keypoint.
     """
     analyzer = BiomechanicsAnalyzer(ELEMENT_DEFS["waltz_jump"])
-    s_nan = analyzer.compute_landing_smoothness(
-        _still_pose("rwrist"), _phases(), fps=30.0
-    )
+    s_nan = analyzer.compute_landing_smoothness(_still_pose("rwrist"), _phases(), fps=30.0)
 
     assert s_nan > 0.3, (
         f"BUG: compute_landing_smoothness returned {s_nan:.3f} for a perfectly "
@@ -299,51 +291,42 @@ def test_all_valid_smoothness_unchanged_repro():
 
 
 def test_landing_smoothness_nan_unsafe_source_repro():
-    """Source check: `compute_landing_smoothness` computes
-    `std_velocity = float(np.std(velocities))` (NOT `np.nanstd` — propagates
-    NaN) and `smoothness = max(0.0, 1.0 - std_velocity / 0.2)` (Python max —
-    NaN-unsafe, arg-order-dependent, #454: `max(0.0, nan) = 0.0`). Root cause
-    locked.
-
-    RED now: the np.std (not nanstd) line and the `max(0.0, 1.0 -
-    std_velocity / 0.2)` line are present (PASS — root cause locked). After
-    the fix: the std becomes `np.nanstd` (or a NaN mask) and/or the max
-    becomes NaN-safe — this test FAILS, signaling the observable tests above
-    should flip to GREEN.
-    """
+    """GREEN source check (#870 fix): `compute_landing_smoothness` no longer
+    uses the NaN-propagating `np.std(velocities)` or the NaN-unsafe arg-order
+    `max(0.0, 1.0 - std_velocity / 0.2)`. A NaN-mask on velocities + a NaN-safe
+    clamp replaced them; and `calculate_com_trajectory` is NaN-aware (#871),
+    so one occluded keypoint no longer poisons the CoM."""
     src = inspect.getsource(BiomechanicsAnalyzer.compute_landing_smoothness)
-    # The np.std (NOT nanstd) line is present — propagates NaN.
-    assert "std_velocity = float(np.std(velocities))" in src, (
-        "BUG: compute_landing_smoothness must compute `std_velocity = "
-        "float(np.std(velocities))` (NaN-propagating, not `np.nanstd`) for "
-        "this repro to be valid. If it was changed to `np.nanstd(velocities)` "
-        "(or a NaN mask), the NaN-poisons-std bug is fixed — update the "
-        "observable tests to the GREEN contract."
+    # The NaN-propagating np.std(velocities) line is GONE.
+    assert "std_velocity = float(np.std(velocities))" not in src, (
+        "#870 RED: the NaN-propagating `np.std(velocities)` line is back — "
+        "a NaN velocity makes the whole-window std NaN. Mask finite velocities "
+        "first (np.isfinite) and std over the finite subset."
     )
-    assert "np.nanstd" not in src, (
-        "BUG: compute_landing_smoothness now uses `np.nanstd` — the "
-        "NaN-poisons-std bug is fixed; update the observable tests to the "
-        "GREEN contract."
+    # A NaN mask on velocities is present.
+    assert "np.isfinite(velocities)" in src, (
+        "#870 RED: compute_landing_smoothness must mask NaN velocities with "
+        "np.isfinite before std — a fully-occluded post-landing frame yields "
+        "NaN velocities; std over NaN = NaN, then max(0.0, nan)=0.0 falsely "
+        "grades a smooth landing as worst (#454)."
     )
-    # The Python `max(0.0, 1.0 - std_velocity / 0.2)` line is present —
-    # NaN-unsafe, arg-order.
-    assert "max(0.0, 1.0 - std_velocity / 0.2)" in src, (
-        "BUG: compute_landing_smoothness must compute "
-        "`max(0.0, 1.0 - std_velocity / 0.2)` (Python max — NaN-unsafe, "
-        "arg-order-dependent, #454) for this repro to be valid. If it was "
-        "changed to a NaN-safe form (e.g. `np.fmax`, `np.nan_to_num`), the "
-        "arg-order-NaN bug is fixed — update the observable tests to the "
-        "GREEN contract."
+    # The NaN-unsafe arg-order clamp is GONE, replaced by np.clip.
+    assert "max(0.0, 1.0 - std_velocity / 0.2)" not in src, (
+        "#870 RED: the NaN-unsafe `max(0.0, 1.0 - std_velocity / 0.2)` clamp "
+        "is back — max(0.0, nan)=0.0 (arg-order #454). Use np.clip (NaN-safe "
+        "after the isfinite guard)."
+    )
+    assert "np.clip" in src, (
+        "#870 RED: use np.clip(1.0 - std_velocity / 0.2, 0.0, 1.0) — NaN-safe "
+        "clamp, unlike Python max which is arg-order NaN-unsafe (#454)."
     )
 
-    # And the CoM trajectory is a plain weighted sum (no NaN masking) —
-    # proving a NaN keypoint poisons the CoM. This is the deeper root cause.
+    # calculate_com_trajectory is NaN-aware (#871) — a NaN keypoint is masked,
+    # not propagated. Fixes every CoM-based metric at the source.
     com_src = inspect.getsource(calculate_com_trajectory)
-    assert "np.isnan" not in com_src and "np.isfinite" not in com_src and \
-        "nanmean" not in com_src and "nansum" not in com_src, (
-        "BUG: calculate_com_trajectory now has a NaN-aware path "
-        "(np.isnan / np.isfinite / nanmean / nansum) — the CoM NaN-propagation "
-        "bug is fixed at the source; update the observable tests to the GREEN "
-        "contract. (This would also fix every CoM-based metric — hard_landing, "
-        "relative_jump_height, peak_com — at once.)"
+    assert "np.isfinite" in com_src, (
+        "#870 RED: calculate_com_trajectory must be NaN-aware (#871) — mask "
+        "NaN segment contributions so one occluded keypoint does not poison "
+        "the CoM. This fixes every CoM-based metric (smoothness, hard_landing, "
+        "relative_jump_height, peak_com) at once."
     )
