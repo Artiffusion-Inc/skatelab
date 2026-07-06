@@ -71,23 +71,30 @@ class TestMergeCocoFootKeypoints:
         assert np.all(vis[20:23] == 2.0)
 
     def test_face_duplicates_from_visible_source(self):
-        """Face duplicates should copy from visible source with reduced visibility."""
+        """Face duplicates copy coords from visible source but are UNLABELED.
+
+        #806: vis=0.0 (COCO unlabeled), NOT 0.3 (non-standard — mmpose treats
+        v>0 as labeled, supervising the face keypoint with a copied eye/nose
+        coord). Coord is kept for HALPE26 shape; supervision is dropped.
+        """
         coco_2d = np.ones((17, 2), dtype=np.float64)
         foot_2d = np.ones((6, 2), dtype=np.float32)
 
         pts, vis = merge_coco_foot_keypoints(coco_2d, foot_2d)
 
-        # Face duplicates: 23<-1, 24<-2, 25<-0
+        # Face duplicates: 23<-1, 24<-2, 25<-0 — coord still copied
         np.testing.assert_array_equal(pts[23], pts[1])
         np.testing.assert_array_equal(pts[24], pts[2])
         np.testing.assert_array_equal(pts[25], pts[0])
 
-        assert vis[23] == 0.3
-        assert vis[24] == 0.3
-        assert vis[25] == 0.3
+        # #806: unlabeled (0.0), not the non-standard 0.3
+        assert vis[23] == 0.0
+        assert vis[24] == 0.0
+        assert vis[25] == 0.0
 
     def test_face_duplicates_from_invisible_source(self):
-        """Face duplicates should be 0.0 visibility when source is NaN."""
+        """Face duplicates are 0.0 visibility when source is NaN (and also
+        when visible — see #806: dupes are always unlabeled)."""
         coco_2d = np.ones((17, 2), dtype=np.float64)
         coco_2d[0] = np.nan  # Source for index 25
         coco_2d[1] = np.nan  # Source for index 23
@@ -97,8 +104,8 @@ class TestMergeCocoFootKeypoints:
 
         assert vis[23] == 0.0
         assert vis[25] == 0.0
-        # Index 24 source (index 2) is still visible
-        assert vis[24] == 0.3
+        # Index 24 source (index 2) is visible, but #806: dupe is still unlabeled
+        assert vis[24] == 0.0
 
 
 class TestFormatKeypoints:
