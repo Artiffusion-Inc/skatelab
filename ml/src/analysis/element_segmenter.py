@@ -480,10 +480,14 @@ class ElementSegmenter:
         features["edge_change_count"] = int(np.sum(np.abs(np.diff(edge_ind)) > 0.3))
         features["edge_indicator_mean"] = float(np.mean(np.abs(edge_ind)))
 
-        # Rotation speed (shoulder axis)
+        # Rotation speed (shoulder axis).
+        # #860: _compute_shoulder_rotation returns unwrapped radians, so
+        # gradient is rad/s; convert to deg/s (×180/π) to match the deg/s-shaped
+        # thresholds in _classify_by_rules (200/350/500). Without this a real
+        # 1080 deg/s jump reads as 18.85 rad/s — below every threshold.
         shoulder_angles = self._compute_shoulder_rotation(poses)
         if len(shoulder_angles) > 0:
-            rot_velocity = np.abs(np.gradient(shoulder_angles)) * fps
+            rot_velocity = np.abs(np.gradient(shoulder_angles)) * fps * (180.0 / np.pi)
             features["rotation_speed_max"] = float(np.max(rot_velocity))
             features["rotation_speed_mean"] = float(np.mean(rot_velocity))
         else:
@@ -639,8 +643,13 @@ class ElementSegmenter:
         # Compute shoulder axis vector
         shoulder_vector = right_shoulder - left_shoulder
 
-        # Compute angle relative to horizontal
-        angles = np.arctan2(shoulder_vector[:, 1], shoulder_vector[:, 0])
+        # Compute angle relative to horizontal.
+        # #860: np.unwrap before gradient — arctan2 wraps to (-π, π], so a
+        # shoulder rotation past ±π produces a 2π-per-frame gradient spike
+        # (physically impossible) that becomes rotation_speed_max. Unwrap makes
+        # the angle monotonic across the wrap boundary so gradient reflects the
+        # real spin rate.
+        angles = np.unwrap(np.arctan2(shoulder_vector[:, 1], shoulder_vector[:, 0]))
 
         return angles.astype(np.float32)
 
