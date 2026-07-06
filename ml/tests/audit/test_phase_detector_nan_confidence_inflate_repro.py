@@ -95,8 +95,8 @@ import inspect
 import numpy as np
 
 from src.analysis.phase_detector import PhaseDetector
-from src.utils.geometry import calculate_com_trajectory
 from src.types import H36Key
+from src.utils.geometry import calculate_com_trajectory
 
 
 def _pose_seq(n: int = 30, nan_keypoint: str | None = None) -> np.ndarray:
@@ -125,8 +125,7 @@ def _pose_seq(n: int = 30, nan_keypoint: str | None = None) -> np.ndarray:
     for f in range(8, 22):
         poses[f, :, 1] -= 0.01 * (f - 8) * (21 - f) * 0.1
     if nan_keypoint:
-        kp = {"rknee": H36Key.RKNEE, "rwrist": H36Key.RWRIST,
-              "lfoot": H36Key.LFOOT}[nan_keypoint]
+        kp = {"rknee": H36Key.RKNEE, "rwrist": H36Key.RWRIST, "lfoot": H36Key.LFOOT}[nan_keypoint]
         poses[:, kp] = [np.nan, np.nan]
     return poses
 
@@ -261,8 +260,10 @@ def test_nan_knee_confidence_is_symmetric_left_right_repro():
         f"would break this."
     )
     # And neither should exceed the all-valid baseline (graceful degradation).
-    assert r_right.confidence <= r_valid.confidence + 1e-6 and \
-           r_left.confidence <= r_valid.confidence + 1e-6, (
+    assert (
+        r_right.confidence <= r_valid.confidence + 1e-6
+        and r_left.confidence <= r_valid.confidence + 1e-6
+    ), (
         f"BUG: occluded-keypoint confidence ({r_left.confidence:.4f} / "
         f"{r_right.confidence:.4f}) exceeds the all-valid baseline "
         f"({r_valid.confidence:.4f}) — false BEST on NaN input."
@@ -297,58 +298,34 @@ def test_all_valid_confidence_unchanged_repro():
 
 
 def test_phase_detector_confidence_inflate_source_repro():
-    """Source check: `_detect_jump_phases_com_improved` computes
-    `prominence = float(np.max(flight_com) - np.min(flight_com))` (NOT
-    `np.nanmax`/`np.nanmin` — propagates NaN) and clamps confidence with
-    `min(1.0, ...)` (the #454 arg-order trap: `min(1.0, nan) = 1.0`). Root
-    cause locked.
+    """GREEN contract source check: the confidence-inflation bug is fixed in
+    BOTH places.
 
-    RED now: the `np.max - np.min` prominence line and the `min(1.0, ...)`
-    confidence clamp are present (PASS — root cause locked). After the fix: a
-    NaN guard appears (`np.isfinite` / `np.isnan` / `np.nan_to_num`) on the
-    prominence or confidence, and/or the CoM becomes NaN-aware — this test
-    FAILS, signaling the observable tests above should flip to GREEN.
+    `_detect_jump_phases_com_improved` guards confidence against a non-finite
+    prominence so the #454 `min(1.0, nan) = 1.0` trap cannot inflate confidence
+    to 1.0 on degenerate input. `calculate_com_trajectory` masks NaN keypoints
+    so an occluded joint cannot NaN-poison the CoM (the source-level fix that
+    repairs every CoM-based metric).
     """
     src = inspect.getsource(PhaseDetector._detect_jump_phases_com_improved)
-    # The np.max - np.min (NOT nanmax/nanmin) prominence line is present —
-    # propagates NaN.
+    # The prominence is still derived from the flight CoM (max - min).
     assert "prominence = float(np.max(flight_com) - np.min(flight_com))" in src, (
-        "BUG: _detect_jump_phases_com_improved must compute "
-        "`prominence = float(np.max(flight_com) - np.min(flight_com))` "
-        "(NaN-propagating, not `np.nanmax`/`np.nanmin`) for this repro to be "
-        "valid. If it was changed to `np.nanmax(...) - np.nanmin(...)` (or a NaN "
-        "mask), the NaN-leak bug is fixed — update the observable tests to the "
-        "GREEN contract."
+        "BUG: _detect_jump_phases_com_improved must still derive prominence from the flight CoM."
     )
-    assert "np.nanmax" not in src and "np.nanmin" not in src, (
-        "BUG: _detect_jump_phases_com_improved now uses `np.nanmax`/`np.nanmin` "
-        "— the NaN-leak bug is fixed; update the observable tests to the GREEN "
-        "contract."
-    )
-    # The #454 arg-order trap: `min(1.0, nan) = 1.0`. The confidence clamp uses
-    # bare `min(1.0, ...)` without a NaN guard.
-    assert "min(1.0, prominence / 0.05)" in src, (
-        "BUG: _detect_jump_phases_com_improved must clamp prominence with "
-        "`min(1.0, prominence / 0.05)` (the #454 arg-order trap: "
-        "`min(1.0, nan) = 1.0`) for this repro to be valid. If a NaN guard was "
-        "added on prominence or the clamp, the inflation bug is fixed — update "
-        "the observable tests to the GREEN contract."
-    )
-    assert "np.isfinite" not in src and "np.isnan" not in src and \
-        "nan_to_num" not in src, (
-        "BUG: a NaN guard (`np.isfinite` / `np.isnan` / `np.nan_to_num`) "
-        "appeared in _detect_jump_phases_com_improved — the confidence-inflation "
-        "bug is fixed; update the observable tests to the GREEN contract."
+    # The #454 arg-order trap is defused: a NaN guard on prominence forces
+    # confidence to 0.0 instead of inflating via `min(1.0, nan) = 1.0`.
+    assert "_math.isnan(prominence)" in src and "confidence = 0.0" in src, (
+        "BUG: _detect_jump_phases_com_improved must guard prominence against "
+        "NaN so the confidence clamp cannot inflate to 1.0 via "
+        "`min(1.0, nan) = 1.0` (#454, #886)."
     )
 
-    # And the CoM trajectory is a plain weighted sum (no NaN masking) — proving
-    # a NaN keypoint poisons the CoM. Same root cause as BM/BN/BP/BQ/BR/BS/BT/
-    # BV/BW.
+    # And the CoM trajectory is NaN-aware — masking NaN keypoints so an
+    # occluded joint cannot poison the CoM. Same root cause as
+    # BM/BN/BP/BQ/BR/BS/BT/BV/BW.
     com_src = inspect.getsource(calculate_com_trajectory)
-    assert "np.isnan" not in com_src and "np.isfinite" not in com_src and \
-        "nanmean" not in com_src and "nansum" not in com_src, (
-        "BUG: calculate_com_trajectory now has a NaN-aware path "
-        "(np.isnan / np.isfinite / nanmean / nansum) — the CoM NaN-propagation "
-        "bug is fixed at the source; update the observable tests to the GREEN "
-        "contract. (This would also fix every CoM-based metric at once.)"
+    assert "np.isfinite" in com_src, (
+        "BUG: calculate_com_trajectory must mask NaN keypoints (np.isfinite) "
+        "so a single occluded joint cannot NaN-poison the CoM and inflate "
+        "phase-detection confidence."
     )
