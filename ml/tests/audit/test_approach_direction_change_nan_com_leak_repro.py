@@ -109,8 +109,8 @@ import numpy as np
 
 from src.analysis.element_defs import ELEMENT_DEFS
 from src.analysis.metrics import BiomechanicsAnalyzer
-from src.utils.geometry import calculate_com_trajectory_2d
 from src.types import ElementPhase, H36Key
+from src.utils.geometry import calculate_com_trajectory_2d
 
 
 def _approach_pose(nan_keypoint: str | None = None, n: int = 12) -> np.ndarray:
@@ -136,12 +136,18 @@ def _approach_pose(nan_keypoint: str | None = None, n: int = 12) -> np.ndarray:
         poses[f, H36Key.RKNEE] = [0.1, 0.9]
         poses[f, H36Key.LFOOT] = [-0.1, 1.0]
         poses[f, H36Key.RFOOT] = [0.1, 1.0]
-    # Curving approach: quadratic x-drift so heading changes across frames.
+    # Curving approach: a quadratic x-drift alone is pure translation (all
+    # keypoints shift by the same dx) and does NOT change the heading —
+    # arctan2(vy, vx) stays at 0° because vy=0. Add a linear y-drift so the
+    # vertical CoM velocity is nonzero and the heading arctan2(vy, vx) actually
+    # changes across approach frames (vx grows quadratically, vy stays
+    # constant -> heading angle decreases). This makes the all-valid baseline
+    # finite and nonzero, which the NaN-vs-valid contrast relies on.
     for f in range(n):
-        poses[f, :, 0] += 0.001 * (f ** 2)
+        poses[f, :, 0] += 0.001 * (f**2)
+        poses[f, :, 1] += 0.0005 * f
     if nan_keypoint:
-        kp = {"rknee": H36Key.RKNEE, "rwrist": H36Key.RWRIST,
-              "lfoot": H36Key.LFOOT}[nan_keypoint]
+        kp = {"rknee": H36Key.RKNEE, "rwrist": H36Key.RWRIST, "lfoot": H36Key.LFOOT}[nan_keypoint]
         # NaN on all approach frames (0..takeoff=4).
         for f in range(0, 5):
             poses[f, kp] = [np.nan, np.nan]
@@ -149,8 +155,7 @@ def _approach_pose(nan_keypoint: str | None = None, n: int = 12) -> np.ndarray:
 
 
 def _phases(n: int = 12):
-    return ElementPhase(name="waltz_jump", start=0, takeoff=4, peak=6,
-                        landing=8, end=n - 1)
+    return ElementPhase(name="waltz_jump", start=0, takeoff=4, peak=6, landing=8, end=n - 1)
 
 
 # --------------------------------------------------------------------------- #
@@ -177,9 +182,7 @@ def test_nan_knee_approach_direction_change_is_finite_repro():
     analyzer = BiomechanicsAnalyzer(ELEMENT_DEFS["waltz_jump"])
 
     # Baseline: all-valid curving approach → finite nonzero direction change.
-    v_valid = analyzer.compute_approach_direction_change(
-        _approach_pose(None), _phases(), fps=30.0
-    )
+    v_valid = analyzer.compute_approach_direction_change(_approach_pose(None), _phases(), fps=30.0)
     assert np.isfinite(v_valid) and v_valid > 0.0, (
         f"test fixture broken: all-valid curving approach reported direction "
         f"change {v_valid}, expected finite > 0. The fixture needs a curving "
@@ -189,9 +192,7 @@ def test_nan_knee_approach_direction_change_is_finite_repro():
     )
 
     # One occluded knee on approach frames — same curving approach, one NaN.
-    v_nan = analyzer.compute_approach_direction_change(
-        _approach_pose("rknee"), _phases(), fps=30.0
-    )
+    v_nan = analyzer.compute_approach_direction_change(_approach_pose("rknee"), _phases(), fps=30.0)
 
     # CORRECT contract: the occluded-keypoint value must be FINITE (graceful
     # NaN-skip), NOT nan — a NaN-leak breaks JSON, GOE, recommender, frontend.
@@ -361,9 +362,7 @@ def test_all_valid_approach_direction_change_unchanged_repro():
     regress the all-valid case.
     """
     analyzer = BiomechanicsAnalyzer(ELEMENT_DEFS["waltz_jump"])
-    v = analyzer.compute_approach_direction_change(
-        _approach_pose(None), _phases(), fps=30.0
-    )
+    v = analyzer.compute_approach_direction_change(_approach_pose(None), _phases(), fps=30.0)
     assert np.isfinite(v) and v > 0.0, (
         f"BUG (regression): all-valid curving approach reported direction "
         f"change {v}, expected finite > 0. The no-NaN case must be unchanged "
@@ -378,59 +377,62 @@ def test_all_valid_approach_direction_change_unchanged_repro():
 
 
 def test_approach_direction_change_nan_unsafe_source_repro():
-    """Source check: `compute_approach_direction_change` computes
-    `np.sum(np.abs(np.diff(angles)))` (NOT `np.nansum` — propagates NaN) and
-    the GOE grader computes `approach_score = min(1.0, approach_change / 90.0)`
-    (Python min — NaN-unsafe, arg-order-dependent, #454: `min(1.0, nan) =
-    1.0`). Root cause locked.
+    """Source check (GREEN contract): the #878 fix is in place.
 
-    RED now: the unguarded `np.sum(np.abs(np.diff(angles)))` line and the
-    GOE `min(1.0, approach_change / 90.0)` line are present (PASS — root
-    cause locked). After the fix: the sum becomes `np.nansum` (or a NaN
-    mask / sentinel) and/or the GOE line guards the NaN — this test FAILS,
-    signaling the observable tests above should flip to GREEN.
+    Root cause was two-layer:
+      1. `compute_approach_direction_change` computed
+         `np.sum(np.abs(np.diff(angles)))` (NOT `np.nansum` -- propagates NaN
+         from one occluded approach-frame keypoint) with no finite guard, so
+         the metric returned nan -- breaking JSON serialization (RFC 8259),
+         the GOE composite, the recommender, and frontend display.
+      2. `compute_goe_score` computed
+         `approach_score = min(1.0, approach_change / 90.0)` (Python min --
+         NaN-unsafe, arg-order-dependent, #454: `min(1.0, nan) = 1.0`), so a
+         nan approach_change inflated the GOE approach_score to BEST on
+         occlusion.
+      3. `calculate_com_trajectory_2d` was a plain weighted sum over all 17
+         keypoints -- one NaN keypoint poisoned the CoM. Same deep root cause
+         as BM/BN/BP/BQ.
+
+    Fix: np.nansum + finite guard (return 0.0 neutral "no direction change"
+    when every frame is NaN) in the metric; np.nan_to_num guard before the
+    Python min in the GOE line; NaN-aware 2D CoM (mask NaN keypoints to 0, same
+    contract as the 1D `calculate_com_trajectory` #871 fix).
     """
     src = inspect.getsource(BiomechanicsAnalyzer.compute_approach_direction_change)
-    # The np.sum(np.abs(np.diff(angles))) line is present — propagates NaN.
-    assert "np.sum(np.abs(np.diff(angles)))" in src, (
-        "BUG: compute_approach_direction_change must compute "
-        "`np.sum(np.abs(np.diff(angles)))` (NaN-propagating, not `np.nansum`) "
-        "for this repro to be valid. If it was changed to `np.nansum(...)` (or "
-        "a NaN mask), the NaN-leak bug is fixed — update the observable tests "
-        "to the GREEN contract."
+    assert "np.nansum(np.abs(np.diff(angles)))" in src, (
+        "BUG: compute_approach_direction_change must use np.nansum(np.abs(np.diff("
+        "angles))) (#878) -- np.sum propagates NaN from one occluded approach-frame "
+        "keypoint into the metric value."
     )
-    assert "np.nansum" not in src, (
-        "BUG: compute_approach_direction_change now uses `np.nansum` — the "
-        "NaN-leak bug is fixed; update the observable tests to the GREEN "
-        "contract."
+    assert "np.sum(np.abs(np.diff(angles)))" not in src, (
+        "BUG: compute_approach_direction_change still uses np.sum(np.abs(np.diff("
+        "angles))) (NaN-propagating) -- must be np.nansum (#878)."
     )
-    assert "np.isfinite" not in src and "np.isnan" not in src, (
-        "BUG: a NaN guard (`np.isfinite` / `np.isnan`) appeared in "
-        "compute_approach_direction_change — the NaN-leak bug is fixed; "
-        "update the observable tests to the GREEN contract."
+    assert "np.isfinite(total)" in src, (
+        "BUG: compute_approach_direction_change must guard the total with "
+        "np.isfinite and return 0.0 (neutral) when every frame is NaN (#878) -- "
+        "not nan, which would inflate the GOE approach_score via min(1.0,nan)=1.0."
     )
 
-    # The GOE `approach_score = min(1.0, approach_change / 90.0)` line is
-    # present — NaN-unsafe arg-order trap (#454).
     goe_src = inspect.getsource(BiomechanicsAnalyzer.compute_goe_score)
-    assert "approach_score = min(1.0, approach_change / 90.0)" in goe_src, (
-        "BUG: compute_goe_score must compute "
-        "`approach_score = min(1.0, approach_change / 90.0)` (Python min — "
-        "NaN-unsafe, arg-order-dependent, #454: min(1.0, nan) = 1.0) for this "
-        "repro to be valid. If it was changed to a NaN-safe form (e.g. "
-        "`np.nan_to_num`, `np.clip` with a NaN guard), the arg-order-NaN bug "
-        "is fixed — update the observable tests to the GREEN contract."
+    assert "np.nan_to_num(approach_change / 90.0, nan=0.0)" in goe_src, (
+        "BUG: compute_goe_score must guard approach_change/90.0 with np.nan_to_num "
+        "before the Python min (#878) -- min(1.0, nan) = 1.0 (#454 arg-order) "
+        "inflates the GOE approach_score to BEST on occlusion."
+    )
+    assert "approach_score = min(1.0, approach_change / 90.0)" not in goe_src, (
+        "BUG: compute_goe_score still uses the bare Python min(1.0, "
+        "approach_change / 90.0) form -- NaN-unsafe arg-order (#454). Must "
+        "guard with np.nan_to_num (#878)."
     )
 
-    # And the 2D CoM trajectory is a plain weighted sum (no NaN masking) —
-    # proving a NaN keypoint poisons the CoM. Same root cause as BM/BN/BP/BQ.
+    # The 2D CoM trajectory is NaN-aware -- masks NaN keypoints so a few
+    # occluded joints do not poison the CoM. Same deep root-cause fix as the
+    # 1D calculate_com_trajectory (#871), applied to the (x, y) trajectory.
     com_src = inspect.getsource(calculate_com_trajectory_2d)
-    assert "np.isnan" not in com_src and "np.isfinite" not in com_src and \
-        "nanmean" not in com_src and "nansum" not in com_src, (
-        "BUG: calculate_com_trajectory_2d now has a NaN-aware path "
-        "(np.isnan / np.isfinite / nanmean / nansum) — the CoM NaN-propagation "
-        "bug is fixed at the source; update the observable tests to the GREEN "
-        "contract. (This would also fix every CoM-based metric — smoothness "
-        "BM, hard_landing BN, relative_jump_height BP, toe_assist BQ, "
-        "peak_com — at once.)"
+    assert "np.isfinite" in com_src, (
+        "BUG: calculate_com_trajectory_2d must mask NaN keypoints (#878) -- the "
+        "deep root-cause fix shared across every 2D-CoM-based metric (approach "
+        "direction change BR)."
     )
