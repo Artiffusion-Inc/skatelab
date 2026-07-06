@@ -64,7 +64,12 @@ export function TrendChart({ data, format }: { data: TrendResponse; format?: str
             <Line
               type="monotone"
               dataKey="value"
-              stroke="hsl(var(--primary))"
+              // #833: project color system is OKLCH, so --primary resolves to
+              // `oklch(...)`. `hsl(var(--primary))` wrapped an OKLCH token inside
+              // hsl() → `hsl(oklch(...))` is an invalid CSS color and recharts
+              // rendered the trend line with no stroke (transparent). Use the
+              // raw OKLCH token like frame-metrics-chart.tsx does.
+              stroke="oklch(var(--primary))"
               strokeWidth={2}
               dot={{ r: 4 }}
             />

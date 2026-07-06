@@ -119,6 +119,10 @@ export function ElementDetail({ elementId, elementName, findings }: ElementDetai
               unit={card.unit}
               trend={card.trend}
               isPr={card.isPr}
+              // #835: a card only has a real value when a PR exists for this
+              // metric; otherwise value defaulted to 0 and rendered as a
+              // measured "0.00". Empty state when no PR.
+              hasData={card.isPr}
               isWarning={card.isWarning}
               format={card.format}
               onClick={() => {
