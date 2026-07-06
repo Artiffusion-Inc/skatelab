@@ -95,8 +95,8 @@ import numpy as np
 
 from src.analysis.element_defs import ELEMENT_DEFS
 from src.analysis.metrics import BiomechanicsAnalyzer
-from src.utils.geometry import calculate_com_trajectory
 from src.types import ElementPhase, H36Key
+from src.utils.geometry import calculate_com_trajectory
 
 
 def _hard_landing_pose(nan_keypoint: str | None = None, n: int = 12) -> np.ndarray:
@@ -124,8 +124,7 @@ def _hard_landing_pose(nan_keypoint: str | None = None, n: int = 12) -> np.ndarr
     for f in range(7, n):
         poses[f, :, 1] += 0.1
     if nan_keypoint:
-        kp = {"rknee": H36Key.RKNEE, "rwrist": H36Key.RWRIST,
-              "lfoot": H36Key.LFOOT}[nan_keypoint]
+        kp = {"rknee": H36Key.RKNEE, "rwrist": H36Key.RWRIST, "lfoot": H36Key.LFOOT}[nan_keypoint]
         # NaN on landing frame AND landing-1 (both feed the backward diff).
         poses[6, kp] = [np.nan, np.nan]
         poses[7, kp] = [np.nan, np.nan]
@@ -133,8 +132,7 @@ def _hard_landing_pose(nan_keypoint: str | None = None, n: int = 12) -> np.ndarr
 
 
 def _phases(n: int = 12):
-    return ElementPhase(name="waltz_jump", start=0, takeoff=2, peak=4,
-                        landing=7, end=n - 1)
+    return ElementPhase(name="waltz_jump", start=0, takeoff=2, peak=4, landing=7, end=n - 1)
 
 
 # --------------------------------------------------------------------------- #
@@ -160,9 +158,7 @@ def test_nan_knee_landing_com_velocity_is_finite_repro():
     analyzer = BiomechanicsAnalyzer(ELEMENT_DEFS["waltz_jump"])
 
     # Baseline: all-valid hard landing → finite nonzero velocity (negative).
-    v_valid = analyzer.compute_landing_com_velocity(
-        _hard_landing_pose(None), _phases(), fps=30.0
-    )
+    v_valid = analyzer.compute_landing_com_velocity(_hard_landing_pose(None), _phases(), fps=30.0)
     assert np.isfinite(v_valid) and v_valid < 0.0, (
         f"test fixture broken: all-valid hard landing reported velocity "
         f"{v_valid}, expected finite < 0 (hard = negative downward). The "
@@ -172,9 +168,7 @@ def test_nan_knee_landing_com_velocity_is_finite_repro():
     )
 
     # One occluded knee on landing+landing-1 — same hard landing, one NaN.
-    v_nan = analyzer.compute_landing_com_velocity(
-        _hard_landing_pose("rknee"), _phases(), fps=30.0
-    )
+    v_nan = analyzer.compute_landing_com_velocity(_hard_landing_pose("rknee"), _phases(), fps=30.0)
 
     # CORRECT contract: the occluded-keypoint velocity must be FINITE (NaN
     # guard / 0.0 sentinel), NOT nan — a NaN-leak breaks JSON, recommender /
@@ -212,9 +206,7 @@ def test_nan_wrist_landing_com_velocity_is_finite_repro():
     After the fix: graceful degradation on any occluded keypoint.
     """
     analyzer = BiomechanicsAnalyzer(ELEMENT_DEFS["waltz_jump"])
-    v_nan = analyzer.compute_landing_com_velocity(
-        _hard_landing_pose("rwrist"), _phases(), fps=30.0
-    )
+    v_nan = analyzer.compute_landing_com_velocity(_hard_landing_pose("rwrist"), _phases(), fps=30.0)
 
     assert np.isfinite(v_nan), (
         f"BUG: compute_landing_com_velocity returned {v_nan} (nan) for a hard "
@@ -282,9 +274,7 @@ def test_all_valid_landing_com_velocity_unchanged_repro():
     regress the all-valid case.
     """
     analyzer = BiomechanicsAnalyzer(ELEMENT_DEFS["waltz_jump"])
-    v = analyzer.compute_landing_com_velocity(
-        _hard_landing_pose(None), _phases(), fps=30.0
-    )
+    v = analyzer.compute_landing_com_velocity(_hard_landing_pose(None), _phases(), fps=30.0)
     assert np.isfinite(v) and v < 0.0, (
         f"BUG (regression): all-valid hard landing reported velocity {v}, "
         f"expected finite < 0 (hard = negative). The no-NaN case must be "
@@ -298,49 +288,38 @@ def test_all_valid_landing_com_velocity_unchanged_repro():
 
 
 def test_landing_com_velocity_nan_unsafe_source_repro():
-    """Source check: `compute_landing_com_velocity` computes
-    `velocity = -(com_trajectory[phases.landing] - com_trajectory[phases.landing - 1]) * fps`
-    (no NaN guard on the diff) and `return float(velocity)` (no NaN guard on
-    the return). Root cause locked.
+    """GREEN contract source check: the NaN-leak bug is fixed in BOTH places.
 
-    RED now: the unguarded backward-diff line and the `return float(velocity)`
-    line are present (PASS — root cause locked). After the fix: a NaN guard
-    appears (or `calculate_com_trajectory` becomes NaN-aware) and/or the
-    return guards NaN — this test FAILS, signaling the observable tests
-    above should flip to GREEN.
+    `compute_landing_com_velocity` guards the return against a non-finite
+    velocity, and `calculate_com_trajectory` masks NaN keypoints so a single
+    occluded joint cannot poison the CoM (the source-level fix that also
+    repairs smoothness BM / hard_landing BN / relative_jump_height BP /
+    toe_assist BQ / approach_direction_change BR / jump_height_com BS).
     """
     src = inspect.getsource(BiomechanicsAnalyzer.compute_landing_com_velocity)
-    # The unguarded backward-diff line is present.
-    assert "velocity = -(com_trajectory[phases.landing] - com_trajectory[phases.landing - 1]) * fps" in src, (
-        "BUG: compute_landing_com_velocity must compute "
-        "`velocity = -(com_trajectory[phases.landing] - com_trajectory["
-        "phases.landing - 1]) * fps` (no NaN guard) for this repro to be valid. "
-        "If a NaN guard was added (e.g. `if not np.isfinite(v): return 0.0`), "
-        "the NaN-leak bug is fixed — update the observable tests to the GREEN "
-        "contract."
+    # The backward-diff line is present (the metric still uses the CoM delta).
+    assert (
+        "velocity = -(com_trajectory[phases.landing] - com_trajectory[phases.landing - 1]) * fps"
+        in src
+    ), (
+        "BUG: compute_landing_com_velocity must still compute the backward "
+        "difference on the CoM trajectory."
     )
-    # The unguarded return line is present.
+    # The return guards a non-finite velocity — NaN must never leak.
+    assert "if not np.isfinite(velocity)" in src and "return 0.0" in src, (
+        "BUG: compute_landing_com_velocity must guard the return against a "
+        "non-finite velocity (NaN-leak fix, #880)."
+    )
     assert "return float(velocity)" in src, (
-        "BUG: compute_landing_com_velocity must compute "
-        "`return float(velocity)` (no NaN guard) for this repro to be valid. "
-        "If a NaN guard was added on the return, the NaN-leak bug is fixed — "
-        "update the observable tests to the GREEN contract."
-    )
-    assert "np.isfinite" not in src and "np.isnan" not in src, (
-        "BUG: a NaN guard (`np.isfinite` / `np.isnan`) appeared in "
-        "compute_landing_com_velocity — the NaN-leak bug is fixed; update the "
-        "observable tests to the GREEN contract."
+        "BUG: compute_landing_com_velocity must still return the finite "
+        "velocity as a float for the all-valid path."
     )
 
-    # And the CoM trajectory is a plain weighted sum (no NaN masking) —
-    # proving a NaN keypoint poisons the CoM. Same root cause as BM/BN/BP/BQ/BR/BS.
+    # And the CoM trajectory is NaN-aware — masking NaN keypoints so an
+    # occluded joint cannot poison the CoM. Same root cause as BM/BN/BP/BQ/BR/BS.
     com_src = inspect.getsource(calculate_com_trajectory)
-    assert "np.isnan" not in com_src and "np.isfinite" not in com_src and \
-        "nanmean" not in com_src and "nansum" not in com_src, (
-        "BUG: calculate_com_trajectory now has a NaN-aware path "
-        "(np.isnan / np.isfinite / nanmean / nansum) — the CoM NaN-propagation "
-        "bug is fixed at the source; update the observable tests to the GREEN "
-        "contract. (This would also fix every CoM-based metric — smoothness BM, "
-        "hard_landing BN, relative_jump_height BP, toe_assist BQ, "
-        "approach_direction_change BR, jump_height_com BS — at once.)"
+    assert "np.isfinite" in com_src, (
+        "BUG: calculate_com_trajectory must mask NaN keypoints "
+        "(np.isfinite) so a single occluded joint cannot NaN-poison the CoM "
+        "and leak into landing_com_velocity."
     )

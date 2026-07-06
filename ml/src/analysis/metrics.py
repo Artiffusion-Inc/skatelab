@@ -1001,7 +1001,12 @@ class BiomechanicsAnalyzer:
         com_trajectory = calculate_com_trajectory(poses)
         # In normalized coords Y increases downward.
         # Backward difference: negate so downward = negative velocity.
+        # #880: guard NaN leak — calculate_com_trajectory is NaN-aware (#871)
+        # but a fully occluded frame can still produce a non-finite CoM; the
+        # landing velocity must never leak NaN into AnalysisReport / JSON.
         velocity = -(com_trajectory[phases.landing] - com_trajectory[phases.landing - 1]) * fps
+        if not np.isfinite(velocity):
+            return 0.0
         return float(velocity)
 
     def compute_landing_smoothness(
