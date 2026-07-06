@@ -31,7 +31,10 @@ async def get_or_create(db: AsyncSession, user_id: str, skill_id: str) -> SkillP
     )
     progress = result.scalar_one_or_none()
     if progress is None:
-        defn = next(s for s in SKILL_DEFINITIONS if s["id"] == skill_id)
+        # #670: next() without default raises StopIteration on unknown skill_id.
+        defn = next((s for s in SKILL_DEFINITIONS if s["id"] == skill_id), None)
+        if defn is None:
+            raise ValueError(f"Unknown skill_id: {skill_id!r}")
         # #459: ON CONFLICT DO NOTHING on (user_id, skill_id) — a concurrent
         # get_or_create may have just inserted the same row (race window the
         # SELECT above cannot see under READ COMMITTED). The unique constraint
