@@ -11,6 +11,7 @@ from litestar.status_codes import HTTP_404_NOT_FOUND
 from app.auth.deps import CurrentUser, DbDep
 from app.auth.ownership import assert_session_owned
 from app.crud.session_score import get_by_session_id
+from app.middleware import check_rate_limit
 from app.schemas import SessionScoreResponse
 
 if TYPE_CHECKING:
@@ -26,6 +27,9 @@ class ScoresController(Controller):
         self, session_id: str, user: CurrentUser, db: DbDep
     ) -> SessionScoreResponse:
         await assert_session_owned(db, session_id, user)
+        # #788: rate-limit the DB read — a flood of /scores requests hit the
+        # session_scores table with no guard. Same 60/min budget as gamification.
+        await check_rate_limit(f"scores:{user.id}", max_requests=60, window_seconds=60)
         score = await get_by_session_id(db, session_id)
         if not score:
             raise ClientException(status_code=HTTP_404_NOT_FOUND, detail="Session scores not found")
