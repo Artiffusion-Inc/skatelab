@@ -6,7 +6,7 @@
  */
 
 import { z } from "zod"
-import { API_BASE, ApiError, apiFetch, clearTokens } from "@/lib/api-client"
+import { apiFetch, authFetch, clearTokens } from "@/lib/api-client"
 
 // ---------------------------------------------------------------------------
 // Schemas
@@ -102,11 +102,28 @@ export async function refreshToken(): Promise<TokenResponse> {
 }
 
 export async function logout(): Promise<void> {
-  await fetch(`${API_BASE}/auth/logout`, {
-    method: "POST",
-    credentials: "include",
-    headers: JSON_POST,
-  }).catch(() => {})
+  // #826: was raw fetch that swallowed server errors and network failures
+  // — clearTokens() ran unconditionally, local state cleared while the
+  // server-side refresh token stayed valid (silent session leak). Now use
+  // authFetch so a 401 triggers silent refresh and the call actually reaches
+  // the revocation endpoint.
+  try {
+    const res = await authFetch("/auth/logout", {
+      method: "POST",
+      credentials: "include",
+      headers: JSON_POST,
+    })
+    if (!res.ok) {
+      // Surface non-auth failures; caller decides whether to retry. Still
+      // clear local state below so the UI is consistent, but the server
+      // revocation status is now observable instead of silently dropped.
+      console.warn(`logout returned ${res.status}, server session may remain`)
+    }
+  } catch (e) {
+    // Network failure — log so it's not invisible, but proceed to clear local
+    // state so the user is logged out client-side.
+    console.warn("logout request failed, server session may remain:", e)
+  }
   clearTokens()
 }
 
@@ -140,30 +157,26 @@ export async function updateOnboardingRole(
   })
 }
 
+// #827: verify/resend return { message } — validate with zod so apiFetch
+// (which orchestrates silent refresh on 401) can be used instead of raw fetch.
+const MessageResponseSchema = z.object({ message: z.string() })
+
 export async function verifyEmail(token: string): Promise<{ message: string }> {
-  const res = await fetch(`${API_BASE}/auth/verify-email`, {
+  // #827: was raw fetch — a 401 (expired access cookie) threw "Verification
+  // failed" even though the verification token was valid, because there was
+  // no silent refresh. apiFetch with auth:true refreshes on 401 before giving
+  // up, so an expired access cookie no longer fails a valid verification.
+  return apiFetch("/auth/verify-email", MessageResponseSchema, {
     method: "POST",
-    credentials: "include",
     headers: JSON_POST,
     body: JSON.stringify({ token }),
   })
-  if (!res.ok) {
-    const data = await res.json().catch(() => ({}))
-    throw new Error(data.message ?? "Verification failed")
-  }
-  return res.json()
 }
 
 export async function resendVerification(email: string): Promise<{ message: string }> {
-  const res = await fetch(`${API_BASE}/auth/resend-verification`, {
+  return apiFetch("/auth/resend-verification", MessageResponseSchema, {
     method: "POST",
-    credentials: "include",
     headers: JSON_POST,
     body: JSON.stringify({ email }),
   })
-  if (!res.ok) {
-    const data = await res.json().catch(() => ({}))
-    throw new Error(data.message ?? "Resend failed")
-  }
-  return res.json()
 }

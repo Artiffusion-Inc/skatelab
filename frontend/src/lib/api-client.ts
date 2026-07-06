@@ -54,6 +54,22 @@ export class ApiError extends Error {
 // Silent refresh mutex
 // ---------------------------------------------------------------------------
 
+// #825: backend ErrorResponse shape is { error, message, details, path } —
+// no `detail` key. Was: `body.detail` → undefined → ApiError with empty
+// message, real error text discarded. Read message, fall back to error,
+// then to HTTP status.
+async function readErrorMessage(res: Response): Promise<string> {
+  const fallback = `HTTP ${res.status}`
+  const body = await res.json().catch(() => null)
+  if (body && typeof body === "object") {
+    const b = body as Record<string, unknown>
+    if (typeof b.message === "string" && b.message) return b.message
+    if (typeof b.error === "string" && b.error) return b.error
+    if (typeof b.detail === "string" && b.detail) return b.detail
+  }
+  return fallback
+}
+
 let refreshPromise: Promise<boolean> | null = null
 
 async function silentRefresh(): Promise<boolean> {
@@ -123,8 +139,7 @@ export async function apiFetch<T>(
         })
         if (retryRes.status === 204) return undefined as T
         if (!retryRes.ok) {
-          const body = await retryRes.json().catch(() => ({ detail: `HTTP ${retryRes.status}` }))
-          throw new ApiError(body.detail, retryRes.status)
+          throw new ApiError(await readErrorMessage(retryRes), retryRes.status)
         }
         return schema.parse(await retryRes.json())
       } catch (error) {
@@ -136,8 +151,7 @@ export async function apiFetch<T>(
   }
 
   if (!res.ok) {
-    const body = await res.json().catch(() => ({ detail: `HTTP ${res.status}` }))
-    throw new ApiError(body.detail, res.status)
+    throw new ApiError(await readErrorMessage(res), res.status)
   }
 
   if (res.status === 204) return undefined as T
@@ -163,11 +177,15 @@ export async function authFetch(path: string, init?: RequestInit): Promise<Respo
     }
     const refreshed = await refreshPromise
     if (refreshed) {
-      return fetch(`${API_BASE}${path}`, {
+      const retryRes = await fetch(`${API_BASE}${path}`, {
         ...init,
         credentials: "include",
         headers: init?.headers,
       })
+      // #828: if retry still 401, refresh didn't actually restore auth —
+      // treat as auth failure instead of returning a 401 Response as if ok.
+      if (retryRes.status === 401) handleAuthFailure()
+      return retryRes
     }
     handleAuthFailure()
   }

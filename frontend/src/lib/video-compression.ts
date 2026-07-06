@@ -197,7 +197,16 @@ export async function compressVideoWebCodecs(
     options.onProgress(Math.min(Math.round(progress * 100), 99))
   }
 
-  await conversion.execute()
+  // #824: enforce the documented 60s timeout on WebCodecs path too.
+  await Promise.race([
+    conversion.execute(),
+    new Promise<never>((_, reject) =>
+      setTimeout(
+        () => reject(new Error(`Compression timed out after ${COMPRESSION_TIMEOUT_MS}ms`)),
+        COMPRESSION_TIMEOUT_MS,
+      ),
+    ),
+  ])
 
   const buffer = target.buffer
   if (!buffer) {
@@ -255,11 +264,27 @@ export async function compressVideoFFmpeg(
     }
   })
 
-  await ffmpeg.exec([
+  // #823: match WebCodecs upscale policy — scale = min(max/W, max/H, 1),
+  // capped at 1 so small videos are NOT upscaled. Was: `scale=${maxWidth}:-2`
+  // which always scaled width to maxWidth (1280), inflating 640×480 → 1280×960.
+  let scaleFilter = `scale='min(${options.maxWidth},iw)':-2`
+  try {
+    const meta = await getVideoMetadata(file)
+    if (meta.width > 0 && meta.height > 0) {
+      const scale = Math.min(options.maxWidth / meta.width, options.maxHeight / meta.height, 1)
+      const outW = Math.round((meta.width * scale) / 2) * 2
+      const outH = Math.round((meta.height * scale) / 2) * 2
+      scaleFilter = `scale=${outW}:${outH}`
+    }
+  } catch {
+    // metadata unavailable — keep the conservative min() fallback above
+  }
+
+  const execPromise = ffmpeg.exec([
     "-i",
     "input.mp4",
     "-vf",
-    `scale=${options.maxWidth}:-2`,
+    scaleFilter,
     "-r",
     String(options.fps),
     "-c:v",
@@ -270,6 +295,18 @@ export async function compressVideoFFmpeg(
     "-pix_fmt",
     "yuv420p",
     "output.mp4",
+  ])
+
+  // #824: enforce the documented 60s timeout. Was: COMPRESSION_TIMEOUT_MS
+  // exported but never referenced — hung compression blocked indefinitely.
+  await Promise.race([
+    execPromise,
+    new Promise<never>((_, reject) =>
+      setTimeout(
+        () => reject(new Error(`Compression timed out after ${COMPRESSION_TIMEOUT_MS}ms`)),
+        COMPRESSION_TIMEOUT_MS,
+      ),
+    ),
   ])
 
   const data = (await ffmpeg.readFile("output.mp4")) as Uint8Array
