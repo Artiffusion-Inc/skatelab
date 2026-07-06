@@ -36,7 +36,7 @@ class UploadsController(Controller):
         verified_user: VerifiedUser,
         file_name: str = Parameter(min_length=1),
         content_type: str = Parameter(default="video/mp4"),
-        total_size: int = Parameter(gt=0),
+        total_size: int = Parameter(gt=0, le=10 * 1024 * 1024 * 1024),  # #681: max 10 GB
     ) -> dict:
         """Initialize a multipart upload. Returns upload_id and pre-signed part URLs."""
         await check_rate_limit(
