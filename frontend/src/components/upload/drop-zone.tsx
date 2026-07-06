@@ -6,8 +6,17 @@ import { toast } from "sonner"
 import { useTranslations } from "@/i18n"
 import { isZipFile, isVideoFile } from "@/lib/zip-parser"
 
-const ACCEPTED_EXTENSIONS = ".zip,.mp4,.mov,.webm,.mkv"
-const MAX_SIZE = 50 * 1024 * 1024 // 50MB (compressed)
+// #822: drop .mkv — parseZip and the render/compression path don't support
+// Matroska. Keep the upload gate's accept list in sync with VIDEO_EXTENSIONS
+// in zip-parser.ts (mp4/mov/webm).
+const ACCEPTED_EXTENSIONS = ".zip,.mp4,.mov,.webm"
+// #830: gate used to check the *pre-compression* file.size against a 50 MB
+// cap labeled "(compressed)". The upload pipeline (upload/page.tsx) runs
+// compressVideo first — 6-10x reduction — so a 200 MB raw clip that compresses
+// to ~25 MB was rejected at the gate while the pipeline would have handled it.
+// Raise to a realistic pre-compression ceiling. Compression still runs after,
+// and the *compressed* upload is what the backend sees.
+const MAX_SIZE = 500 * 1024 * 1024 // 500MB pre-compression
 
 export function DropZone({
   onFile,

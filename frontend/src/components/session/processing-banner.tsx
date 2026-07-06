@@ -27,7 +27,12 @@ export function ProcessingBanner({ taskId, onCancel, onRetry }: ProcessingBanner
 
   if (!taskId) return null
 
-  const progress = stream.state?.progress ?? 0
+  // #831: backend worker emits progress in 0..1 (0.0, 0.1, 0.7, 1.0), but
+  // <Progress> computes `translateX(-${100 - value}%)` expecting 0..100. A
+  // raw 0.7 rendered at 99.3% (≈full) and terminal 1.0 never reached 100%.
+  // Normalize here so the indicator reflects real percentage.
+  const rawProgress = stream.state?.progress ?? 0
+  const progress = Math.min(Math.round(rawProgress * 100), 100)
   const status = stream.state?.status ?? "queued"
 
   const elapsed = (now - mountTime.current) / 1000
