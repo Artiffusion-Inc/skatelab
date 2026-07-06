@@ -209,7 +209,14 @@ def _generate_candidates(
 
         jump_pass_count = sum(1 for e in elements if "jump_pass_index" in e)
         if segment == "free_skate" and jump_pass_count >= 3:
-            back_half = set(range(jump_pass_count - 3, jump_pass_count))
+            # #846: back-half bonus indices must be POSITIONAL (matching
+            # calculate_tes's enumerate(elements) index space), not logical
+            # jump-pass ordinals. A combo continuation occupies a positional
+            # slot, shifting later jump passes above their logical ordinal —
+            # ``range(jpc-3, jpc)`` would then bonus the wrong elements.
+            # Mirrors the fallback path in _generate_back_half_variants.
+            jump_pass_indices = [i for i, e in enumerate(elements) if "jump_pass_index" in e]
+            back_half = set(jump_pass_indices[-3:])
         else:
             back_half = set()
 
@@ -259,8 +266,12 @@ def _generate_positions(n: int) -> list[dict]:
 
     Uses a simple Poisson-disk-like approach: jittered grid to avoid clustering.
     Elements are spread across the full rink surface with padding from edges.
+
+    #845: do NOT reseed the global RNG here — solve_layout already seeds when
+    ``seed is not None`` (Python OS-seeds on first use otherwise). A bare
+    no-arg reseed wipes the seeded state, making positions non-reproducible
+    across identical-seed calls.
     """
-    random.seed()  # ensure different layout each call
     positions: list[dict] = []
 
     # Grid-based jittered sampling for even distribution

@@ -30,10 +30,11 @@ def compute_fingerprint(audio_path: str) -> str | None:
     try:
         h = hashlib.sha256()
         with path.open("rb") as f:
+            # #847: hash the WHOLE file. ``iter(..., b"")`` terminates on EOF.
+            # The previous first-chunk-only guard (constant digest-size check)
+            # hashed only the first 256KB → prefix collisions.
             for chunk in iter(lambda: f.read(262144), b""):
                 h.update(chunk)
-                if h.digest_size > 0:
-                    break
         return h.hexdigest()[:32]  # Truncate to 32 chars for consistency
     except OSError:
         return None
