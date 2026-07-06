@@ -167,7 +167,11 @@ class ReferenceBuilder:
 
         return ReferenceData(
             element_type=str(data["element_type"]),
-            name=str(data["source"]),
+            # #800: build_from_video set name=video_path.name (basename); load
+            # set name=str(data["source"]) (full path) — round-trip changed
+            # name from "expert.mp4" to "/data/refs/expert.mp4". Use basename
+            # so load matches build. source stays the full string.
+            name=Path(str(data["source"])).name,
             poses=data["poses"],
             poses_3d=poses_3d,
             phases=phases,
