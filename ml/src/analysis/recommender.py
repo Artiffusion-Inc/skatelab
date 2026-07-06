@@ -62,6 +62,17 @@ class Recommender:
 
             if not math.isfinite(metric.value):
                 continue
+
+            # #856: a sentinel reference_range of (0, 0) means "no ideal range
+            # defined for this element" (the element_def does not bond this
+            # metric to an ideal_metrics range — e.g. toe_loop/flip use
+            # relative_jump_height, so max_height keeps (0, 0)). _is_bad(value,
+            # (0, 0)) is True for any nonzero value, so the shared rule would
+            # force-fire on every real jump and spam a recommendation for a
+            # normal metric. Skip: with no range there is no actionable advice.
+            if metric.reference_range == (0, 0):
+                continue
+
             for rule in element_rules:
                 if rule.metric_name != metric.name:
                     continue

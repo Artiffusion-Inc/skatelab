@@ -165,6 +165,14 @@ class BiomechanicsAnalyzer:
                 min_good, max_good = self._element_def.ideal_metrics[result.name]
                 result.is_good = min_good <= result.value <= max_good
                 object.__setattr__(result, "reference_range", (min_good, max_good))
+            else:
+                # #856: this metric has no ideal range for the element (the
+                # element_def does not bond it — e.g. max_height for
+                # toe_loop/flip, which use relative_jump_height instead). The
+                # sentinel (0, 0) means "undefined", and is_good=False would
+                # lie to downstream (multi_score subscores, GOE) that a normal
+                # value is a defect. No data to judge → neutral (True).
+                result.is_good = True
 
         return results
 
