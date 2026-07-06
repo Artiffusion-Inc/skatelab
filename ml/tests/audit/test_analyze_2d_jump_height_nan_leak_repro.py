@@ -97,8 +97,8 @@ import inspect
 import numpy as np
 
 from src.analysis.physics_engine import PhysicsEngine
-from src.utils.geometry import calculate_com_trajectory_2d
 from src.types import H36Key
+from src.utils.geometry import calculate_com_trajectory_2d
 
 
 def _flight_pose_2d(nan_keypoint: str | None = None, n: int = 12) -> np.ndarray:
@@ -127,8 +127,7 @@ def _flight_pose_2d(nan_keypoint: str | None = None, n: int = 12) -> np.ndarray:
     for f in range(2, 8):
         poses[f, :, 1] -= 0.02 * (f - 2) * (7 - f)
     if nan_keypoint:
-        kp = {"rknee": H36Key.RKNEE, "rwrist": H36Key.RWRIST,
-              "lfoot": H36Key.LFOOT}[nan_keypoint]
+        kp = {"rknee": H36Key.RKNEE, "rwrist": H36Key.RWRIST, "lfoot": H36Key.LFOOT}[nan_keypoint]
         # NaN on flight frames (3..6) — inside the takeoff:landing+1 slice.
         for f in range(3, 7):
             poses[f, kp] = [np.nan, np.nan]
@@ -162,8 +161,7 @@ def test_nan_knee_analyze_2d_jump_height_is_finite_repro():
     engine = PhysicsEngine()
 
     # Baseline: all-valid parabolic flight → finite nonzero jump_height.
-    r_valid = engine.analyze_2d(_flight_pose_2d(None), takeoff_idx=2,
-                                landing_idx=7, fps=30.0)
+    r_valid = engine.analyze_2d(_flight_pose_2d(None), takeoff_idx=2, landing_idx=7, fps=30.0)
     assert np.isfinite(r_valid["jump_height"]) and r_valid["jump_height"] > 0.0, (
         f"test fixture broken: all-valid parabolic flight reported jump_height "
         f"{r_valid['jump_height']}, expected finite > 0. The fixture needs a "
@@ -173,8 +171,7 @@ def test_nan_knee_analyze_2d_jump_height_is_finite_repro():
     )
 
     # One occluded knee on flight frames — same flight, one NaN keypoint.
-    r_nan = engine.analyze_2d(_flight_pose_2d("rknee"), takeoff_idx=2,
-                              landing_idx=7, fps=30.0)
+    r_nan = engine.analyze_2d(_flight_pose_2d("rknee"), takeoff_idx=2, landing_idx=7, fps=30.0)
 
     # CORRECT contract: the occluded-keypoint jump_height must be FINITE
     # (graceful NaN-skip / 0.0 sentinel), NOT nan — a NaN-leak breaks JSON
@@ -212,8 +209,7 @@ def test_nan_wrist_analyze_2d_jump_height_is_finite_repro():
     After the fix: graceful degradation on any occluded keypoint.
     """
     engine = PhysicsEngine()
-    r_nan = engine.analyze_2d(_flight_pose_2d("rwrist"), takeoff_idx=2,
-                              landing_idx=7, fps=30.0)
+    r_nan = engine.analyze_2d(_flight_pose_2d("rwrist"), takeoff_idx=2, landing_idx=7, fps=30.0)
 
     assert np.isfinite(r_nan["jump_height"]), (
         f"BUG: PhysicsEngine.analyze_2d returned jump_height={r_nan['jump_height']} "
@@ -282,8 +278,7 @@ def test_all_valid_analyze_2d_jump_height_unchanged_repro():
     regress the all-valid case.
     """
     engine = PhysicsEngine()
-    r = engine.analyze_2d(_flight_pose_2d(None), takeoff_idx=2, landing_idx=7,
-                          fps=30.0)
+    r = engine.analyze_2d(_flight_pose_2d(None), takeoff_idx=2, landing_idx=7, fps=30.0)
     assert np.isfinite(r["jump_height"]) and r["jump_height"] > 0.0, (
         f"BUG (regression): all-valid parabolic flight reported jump_height "
         f"{r['jump_height']}, expected finite > 0. The no-NaN case must be "
@@ -298,57 +293,35 @@ def test_all_valid_analyze_2d_jump_height_unchanged_repro():
 
 
 def test_analyze_2d_jump_height_nan_unsafe_source_repro():
-    """Source check: `analyze_2d` computes
-    `jump_height = float(np.max(flight_com_y) - np.min(flight_com_y))` (NOT
-    `np.nanmax`/`np.nanmin` — propagates NaN) and the unguarded
-    `takeoff_velocity_y = float((com[takeoff_idx, 1] - com[takeoff_idx - 1, 1]) / dt)`.
-    Root cause locked.
+    """GREEN contract source check: the NaN-leak bug is fixed in BOTH places.
 
-    RED now: the `np.max(flight_com_y) - np.min(flight_com_y)` line and the
-    unguarded backward-diff line are present (PASS — root cause locked). After
-    the fix: the max/min becomes `np.nanmax`/`np.nanmin` (or a NaN mask /
-    sentinel) and/or the backward-diff guards NaN — this test FAILS,
-    signaling the observable tests above should flip to GREEN.
+    `analyze_2d` guards jump_height against a non-finite CoM peak (NaN-safe
+    finite mask instead of NaN-propagating `np.min`) and guards the takeoff
+    backward-diff velocity. `calculate_com_trajectory_2d` masks NaN keypoints
+    so an occluded joint cannot poison the CoM (the source-level fix that
+    also repairs smoothness BM / hard_landing BN / relative_jump_height BP /
+    toe_assist BQ / approach_direction_change BR / jump_height_com BS /
+    landing_com_velocity BT).
     """
     src = inspect.getsource(PhysicsEngine.analyze_2d)
-    # The np.max - np.min (NOT nanmax/nanmin) line is present — propagates NaN.
-    assert "jump_height = float(np.max(flight_com_y) - np.min(flight_com_y))" in src, (
-        "BUG: analyze_2d must compute "
-        "`jump_height = float(np.max(flight_com_y) - np.min(flight_com_y))` "
-        "(NaN-propagating, not `np.nanmax`/`np.nanmin`) for this repro to be "
-        "valid. If it was changed to `np.nanmax(...) - np.nanmin(...)` (or a "
-        "NaN mask), the NaN-leak bug is fixed — update the observable tests to "
-        "the GREEN contract."
+    # jump_height uses a NaN-safe finite mask on the flight CoM, not the raw
+    # NaN-propagating `np.min(flight_com_y)`.
+    assert "np.isfinite(flight_com_y)" in src and "np.min(finite_com_y)" in src, (
+        "BUG: analyze_2d must compute jump_height from a finite mask of the "
+        "flight CoM so a fully-occluded frame cannot leak NaN (#883)."
     )
-    assert "np.nanmax" not in src and "np.nanmin" not in src, (
-        "BUG: analyze_2d now uses `np.nanmax`/`np.nanmin` — the NaN-leak bug is "
-        "fixed; update the observable tests to the GREEN contract."
-    )
-    # The unguarded takeoff_velocity backward-diff line is present.
-    assert "takeoff_velocity_y = float((com[takeoff_idx, 1] - com[takeoff_idx - 1, 1]) / dt)" in src, (
-        "BUG: analyze_2d must compute the unguarded backward diff "
-        "`takeoff_velocity_y = float((com[takeoff_idx, 1] - com[takeoff_idx - 1, 1]) / dt)` "
-        "for this repro to be valid. If a NaN guard was added on "
-        "`takeoff_velocity`, the NaN-leak bug is fixed — update the observable "
-        "tests to the GREEN contract."
-    )
-    assert "np.isfinite" not in src and "np.isnan" not in src, (
-        "BUG: a NaN guard (`np.isfinite` / `np.isnan`) appeared in analyze_2d — "
-        "the NaN-leak bug is fixed; update the observable tests to the GREEN "
-        "contract."
+    # takeoff_velocity backward-diff guards a non-finite result.
+    assert "np.isfinite(takeoff_velocity_y)" in src, (
+        "BUG: analyze_2d must guard the takeoff backward-diff velocity against "
+        "a non-finite CoM (#883)."
     )
 
-    # And the 2D CoM trajectory is a plain weighted sum (no NaN masking) —
-    # proving a NaN keypoint poisons the CoM. Same root cause as BM/BN/BP/BQ/
+    # And the 2D CoM trajectory is NaN-aware — masking NaN keypoints so an
+    # occluded joint cannot poison the CoM. Same root cause as BM/BN/BP/BQ/
     # BR/BS/BT.
     com_src = inspect.getsource(calculate_com_trajectory_2d)
-    assert "np.isnan" not in com_src and "np.isfinite" not in com_src and \
-        "nanmean" not in com_src and "nansum" not in com_src, (
-        "BUG: calculate_com_trajectory_2d now has a NaN-aware path "
-        "(np.isnan / np.isfinite / nanmean / nansum) — the CoM NaN-propagation "
-        "bug is fixed at the source; update the observable tests to the GREEN "
-        "contract. (This would also fix every CoM-based metric — smoothness BM, "
-        "hard_landing BN, relative_jump_height BP, toe_assist BQ, "
-        "approach_direction_change BR, jump_height_com BS, landing_com_velocity "
-        "BT — at once.)"
+    assert "np.isfinite" in com_src, (
+        "BUG: calculate_com_trajectory_2d must mask NaN keypoints "
+        "(np.isfinite) so a single occluded joint cannot NaN-poison the CoM "
+        "and leak into analyze_2d jump_height / takeoff_velocity."
     )

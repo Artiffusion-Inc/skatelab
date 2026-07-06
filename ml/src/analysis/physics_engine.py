@@ -585,12 +585,21 @@ class PhysicsEngine:
             # takeoff, so a deeper landing reported a TALLER jump for the same
             # physical jump — landing absorption was conflated with jump height.
             # takeoff_y - peak_y is invariant to landing depth.
-            jump_height = float(com[takeoff_idx, 1] - np.min(flight_com_y))
+            # #883: NaN-safe peak — np.min propagates NaN if a flight frame is
+            # fully occluded. Use a finite mask so jump_height never leaks NaN.
+            finite_com_y = flight_com_y[np.isfinite(flight_com_y)]
+            if finite_com_y.size == 0 or not np.isfinite(com[takeoff_idx, 1]):
+                jump_height = 0.0
+            else:
+                jump_height = float(com[takeoff_idx, 1] - np.min(finite_com_y))
 
             if takeoff_idx > 0:
                 dt = 1.0 / fps
                 takeoff_velocity_y = float((com[takeoff_idx, 1] - com[takeoff_idx - 1, 1]) / dt)
-                takeoff_velocity = abs(takeoff_velocity_y)
+                # #883: guard NaN leak on the backward diff.
+                takeoff_velocity = (
+                    abs(takeoff_velocity_y) if np.isfinite(takeoff_velocity_y) else 0.0
+                )
 
             try:
                 t_flight = np.arange(flight_frames) / fps
