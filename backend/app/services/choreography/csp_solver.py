@@ -6,6 +6,7 @@ optimizing for maximum TES with back-half bonus.
 
 from __future__ import annotations
 
+import math
 import random
 from itertools import combinations
 
@@ -204,9 +205,10 @@ def _generate_candidates(
 
         tes = _score_layout(elements, back_half)
 
-        # Dedup by fingerprint — keep highest TES per unique element set
+        # #667: NaN TES poisons fingerprint — real tes never beats NaN.
+        # Replace NaN entries with any finite value; prefer higher finite TES.
         fp = _layout_fingerprint(elements)
-        if fp not in best_by_fp or tes > best_by_fp[fp][0]:
+        if fp not in best_by_fp or not math.isfinite(best_by_fp[fp][0]) or tes > best_by_fp[fp][0]:
             best_by_fp[fp] = (
                 tes,
                 {
