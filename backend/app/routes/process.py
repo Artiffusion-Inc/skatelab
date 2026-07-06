@@ -24,6 +24,7 @@ from app.schemas import (
 )
 from app.task_manager import (
     TASK_EVENTS_PREFIX,
+    TaskStatus,
     create_task_state,
     get_task_state,
     get_valkey,
@@ -104,6 +105,19 @@ class ProcessController(Controller):
     async def cancel_queued_process(self, task_id: str, user: CurrentUser) -> dict:
         """Cancel a queued or running task via Valkey signal."""
         await assert_task_owned(task_id, user)
+        # #701: check current status before setting the cancel signal. The
+        # worker clears the signal on terminal transition, so setting it on an
+        # already-completed/failed/cancelled task is a no-op that misreports
+        # success — the client thinks cancel worked but the worker did nothing.
+        # A cancel arriving after the task completed is a race; report it
+        # honestly instead of pretending the cancel took effect.
+        state = await get_task_state(task_id)
+        if state and state.get("status") in (
+            TaskStatus.COMPLETED,
+            TaskStatus.FAILED,
+            TaskStatus.CANCELLED,
+        ):
+            return {"status": "already_terminal", "task_id": task_id}
         await set_cancel_signal(task_id)
         return {"status": "cancel_requested", "task_id": task_id}
 
