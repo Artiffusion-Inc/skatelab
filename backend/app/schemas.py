@@ -484,7 +484,7 @@ class TrendResponse(BaseModel):
     metric_name: str
     element_type: str
     data_points: list[TrendDataPoint]
-    trend: str  # improving | stable | declining
+    trend: str = Field(pattern=r"^(improving|stable|declining)$")  # #677
     current_pr: float | None
     reference_range: dict[str, float] | None
 
@@ -594,8 +594,19 @@ class LayoutElement(BaseModel):
 
 class Layout(BaseModel):
     elements: list[LayoutElement]
-    total_tes: float
+    total_tes: float = Field(
+        ge=0
+    )  # #679: reject NaN/negative; inf also rejected by validator below
     back_half_indices: list[int]
+
+    @field_validator("total_tes", mode="before")
+    @classmethod
+    def _reject_nonfinite_tes(cls, v: Any) -> float:
+        import math
+
+        if isinstance(v, float) and not math.isfinite(v):
+            raise ValueError("total_tes must be finite, not inf or NaN")
+        return v
 
 
 class GenerateResponse(BaseModel):
@@ -742,6 +753,16 @@ class PhaseExtendedSchema(BaseModel):
     end_time: float = Field(ge=0)
     confidence: float = Field(ge=0, le=1)
     detection_method: str
+
+    @field_validator("start_time", "end_time", mode="before")
+    @classmethod
+    def _reject_infinity(cls, v: Any) -> float:
+        # #676: inf passes ge=0 (inf >= 0 is True). Reject non-finite values.
+        import math
+
+        if isinstance(v, float) and not math.isfinite(v):
+            raise ValueError("must be finite, not inf or NaN")
+        return v
 
 
 class PhaseDetectionResultSchema(BaseModel):
