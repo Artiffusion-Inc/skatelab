@@ -578,7 +578,14 @@ class PhysicsEngine:
 
             flight_com_y = com[takeoff_idx : landing_idx + 1, 1]
 
-            jump_height = float(np.max(flight_com_y) - np.min(flight_com_y))
+            # #855: jump height is the CoM elevation ABOVE takeoff, not the
+            # full peak-to-trough range over the window. In Y-down image coords
+            # the peak is the MINIMUM y. The old form (max - min) took the
+            # landing frame as the max when a knee-bend dropped the CoM below
+            # takeoff, so a deeper landing reported a TALLER jump for the same
+            # physical jump — landing absorption was conflated with jump height.
+            # takeoff_y - peak_y is invariant to landing depth.
+            jump_height = float(com[takeoff_idx, 1] - np.min(flight_com_y))
 
             if takeoff_idx > 0:
                 dt = 1.0 / fps

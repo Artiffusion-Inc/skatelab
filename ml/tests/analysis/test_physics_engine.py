@@ -240,11 +240,16 @@ class TestPhysicsEngine2D:
 
     @pytest.fixture
     def poses_2d_jump(self):
-        """Synthetic 2D jump pose sequence (N, 17, 2)."""
+        """Synthetic 2D jump pose sequence (N, 17, 2).
+
+        Y-down image coords: the CoM RISES at the peak = Y DECREASES
+        (#855). The CoM is highest (min Y) mid-flight and returns near takeoff
+        level at landing, so jump_height = takeoff_y − peak_y > 0.
+        """
         rng = np.random.default_rng(42)
         poses = rng.random((60, 17, 2)).astype(np.float32)
-        # Simulate a jump: Y values peak in middle
-        com_y = np.sin(np.linspace(0, np.pi, 60)) * 0.3 + 0.5
+        # CoM dips to min Y at the middle (peak elevation), rises back at landing.
+        com_y = 0.5 - np.sin(np.linspace(0, np.pi, 60)) * 0.3
         poses[:, :, 1] = com_y[:, np.newaxis] + rng.random((60, 17)).astype(np.float32) * 0.01
         return poses
 
