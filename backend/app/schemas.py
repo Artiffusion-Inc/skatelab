@@ -106,12 +106,36 @@ class UpdateProfileRequest(BaseModel):
     height_cm: int | None = Field(default=None, ge=50, le=250)
     weight_kg: float | None = Field(default=None, ge=20, le=300)
 
+    @field_validator("display_name", mode="before")
+    @classmethod
+    def strip_html(cls, v: str | None) -> str | None:
+        # #752: reject display_name containing HTML tags (stored XSS prevention)
+        if v is not None and ("<" in v or ">" in v):
+            raise ValueError("display_name must not contain HTML tags")
+        return v
+
 
 class UpdateSettingsRequest(BaseModel):
-    language: str | None = Field(default=None, max_length=10)
+    language: str | None = Field(default=None, pattern=r"^(ru|en)$")
     timezone: str | None = Field(default=None, max_length=50)
     theme: str | None = Field(default=None, pattern=r"^(light|dark|system)$")
     angular_unit: str | None = Field(default=None, pattern=r"^(deg_per_sec|rpm)$")
+
+    @field_validator("timezone", mode="before")
+    @classmethod
+    def validate_timezone(cls, v: str | None) -> str | None:
+        # #746: validate timezone against IANA database
+        if v is None:
+            return v
+        from zoneinfo import ZoneInfoNotFoundError
+
+        try:
+            from zoneinfo import ZoneInfo
+
+            ZoneInfo(v)
+        except ZoneInfoNotFoundError:
+            raise ValueError(f"Invalid IANA timezone: {v}") from None
+        return v
 
 
 class UpdateOnboardingRoleRequest(BaseModel):
