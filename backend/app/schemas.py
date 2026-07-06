@@ -91,7 +91,10 @@ class UserResponse(BaseModel):
 
     @field_validator("created_at", "updated_at", mode="before")
     @classmethod
-    def validate_datetime(cls, v: Any) -> str:
+    def validate_datetime(cls, v: Any) -> str | None:
+        # #674: None guard — NULL timestamp must not become "None" string.
+        if v is None:
+            return None
         if isinstance(v, datetime):
             return v.isoformat()
         return str(v)
@@ -723,7 +726,9 @@ class SubScoreSchema(BaseModel):
 
 
 class MultiDimensionalScoreSchema(BaseModel):
-    subscores: list[SubScoreSchema]
+    subscores: list[SubScoreSchema] = Field(
+        min_length=1
+    )  # #675: empty subscores silent empty result
     overall: float = Field(ge=0, le=10)
     data_quality: str = "good"
     skeleton_reliability: str = "reliable"
@@ -750,8 +755,7 @@ class SessionScoreResponse(BaseModel):
     id: str
     session_id: str
     subscores: list[SubScoreSchema]
-    overall: float
-    data_quality: str
+    overall: float = Field(ge=0, le=10)  # #673: constrain overall to 0-10
     skeleton_reliability: str
     created_at: str
     updated_at: str
