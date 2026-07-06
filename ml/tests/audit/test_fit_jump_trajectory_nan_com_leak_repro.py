@@ -110,8 +110,7 @@ def _flight_pose_3d(nan_keypoint: str | None = None, n: int = 12) -> np.ndarray:
     for f in range(2, 8):
         poses[f, :, 1] -= 0.02 * (f - 2) * (7 - f)
     if nan_keypoint:
-        kp = {"rknee": H36Key.RKNEE, "rwrist": H36Key.RWRIST,
-              "lfoot": H36Key.LFOOT}[nan_keypoint]
+        kp = {"rknee": H36Key.RKNEE, "rwrist": H36Key.RWRIST, "lfoot": H36Key.LFOOT}[nan_keypoint]
         # NaN on flight frames (3..6) — inside the takeoff:landing+1 slice.
         for f in range(3, 7):
             poses[f, kp] = [np.nan, np.nan, np.nan]
@@ -275,45 +274,33 @@ def test_all_valid_fit_jump_trajectory_height_unchanged_repro():
 
 
 def test_fit_jump_trajectory_nan_unsafe_source_repro():
-    """Source check: `fit_jump_trajectory`'s `except Exception` fallback
-    computes `"height": np.max(flight_com) - np.min(flight_com)` (NOT
-    `np.nanmax`/`np.nanmin` — propagates NaN). Root cause locked.
+    """GREEN contract source check: the NaN-leak bug is fixed in BOTH places.
 
-    RED now: the `np.max(flight_com) - np.min(flight_com)` fallback line is
-    present (PASS — root cause locked). After the fix: the fallback becomes
-    `np.nanmax(...) - np.nanmin(...)` (or a NaN mask / sentinel) — this test
-    FAILS, signaling the observable tests above should flip to GREEN.
+    `fit_jump_trajectory`'s except-fallback computes height from a NaN-safe
+    finite mask (not the NaN-propagating `np.max(flight_com) - np.min(...)`)
+    and guards the result. `calculate_center_of_mass` masks NaN keypoints so
+    an occluded joint cannot poison the CoM (the source-level fix that
+    repairs every 3D CoM-based metric).
     """
     src = inspect.getsource(PhysicsEngine.fit_jump_trajectory)
-    # The np.max - np.min (NOT nanmax/nanmin) fallback line is present —
-    # propagates NaN.
-    assert '"height": np.max(flight_com) - np.min(flight_com)' in src, (
-        "BUG: fit_jump_trajectory's except-fallback must compute "
-        "`\"height\": np.max(flight_com) - np.min(flight_com)` "
-        "(NaN-propagating, not `np.nanmax`/`np.nanmin`) for this repro to be "
-        "valid. If it was changed to `np.nanmax(...) - np.nanmin(...)` (or a "
-        "NaN mask), the NaN-leak bug is fixed — update the observable tests to "
-        "the GREEN contract."
+    # The except-fallback uses a NaN-safe finite mask, not NaN-propagating
+    # np.max(flight_com) - np.min(flight_com).
+    assert "np.isfinite(flight_com)" in src and "np.max(finite_com) - np.min(finite_com)" in src, (
+        "BUG: fit_jump_trajectory's except-fallback must compute height from a "
+        "finite mask of the flight CoM so a fully-occluded frame cannot leak "
+        "NaN (#884)."
     )
-    assert "np.nanmax" not in src and "np.nanmin" not in src, (
-        "BUG: fit_jump_trajectory now uses `np.nanmax`/`np.nanmin` — the "
-        "NaN-leak bug is fixed; update the observable tests to the GREEN "
-        "contract."
-    )
-    assert "np.isfinite" not in src and "np.isnan" not in src, (
-        "BUG: a NaN guard (`np.isfinite` / `np.isnan`) appeared in "
-        "fit_jump_trajectory — the NaN-leak bug is fixed; update the "
-        "observable tests to the GREEN contract."
+    assert "np.isfinite(fallback_height)" in src, (
+        "BUG: fit_jump_trajectory's except-fallback must guard the fallback "
+        "height against a non-finite result (#884)."
     )
 
-    # And the 3D CoM (`calculate_center_of_mass`) is a plain weighted sum (no
-    # NaN masking) — proving a NaN keypoint poisons the CoM. Same root cause
-    # as BM/BN/BP/BQ/BR/BS/BT/BV.
+    # And the 3D CoM (`calculate_center_of_mass`) is NaN-aware — masking NaN
+    # keypoints so an occluded joint cannot poison the CoM. Same root cause as
+    # BM/BN/BP/BQ/BR/BS/BT/BV.
     com_src = inspect.getsource(PhysicsEngine.calculate_center_of_mass)
-    assert "np.isnan" not in com_src and "np.isfinite" not in com_src and \
-        "nanmean" not in com_src and "nansum" not in com_src, (
-        "BUG: calculate_center_of_mass now has a NaN-aware path "
-        "(np.isnan / np.isfinite / nanmean / nansum) — the CoM NaN-propagation "
-        "bug is fixed at the source; update the observable tests to the GREEN "
-        "contract. (This would also fix every CoM-based metric at once.)"
+    assert "np.isfinite" in com_src, (
+        "BUG: calculate_center_of_mass must mask NaN keypoints (np.isfinite) "
+        "so a single occluded joint cannot NaN-poison the CoM and leak into "
+        "fit_jump_trajectory height."
     )
