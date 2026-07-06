@@ -100,8 +100,8 @@ import numpy as np
 
 from src.analysis.element_defs import ELEMENT_DEFS
 from src.analysis.metrics import BiomechanicsAnalyzer
-from src.utils.geometry import calculate_com_trajectory
 from src.types import ElementPhase, H36Key
+from src.utils.geometry import calculate_com_trajectory
 
 
 def _flight_pose(nan_keypoint: str | None = None, n: int = 12) -> np.ndarray:
@@ -130,8 +130,7 @@ def _flight_pose(nan_keypoint: str | None = None, n: int = 12) -> np.ndarray:
     for f in range(2, 8):
         poses[f, :, 1] -= 0.02 * (f - 2) * (7 - f)
     if nan_keypoint:
-        kp = {"rknee": H36Key.RKNEE, "rwrist": H36Key.RWRIST,
-              "lfoot": H36Key.LFOOT}[nan_keypoint]
+        kp = {"rknee": H36Key.RKNEE, "rwrist": H36Key.RWRIST, "lfoot": H36Key.LFOOT}[nan_keypoint]
         # NaN on flight frames (3..6) — inside the takeoff:landing+1 slice.
         for f in range(3, 7):
             poses[f, kp] = [np.nan, np.nan]
@@ -139,8 +138,7 @@ def _flight_pose(nan_keypoint: str | None = None, n: int = 12) -> np.ndarray:
 
 
 def _phases(n: int = 12):
-    return ElementPhase(name="waltz_jump", start=0, takeoff=2, peak=4,
-                        landing=7, end=n - 1)
+    return ElementPhase(name="waltz_jump", start=0, takeoff=2, peak=4, landing=7, end=n - 1)
 
 
 # --------------------------------------------------------------------------- #
@@ -297,53 +295,56 @@ def test_all_valid_jump_height_com_unchanged_repro():
 
 
 def test_jump_height_com_nan_unsafe_source_repro():
-    """Source check: `compute_jump_height_com` computes
-    `peak_com = np.min(flight_com)` (NOT `np.nanmin` — propagates NaN) and
-    `return float(takeoff_com - peak_com)` (no NaN guard on the return). Root
-    cause locked.
+    """Source check (GREEN contract): the #879 fix is in place.
 
-    RED now: the `np.min(flight_com)` line and the unguarded
-    `return float(takeoff_com - peak_com)` line are present (PASS — root cause
-    locked). After the fix: the min becomes `np.nanmin` (or a NaN mask /
-    sentinel) and/or the return guards NaN — this test FAILS, signaling the
-    observable tests above should flip to GREEN.
+    Root cause: `compute_jump_height_com` computed
+    `peak_com = np.min(flight_com)` (NOT np.nanmin -- propagates NaN over the
+    whole flight window from one occluded keypoint) and
+    `return float(takeoff_com - peak_com)` with no NaN guard, so the metric
+    returned nan on occlusion -- leaking into the max_height value and
+    breaking JSON serialization (RFC 8259), the recommender, and frontend
+    display. The NaN-aware CoM (#871) keeps CoM finite when a few keypoints
+    are occluded, so the observable tests already flip GREEN from #871 alone;
+    this source check locks the remaining fix: np.nanmin + finite guards so a
+    fully-occluded flight frame (NaN CoM) does not re-introduce the leak.
+
+    Fix: np.nanmin (skip NaN frames) + finite guard on peak_com (return 0.0
+    neutral when every flight frame is NaN) + finite guard on the final
+    height.
     """
     src = inspect.getsource(BiomechanicsAnalyzer.compute_jump_height_com)
-    # The np.min (NOT nanmin) line is present — propagates NaN.
-    assert "peak_com = np.min(flight_com)" in src, (
-        "BUG: compute_jump_height_com must compute "
-        "`peak_com = np.min(flight_com)` (NaN-propagating, not `np.nanmin`) "
-        "for this repro to be valid. If it was changed to `np.nanmin(flight_com)` "
-        "(or a NaN mask), the NaN-leak bug is fixed — update the observable "
-        "tests to the GREEN contract."
+    assert "np.nanmin(flight_com)" in src, (
+        "BUG: compute_jump_height_com must use np.nanmin(flight_com) (#879) -- "
+        "np.min propagates NaN over the whole flight window from one occluded "
+        "keypoint."
     )
-    assert "np.nanmin" not in src, (
-        "BUG: compute_jump_height_com now uses `np.nanmin` — the NaN-leak bug "
-        "is fixed; update the observable tests to the GREEN contract."
+    assert "np.min(flight_com)" not in src, (
+        "BUG: compute_jump_height_com still uses np.min(flight_com) "
+        "(NaN-propagating) -- must be np.nanmin (#879)."
     )
-    # The unguarded return line is present.
-    assert "return float(takeoff_com - peak_com)" in src, (
-        "BUG: compute_jump_height_com must compute "
-        "`return float(takeoff_com - peak_com)` (no NaN guard) for this repro "
-        "to be valid. If a NaN guard was added (e.g. "
-        "`if not np.isfinite(peak_com): return 0.0`), the NaN-leak bug is "
-        "fixed — update the observable tests to the GREEN contract."
+    assert "np.isfinite(peak_com)" in src, (
+        "BUG: compute_jump_height_com must guard peak_com with np.isfinite and "
+        "return 0.0 when every flight frame is NaN (#879) -- neutral 'no height', "
+        "not nan."
     )
-    assert "np.isfinite" not in src and "np.isnan" not in src, (
-        "BUG: a NaN guard (`np.isfinite` / `np.isnan`) appeared in "
-        "compute_jump_height_com — the NaN-leak bug is fixed; update the "
-        "observable tests to the GREEN contract."
+    assert "np.isfinite(height)" in src, (
+        "BUG: compute_jump_height_com must guard the final height with "
+        "np.isfinite (#879) -- a NaN takeoff_com or NaN arithmetic must not leak "
+        "into the return value."
+    )
+    assert "return float(takeoff_com - peak_com)" not in src, (
+        "BUG: compute_jump_height_com still uses the bare unguarded "
+        "`return float(takeoff_com - peak_com)` form -- NaN-leak (#879). Must "
+        "guard with np.isfinite and return 0.0."
     )
 
-    # And the CoM trajectory is a plain weighted sum (no NaN masking) —
-    # proving a NaN keypoint poisons the CoM. Same root cause as BM/BN/BP/BQ/BR.
+    # The CoM trajectory is NaN-aware (#871) -- masks NaN keypoints so a few
+    # occluded joints do not poison the CoM. This is the deep root-cause fix
+    # shared across every CoM-based metric.
     com_src = inspect.getsource(calculate_com_trajectory)
-    assert "np.isnan" not in com_src and "np.isfinite" not in com_src and \
-        "nanmean" not in com_src and "nansum" not in com_src, (
-        "BUG: calculate_com_trajectory now has a NaN-aware path "
-        "(np.isnan / np.isfinite / nanmean / nansum) — the CoM NaN-propagation "
-        "bug is fixed at the source; update the observable tests to the GREEN "
-        "contract. (This would also fix every CoM-based metric — smoothness BM, "
-        "hard_landing BN, relative_jump_height BP, toe_assist BQ, "
-        "approach_direction_change BR — at once.)"
+    assert "np.isfinite" in com_src, (
+        "BUG: calculate_com_trajectory must mask NaN keypoints (#871) -- the "
+        "deep root-cause fix shared across every CoM-based metric (smoothness BM, "
+        "hard_landing BN, relative_jump_height BP, toe_assist BQ, approach BR, "
+        "jump_height BS)."
     )
