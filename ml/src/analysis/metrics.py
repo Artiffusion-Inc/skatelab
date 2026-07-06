@@ -1387,6 +1387,19 @@ class BiomechanicsAnalyzer:
         shoulder_vector = right_shoulder - left_shoulder
         angles = np.arctan2(shoulder_vector[:, 1], shoulder_vector[:, 0])
         unwrapped = np.unwrap(angles)
+        # #909: NaN shoulder on a flight frame (occluded during fast rotation —
+        # arms cross the body) -> shoulder_vector NaN -> arctan2(nan, x) = NaN
+        # -> np.unwrap(NaN) = NaN -> abs(unwrapped[-1] - unwrapped[0]) = NaN
+        # leaked into total_rotation_deg / rotation_count / under_rotation_deg
+        # and the GOE proxy. rotation_count is the PRIMARY jump identifier
+        # (1=single, 2=double, 3=triple) — a NaN hole there makes the
+        # recommender unable to name the jump. Return the 0.0 sentinel (neutral
+        # "no rotation") matching the degenerate-phases guard above, instead of
+        # NaN. Identity on all-finite input. ponytail: all-NaN flight yields 0.0
+        # (biased finite, not NaN); upgrade to inf sentinel if a
+        # degenerate-flight signal is needed.
+        if not np.all(np.isfinite(unwrapped)):
+            return 0.0, 0.0
 
         return compute_total_rotation(unwrapped, fps)
 

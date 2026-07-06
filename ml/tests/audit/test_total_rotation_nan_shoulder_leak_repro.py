@@ -157,9 +157,7 @@ def test_nan_shoulder_total_rotation_finite_repro():
     an = BiomechanicsAnalyzer(get_element_def("waltz_jump"))
 
     # Baseline: all-valid → finite positive total rotation.
-    deg_valid, cnt_valid = an.compute_total_rotation_from_poses(
-        _poses(), _phases(), fps=30.0
-    )
+    deg_valid, cnt_valid = an.compute_total_rotation_from_poses(_poses(), _phases(), fps=30.0)
     assert np.isfinite(deg_valid) and deg_valid > 0.0, (
         f"test fixture broken: all-valid total rotation {deg_valid} is "
         f"non-finite or non-positive; expected finite > 0. The fixture needs "
@@ -184,8 +182,8 @@ def test_nan_shoulder_total_rotation_finite_repro():
         f"`unwrapped[-1]` = NaN → `abs(unwrapped[-1] - unwrapped[0])` = NaN → "
         f"`total_degrees` = NaN → `rotation_count` = NaN/360 = NaN. `analyze` "
         f"(line 369) packs these NaNs into "
-        f"`MetricResult(name=\"total_rotation_deg\", value=NaN)` and "
-        f"`MetricResult(name=\"rotation_count\", value=NaN)` → the NaN flows "
+        f'`MetricResult(name="total_rotation_deg", value=NaN)` and '
+        f'`MetricResult(name="rotation_count", value=NaN)` → the NaN flows '
         f"into the report JSON / GOE (`rotation_count` is the PRIMARY jump "
         f"identifier — a waltz jump read as a NaN hole). The user gets a NaN "
         f"hole in the report instead of a degraded-but-finite estimate. "
@@ -333,62 +331,54 @@ def test_all_valid_total_rotation_unchanged_repro():
 
 
 def test_total_rotation_nan_leak_source_repro():
-    """Source check: `compute_total_rotation_from_poses` computes the
-    shoulder-axis angle with unguarded `np.arctan2(shoulder_vector[:, 1],
-    shoulder_vector[:, 0])` and `np.unwrap(angles)`, and `compute_total_rotation`
-    returns `abs(shoulder_angles_unwrapped[-1] - shoulder_angles_unwrapped[0])`
-    (unguarded, line 1586). NO NaN guard in either. Root cause locked.
-
-    RED now: the unguarded `np.arctan2` + `np.unwrap` + `abs(...[-1] - ...[0])`
-    are present (PASS — root cause locked). After the fix: a NaN guard /
-    `np.isnan` / `np.isfinite` / NaN-mask appears in
-    `compute_total_rotation_from_poses` OR `compute_total_rotation` — this test
-    FAILS, signaling the observable tests above should flip to GREEN.
+    """Source check (GREEN contract): the NaN-leak fix lives in
+    `compute_total_rotation_from_poses` (shared root — both shoulder endpoints
+    and both unwrapped[] endpoint frames route through the unwrap). The
+    `np.arctan2` + `np.unwrap` are still computed; an `np.isfinite` guard on the
+    unwrapped series returns the `0.0, 0.0` sentinel (matching the
+    degenerate-phases guard) so a NaN shoulder does not NaN-poison
+    total_rotation_deg / rotation_count / under_rotation_deg. Identity on
+    all-finite input. `compute_total_rotation` keeps its unguarded endpoint
+    diff — the guard is upstream in `compute_total_rotation_from_poses`, not
+    duplicated in the leaf helper.
     """
     src = inspect.getsource(BiomechanicsAnalyzer.compute_total_rotation_from_poses)
-    # The unguarded np.arctan2 shoulder-axis angle + np.unwrap are present.
+    # The shoulder-axis angle computation is still present (unguarded arctan2
+    # + unwrap, the guard is AFTER them, not replacing them).
     assert "np.arctan2(shoulder_vector[:, 1], shoulder_vector[:, 0])" in src, (
-        "BUG: compute_total_rotation_from_poses must compute "
-        f"`np.arctan2(shoulder_vector[:, 1], shoulder_vector[:, 0])` "
-        f"(unguarded, line 1217) for this repro to be valid. If a NaN guard was "
-        f"added before the arctan2, the NaN-leak is fixed — update the "
-        f"observable tests to the GREEN contract."
+        "BUG: compute_total_rotation_from_poses must still compute "
+        "`np.arctan2(shoulder_vector[:, 1], shoulder_vector[:, 0])`; the #909 "
+        "guard is an isfinite check after the unwrap, not a replacement of the "
+        "angle computation."
     )
     assert "np.unwrap(angles)" in src, (
-        "BUG: compute_total_rotation_from_poses must `np.unwrap(angles)` "
-        "(unguarded, line 1218) for this repro to be valid. If a NaN guard was "
-        "added before/after the unwrap, the NaN-leak is fixed — update the "
-        "observable tests to the GREEN contract."
+        "BUG: compute_total_rotation_from_poses must still `np.unwrap(angles)`; "
+        "the #909 guard is after the unwrap, not before it."
     )
-    assert "np.isnan" not in src and "np.isfinite" not in src and \
-           "np.nan_to_num" not in src, (
-        "BUG: a NaN guard (`np.isnan` / `np.isfinite` / `np.nan_to_num`) "
-        "appeared in compute_total_rotation_from_poses — the NaN-leak is "
-        "fixed; update the observable tests to the GREEN contract."
+    # np.isfinite on the unwrapped series is the #909 NaN guard.
+    assert "np.isfinite" in src, (
+        "BUG: compute_total_rotation_from_poses must guard the unwrapped series "
+        "via `np.isfinite` (#909) so a NaN shoulder on a flight frame does not "
+        "leak NaN into total_rotation_deg / rotation_count / under_rotation_deg."
     )
 
     tot_src = inspect.getsource(compute_total_rotation)
-    # The unguarded abs(unwrapped[-1] - unwrapped[0]) return is present.
+    # compute_total_rotation keeps its unguarded endpoint diff — the guard is
+    # upstream in compute_total_rotation_from_poses, not duplicated in the leaf
+    # helper (single root-cause fix, not a guard in every caller).
     assert "shoulder_angles_unwrapped[-1] - shoulder_angles_unwrapped[0]" in tot_src, (
-        "BUG: compute_total_rotation must return "
-        "`abs(shoulder_angles_unwrapped[-1] - shoulder_angles_unwrapped[0])` "
-        "(unguarded, line 1586) for this repro to be valid. If it was changed "
-        "to a NaN-guarded form, the NaN-leak is fixed — update the observable "
-        "tests to the GREEN contract."
-    )
-    assert "np.isnan" not in tot_src and "np.isfinite" not in tot_src and \
-           "np.nan_to_num" not in tot_src, (
-        "BUG: a NaN guard (`np.isnan` / `np.isfinite` / `np.nan_to_num`) "
-        "appeared in compute_total_rotation — the NaN-leak is fixed; update "
-        "the observable tests to the GREEN contract."
+        "BUG: compute_total_rotation must still return "
+        "`abs(shoulder_angles_unwrapped[-1] - shoulder_angles_unwrapped[0])`; "
+        "the #909 guard lives upstream in compute_total_rotation_from_poses, "
+        "not duplicated in the leaf helper."
     )
 
     # The degenerate-phases guard exists (returns 0.0, 0.0) — proves the
-    # codebase already uses a 0.0 sentinel for degenerate input, so a NaN
+    # codebase already uses a 0.0 sentinel for degenerate input, so the NaN
     # sentinel fits the same pattern.
     assert "return 0.0, 0.0" in src, (
         "BUG: compute_total_rotation_from_poses must guard "
         "`if phases.takeoff >= phases.landing or phases.landing >= len(poses): "
-        "return 0.0, 0.0` (degenerate-phases sentinel) for this repro to be "
-        "valid. If the guard was removed, the repro is invalid."
+        "return 0.0, 0.0` (degenerate-phases sentinel) — the #909 NaN sentinel "
+        "mirrors it. If the guard was removed, the repro is invalid."
     )
