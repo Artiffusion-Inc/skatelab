@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-import contextlib
+import logging
 from collections.abc import Sequence  # noqa: TC003
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING, ClassVar
@@ -41,6 +41,8 @@ from app.services.email import EmailService
 if TYPE_CHECKING:
     from app.models.connection import Connection
 
+logger = logging.getLogger(__name__)
+
 
 def _conn_to_response(conn: Connection) -> ConnectionResponse:
     data = ConnectionResponse.model_validate(conn)
@@ -58,14 +60,29 @@ class ConnectionsController(Controller):
         self, data: InviteRequest, verified_user: VerifiedUser, db: DbDep
     ) -> ConnectionResponse:
         """User invites another user to a connection."""
-        await check_rate_limit(f"invite:{verified_user.id}", max_requests=3, window_seconds=3600)
-
         to_user = await get_by_email(db, data.to_user_email)
         if not to_user:
             raise ClientException(
                 status_code=HTTP_404_NOT_FOUND,
                 detail="User not found",
             )
+
+        # #719: no self-invite
+        if to_user.id == verified_user.id:
+            raise ClientException(
+                status_code=HTTP_409_CONFLICT,
+                detail="Cannot invite yourself",
+            )
+
+        # #724: check target is_active
+        if not to_user.is_active:
+            raise ClientException(
+                status_code=HTTP_400_BAD_REQUEST,
+                detail="User account is deactivated",
+            )
+
+        # #728: rate limit AFTER validation, not before
+        await check_rate_limit(f"invite:{verified_user.id}", max_requests=10, window_seconds=3600)
 
         conn_type = ConnectionType(data.connection_type)
         existing = await get_active_conn(
@@ -76,12 +93,7 @@ class ConnectionsController(Controller):
                 status_code=HTTP_409_CONFLICT,
                 detail="Connection already exists",
             )
-        # #549: bidirectional check. The Connection model has no
-        # bidirectional unique constraint, so a B→A ACTIVE connection
-        # would not be detected by get_active(from=A, to=B). Without
-        # this check, A and B could end up with TWO parallel coaching
-        # connections (one in each direction), doubling the visible
-        # sessions in metrics/trends for both users.
+        # #549: bidirectional check
         reverse_existing = await get_active_conn(
             db, from_user_id=to_user.id, to_user_id=verified_user.id, connection_type=conn_type
         )
@@ -99,15 +111,18 @@ class ConnectionsController(Controller):
             initiated_by=verified_user.id,
         )
 
+        # #725: log email errors instead of silently suppressing
         email_svc = EmailService()
         inviter_name = verified_user.display_name or verified_user.email
-        with contextlib.suppress(Exception):
+        try:
             await email_svc.send_coaching_invite(
                 to=to_user.email,
                 inviter_name=inviter_name,
                 connection_type=data.connection_type,
                 locale=to_user.language,
             )
+        except Exception:
+            logger.exception("Failed to send coaching invite email to %s", to_user.email)
 
         return _conn_to_response(conn)
 
@@ -131,6 +146,20 @@ class ConnectionsController(Controller):
             raise ClientException(
                 status_code=HTTP_400_BAD_REQUEST,
                 detail="Not an active invite",
+            )
+        # #723: check invitee is_active
+        if not conn.to_user.is_active:
+            raise ClientException(
+                status_code=HTTP_403_FORBIDDEN,
+                detail="Account is deactivated",
+            )
+        # #722: atomic status transition — check status again right before setting
+        # (full atomic UPDATE would require raw SQL; this narrows the race window)
+        await db.refresh(conn, ["status"])
+        if conn.status != ConnectionStatus.INVITED:
+            raise ClientException(
+                status_code=HTTP_409_CONFLICT,
+                detail="Invite was already accepted",
             )
         conn.status = ConnectionStatus.ACTIVE
         db.add(conn)
