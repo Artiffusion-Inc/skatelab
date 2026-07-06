@@ -168,7 +168,7 @@ class PhysicsEngine:
         poses_3d: np.ndarray,
         axis: str = "vertical",
     ) -> np.ndarray:
-        """Calculate Moment of Inertia about vertical axis.
+        """Calculate Moment of Inertia about a rotation axis.
 
         I = sum(m_i * r_i^2)
 
@@ -183,86 +183,8 @@ class PhysicsEngine:
         Returns:
             inertia: (N,) array of moment of inertia values (kg·m²)
         """
-        from ..pose_estimation import H36Key
-
-        # Calculate CoM for each frame (reference point)
         com_trajectory = self.calculate_center_of_mass(poses_3d)
-
-        # Extract all keypoints as (N, 3) arrays
-        head = poses_3d[:, H36Key.HEAD]
-        spine = poses_3d[:, H36Key.SPINE]
-        thorax = poses_3d[:, H36Key.THORAX]
-        l_shoulder = poses_3d[:, H36Key.LSHOULDER]
-        l_elbow = poses_3d[:, H36Key.LELBOW]
-        l_wrist = poses_3d[:, H36Key.LWRIST]
-        r_shoulder = poses_3d[:, H36Key.RSHOULDER]
-        r_elbow = poses_3d[:, H36Key.RELBOW]
-        r_wrist = poses_3d[:, H36Key.RWRIST]
-        l_hip = poses_3d[:, H36Key.LHIP]
-        l_knee = poses_3d[:, H36Key.LKNEE]
-        l_foot = poses_3d[:, H36Key.LFOOT]
-        r_hip = poses_3d[:, H36Key.RHIP]
-        r_knee = poses_3d[:, H36Key.RKNEE]
-        r_foot = poses_3d[:, H36Key.RFOOT]
-
-        # Initialize inertia array
-        n_frames = poses_3d.shape[0]
-        inertia = np.zeros(n_frames, dtype=np.float32)
-
-        # Helper function to compute squared distances
-        def add_segment_inertia(segments: list[tuple[np.ndarray, float]]) -> None:
-            """Add inertia contribution from segments.
-
-            Args:
-                segments: List of (position, mass) tuples
-            """
-            for pos, mass in segments:
-                # Distance from CoM: ||pos - com||
-                r = np.linalg.norm(pos - com_trajectory, axis=1)
-                inertia[:] += mass * r**2
-
-        # Head
-        add_segment_inertia([(head, self.segment_masses["head"])])
-
-        # Torso: weighted average of spine and thorax
-        torso_pos = (spine + thorax) / 2
-        add_segment_inertia([(torso_pos, self.segment_masses["torso"])])
-
-        # Arm segments
-        l_upper_arm = (l_shoulder + l_elbow) / 2
-        r_upper_arm = (r_shoulder + r_elbow) / 2
-        l_forearm = (l_elbow + l_wrist) / 2
-        r_forearm = (r_elbow + r_wrist) / 2
-
-        add_segment_inertia(
-            [
-                (l_upper_arm, self.segment_masses["left_upper_arm"]),
-                (r_upper_arm, self.segment_masses["right_upper_arm"]),
-                (l_forearm, self.segment_masses["left_forearm"]),
-                (r_forearm, self.segment_masses["right_forearm"]),
-                (l_wrist, self.segment_masses["left_hand"]),
-                (r_wrist, self.segment_masses["right_hand"]),
-            ]
-        )
-
-        # Leg segments
-        l_thigh = (l_hip + l_knee) / 2
-        r_thigh = (r_hip + r_knee) / 2
-        l_shin = (l_knee + l_foot) / 2
-        r_shin = (r_knee + r_foot) / 2
-
-        add_segment_inertia(
-            [
-                (l_thigh, self.segment_masses["left_thigh"]),
-                (r_thigh, self.segment_masses["right_thigh"]),
-                (l_shin, self.segment_masses["left_shin"]),
-                (r_shin, self.segment_masses["right_shin"]),
-                (l_foot, self.segment_masses["left_foot"]),
-                (r_foot, self.segment_masses["right_foot"]),
-            ]
-        )
-
-        return inertia
+        return self._calculate_moment_of_inertia_with_com(poses_3d, com_trajectory, axis)
 
     def calculate_angular_momentum(
         self,
@@ -287,6 +209,7 @@ class PhysicsEngine:
         self,
         poses_3d: np.ndarray,
         com_trajectory: np.ndarray,
+        axis: str = "vertical",
     ) -> np.ndarray:
         """Calculate MoI using pre-computed CoM (avoids recomputation).
 
@@ -296,6 +219,7 @@ class PhysicsEngine:
         Args:
             poses_3d: (N, 17, 3) array of poses
             com_trajectory: (N, 3) pre-computed CoM trajectory
+            axis: Rotation axis ("vertical", "sagittal", "frontal")
 
         Returns:
             inertia: (N,) array of moment of inertia values (kg·m²)
@@ -323,6 +247,24 @@ class PhysicsEngine:
         n_frames = poses_3d.shape[0]
         inertia = np.zeros(n_frames, dtype=np.float32)
 
+        # #854: rᵢ is the PERPENDICULAR distance from the rotation axis, not
+        # the full 3D distance from CoM. Project the offset onto the plane
+        # perpendicular to the axis (drop the component along the axis):
+        #   vertical  → drop Y (rotation about the vertical axis)
+        #   sagittal  → drop X
+        #   frontal   → drop Z
+        # The old full-norm computed inertia about a POINT, not an axis: mass
+        # lying on the axis (head/feet above CoM) contributed m·dy² that should
+        # be 0 → angular momentum inflated, all three axes collapsed.
+        if axis == "vertical":
+            drop = 1  # Y
+        elif axis == "sagittal":
+            drop = 0  # X
+        elif axis == "frontal":
+            drop = 2  # Z
+        else:
+            raise ValueError(f"Unknown axis: {axis!r} (vertical|sagittal|frontal)")
+
         # Helper function to compute squared distances
         def add_segment_inertia(segments: list[tuple[np.ndarray, float]]) -> None:
             """Add inertia contribution from segments.
@@ -331,8 +273,9 @@ class PhysicsEngine:
                 segments: List of (position, mass) tuples
             """
             for pos, mass in segments:
-                # Distance from CoM: ||pos - com||
-                r = np.linalg.norm(pos - com_trajectory, axis=1)
+                offset = pos - com_trajectory
+                offset = np.delete(offset, drop, axis=-1)
+                r = np.linalg.norm(offset, axis=1)
                 inertia[:] += mass * r**2
 
         # Head
