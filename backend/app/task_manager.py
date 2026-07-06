@@ -195,7 +195,15 @@ async def get_task_state(task_id: str) -> dict[str, Any] | None:
     if not data:
         return None
     result = data.get("result")
-    data["result"] = json.loads(result) if result else None
+    if result:
+        # #643: corrupt JSON in Valkey must not crash the endpoint.
+        try:
+            data["result"] = json.loads(result)
+        except json.JSONDecodeError:
+            logger.warning("task_manager.corrupt_result task_id=%s", task_id)
+            data["result"] = {"raw": result, "error": "corrupt_json"}
+    else:
+        data["result"] = None
     data["progress"] = float(data.get("progress", "0"))
     return data
 
