@@ -35,6 +35,10 @@ from app.task_manager import (
 logger = logging.getLogger(__name__)
 
 SSE_STREAM_TIMEOUT = 60  # seconds
+# #699: pubsub poll interval. Short enough that the loop returns control to
+# the event loop (so ASGI/Litestar can observe an http.disconnect and tear the
+# stream down) but long enough to avoid a busy-loop on an idle channel.
+SSE_POLL_TIMEOUT = 1.0  # seconds
 
 
 class ProcessController(Controller):
@@ -138,7 +142,9 @@ class ProcessController(Controller):
         return {"status": "cancel_requested", "task_id": task_id}
 
     @get("/{task_id:str}/stream")
-    async def stream_process_status(self, task_id: str, user: CurrentUser) -> ServerSentEvent:
+    async def stream_process_status(
+        self, request: Request, task_id: str, user: CurrentUser
+    ) -> ServerSentEvent:
         """SSE endpoint for real-time task progress streaming."""
 
         async def event_generator():
@@ -160,16 +166,32 @@ class ProcessController(Controller):
                 else:
                     yield {"data": json.dumps({"status": "unknown"})}
 
+                # #699: poll pubsub instead of `pubsub.listen()`. listen() blocks
+                # on a Valkey read, holding the generator away from the event
+                # loop — so a client disconnect went undetected for up to 60s
+                # and pubsub connections accumulated under mobile flakiness.
+                # A short-timeout get_message() + sleep returns control to the
+                # loop each tick, letting Litestar/ASGI observe http.disconnect
+                # and tear the stream down promptly.
                 async with asyncio.timeout(SSE_STREAM_TIMEOUT):
-                    async for message in pubsub.listen():
-                        if message["type"] == "message":
-                            yield {"data": message["data"].decode()}
-                            try:
-                                data = json.loads(message["data"])
-                                if data.get("status") in ("completed", "failed", "cancelled"):
-                                    break
-                            except (json.JSONDecodeError, TypeError):
-                                pass
+                    while True:
+                        if not request.is_connected:
+                            break
+                        message = await pubsub.get_message(
+                            ignore_subscribe_messages=True,
+                            timeout=SSE_POLL_TIMEOUT,
+                        )
+                        if message is None:
+                            continue
+                        if message["type"] != "message":
+                            continue
+                        yield {"data": message["data"].decode()}
+                        try:
+                            data = json.loads(message["data"])
+                            if data.get("status") in ("completed", "failed", "cancelled"):
+                                break
+                        except (json.JSONDecodeError, TypeError):
+                            pass
             except TimeoutError:
                 # No messages for 60s — poll final state and yield timeout event
                 logger.warning("SSE stream timeout for task %s", task_id)
