@@ -446,13 +446,28 @@ def calculate_com_trajectory_2d(poses: NormalizedPose) -> NDArray[np.float32]:
     l_leg = (poses[:, H36Key.LKNEE] + poses[:, H36Key.LFOOT]) / 2
     r_leg = (poses[:, H36Key.RKNEE] + poses[:, H36Key.RFOOT]) / 2
 
-    # Weighted sum of (x, y) coordinates: (N, 2)
+    # Weighted sum of (x, y) coordinates: (N, 2).
+    # #878: NaN-aware CoM — same contract as calculate_com_trajectory (#871).
+    # An occluded keypoint must NOT poison the CoM and leak nan into
+    # approach_direction_change (which then inflates the GOE via
+    # min(1.0, nan)=1.0, #454). Mask each segment's contribution to 0 when NaN
+    # (its mass is simply absent for that frame). All-valid case is
+    # byte-identical. No renormalization — Dempster masses sum to 1.3.
+    def _w2(mass: float, seg: NDArray[np.floating]) -> NDArray[np.floating]:
+        term = mass * seg
+        return np.where(np.isfinite(seg), term, 0.0)
+
     com = (
-        head_mass * head
-        + torso_mass * torso
-        + arm_mass * (l_upper_arm + r_upper_arm + l_forearm + r_forearm)
-        + thigh_mass * (l_thigh + r_thigh)
-        + leg_mass * (l_leg + r_leg)
+        _w2(head_mass, head)
+        + _w2(torso_mass, torso)
+        + _w2(arm_mass, l_upper_arm)
+        + _w2(arm_mass, r_upper_arm)
+        + _w2(arm_mass, l_forearm)
+        + _w2(arm_mass, r_forearm)
+        + _w2(thigh_mass, l_thigh)
+        + _w2(thigh_mass, r_thigh)
+        + _w2(leg_mass, l_leg)
+        + _w2(leg_mass, r_leg)
     )
 
     return com.astype(np.float32)

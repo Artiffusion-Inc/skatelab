@@ -1200,7 +1200,21 @@ class BiomechanicsAnalyzer:
         # heading to arctan(vx) and ignoring the vertical CoM velocity —
         # curved / vertical approaches read as 0°.
         angles = np.degrees(np.arctan2(vy, vx))
-        return float(np.sum(np.abs(np.diff(angles))))
+        # #878: NaN-safe direction change. A NaN keypoint in the approach phase
+        # used to leak nan through the CoM -> gradient -> arctan2 -> diff into
+        # the sum, so compute_approach_direction_change returned nan. The
+        # NaN-aware CoM (#871/#878 contract) keeps the CoM finite when a few
+        # keypoints are occluded, but a fully-occluded frame still yields NaN
+        # angles. np.nansum skips NaN diffs; if every frame is NaN there is no
+        # data — return 0.0 (neutral "no direction change") instead of nan,
+        # which would inflate the GOE approach_score via min(1.0, nan)=1.0
+        # (#454).
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", RuntimeWarning)
+            total = float(np.nansum(np.abs(np.diff(angles))))
+        if not np.isfinite(total):
+            return 0.0
+        return total
 
     def compute_arm_position(self, poses: NormalizedPose) -> float:
         """Compute arm position score.
@@ -1706,7 +1720,12 @@ class BiomechanicsAnalyzer:
         trunk_recovery = self.compute_landing_trunk_recovery(poses, phases)
 
         approach_change = self.compute_approach_direction_change(poses, phases, fps)
-        approach_score = min(1.0, approach_change / 90.0)
+        # #878: guard NaN before the Python min — min(1.0, nan) = 1.0 (arg-order
+        # NaN-unsafe, #454) and would inflate the GOE approach_score to BEST on
+        # occlusion. compute_approach_direction_change now returns finite 0.0 on
+        # no-data, but guard anyway in case a caller passes a NaN path.
+        approach_score = float(np.nan_to_num(approach_change / 90.0, nan=0.0))
+        approach_score = min(1.0, approach_score)
 
         goe = (
             height_score * 0.20
