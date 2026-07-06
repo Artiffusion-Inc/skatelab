@@ -133,8 +133,7 @@ def _upright_pose(nan_post_landing: bool, n: int = 12) -> np.ndarray:
 
 
 def _phases(n: int = 12):
-    return ElementPhase(name="waltz_jump", start=0, takeoff=2, peak=4,
-                        landing=7, end=n - 1)
+    return ElementPhase(name="waltz_jump", start=0, takeoff=2, peak=4, landing=7, end=n - 1)
 
 
 # --------------------------------------------------------------------------- #
@@ -258,36 +257,40 @@ def test_all_valid_recovery_unchanged_repro():
 
 
 def test_trunk_recovery_max_nan_unsafe_source_repro():
-    """Source check: `compute_landing_trunk_recovery` computes
-    `avg_lean = float(np.mean(np.abs(trunk_lean)))` (NOT `np.nanmean` —
-    propagates NaN) and `recovery = max(0.0, 1.0 - avg_lean / 30.0)` (Python
-    `max`, NaN-unsafe and arg-order-dependent, #454). Root cause locked.
+    """Source check (GREEN contract): the #865 fix is in place.
 
-    RED now: the `np.mean` (not nanmean) line and the `max(0.0, ...)` line
-    are present (PASS — root cause locked). After the fix: the mean becomes
-    `np.nanmean` (or a NaN mask) and/or the max becomes NaN-safe — this test
-    FAILS, signaling the observable tests above should flip to GREEN.
+    Root cause: `compute_landing_trunk_recovery` computed
+    `avg_lean = float(np.mean(np.abs(trunk_lean)))` (NOT `np.nanmean` --
+    propagates NaN over the whole array from one occluded shoulder frame) and
+    `recovery = max(0.0, 1.0 - avg_lean / 30.0)` (Python `max`, NaN-unsafe,
+    arg-order-dependent, #454: `max(0.0, nan) = 0.0`). A skater with an
+    occluded shoulder read as WORST recovery (0.0) -- a false "poor recovery"
+    diagnosis when the truth was "no data for that frame".
+
+    Fix: `np.nanmean` (skip occluded frames) + finite guard (return 1.0 when
+    every frame is occluded -- "no data -> no penalty") + `np.clip` (NaN-safe
+    after the finite guard) instead of Python `max(0.0, ...)`.
     """
     src = inspect.getsource(BiomechanicsAnalyzer.compute_landing_trunk_recovery)
-    # The np.mean (NOT nanmean) line is present — propagates NaN.
-    assert "np.mean(np.abs(trunk_lean))" in src, (
-        "BUG: compute_landing_trunk_recovery must compute "
-        "`np.mean(np.abs(trunk_lean))` (NaN-propagating, not `np.nanmean`) "
-        "for this repro to be valid. If it was changed to `np.nanmean` (or a "
-        "NaN mask), the NaN-poisons-mean bug is fixed — update the observable "
-        "tests to the GREEN contract."
+    assert "np.nanmean(np.abs(trunk_lean))" in src, (
+        "BUG: compute_landing_trunk_recovery must use np.nanmean(np.abs(trunk_lean)) "
+        "(#865) -- np.mean propagates NaN over the whole array from one occluded "
+        "shoulder frame."
     )
-    assert "np.nanmean" not in src, (
-        "BUG: compute_landing_trunk_recovery now uses `np.nanmean` — the "
-        "NaN-poisons-mean bug is fixed; update the observable tests to the "
-        "GREEN contract."
+    assert "np.mean(np.abs(trunk_lean))" not in src, (
+        "BUG: compute_landing_trunk_recovery still uses np.mean(np.abs(trunk_lean)) "
+        "(NaN-propagating) -- must be np.nanmean (#865)."
     )
-    # The Python `max(0.0, ...)` line is present — NaN-unsafe, arg-order.
-    assert "max(0.0, 1.0 - avg_lean / 30.0)" in src, (
-        "BUG: compute_landing_trunk_recovery must compute "
-        "`max(0.0, 1.0 - avg_lean / 30.0)` (Python max — NaN-unsafe, "
-        "arg-order-dependent, #454) for this repro to be valid. If it was "
-        "changed to a NaN-safe form (e.g. `np.fmax`, `np.nan_to_num`), the "
-        "arg-order-NaN bug is fixed — update the observable tests to the "
-        "GREEN contract."
+    assert "np.isfinite(avg_lean)" in src, (
+        "BUG: compute_landing_trunk_recovery must guard avg_lean with np.isfinite "
+        "and return 1.0 when every frame is occluded (#865) -- 'no data -> no "
+        "penalty', not 0.0."
+    )
+    assert "np.clip(1.0 - avg_lean / 30.0, 0.0, 1.0)" in src, (
+        "BUG: compute_landing_trunk_recovery must use np.clip (NaN-safe after the "
+        "finite guard) instead of max(0.0, ...) (#454, #865)."
+    )
+    assert "max(0.0, 1.0 - avg_lean / 30.0)" not in src, (
+        "BUG: compute_landing_trunk_recovery still uses the Python max(0.0, ...) "
+        "form -- NaN-unsafe arg-order (#454). Must be np.clip (#865)."
     )
