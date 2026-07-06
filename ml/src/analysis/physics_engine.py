@@ -612,6 +612,17 @@ class PhysicsEngine:
         fit_quality: float | None = None
 
         if takeoff_idx is not None and landing_idx is not None:
+            # #939: corrupt video reports fps=0 (cv2.CAP_PROP_FPS sentinel).
+            # Guard before any /fps — skip jump-physics, fields stay None
+            # (graceful "unknown"). Mirrors #937 (3D sibling) guard-before-/fps.
+            if fps <= 0:
+                return {
+                    "jump_height": None,
+                    "flight_time": None,
+                    "takeoff_velocity": None,
+                    "fit_quality": None,
+                    "avg_inertia": None,  # requires 3D
+                }
             # #519: landing_idx is an INCLUSIVE frame index (the slice below
             # uses landing_idx+1). flight_frames must be the COUNT
             # (landing - takeoff + 1), not the exclusive span, so flight_time
