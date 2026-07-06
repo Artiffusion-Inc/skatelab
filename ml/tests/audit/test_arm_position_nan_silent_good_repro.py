@@ -102,7 +102,7 @@ def _poses_arms_out(n: int = 12) -> np.ndarray:
     for f in range(n):
         poses[f, H36Key.LSHOULDER] = [-0.2, 0.1]
         poses[f, H36Key.RSHOULDER] = [0.2, 0.1]
-        poses[f, H36Key.LWRIST] = [-0.25, 0.4]   # arms out (far from shoulder)
+        poses[f, H36Key.LWRIST] = [-0.25, 0.4]  # arms out (far from shoulder)
         poses[f, H36Key.RWRIST] = [0.25, 0.4]
     return poses
 
@@ -153,7 +153,7 @@ def test_nan_wrist_arm_position_not_false_good_repro():
     # The NaN-occlusion score must NOT be 0.0 (the false-good best score).
     assert score != 0.0, (
         f"BUG: compute_arm_position returned 0.0 (the BEST arm-position score, "
-        f"\"arms close to body, excellent\") for a NaN LWRIST on the flight "
+        f'"arms close to body, excellent") for a NaN LWRIST on the flight '
         f"frames 3..6 (occlusion during rotation). `np.linalg.norm(nan - "
         f"shoulder)` = NaN → `np.mean(NaN)` = NaN → `1 - NaN` = NaN → "
         f"`max(0, NaN)` = 0.0 (the Python `max` NaN-arg-order trap, #454: "
@@ -161,7 +161,7 @@ def test_nan_wrist_arm_position_not_false_good_repro():
         f"occlusion with the best score — a skater with occluded wrists (0.0) "
         f"scores BETTER than a skater with visible arms-extended ({valid_out:.3f}). "
         f"`analyze` (line 226) packs this into `MetricResult(name="
-        f"\"arm_position_score\", value=0.0)` → the recommender → the GOE proxy "
+        f'"arm_position_score", value=0.0)` → the recommender → the GOE proxy '
         f"is INFLATED → the report praises arm position that was unknown. The "
         f"metric must return a NaN sentinel (flag the occlusion) or a neutral "
         f"degraded score, NOT 0.0."
@@ -248,9 +248,7 @@ def test_analyze_arm_position_metric_not_false_good_on_nan_repro():
         poses[f, H36Key.LWRIST] = [np.nan, np.nan]
 
     results = an.analyze(poses, phases, fps=30.0)
-    arm_metric = next(
-        (r for r in results if r.name == "arm_position_score"), None
-    )
+    arm_metric = next((r for r in results if r.name == "arm_position_score"), None)
     assert arm_metric is not None, (
         "BUG: analyze() did not produce an `arm_position_score` metric; the "
         "metric name or the analyze() output changed — update the repro "
@@ -309,50 +307,43 @@ def test_all_valid_arm_position_unchanged_repro():
 
 
 # --------------------------------------------------------------------------- #
-# Source check: root cause locked — unguarded np.linalg.norm + np.mean +
-# max(0, 1 - avg_dist) clamp (#454 trap).
+# Source check: GREEN contract — the #454 false-good clamp NaN-guard is locked.
 # --------------------------------------------------------------------------- #
 
 
 def test_arm_position_nan_false_good_source_repro():
-    """Source check: `compute_arm_position` computes the wrist-to-shoulder
-    distance with unguarded `np.linalg.norm`, averages with `np.mean` (NOT
-    `np.nanmean`), and clamps with `max(0, 1 - avg_dist)` (the #454 NaN-arg
-    trap: `max(0, nan) = 0`). NO NaN guard. Root cause locked.
+    """Source check (GREEN contract): `compute_arm_position` no longer floors
+    NaN to a silent 0.0 best score.
 
-    RED now: the unguarded norm + mean + clamp are present (PASS — root cause
-    locked). After the fix: a NaN guard (`np.isnan` / `np.nanmean` /
-    `np.isfinite` / sentinel) appears — this test FAILS, signaling the
-    observable tests above should flip to GREEN.
+    - averages with `np.nanmean` (skips occluded frames, NOT `np.mean`)
+    - a finite-guard before the clamp returns NaN when no frame is finite (a
+      flag the recommender/GOE must treat as "unknown", not "excellent")
+    - the `max(0, 1 - avg_dist)` clamp is still present (it floors NEGATIVE
+      scores for arms-very-far, only now reached on finite avg_dist).
     """
     src = inspect.getsource(BiomechanicsAnalyzer.compute_arm_position)
-    # The unguarded np.linalg.norm wrist-shoulder distance is present.
+    # The wrist-shoulder norm is still present (the fix is in the average +
+    # guard, not the distance).
     assert "np.linalg.norm(poses[:, H36Key.LWRIST] - poses[:, H36Key.LSHOULDER]" in src, (
-        "BUG: compute_arm_position must compute `np.linalg.norm(poses[:, "
-        "H36Key.LWRIST] - poses[:, H36Key.LSHOULDER], axis=1)` (unguarded, "
-        "line 1119) for this repro to be valid. If a NaN guard / nanmean was "
-        "added, the false-good bug is fixed — update the observable tests to "
-        "the GREEN contract."
+        "BUG: compute_arm_position must still compute the wrist-to-shoulder "
+        "norm; the #902 fix is in the average + guard, not the distance."
     )
-    # The np.mean (NOT np.nanmean) average is present.
-    assert "np.mean(left_dist + right_dist)" in src, (
-        "BUG: compute_arm_position must average with `np.mean(left_dist + "
-        "right_dist)` (NOT `np.nanmean`, line 1122) for this repro to be "
-        "valid. If it was changed to `np.nanmean`, the false-good bug is "
-        "fixed — update the observable tests to the GREEN contract."
+    # np.nanmean (NOT np.mean) skips occluded frames.
+    assert "np.nanmean(left_dist + right_dist)" in src, (
+        "BUG: compute_arm_position must average with `np.nanmean(left_dist + "
+        "right_dist)` (#902) so an occluded wrist/shoulder frame does not "
+        "poison the mean into NaN."
     )
-    # The max(0, 1 - avg_dist) clamp (#454 trap) is present.
+    # The max(0, 1 - avg_dist) clamp is still present (now only reached on
+    # finite avg_dist — floors negatives, not NaN).
     assert "max(0, 1 - avg_dist)" in src, (
-        "BUG: compute_arm_position must clamp with `max(0, 1 - avg_dist)` "
-        "(line 1124, the #454 NaN-arg trap: `max(0, nan) = 0`) for this repro "
-        "to be valid. If the clamp was changed to a NaN-safe form "
-        "(`np.clip`, `nan_to_num` with a non-0 sentinel, or a NaN guard before "
-        "the clamp), the false-good bug is fixed — update the observable tests "
-        "to the GREEN contract."
+        "BUG: compute_arm_position must still clamp with `max(0, 1 - "
+        "avg_dist)` (floors NEGATIVE scores for arms-very-far); the #902 fix "
+        "guards NaN before the clamp, it does not remove the clamp."
     )
-    assert "np.isnan" not in src and "np.nanmean" not in src and \
-           "np.isfinite" not in src and "np.nan_to_num" not in src, (
-        "BUG: a NaN guard (`np.isnan` / `np.nanmean` / `np.isfinite` / "
-        "`np.nan_to_num`) appeared in compute_arm_position — the false-good "
-        "NaN bug is fixed; update the observable tests to the GREEN contract."
+    # A finite-guard returns NaN when no frame is finite (flag, not false-good).
+    assert "np.isfinite(avg_dist)" in src, (
+        "BUG: compute_arm_position must guard `if not np.isfinite(avg_dist): "
+        "return float('nan')` (#902) before the clamp — a fully-occluded arm "
+        "sequence must flag 'unknown' (NaN), not silently score 0.0 (best)."
     )
