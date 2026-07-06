@@ -111,14 +111,26 @@ class ProcessController(Controller):
         """Poll task status."""
         state = await assert_task_owned(task_id, user)
 
-        result = None
-        if state.get("result"):
-            result = ProcessResponse(**state["result"])
+        # #697: defensive read — legacy workers / partial Valkey writes may
+        # omit keys. state["progress"]/state["status"] raised KeyError on a
+        # task written by an older worker version, crashing the poll with 500.
+        result: Any = None
+        raw_result = state.get("result")
+        if raw_result:
+            # Worker version drift or corrupt JSON can mismatch ProcessResponse
+            # (extra/missing fields, wrong types). Don't let a schema error
+            # take down the status poll — return the raw dict so the client
+            # still sees status/progress and can decide what to do.
+            try:
+                result = ProcessResponse(**raw_result)
+            except Exception:
+                logger.warning("Failed to parse result for task %s", task_id, exc_info=True)
+                result = raw_result
 
         return TaskStatusResponse(
             task_id=task_id,
-            status=state["status"],
-            progress=state["progress"],
+            status=state.get("status", "unknown"),
+            progress=state.get("progress", 0),
             message=state.get("message", ""),
             result=result,  # type: ignore[reportArgumentType]
             error=state.get("error"),
