@@ -54,17 +54,15 @@ class UsersController(Controller):
         user: VerifiedUser,
         db: DbDep,
     ) -> UserResponse:
-        """Update current user profile."""
+        """Update current user profile.
+
+        #844: ``exclude_unset=True`` so an absent field is not forwarded (no
+        change) while an explicit ``null`` is forwarded as a clear. crud.update
+        (#547) applies ``None`` verbatim (only ``UNSET`` is skipped).
+        """
         # #750: rate limit profile updates
         await check_rate_limit(f"profile:{user.id}", max_requests=20, window_seconds=300)
-        updated = await update(
-            db,
-            user,
-            display_name=data.display_name,
-            bio=data.bio,
-            height_cm=data.height_cm,
-            weight_kg=data.weight_kg,
-        )
+        updated = await update(db, user, **data.model_dump(exclude_unset=True))
         return UserResponse.model_validate(updated)
 
     @patch("/settings")
