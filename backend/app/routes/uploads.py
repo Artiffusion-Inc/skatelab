@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import uuid
 from collections.abc import Sequence  # noqa: TC003
+from pathlib import PurePosixPath
 from typing import ClassVar
 
 from litestar import Controller, post
@@ -18,6 +19,27 @@ from app.middleware.rate_limit import check_rate_limit
 from app.storage import get_s3_client
 
 CHUNK_SIZE = 5 * 1024 * 1024  # 5MB
+
+
+def sanitize_file_name(name: str) -> str:
+    """Strip path separators / `..` segments from an upload file_name.
+
+    #682: file_name is a user-controlled path parameter used verbatim in the
+    S3 key (`uploads/{user_id}/{uuid}/{file_name}`). Without sanitization a
+    caller can inject `..` or `/` segments — S3 stores the literal key and
+    downstream path-resolving tools may escape the user prefix. Take the
+    basename only and collapse to a single safe segment.
+    """
+    # PurePosixPath(...).name takes the final component, dropping any leading
+    # `/` paths; normalize backslashes so nt-style separators don't sneak
+    # through. Reject bare `.`/`..`/empty that `.name` leaves intact.
+    base = PurePosixPath(name.replace("\\", "/")).name
+    if base in {".", "..", ""}:
+        raise ClientException(
+            status_code=HTTP_400_BAD_REQUEST,
+            detail="Invalid file_name",
+        )
+    return base
 
 
 class CompleteUploadRequest(BaseModel):
@@ -45,7 +67,8 @@ class UploadsController(Controller):
 
         s3 = get_s3_client()
         bucket = get_settings().s3.bucket
-        key = f"uploads/{verified_user.id}/{uuid.uuid4()}/{file_name}"
+        safe_name = sanitize_file_name(file_name)
+        key = f"uploads/{verified_user.id}/{uuid.uuid4()}/{safe_name}"
 
         upload_id = s3.create_multipart_upload(
             Bucket=bucket,
@@ -148,7 +171,8 @@ class UploadsController(Controller):
 
         s3 = get_s3_client()
         bucket = get_settings().s3.bucket
-        key = f"uploads/{verified_user.id}/{uuid.uuid4()}/{file_name}"
+        safe_name = sanitize_file_name(file_name)
+        key = f"uploads/{verified_user.id}/{uuid.uuid4()}/{safe_name}"
 
         url = s3.generate_presigned_url(
             ClientMethod="put_object",
