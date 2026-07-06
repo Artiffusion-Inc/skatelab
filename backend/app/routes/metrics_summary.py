@@ -15,6 +15,14 @@ from app.auth.deps import CurrentUser, DbDep
 # Literal lets Litestar reject unknown values with 400 before the handler runs.
 Period = Literal["7d", "30d", "90d", "all"]
 
+# #783: whitelist the element param at the family level (Progress L1 cards are
+# per element family, not per ISU code). `garbage`/`<script>`/empty were
+# accepted and echoed back; once aggregation is wired, an unknown family would
+# KeyError the metric registry or return a silent wrong empty response. Literal
+# lets Litestar reject unknown values with 400 before the handler runs. The old
+# `three_turn` slug was retired (turn metrics now live under `step`).
+ElementFamily = Literal["jumps", "spins", "step", "choreo", "all"]
+
 
 class ElementSummaryController(Controller):
     path = ""
@@ -25,7 +33,9 @@ class ElementSummaryController(Controller):
         self,
         user: CurrentUser,
         db: DbDep,
-        element: str = Parameter(description="Element type key"),
+        element: ElementFamily = Parameter(
+            description="Element family: jumps/spins/step/choreo/all"
+        ),  # noqa: B008
         period: Period = Parameter(default="30d", description="7d/30d/90d/all"),  # noqa: B008
     ) -> dict:
         """Batched endpoint: trend + diagnostics + registry + PRs for one element."""
