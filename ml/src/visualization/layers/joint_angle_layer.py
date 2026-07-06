@@ -201,6 +201,25 @@ class JointAngleLayer(Layer):
                 if not (np.isnan(a3).any() or np.isnan(v3).any() or np.isnan(c3).any()):
                     angle = angle_3pt(a3, v3, c3)
 
+            # #894: NaN joint point (partial occlusion — free foot off-frame
+            # during spins) must graceful-skip the spec, NOT crash (pixel path)
+            # and NOT draw a garbage arc (normalized path). The 3D path guards
+            # NaN (line 201); the 2D path did not. Two failure modes:
+            #  - pixel: pa/pv/pc stay NaN -> angle_3pt NaN (#863 wrapper returns
+            #    NaN, line-219 guard catches) — no crash now, but
+            #  - normalized: normalized_to_pixel array-branch masks NaN -> (0,0)
+            #    BEFORE this point, so a post-conversion np.isnan check is False
+            #    and angle_3pt((0,0),...) returns a finite GARBAGE angle (~140°)
+            #    that passes line-219 -> a garbage arc + ticks + label drawn at
+            #    the wrong location. Check the RAW pose (pre-conversion) so both
+            #    paths skip on NaN. Mirrors the line-201 3D guard.
+            if (
+                np.isnan(pose[spec.point_a]).any()
+                or np.isnan(pose[spec.vertex]).any()
+                or np.isnan(pose[spec.point_c]).any()
+            ):
+                continue
+
             # Get 2D positions (pixel coords)
             if context.normalized:
                 pa = np.array(normalized_to_pixel(pose[spec.point_a], w, h), dtype=np.float64)
