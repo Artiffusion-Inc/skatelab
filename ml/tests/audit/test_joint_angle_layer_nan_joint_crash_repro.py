@@ -130,7 +130,9 @@ from src.visualization.layers.joint_angle_layer import JointAngleLayer, JointAng
 def _spec() -> JointAngleSpec:
     """R-knee angle spec: vertex=RKNEE, point_a=RHIP, point_c=RFOOT."""
     return JointAngleSpec(
-        name="rknee", point_a=H36Key.RHIP, vertex=H36Key.RKNEE,
+        name="rknee",
+        point_a=H36Key.RHIP,
+        vertex=H36Key.RKNEE,
         point_c=H36Key.RFOOT,
     )
 
@@ -197,7 +199,9 @@ def test_nan_point_pixel_render_does_not_crash_repro():
     w, h = 640, 480
     layer = JointAngleLayer(joints=[_spec()])
     ctx = LayerContext(
-        frame_width=w, frame_height=h, normalized=False,
+        frame_width=w,
+        frame_height=h,
+        normalized=False,
         pose_2d=_nan_point_pose(H36Key.RFOOT, normalized=False),
     )
     try:
@@ -251,12 +255,12 @@ def test_nan_point_normalized_render_no_garbage_arc_repro():
     w, h = 640, 480
     layer = JointAngleLayer(joints=[_spec()])
     ctx = LayerContext(
-        frame_width=w, frame_height=h, normalized=True,
+        frame_width=w,
+        frame_height=h,
+        normalized=True,
         pose_2d=_nan_point_pose(H36Key.RFOOT, normalized=True),
     )
-    n_ellipses = _render_and_collect_ellipses(
-        layer, np.zeros((h, w, 3), dtype=np.uint8), ctx
-    )
+    n_ellipses = _render_and_collect_ellipses(layer, np.zeros((h, w, 3), dtype=np.uint8), ctx)
 
     # CORRECT contract: ZERO angle arcs when a joint point is NaN.
     assert n_ellipses == 0, (
@@ -298,7 +302,9 @@ def test_nan_any_point_pixel_render_does_not_crash_repro():
     ]:
         layer = JointAngleLayer(joints=[_spec()])
         ctx = LayerContext(
-            frame_width=w, frame_height=h, normalized=False,
+            frame_width=w,
+            frame_height=h,
+            normalized=False,
             pose_2d=_nan_point_pose(point, normalized=False),
         )
         try:
@@ -330,12 +336,12 @@ def test_all_valid_angle_arc_drawn_repro():
     w, h = 640, 480
     layer = JointAngleLayer(joints=[_spec()])
     ctx = LayerContext(
-        frame_width=w, frame_height=h, normalized=False,
+        frame_width=w,
+        frame_height=h,
+        normalized=False,
         pose_2d=_valid_pose(normalized=False),
     )
-    n_ellipses = _render_and_collect_ellipses(
-        layer, np.zeros((h, w, 3), dtype=np.uint8), ctx
-    )
+    n_ellipses = _render_and_collect_ellipses(layer, np.zeros((h, w, 3), dtype=np.uint8), ctx)
     assert n_ellipses >= 1, (
         f"BUG (regression): all-valid pose drew {n_ellipses} angle arc(s); "
         f"expected >= 1. The valid case must be unchanged by the NaN-aware fix "
@@ -350,56 +356,58 @@ def test_all_valid_angle_arc_drawn_repro():
 
 
 def test_joint_angle_layer_nan_crash_source_repro():
-    """Source check: `render` guards NaN ONLY on the 3D path (line 201: `if
-    not (np.isnan(a3).any() or np.isnan(v3).any() or np.isnan(c3).any())`),
-    NOT on the 2D path — `pa`/`pv`/`pc` are computed (lines 206-212) with no
-    NaN guard, then `angle = angle_3pt(pa, pv, pc)` (line 216) is called
-    unguarded, and the `if np.isnan(angle) ... continue` guard (line 219) is
-    dead code for the NaN-joint case (pixel path crashes at 216 before
-    `angle` is assigned; normalized path produces a finite garbage angle).
-    Root cause locked.
-
-    RED now: the 3D NaN guard + unguarded 2D `angle_3pt` call + dead-code
-    `np.isnan(angle)` guard are present (PASS — root cause locked). After the
-    fix: a 2D-path NaN guard (`np.isnan(pa).any() or ...`) appears — this test
-    FAILS, signaling the observable tests above should flip to GREEN.
+    """Source check (GREEN contract): the 2D-path NaN guard lives in `render`
+    on the RAW pose (pre-`normalized_to_pixel` conversion). The 3D path guards
+    NaN (line 201); the 2D path now mirrors it — but on the raw pose, NOT on
+    `pa`/`pv`/`pc` after conversion. The normalized path masks NaN to (0,0)
+    inside `normalized_to_pixel`, so a post-conversion `np.isnan(pa)` check is
+    always False and the garbage arc leaks; the raw-pose guard catches it
+    before conversion. `angle_3pt(pa, pv, pc)` is still the fallback — the
+    guard is upstream (skip the spec), not wrapping the call.
     """
     src = inspect.getsource(JointAngleLayer.render)
     # The 3D path IS NaN-guarded (proves the codebase knows the pattern).
     assert "if not (np.isnan(a3).any() or np.isnan(v3).any() or np.isnan(c3).any()):" in src, (
         "BUG: render must guard the 3D path with `if not (np.isnan(a3).any() "
-        "or np.isnan(v3).any() or np.isnan(c3).any()):` for this repro to be "
-        "valid. If the 3D guard was removed, the repro is invalid (the 3D path "
-        "would crash too)."
+        "or np.isnan(v3).any() or np.isnan(c3).any()):` — the #894 fix mirrors "
+        "it on the 2D path; if the 3D guard was removed the repro is invalid."
     )
-    # The 2D path computes pa/pv/pc with NO NaN guard.
-    assert "pa = pose[spec.point_a].astype(np.float64)" in src and \
-           "pv = pose[spec.vertex].astype(np.float64)" in src and \
-           "pc = pose[spec.point_c].astype(np.float64)" in src, (
-        "BUG: render must compute `pa = pose[spec.point_a].astype(np.float64)` "
-        "/ `pv` / `pc` (no NaN guard on the 2D path) for this repro to be "
-        "valid. If a 2D-path NaN guard was added on pa/pv/pc, the crash/garbage "
-        "bug is fixed — update the observable tests to the GREEN contract."
+    # The 2D-path raw-pose NaN guard is present (pre-conversion, mirrors line
+    # 201) — the #894 fix.
+    assert (
+        "np.isnan(pose[spec.point_a]).any()" in src
+        and "np.isnan(pose[spec.vertex]).any()" in src
+        and "np.isnan(pose[spec.point_c]).any()" in src
+    ), (
+        "BUG: render must guard the 2D path on the RAW pose "
+        "(`np.isnan(pose[spec.point_a]).any() or ...`) — the #894 fix. A "
+        "post-conversion guard (np.isnan(pa)) is dead for the normalized path "
+        "(normalized_to_pixel masks NaN -> (0,0)); the raw-pose guard catches "
+        "it before conversion."
     )
-    # The unguarded angle_3pt call is present — the crash point.
+    # The 2D path still computes pa/pv/pc (the guard is before them, not
+    # replacing them).
+    assert (
+        "pa = pose[spec.point_a].astype(np.float64)" in src
+        and "pv = pose[spec.vertex].astype(np.float64)" in src
+        and "pc = pose[spec.point_c].astype(np.float64)" in src
+    ), (
+        "BUG: render must still compute `pa = pose[spec.point_a].astype(...)` "
+        "/ `pv` / `pc`; the #894 guard is before the conversion, not a "
+        "replacement of it."
+    )
+    # angle_3pt is still the 2D fallback — the guard is upstream (skip spec),
+    # not wrapping the call.
     assert "angle = angle_3pt(pa, pv, pc)" in src, (
-        "BUG: render must call `angle = angle_3pt(pa, pv, pc)` (unguarded — "
-        "NaN input raises ZeroDivisionError) for this repro to be valid. If a "
-        "NaN guard / try-except was added before this call, the crash bug is "
-        "fixed — update the observable tests to the GREEN contract."
+        "BUG: render must still call `angle = angle_3pt(pa, pv, pc)` as the 2D "
+        "fallback; the #894 guard skips the spec upstream, it does not wrap the "
+        "call."
     )
-    # The dead-code np.isnan(angle) guard is present (intended to catch NaN
-    # angles but bypassed by the crash / garbage-finite-angle).
+    # The NaN-angle guard is still present (defence-in-depth for the pixel
+    # path where #863's angle_3pt wrapper returns NaN).
     assert "if np.isnan(angle) or angle < 0 or angle > 360:" in src, (
-        "BUG: render must have `if np.isnan(angle) or angle < 0 or angle > "
-        "360: continue` (the dead-code NaN-angle guard) for this repro to be "
-        "valid. If this guard was replaced by a per-joint NaN guard, the crash "
-        "bug is fixed — update the observable tests to the GREEN contract."
-    )
-    # No 2D-path per-joint NaN guard.
-    assert "np.isnan(pa)" not in src and "np.isnan(pv)" not in src and \
-           "np.isnan(pc)" not in src, (
-        "BUG: a 2D-path per-joint NaN guard (`np.isnan(pa)` / `np.isnan(pv)` / "
-        "`np.isnan(pc)`) appeared in render — the NaN joint-point crash/garbage "
-        "bug is fixed; update the observable tests to the GREEN contract."
+        "BUG: render must keep `if np.isnan(angle) or angle < 0 or angle > "
+        "360: continue` (defence-in-depth for the pixel path where angle_3pt "
+        "returns NaN); the #894 raw-pose guard is the primary, this is the "
+        "secondary. If it was removed, the pixel path may regress."
     )
