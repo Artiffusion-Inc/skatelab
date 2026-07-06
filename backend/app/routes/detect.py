@@ -32,6 +32,12 @@ logger = logging.getLogger(__name__)
 MAX_VIDEO_SIZE = 100 * 1024 * 1024
 # #763: allowed video file extensions (no .exe, .html, etc.)
 ALLOWED_VIDEO_SUFFIXES = {".mp4", ".mov", ".avi", ".mkv", ".webm", ".m4v"}
+# #766: global cap on detect enqueues. The per-user limit (10/min) does not stop
+# a botnet of N accounts from running N*10/min GPU-detection jobs. A shared
+# global counter caps the whole fleet so extra accounts buy nothing once the
+# cap is hit. Tunable via env; conservative default covers legit traffic while
+# bounding GPU queue growth and cost from a sybil attack.
+GLOBAL_DETECT_CAP = 200
 
 
 class DetectController(Controller):
@@ -74,6 +80,16 @@ class DetectController(Controller):
 
         # #762: rate limit AFTER validation, not before
         await check_rate_limit(f"detect:enqueue:{user.id}", max_requests=10, window_seconds=60)
+        # #766: global cap — a per-user limit alone doesn't stop a botnet (N
+        # accounts = N*10/min). A shared counter caps the whole fleet so extra
+        # accounts buy nothing once the cap is hit, bounding GPU queue flood
+        # and cost. Checked AFTER per-user so legit single-user traffic hits
+        # the cheaper per-user limit first.
+        await check_rate_limit(
+            "detect:enqueue:global",
+            max_requests=GLOBAL_DETECT_CAP,
+            window_seconds=60,
+        )
 
         # #760: use full uuid4 hex instead of 12-char truncation
         task_id = f"det_{uuid.uuid4().hex}"
