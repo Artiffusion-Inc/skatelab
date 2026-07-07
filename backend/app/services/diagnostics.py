@@ -121,7 +121,7 @@ def check_stagnation(
     variance = sum((v - mean) ** 2 for v in finite) / len(finite)
     std = variance**0.5
     cv = std / abs(mean)
-    if cv < 0.05:
+    if math.isfinite(cv) and cv < 0.05:
         return Finding(
             severity="info",
             element=element,
