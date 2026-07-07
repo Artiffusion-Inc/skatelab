@@ -7,6 +7,7 @@ This module parses VTT subtitles to extract:
 - Instructions and tips
 """
 
+import math
 import re
 from dataclasses import dataclass
 from pathlib import Path
@@ -297,6 +298,18 @@ class SubtitleParser:
 
         for event in events:
             if event.name == "unknown":
+                continue
+
+            # #1084: guard NaN/inf timing before the int() cast — `int(NaN)`
+            # raises `ValueError: cannot convert float NaN to integer` and
+            # aborts the entire phase pipeline. Corrupted VTT, malformed
+            # time strings, or upstream arithmetic on undefined values can
+            # produce NaN here; the consumer (recommender) cannot bound
+            # any element if we crash. Skip the bad event, keep the rest.
+            if not (
+                math.isfinite(event.start_time)
+                and (event.end_time is None or math.isfinite(event.end_time))
+            ):
                 continue
 
             start_frame = int(event.start_time * fps)
