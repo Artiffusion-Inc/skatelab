@@ -85,13 +85,24 @@ class Sports2DTracker:
     def _centroid(keypoints: np.ndarray) -> np.ndarray:
         """(17,2) -> (2,) centroid [cx, cy].
 
-        #567: returns a finite fallback centroid if all keypoints are NaN
-        (low-confidence / occluded / model-warmup frame). The fallback
-        is (0.0, 0.0) which keeps the Kalman state finite; the track
-        will be re-associated on subsequent frames via the distance
-        matrix + Hungarian matching. A NaN centroid here would poison
-        the Kalman state forever — the track is silently lost.
+        #969: returns the finite (0.0, 0.0) sentinel when ALL keypoints are
+        NaN — detected BEFORE ``np.nanmean`` so no ``Mean of empty slice``
+        warning fires (was per-person per-frame log spam). The finite
+        sentinel keeps the Kalman state finite so the track can re-associate
+        on a later finite frame; a NaN centroid would poison the Kalman
+        state forever (silent permanent phantom — ``nan_to_num`` masks the
+        NaN-distance to 1e10 but never fixes the state).
         """
+        # #969: guard all-NaN BEFORE nanmean — np.nanmean on an all-NaN
+        # slice emits 'Mean of empty slice' RuntimeWarning (log spam per
+        # person per frame) and returns NaN. Return the finite (0.0, 0.0)
+        # sentinel so the Kalman state stays finite and the track can
+        # re-associate on a later finite frame (a NaN state would be
+        # masked to 1e10 by nan_to_num on the distance matrix and never
+        # re-associate — silent permanent phantom). The early return
+        # avoids the warning path entirely.
+        if np.all(np.isnan(keypoints)):
+            return np.array([0.0, 0.0])
         cx = float(np.nanmean(keypoints[:, 0]))
         cy = float(np.nanmean(keypoints[:, 1]))
         if not (np.isfinite(cx) and np.isfinite(cy)):
