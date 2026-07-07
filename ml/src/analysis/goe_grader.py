@@ -6,6 +6,8 @@ Score formula: BV * (1 + grade * 0.10).
 
 from __future__ import annotations
 
+import numpy as np
+
 from ..types import GOEGrade, MetricResult
 
 # Positive bullet thresholds
@@ -98,6 +100,15 @@ class GOEGrader:
     ) -> str:
         mv = metrics if isinstance(metrics, dict) else {m.name: m.value for m in metrics}
         actual = mv.get("rotation_count", expected_rotations)
+        # rotation_count is the PRIMARY jump identifier. NaN (occluded
+        # shoulder during fast rotation — a NORMAL case) must NOT enter the
+        # threshold chain: NaN >= 0.5 / NaN > 0.25 / 0 < NaN are ALL False,
+        # silently dropping the under-rotation modifier ("<<" → "") and
+        # inflating the grade to perfect 5 (#923). Conservative: a missing
+        # rotation count reads as severe under-rotation "<<", mirroring #966
+        # classify_jump (NaN rotation_count → "unknown", 0.0).
+        if not np.isfinite(actual):
+            return "<<"
         shortfall = expected_rotations - actual
 
         if shortfall >= 0.5:
@@ -108,6 +119,11 @@ class GOEGrader:
             return "q"
 
         direction_change = abs(mv.get("approach_direction_change", 0))
+        # ponytail: sibling NaN path — same conservative fallback as
+        # rotation_count. abs(NaN) > threshold is False, silently dropping
+        # the edge modifier. NaN direction change → unclear edge "!".
+        if not np.isfinite(direction_change):
+            return "!"
         if direction_change > _THRESHOLDS["wrong_edge_direction_change"]:
             return "e"
         if direction_change > _THRESHOLDS["unclear_edge_direction_change"]:
