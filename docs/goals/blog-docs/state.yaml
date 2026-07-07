@@ -1,6 +1,6 @@
 version: 2
 slug: blog-docs
-active_task: T003
+active_task: T004
 plan_ref: docs/plans/2026-07-07-blog-docs.md
 spec_ref: docs/specs/2026-07-07-blog-docs-design.md
 
@@ -142,12 +142,12 @@ tasks:
   - id: T003
     type: worker
     assignee: Worker
-    status: active
+    status: done
     objective: "Task 3 (plan): Host-based middleware (docs./blog. → route groups) + docs-i18n.ts."
     constraints:
       - "Use subagent-driven-development skill"
     allowed_files:
-      - frontend/src/middleware.ts
+      - frontend/src/app/middleware.ts
       - frontend/src/lib/docs-i18n.ts
       - frontend/tests/middleware.test.ts
     verify:
@@ -156,12 +156,28 @@ tasks:
     stop_if:
       - "postHog middleware behavior broken"
       - "Rewrite to /docs does not map to (docs) route group"
-    receipt: null
+    receipt:
+      result: done
+      summary: "Host-based middleware rewrites docs.skatelab.ru→/docs, blog.skatelab.ru→/blog; postHog passthrough for skatelab.ru. docs-i18n.ts helpers. 3 tests pass, typecheck pass."
+      changed_files:
+        - frontend/src/app/middleware.ts
+        - frontend/src/lib/docs-i18n.ts
+        - frontend/tests/middleware.test.ts
+      commands:
+        - cmd: "bun run test -- --run tests/middleware.test.ts"
+          status: pass
+        - cmd: "bun run typecheck"
+          status: pass
+      deviations:
+        - "middleware at src/app/middleware.ts (project convention), not src/middleware.ts"
+        - "host detect via req.nextUrl.hostname (Host header dropped by happy-dom in test)"
+        - "test imports hoisted above vi.mock"
+      commit: 2af323cd
 
   - id: T004
     type: worker
     assignee: Worker
-    status: queued
+    status: active
     objective: "Task 4 (plan): Docs layout + open user docs pages (i18n path-based) + starter MDX."
     constraints:
       - "Use subagent-driven-development skill"
