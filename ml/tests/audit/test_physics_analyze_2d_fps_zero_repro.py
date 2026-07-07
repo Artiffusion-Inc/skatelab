@@ -169,14 +169,19 @@ def test_analyze_2d_valid_fps_unchanged_repro():
 
 def test_analyze_2d_fps_zero_guard_source_repro():
     """GREEN contract source check: the fps=0 crash is fixed by a
-    `fps <= 0` guard in `analyze_2d`, before the first `/fps` (line 621
-    `flight_frames / fps`). When fps<=0 the jump-physics block is skipped
-    (fields stay None), mirroring the #937 "guard before any /fps" pattern.
+    `math.isfinite(fps) and fps > 0` guard in `analyze_2d`, before the
+    first `/fps` (line 621 `flight_frames / fps`). When fps is not finite
+    or not positive the jump-physics block is skipped (fields stay None),
+    mirroring the #937 "guard before any /fps" pattern. #1064: the
+    stronger `math.isfinite(fps) and fps > 0` form also rejects NaN
+    (the old `fps <= 0` form is NaN-blind: `NaN <= 0` is False).
     """
     src = inspect.getsource(PhysicsEngine.analyze_2d)
-    assert "fps <= 0" in src, (
-        "BUG: analyze_2d must guard `fps <= 0` before the first `/fps` "
+    assert ("math.isfinite" in src and "fps > 0" in src) or "fps <= 0" in src, (
+        "BUG: analyze_2d must guard `math.isfinite(fps) and fps > 0` "
+        "(or the weaker `fps <= 0`) before the first `/fps` "
         "(flight_frames/fps). Corrupt video reports fps=0 → "
-        "ZeroDivisionError today. Mirror #937: skip the jump-physics block "
-        "(fields stay None) when fps<=0."
+        "ZeroDivisionError. #1064 broadened the guard to also catch NaN. "
+        "Mirror #937: skip the jump-physics block (fields stay None) "
+        "when fps is non-finite or non-positive."
     )
