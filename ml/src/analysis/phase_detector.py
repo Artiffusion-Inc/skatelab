@@ -246,10 +246,15 @@ class PhaseDetector:
         # slice convention). 9 inclusive flight frames = (28 - 20 + 1) / 30
         # = 0.300 s, which passes the 0.3 gate. Pre-fix span (28 - 20) / 30
         # = 0.267 s fails the gate → valid jump rejected.
+        # #1223: NaN landing_idx / takeoff_idx yields NaN airtime; `NaN < 0.3`
+        # is False in Python IEEE 754, so the gate silently accepts an
+        # impossible NaN segment. Wrap the gate in `math.isfinite(airtime)`
+        # so NaN airtime is treated as a false positive (same path as
+        # short-airtime rejection).
         airtime = (landing_idx - takeoff_idx + 1) / fps if fps > 0 else 0.0
 
         # Minimum airtime validation (0.3 seconds)
-        if airtime < 0.3:
+        if not math.isfinite(airtime) or airtime < 0.3:
             # Airtime too short, likely false positive
             return PhaseDetectionResult(
                 phases=ElementPhase(
@@ -524,8 +529,10 @@ class PhaseDetector:
                 # slice convention). 9 inclusive flight frames = (28 - 20 + 1) / 30
                 # = 0.300 s, which passes the 0.3 gate. Pre-fix span (28 - 20) / 30
                 # = 0.267 s fails the gate → valid jump rejected.
+                # #1223: same NaN-airtime guard as the com_improved gate
+                # (NaN landing/takeoff idx → NaN airtime → silently accepted).
                 airtime = (landing_idx - takeoff_idx + 1) / fps if fps > 0 else 0.0
-                if airtime < 0.3:
+                if not math.isfinite(airtime) or airtime < 0.3:
                     continue
 
                 # Score = R² × excursion magnitude
