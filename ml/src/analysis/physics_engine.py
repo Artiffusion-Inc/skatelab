@@ -416,7 +416,14 @@ class PhysicsEngine:
             residuals = flight_com - parabola(t, a, b, c)
             ss_res = np.sum(residuals**2)
             ss_tot = np.sum((flight_com - np.mean(flight_com)) ** 2)
-            r_squared = 1 - (ss_res / ss_tot) if ss_tot > 0 else 0
+            # #1269: NaN-blind `ss_tot > 0` silently returned r²=0.0 when
+            # flight CoM had any NaN (NaN > 0 is False, so the ternary fell
+            # through). math.isfinite rejects NaN/Inf — return NaN to signal
+            # "unknown" instead of a believable-but-wrong 0.0.
+            if math.isfinite(ss_tot) and ss_tot > 0:
+                r_squared = 1 - (ss_res / ss_tot)
+            else:
+                r_squared = float("nan")
 
             return {
                 "height": abs(jump_height),  # meters
@@ -438,7 +445,10 @@ class PhysicsEngine:
                 "height": fallback_height,
                 "flight_time": n_frames / fps,  # #423: was / 30.0
                 "takeoff_velocity": 0.0,
-                "fit_quality": 0.0,
+                # #1269: NaN-blind fit_quality=0.0 hid corrupt flight
+                # (curve_fit raises on NaN, so we land here). Return NaN to
+                # signal "unknown" instead of a believable-but-wrong 0.0.
+                "fit_quality": float("nan"),
             }
 
     def fit_jump_trajectory(
@@ -521,7 +531,14 @@ class PhysicsEngine:
             residuals = flight_com - parabola(t, a, b, c)
             ss_res = np.sum(residuals**2)
             ss_tot = np.sum((flight_com - np.mean(flight_com)) ** 2)
-            r_squared = 1 - (ss_res / ss_tot) if ss_tot > 0 else 0
+            # #1269: NaN-blind `ss_tot > 0` silently returned r²=0.0 when
+            # flight CoM had any NaN (NaN > 0 is False, so the ternary fell
+            # through). math.isfinite rejects NaN/Inf — return NaN to signal
+            # "unknown" instead of a believable-but-wrong 0.0.
+            if math.isfinite(ss_tot) and ss_tot > 0:
+                r_squared = 1 - (ss_res / ss_tot)
+            else:
+                r_squared = float("nan")
 
             return {
                 "height": abs(jump_height),  # meters
@@ -543,7 +560,10 @@ class PhysicsEngine:
                 "height": fallback_height,
                 "flight_time": n_frames / fps,  # #423: was / 30.0
                 "takeoff_velocity": 0.0,
-                "fit_quality": 0.0,
+                # #1269: NaN-blind fit_quality=0.0 hid corrupt flight
+                # (curve_fit raises on NaN, so we land here). Return NaN to
+                # signal "unknown" instead of a believable-but-wrong 0.0.
+                "fit_quality": float("nan"),
             }
 
     def analyze(
@@ -680,7 +700,14 @@ class PhysicsEngine:
                 y_pred = np.polyval(coeffs, t_flight)
                 ss_res = np.sum((flight_com_y - y_pred) ** 2)
                 ss_tot = np.sum((flight_com_y - np.mean(flight_com_y)) ** 2)
-                fit_quality = float(1 - ss_res / ss_tot) if ss_tot > 0 else 0.0
+                # #1269: NaN-blind `ss_tot > 0` silently returned fit_quality
+                # 0.0 when flight CoM had any NaN. math.isfinite rejects
+                # NaN/Inf — return NaN to signal "unknown" instead of a
+                # believable-but-wrong 0.0. Mirrors the 3D siblings above.
+                if math.isfinite(ss_tot) and ss_tot > 0:
+                    fit_quality = float(1 - ss_res / ss_tot)
+                else:
+                    fit_quality = float("nan")
             except (np.linalg.LinAlgError, ValueError):
                 fit_quality = 0.0
 
