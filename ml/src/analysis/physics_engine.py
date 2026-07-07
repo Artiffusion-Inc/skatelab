@@ -372,11 +372,13 @@ class PhysicsEngine:
                 "takeoff_velocity": 0.0,
                 "fit_quality": 0.0,
             }
-        # #937: corrupt video reports fps=0 (cv2.CAP_PROP_FPS sentinel). Guard
-        # before any /fps — mirrors the degenerate-phase guard above. Sibling
-        # pose_tracker (#952) / smoothing (#948) fall back to dt=1.0; physics
-        # has no meaningful per-frame time without fps, so return zeros.
-        if fps <= 0:
+        # #937: corrupt video reports fps=0 (cv2.CAP_PROP_FPS sentinel).
+        # #1062: NaN fps also slips past `fps <= 0` (`NaN <= 0` is False) and
+        # propagates: `t = arange/fps` → all-NaN, the NaN-blind `ss_tot > 0`
+        # clause → silent fit_quality=0.0, and the `except`-fallback
+        # `n_frames / fps` → NaN flight_time. `math.isfinite` rejects NaN/Inf;
+        # `fps > 0` rejects 0/neg. Mirrors the 2D sibling (#1064 / PR #1131).
+        if not (math.isfinite(fps) and fps > 0):
             return {
                 "height": 0.0,
                 "flight_time": 0.0,
@@ -474,9 +476,14 @@ class PhysicsEngine:
                 "takeoff_velocity": 0.0,
                 "fit_quality": 0.0,
             }
-        # #937: corrupt video reports fps=0 — guard before any /fps (mirrors
-        # the degenerate-phase guard above and _fit_jump_trajectory_with_com).
-        if fps <= 0:
+        # #937: corrupt video reports fps=0 (cv2.CAP_PROP_FPS sentinel).
+        # #1062: NaN fps also slips past `fps <= 0` (`NaN <= 0` is False) and
+        # propagates: `t = arange/fps` → all-NaN, the NaN-blind `ss_tot > 0`
+        # clause → silent fit_quality=0.0, and the `except`-fallback
+        # `n_frames / fps` → NaN flight_time. `math.isfinite` rejects NaN/Inf;
+        # `fps > 0` rejects 0/neg. Mirrors the 2D sibling (#1064 / PR #1131)
+        # and the private sibling `_fit_jump_trajectory_with_com` above.
+        if not (math.isfinite(fps) and fps > 0):
             return {
                 "height": 0.0,
                 "flight_time": 0.0,
