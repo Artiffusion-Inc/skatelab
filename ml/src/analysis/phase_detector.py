@@ -616,8 +616,18 @@ class PhaseDetector:
             end=end_idx,
         )
 
-        # Confidence based on edge change magnitude
-        max_change = float(np.max(np.abs(edge_derivative)))
+        # Confidence based on edge change magnitude.
+        # #1007: a NaN joint (occluded LHIP/LSHOULDER on ANY frame — even a
+        # flat-baseline frame OUTSIDE the turn) propagates through
+        # compute_edge_indicator -> np.gradient -> np.max(np.abs(...)) = NaN.
+        # Python's `min(1.0, NaN) = 1.0` (first-arg-wins, #454) then inflates
+        # confidence to the 1.0 ceiling — a false BEST on a corrupted signal.
+        # Guard max_change with np.nan_to_num before the cap so a NaN-bearing
+        # edge_derivative yields 0.0 confidence (signal corruption), not 1.0.
+        # Sibling to #978/#924 (count_rotations NaN guard, same file).
+        max_change = float(np.nanmax(np.abs(edge_derivative)))
+        if not np.isfinite(max_change):
+            max_change = 0.0
         confidence = min(1.0, max_change / 0.5)
 
         return PhaseDetectionResult(phases=phases, confidence=float(confidence))
