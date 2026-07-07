@@ -118,9 +118,7 @@ def test_compute_phase_confidence_nan_fps_does_not_silently_zero_repro():
     """
     phase = _phase(confidence=0.9)
     try:
-        nan_fps_result = compute_phase_confidence(
-            phase, total_frames=120, fps=float("nan")
-        )
+        nan_fps_result = compute_phase_confidence(phase, total_frames=120, fps=float("nan"))
     except (ValueError, TypeError):
         # Acceptable: raise at the trust boundary.
         return
@@ -145,9 +143,7 @@ def test_compute_phase_confidence_nan_total_frames_does_not_silently_zero_repro(
     """
     phase = _phase(confidence=0.9)
     try:
-        nan_total = compute_phase_confidence(
-            phase, total_frames=float("nan"), fps=30.0
-        )
+        nan_total = compute_phase_confidence(phase, total_frames=float("nan"), fps=30.0)
     except (ValueError, TypeError):
         return
     # Result must be finite — the smoking gun for NaN leak.
@@ -197,7 +193,9 @@ def test_compute_phase_confidence_unguarded_nan_source_repro():
     src_lower = source.lower()
     # Locate the bug sites by source markers.
     assert "fps > 0" in src_lower, "Bug #2 site (fps > 0) missing — refactor changed the function?"
-    assert "total_frames > 0" in src_lower, "Bug #3 site (total_frames > 0) missing — refactor changed the function?"
+    assert "total_frames > 0" in src_lower, (
+        "Bug #3 site (total_frames > 0) missing — refactor changed the function?"
+    )
     # Check that at least ONE of the standard NaN guards is present at
     # the INPUT boundary. The function as-shipped has a `math.isnan` check
     # only on the FINAL `confidence` value (which already exists from
