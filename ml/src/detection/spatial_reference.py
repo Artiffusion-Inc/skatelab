@@ -226,13 +226,17 @@ class SpatialReferenceDetector:
         Returns:
             Compensated poses with same shape as input
         """
-        if camera_pose.confidence < 0.1:
-            # Low confidence, skip compensation
+        # ponytail: NaN confidence bypasses `c < 0.1` (NaN < 0.1 == False) and
+        # NaN roll poisons R_2d -> NaN poses. Two isfinite guards at the trust
+        # boundary, mirroring draw_axes (#970). NaN fails closed -> skip/zero.
+        if not np.isfinite(camera_pose.confidence) or camera_pose.confidence < 0.1:
+            # Low / unknown confidence, skip compensation
             return poses
 
         # For 2D poses, we only compensate for roll (rotation around Z axis)
         # This is equivalent to rotating in the image plane
-        roll_rad = np.deg2rad(camera_pose.roll)
+        roll = camera_pose.roll if np.isfinite(camera_pose.roll) else 0.0
+        roll_rad = np.deg2rad(roll)
         cos_roll = np.cos(-roll_rad)  # Negative for compensation
         sin_roll = np.sin(-roll_rad)
 
