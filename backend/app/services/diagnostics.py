@@ -175,7 +175,10 @@ def check_high_variability(
     variance = sum((v - mean) ** 2 for v in finite) / len(finite)
     std = variance**0.5
     cv = std / abs(mean)
-    if cv > 0.20:
+    # #1229: NaN-comparison hazard — `NaN > 0.20 == False` silently
+    # skips the warning. Guard with isfinite so a corrupt cv is observable
+    # (skipped explicitly via the short-circuit), never silent.
+    if math.isfinite(cv) and cv > 0.20:
         return Finding(
             severity="warning",
             element=element,
