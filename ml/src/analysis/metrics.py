@@ -1308,9 +1308,18 @@ class BiomechanicsAnalyzer:
         left_dist = np.linalg.norm(poses[:, H36Key.LWRIST] - poses[:, H36Key.LSHOULDER], axis=1)
         right_dist = np.linalg.norm(poses[:, H36Key.RWRIST] - poses[:, H36Key.RSHOULDER], axis=1)
 
-        avg_dist = float(np.nanmean(left_dist + right_dist) / 2)
+        # #1274: catch the "all-NaN" empty-slice RuntimeWarning from np.nanmean
+        # (numpy emits one when every frame is NaN — expected for full
+        # occlusion, not a bug). We test all-finite explicitly below.
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", RuntimeWarning)
+            avg_dist = float(np.nanmean(left_dist + right_dist) / 2)
         if not np.isfinite(avg_dist):
-            return float("nan")
+            # #1274: all-NaN (full occlusion) -> neutral 0.5 so the
+            # recommender/GOE has a finite "unknown" midpoint to consume
+            # (no NaN-leak, no false-bad 0.0 from the `max(0, 1 - NaN)`
+            # clamp-floor trap, #454).
+            return 0.5
 
         return float(max(0, 1 - avg_dist))
 
