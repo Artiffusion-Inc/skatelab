@@ -73,6 +73,11 @@ class CoachOverlayData:
         """
         if frame_idx < self.landing_frame:
             return False
+        # ponytail: #1102 NaN display_duration or fps → int(NaN) crashes the
+        # entire HUD render for this frame. Guard at the trust boundary; hide
+        # overlay (return False) so the user still sees the rest of the HUD.
+        if not (math.isfinite(self.display_duration) and math.isfinite(self.fps)):
+            return False
         end_frame = self.landing_frame + int(self.display_duration * self.fps)
         return frame_idx < end_frame
 
