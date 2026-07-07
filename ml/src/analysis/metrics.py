@@ -1788,18 +1788,43 @@ class BiomechanicsAnalyzer:
         height_score = min(1.0, height_score)
 
         rot_speed = self.compute_rotation_speed(poses, phases, fps)
-        rot_score = min(1.0, rot_speed / 720.0)
+        # #978: np.nan_to_num before the Python min — min(1.0, nan) = 1.0
+        # (#454 arg-order trap) would inflate the GOE rot_score to PERFECT on a
+        # NaN rotation_speed (occluded shoulder during fast rotation).
+        # Mirrors the height_score (#875) and approach_score (#878) guards.
+        # NaN -> neutral 0.0 (worst rotation), not best 1.0.
+        rot_score = float(np.nan_to_num(rot_speed / 720.0, nan=0.0))
+        rot_score = min(1.0, rot_score)
 
         landing_smooth = self.compute_landing_smoothness(poses, phases, fps)
         landing_stab = self.compute_landing_knee_stability(poses, phases)
         hard_landing = self.compute_hard_landing(poses, phases, fps)
         toe_assist = self.compute_toe_assist_proxy(poses, phases, fps)
-        landing_score = (landing_smooth + landing_stab + hard_landing + toe_assist) / 4.0
+        # #978: np.nan_to_num on each landing sub-metric before the average —
+        # a NaN landing sub-metric (NaN + finite) / 4 = NaN leaks into the GOE
+        # composite (NaN-leak, breaks JSON). NaN -> 0.0 (worst), mirroring the
+        # cap-site guards on height_score / rot_score / approach_score.
+        landing_score = (
+            float(np.nan_to_num(landing_smooth, nan=0.0))
+            + float(np.nan_to_num(landing_stab, nan=0.0))
+            + float(np.nan_to_num(hard_landing, nan=0.0))
+            + float(np.nan_to_num(toe_assist, nan=0.0))
+        ) / 4.0
 
         airtime = self.compute_airtime(phases, fps)
-        airtime_score = min(1.0, airtime / 1.0)
+        # #978: np.nan_to_num before the Python min — min(1.0, nan) = 1.0
+        # (#454 arg-order trap) would inflate the GOE airtime_score to PERFECT
+        # on a NaN airtime. Mirrors the height_score (#875) guard.
+        airtime_score = float(np.nan_to_num(airtime / 1.0, nan=0.0))
+        airtime_score = min(1.0, airtime_score)
 
-        trunk_recovery = self.compute_landing_trunk_recovery(poses, phases)
+        # #978: np.nan_to_num on trunk_recovery — a NaN trunk_recovery
+        # (occluded shoulder on landing) propagates `nan * 0.15 = nan` into the
+        # GOE composite (NaN-leak). NaN -> 0.0 (worst recovery), mirroring the
+        # cap-site guards on the other sub-scores.
+        trunk_recovery = float(
+            np.nan_to_num(self.compute_landing_trunk_recovery(poses, phases), nan=0.0)
+        )
 
         approach_change = self.compute_approach_direction_change(poses, phases, fps)
         # #878: guard NaN before the Python min — min(1.0, nan) = 1.0 (arg-order
