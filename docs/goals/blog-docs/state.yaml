@@ -1,0 +1,232 @@
+slug: blog-docs
+goal_status: active
+goal_title: "Blog & Docs (docs.skatelab.ru / blog.skatelab.ru)"
+created: 2026-07-07
+plan_ref: docs/plans/2026-07-07-blog-docs.md
+spec_ref: docs/specs/2026-07-07-blog-docs-design.md
+
+intake:
+  input_shape: existing_plan
+  authority: approved
+  proof_type: test
+  existing_plan_facts:
+    - "9 TDD tasks in docs/plans/2026-07-07-blog-docs.md"
+    - "Spec in docs/specs/2026-07-07-blog-docs-design.md"
+    - "Worktree worktree-blog-docs-design, branch worktree-blog-docs-design"
+    - "Commits fa7576db (spec), a268f243 (plan)"
+
+agents:
+  scout: bundled_not_installed
+  worker: bundled_not_installed
+  judge: bundled_not_installed
+
+tasks:
+  # ===== PM: validate plan before execution =====
+  - id: T000
+    type: judge
+    assignee: Judge
+    status: active
+    objective: "Validate the plan in docs/plans/2026-07-07-blog-docs.md against the spec: evidence, risk, allowed files, verify, stop conditions. Approve before queuing Worker slices."
+    inputs:
+      - docs/plans/2026-07-07-blog-docs.md
+      - docs/specs/2026-07-07-blog-docs-design.md
+    expected_output:
+      - "Decision: approved | revised"
+      - "List of any task corrections (Fumadocs API, Litestar injection, fixture names)"
+    receipt: null
+
+  # ===== Worker slices — one per plan task, sequential (shared frontend/backend scope) =====
+  - id: T001
+    type: worker
+    assignee: Worker
+    status: queued
+    objective: "Task 1 (plan): Backend STAFF_EMAILS config + is_staff flag on /v1/users/me. TDD."
+    constraints:
+      - "Use subagent-driven-development skill: fresh subagent, failing-test-first, commit per step"
+    allowed_files:
+      - backend/app/config.py
+      - backend/app/schemas.py
+      - backend/app/routes/users.py
+      - backend/tests/routes/test_users_staff_flag.py
+    verify:
+      - "uv run pytest backend/tests/routes/test_users_staff_flag.py -v"
+    stop_if:
+      - "Litestar AppConfig injection pattern unclear (need to inspect existing routes)"
+      - "client_factory fixture name differs from test_users_routes_bugfix.py"
+      - "Verification fails twice"
+    receipt: null
+
+  - id: T002
+    type: worker
+    assignee: Worker
+    status: queued
+    objective: "Task 2 (plan): Frontend Fumadocs deps + source.config.ts + Tailwind wiring."
+    constraints:
+      - "Use subagent-driven-development skill"
+    allowed_files:
+      - frontend/package.json
+      - frontend/bun.lockb
+      - frontend/source.config.ts
+      - frontend/next.config.ts
+      - frontend/src/app/globals.css
+      - frontend/tests/source-config.test.ts
+    verify:
+      - "cd frontend && bun run test -- --run tests/source-config.test.ts"
+      - "cd frontend && bun run typecheck"
+    stop_if:
+      - "Fumadocs API differs from plan (adapt + record in receipt)"
+      - "Build breaks unrelated pages"
+    receipt: null
+
+  - id: T003
+    type: worker
+    assignee: Worker
+    status: queued
+    objective: "Task 3 (plan): Host-based middleware (docs./blog. → route groups) + docs-i18n.ts."
+    constraints:
+      - "Use subagent-driven-development skill"
+    allowed_files:
+      - frontend/src/middleware.ts
+      - frontend/src/lib/docs-i18n.ts
+      - frontend/tests/middleware.test.ts
+    verify:
+      - "cd frontend && bun run test -- --run tests/middleware.test.ts"
+      - "cd frontend && bun run typecheck"
+    stop_if:
+      - "postHog middleware behavior broken"
+      - "Rewrite to /docs does not map to (docs) route group"
+    receipt: null
+
+  - id: T004
+    type: worker
+    assignee: Worker
+    status: queued
+    objective: "Task 4 (plan): Docs layout + open user docs pages (i18n path-based) + starter MDX."
+    constraints:
+      - "Use subagent-driven-development skill"
+    allowed_files:
+      - frontend/src/app/(docs)/[locale]/layout.tsx
+      - frontend/src/app/(docs)/[locale]/user/[[...slug]]/page.tsx
+      - frontend/content/docs/ru/user/getting-started.mdx
+      - frontend/content/docs/en/user/getting-started.mdx
+      - frontend/messages/ru.json
+      - frontend/messages/en.json
+      - frontend/tests/docs-user-page.test.ts
+    verify:
+      - "cd frontend && bun run test -- --run tests/docs-user-page.test.ts"
+      - "cd frontend && bun run typecheck"
+      - "cd frontend && bun run build"
+    stop_if:
+      - "Fumadocs DocsLayout/tree API differs (adapt + record)"
+      - "Build fails on user docs pages"
+    receipt: null
+
+  - id: T005
+    type: worker
+    assignee: Worker
+    status: queued
+    objective: "Task 5 (plan): Internal dev docs — STAFF_EMAILS gate + force-dynamic + staff.ts lib."
+    constraints:
+      - "Use subagent-driven-development skill"
+    allowed_files:
+      - frontend/src/lib/staff.ts
+      - frontend/src/app/(docs)/[locale]/internal/[[...slug]]/page.tsx
+      - frontend/content/docs/ru/internal/architecture.mdx
+      - frontend/content/docs/en/internal/architecture.mdx
+      - frontend/tests/staff-gate.test.ts
+    verify:
+      - "cd frontend && bun run test -- --run tests/staff-gate.test.ts"
+      - "cd frontend && bun run build (confirm internal is Server ƒ, not Static ○)"
+    stop_if:
+      - "force-dynamic not respected (MDX leaks as static)"
+      - "getStaffStatus fetch contract mismatch"
+    receipt: null
+
+  - id: T006
+    type: worker
+    assignee: Worker
+    status: queued
+    objective: "Task 6 (plan): Blog layout + post list + post detail + starter posts."
+    constraints:
+      - "Use subagent-driven-development skill"
+    allowed_files:
+      - frontend/src/app/(blog)/[locale]/layout.tsx
+      - frontend/src/app/(blog)/[locale]/page.tsx
+      - frontend/src/app/(blog)/[locale]/[slug]/page.tsx
+      - frontend/content/blog/ru/2026-07-07-launch.mdx
+      - frontend/content/blog/en/2026-07-07-launch.mdx
+      - frontend/messages/ru.json
+      - frontend/messages/en.json
+      - frontend/tests/blog.test.ts
+    verify:
+      - "cd frontend && bun run test -- --run tests/blog.test.ts"
+      - "cd frontend && bun run build"
+    stop_if:
+      - "blog.getPages/get API differs (adapt + record)"
+    receipt: null
+
+  - id: T007
+    type: worker
+    assignee: Worker
+    status: queued
+    objective: "Task 7 (plan): Sitemap (user only), robots (disallow /internal/), hreflang SEO."
+    constraints:
+      - "Use subagent-driven-development skill"
+    allowed_files:
+      - frontend/src/app/(docs)/[locale]/sitemap.ts
+      - frontend/src/app/(docs)/[locale]/robots.ts
+      - frontend/src/app/(blog)/[locale]/sitemap.ts
+      - frontend/tests/seo.test.ts
+    verify:
+      - "cd frontend && bun run test -- --run tests/seo.test.ts"
+      - "cd frontend && bun run build"
+    stop_if:
+      - "Internal pages leak into sitemap"
+    receipt: null
+
+  - id: T008
+    type: worker
+    assignee: Worker
+    status: queued
+    objective: "Task 8 (plan): Caddy docs./blog. subdomain blocks + STAFF_EMAILS env doc."
+    constraints:
+      - "Use subagent-driven-development skill"
+    allowed_files:
+      - infra/caddy/Caddyfile
+      - infra/dokploy/envs/
+    verify:
+      - "caddy validate infra/caddy/Caddyfile (or docker caddy validate)"
+    stop_if:
+      - "Caddyfile syntax invalid after fix attempts"
+      - "Cloudflare DNS records not yet configured (note in receipt, do not block)"
+    receipt: null
+
+  - id: T009
+    type: worker
+    assignee: Worker
+    status: queued
+    objective: "Task 9 (plan): E2E dev smoke + docs/CLAUDE.md update. Run full test suites."
+    constraints:
+      - "Use subagent-driven-development skill"
+    allowed_files:
+      - docs/CLAUDE.md
+    verify:
+      - "cd frontend && bun run test && bun run typecheck && bun run lint"
+      - "uv run pytest backend/tests/routes/test_users_staff_flag.py"
+      - "Manual dev smoke: curl -H 'Host: docs.skatelab.ru' localhost:3000/ru/user/getting-started → 200"
+      - "Manual dev smoke: curl -H 'Host: docs.skatelab.ru' localhost:3000/ru/internal/architecture (no cookie) → redirect /login"
+    stop_if:
+      - "Any test suite red"
+      - "Main app skatelab.ru broken by middleware"
+    receipt: null
+
+  # ===== Final audit =====
+  - id: T999
+    type: judge
+    assignee: Judge
+    status: queued
+    objective: "Final audit: confirm all 9 plan tasks done, goal oracle green, full outcome (docs.skatelab.ru user+internal, blog.skatelab.ru, main app intact)."
+    expected_output:
+      - "Decision: complete | needs_work"
+      - "Goal oracle checklist verdict"
+    receipt: null
