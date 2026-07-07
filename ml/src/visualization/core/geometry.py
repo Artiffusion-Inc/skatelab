@@ -365,6 +365,14 @@ def clip_to_frame(
         (10, 1070)  # Clipped to frame with margin
     """
     x, y = position
+    # #1070: NaN x/y silently coerces to a frame corner via Python's
+    # NaN-arg-order in min/max (min(w-m, NaN) returns w-m, max(m, w-m)
+    # is w-m → right/bottom edge), INDISTINGUISHABLE from a legitimate
+    # out-of-frame point. Guard at the trust boundary so upstream bugs
+    # surface instead of corrupting skeleton / HUD / 3D export with a
+    # phantom joint at the corner.
+    if not (math.isfinite(x) and math.isfinite(y)):
+        raise ValueError(f"x and y must be finite, got ({x}, {y})")
     x_clipped = max(margin, min(width - margin, x))
     y_clipped = max(margin, min(height - margin, y))
     return (x_clipped, y_clipped)
