@@ -287,6 +287,11 @@ class SpatialReferenceDetector:
         """
         frame = frame.copy()
 
+        # ponytail: NaN origin/length → int(origin + axis*length) crash at 330-334.
+        # One guard covers all three int() casts in the axis loop below.
+        if not (np.isfinite(origin[0]) and np.isfinite(origin[1]) and np.isfinite(length)):
+            return frame
+
         # ponytail: NaN/inf IMU roll → int(NaN) crash + "Roll: nan°" text leak.
         # One isfinite guard feeds both the int() cast and the info text.
         if not np.isfinite(camera_pose.roll):
