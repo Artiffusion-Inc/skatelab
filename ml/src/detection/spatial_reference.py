@@ -283,6 +283,28 @@ class SpatialReferenceDetector:
         """
         frame = frame.copy()
 
+        # ponytail: NaN/inf IMU roll → int(NaN) crash + "Roll: nan°" text leak.
+        # One isfinite guard feeds both the int() cast and the info text.
+        if not np.isfinite(camera_pose.roll):
+            camera_pose = CameraPose(
+                roll=0.0,
+                pitch=0.0 if not np.isfinite(camera_pose.pitch) else camera_pose.pitch,
+                yaw=0.0 if not np.isfinite(camera_pose.yaw) else camera_pose.yaw,
+                confidence=0.0
+                if not np.isfinite(camera_pose.confidence)
+                else camera_pose.confidence,
+                source=camera_pose.source,
+            )
+            _roll_text = "—"
+            _pitch_text = "—"
+            _conf_text = "—"
+        else:
+            _roll_text = f"{camera_pose.roll:.1f}°"
+            _pitch_text = f"{camera_pose.pitch:.1f}°" if np.isfinite(camera_pose.pitch) else "—"
+            _conf_text = (
+                f"{camera_pose.confidence:.2f}" if np.isfinite(camera_pose.confidence) else "—"
+            )
+
         # Rotation matrix from camera pose
         R = camera_pose.as_rotation_matrix()
 
@@ -323,10 +345,10 @@ class SpatialReferenceDetector:
 
         # Draw pose info text
         info_text = [
-            f"Roll: {camera_pose.roll:.1f}°",
-            f"Pitch: {camera_pose.pitch:.1f}°",
+            f"Roll: {_roll_text}",
+            f"Pitch: {_pitch_text}",
             f"Source: {camera_pose.source}",
-            f"Conf: {camera_pose.confidence:.2f}",
+            f"Conf: {_conf_text}",
         ]
 
         y_offset = origin[1] + length + 20
