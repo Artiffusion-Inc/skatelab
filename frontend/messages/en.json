@@ -717,5 +717,10 @@
   "errorState": {
     "title": "Something went wrong",
     "retry": "Try again"
+  },
+  "docs": {
+    "search": "Search",
+    "openApp": "Open app",
+    "translationMissing": "Translation missing, Russian version shown"
   }
 }
