@@ -214,11 +214,23 @@ def project_3d_to_2d(
         # Single position
         x, y, z = pos_3d
 
+        # #1077: NaN x/y/z silently off-screen (max(0.1, NaN)=0.1 -> 10*FL
+        # blowup) or crash (int(NaN*scale) -> ValueError). z = camera_distance
+        # is INDISTINGUISHABLE from NaN (max(0.1, 0)=0.1 -> same off-screen).
+        # Guard at the trust boundary mirroring the PR #1065 / #1070 pattern
+        # used for `pixel_to_normalized` and `clip_to_frame` in this file —
+        # raise with a clear message naming the bad input, not Python's
+        # generic int-cast message.
+        if not (math.isfinite(x) and math.isfinite(y) and math.isfinite(z)):
+            raise ValueError(f"pos_3d must be finite, got ({x}, {y}, {z})")
+
         # Perspective projection
         depth = camera_distance - z
-
-        # Avoid division by zero
-        depth = max(0.1, depth)
+        if depth <= 0:
+            raise ValueError(
+                f"z must be < camera_distance (joint in front of camera), "
+                f"got z={z}, camera_distance={camera_distance}"
+            )
 
         scale = focal_length / depth
         x_2d = width // 2 + int(x * scale)
