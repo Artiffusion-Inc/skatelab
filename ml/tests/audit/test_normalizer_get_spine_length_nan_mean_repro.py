@@ -118,36 +118,27 @@ def _finite_poses(n: int = 5) -> np.ndarray:
 
 
 def test_get_spine_length_source_has_no_nan_guard():
-    """Lock the root cause: `get_spine_length` computes
-    `spine_lengths = np.linalg.norm(thorax - hip_center, axis=1)` (line 132,
-    NaN thorax / hip → NaN norm) and `return float(np.mean(spine_lengths))`
-    (line 133, NaN-bearing mean → NaN) with NO `np.nanmean` / `isfinite` /
-    `isnan` / NaN-mask guard.
-
-    A fix would use `nanmean` / NaN-mask the lengths / sentinel. As long as
-    the code is unfixed this passes — flip on fix.
+    """GREEN contract source check: `get_spine_length` now NaN-masks the
+    aggregate. The unfixed code returned `float(np.mean(spine_lengths))`
+    (NaN-bearing mean → NaN, no guard). The fix uses `np.nanmean` (ignore NaN
+    frames) with an all-NaN sentinel (0.0) so a single occluded thorax / hip
+    frame no longer returns NaN for the whole sequence. The norm computation
+    is unchanged — the guard landed at the aggregate (mean) site.
     """
     src = inspect.getsource(PoseNormalizer.get_spine_length)
-
-    # The NaN-propagating aggregate: np.mean(spine_lengths) (no nanmean).
-    assert "return float(np.mean(spine_lengths))" in src, (
-        "get_spine_length must compute `return float(np.mean(spine_lengths))` "
-        "(line 133, NaN-bearing mean → NaN) for this repro to be valid. If "
-        "the aggregate computation changed, update the repro."
-    )
-    # The NaN-propagating norm: np.linalg.norm on NaN vector = NaN.
+    # The norm computation is unchanged.
     assert "np.linalg.norm(thorax - hip_center, axis=1)" in src, (
         "get_spine_length must compute "
-        "`spine_lengths = np.linalg.norm(thorax - hip_center, axis=1)` "
-        "(line 132, NaN thorax / hip → NaN norm) for this repro to be valid. "
-        "If the spine-length computation changed, update the repro."
+        "`spine_lengths = np.linalg.norm(thorax - hip_center, axis=1)` for "
+        "this repro to be valid. If the spine-length computation changed, "
+        "update the repro."
     )
-    # NO nanmean / nan_to_num / isfinite / isnan guard anywhere in the method.
-    assert "nanmean" not in src and "nan_to_num" not in src and \
-           "isfinite" not in src and "isnan" not in src, (
-        "get_spine_length now guards NaN (nanmean / nan_to_num / isfinite / "
-        "isnan) — root cause fixed, update this repro to the GREEN contract "
-        "(NaN thorax / hip → mean among finite frames / sentinel, not NaN)."
+    # GREEN: the aggregate now ignores NaN + guards the all-NaN case.
+    assert "nanmean" in src and "isfinite" in src, (
+        "get_spine_length must use `np.nanmean(spine_lengths)` (ignore NaN "
+        "frames) with an all-NaN sentinel (`np.isfinite` guard → 0.0). The "
+        "unfixed `np.mean(spine_lengths)` propagates a single NaN frame to "
+        "the whole-sequence return — root cause not fixed."
     )
 
 
@@ -185,13 +176,11 @@ def test_mean_nan_returns_nan():
 
 
 def test_nan_thorax_get_spine_length_returns_nan():
-    """BUG: `get_spine_length` with a NaN THORAX on frame 2 (occluded thorax)
-    → `np.linalg.norm(NaN - hip) = NaN` → `spine_lengths[2] = NaN` →
-    `np.mean(spine_lengths)` = NaN → `float(NaN)` = NaN. The public method
-    returns a NaN spine length for the entire sequence.
-
-    PASS on unfixed code. A fix (nanmean / NaN-mask / sentinel) → finite spine
-    length → assert FAILS → GREEN contract.
+    """GREEN contract: `get_spine_length` with a NaN THORAX on frame 2
+    (occluded thorax) → `spine_lengths[2] = NaN` → the fix uses `np.nanmean`
+    (mean over the 4 finite frames) → finite spine length ≈ 0.4, NOT NaN.
+    The public method no longer returns a NaN spine length for the whole
+    sequence on one occluded frame.
     """
     norm = PoseNormalizer(target_spine_length=0.4)
     nan = float("nan")
@@ -199,12 +188,17 @@ def test_nan_thorax_get_spine_length_returns_nan():
     poses[2, H36Key.THORAX] = [nan, nan, nan]  # NaN thorax on frame 2
 
     spine = norm.get_spine_length(poses)
-    # BUG: NaN thorax → NaN spine length.
-    assert np.isnan(spine), (
-        f"FIXED: get_spine_length with a NaN thorax on frame 2 returned "
-        f"{spine} (finite). A NaN guard (nanmean / NaN-mask / sentinel) "
-        f"landed. Update this repro to the GREEN contract (NaN thorax → mean "
-        f"among finite frames / sentinel, not NaN)."
+    # GREEN: NaN thorax on one frame → mean over finite frames (≈0.4), not NaN.
+    assert np.isfinite(spine), (
+        f"BUG: get_spine_length with a NaN thorax on frame 2 returned "
+        f"{spine} (NaN). np.mean(spine_lengths) propagates the NaN frame → "
+        f"NaN for the whole sequence. Use np.nanmean (ignore NaN frames) + an "
+        f"all-NaN sentinel so one occluded frame does not poison the aggregate."
+    )
+    assert abs(spine - 0.4) < 1e-5, (
+        f"BUG: NaN-thorax spine = {spine}, expected ~0.4 (mean over finite "
+        f"frames, all of which have a 0.4 m spine). nanmean must match the "
+        f"finite path's value."
     )
 
 
@@ -217,13 +211,11 @@ def test_nan_thorax_get_spine_length_returns_nan():
 
 
 def test_nan_hip_center_get_spine_length_returns_nan():
-    """BUG: `get_spine_length` with a NaN HIP_CENTER on frame 2 (occluded hip)
-    → `np.linalg.norm(thorax - NaN) = NaN` → `spine_lengths[2] = NaN` →
-    `np.mean(spine_lengths)` = NaN → returns NaN. The leak is symmetric: a NaN
-    in EITHER input of `thorax - hip_center` poisons the norm.
-
-    PASS on unfixed code. A fix (nanmean / NaN-mask / sentinel) → finite spine
-    length → assert FAILS → GREEN contract.
+    """GREEN contract: `get_spine_length` with a NaN HIP_CENTER on frame 2
+    (occluded hip) → `spine_lengths[2] = NaN` → `np.nanmean` (mean over the 4
+    finite frames) → finite ≈ 0.4. The leak is symmetric: a NaN in EITHER
+    input of `thorax - hip_center` poisoned the norm; nanmean ignores the
+    poisoned frame in both cases.
     """
     norm = PoseNormalizer(target_spine_length=0.4)
     nan = float("nan")
@@ -231,12 +223,16 @@ def test_nan_hip_center_get_spine_length_returns_nan():
     poses[2, H36Key.HIP_CENTER] = [nan, nan, nan]  # NaN hip_center on frame 2
 
     spine = norm.get_spine_length(poses)
-    # BUG: NaN hip_center → NaN spine length (symmetric to NaN thorax).
-    assert np.isnan(spine), (
-        f"FIXED: get_spine_length with a NaN hip_center on frame 2 returned "
-        f"{spine} (finite). A NaN guard (nanmean / NaN-mask / sentinel) "
-        f"landed. Update this repro to the GREEN contract (NaN hip_center → "
-        f"mean among finite frames / sentinel, not NaN)."
+    # GREEN: NaN hip_center on one frame → mean over finite frames, not NaN.
+    assert np.isfinite(spine), (
+        f"BUG: get_spine_length with a NaN hip_center on frame 2 returned "
+        f"{spine} (NaN). The leak is symmetric to NaN thorax — np.mean "
+        f"propagates the NaN frame. Use np.nanmean so one occluded frame does "
+        f"not poison the aggregate."
+    )
+    assert abs(spine - 0.4) < 1e-5, (
+        f"BUG: NaN-hip_center spine = {spine}, expected ~0.4 (mean over "
+        f"finite frames). nanmean must match the finite path's value."
     )
 
 
