@@ -1455,7 +1455,12 @@ class BiomechanicsAnalyzer:
         # is a tracking artifact, not real rotation. Cap to the ceiling preserving
         # sign — zeroing (old behavior) destroyed the rotation count of real
         # triple/quadruple jumps (~2160-2400 deg/s). 720 deg/s was far too low. #426
-        max_delta = np.radians(2400.0 / fps)
+        # #958: corrupt video reports fps=0 (cv2.CAP_PROP_FPS sentinel). Guard
+        # the ceiling division — inf ceiling → np.clip no-op for finite deltas
+        # → rotation count from raw deltas, NOT a ZeroDivisionError crash. The
+        # clamp is meant to cap degenerate dt (tracking artifact); at fps<=0
+        # "no clamp" is the correct degradation. Mirrors #499 fps=0 family.
+        max_delta = np.radians(2400.0 / fps) if fps > 0 else np.inf
         clamped = np.abs(delta) > max_delta
         delta = np.clip(delta, -max_delta, max_delta)
 
