@@ -139,26 +139,48 @@ class ReferenceBuilder:
 
         Returns:
             ReferenceData.
+
+        Raises:
+            RuntimeError: If a numeric field in the .npz is non-finite
+                (NaN / inf) — corrupt-disk / partial-write path. Mirrors
+                the #1041 `get_video_meta` style.
         """
+
+        def _finite_int(key: str) -> int:
+            raw = float(data[key])
+            if not np.isfinite(raw):
+                raise RuntimeError(
+                    f"Corrupt reference .npz: non-finite {key}={raw} for path={path}"
+                )
+            return int(raw)
+
+        def _finite_float(key: str) -> float:
+            raw = float(data[key])
+            if not np.isfinite(raw):
+                raise RuntimeError(
+                    f"Corrupt reference .npz: non-finite {key}={raw} for path={path}"
+                )
+            return raw
+
         data = np.load(path, allow_pickle=True)
 
         # Reconstruct VideoMeta
         meta = VideoMeta(
             path=Path(str(data["meta_path"])),
-            fps=float(data["meta_fps"]),
-            width=int(data["meta_width"]),
-            height=int(data["meta_height"]),
-            num_frames=int(data["meta_num_frames"]),
+            fps=_finite_float("meta_fps"),
+            width=_finite_int("meta_width"),
+            height=_finite_int("meta_height"),
+            num_frames=_finite_int("meta_num_frames"),
         )
 
         # Reconstruct ElementPhase
         phases = ElementPhase(
             name=str(data["phases_name"]),
-            start=int(data["phases_start"]),
-            takeoff=int(data["phases_takeoff"]),
-            peak=int(data["phases_peak"]),
-            landing=int(data["phases_landing"]),
-            end=int(data["phases_end"]),
+            start=_finite_int("phases_start"),
+            takeoff=_finite_int("phases_takeoff"),
+            peak=_finite_int("phases_peak"),
+            landing=_finite_int("phases_landing"),
+            end=_finite_int("phases_end"),
         )
 
         poses_3d = None
@@ -175,7 +197,7 @@ class ReferenceBuilder:
             poses=data["poses"],
             poses_3d=poses_3d,
             phases=phases,
-            fps=float(data.get("fps", meta.fps if meta else 30.0)),
+            fps=_finite_float("fps") if "fps" in data else meta.fps,
             meta=meta,
             source=str(data["source"]),
         )
