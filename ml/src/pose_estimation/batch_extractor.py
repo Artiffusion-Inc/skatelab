@@ -13,6 +13,7 @@ Usage:
 from __future__ import annotations
 
 import logging
+import math
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -202,6 +203,13 @@ class BatchPoseExtractor:
                     break
 
                 h, w = frame.shape[:2]
+                # Skip corrupt frames with non-finite dims — stdlib int(NaN)
+                # would crash cv2.resize (line 208) and _detect_and_crop
+                # (line 150). Pre-allocated NaN pose stays (#1160).
+                if not (math.isfinite(h) and math.isfinite(w)):
+                    frame_idx += 1
+                    pbar.update(1)
+                    continue
                 # Resize large frames for detection
                 if max(h, w) > 1920:
                     scale = 1920 / max(h, w)
