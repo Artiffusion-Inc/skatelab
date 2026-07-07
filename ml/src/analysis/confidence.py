@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -21,6 +22,18 @@ def compute_phase_confidence(
     3. Frame coverage (fraction of total)
     4. Boundary smoothness (not provided here, defaults to 1.0)
     """
+    # #1051: trust-boundary NaN guard. `fps > 0` and `total_frames > 0`
+    # silently coerce NaN to False (NaN comparisons are False), masking
+    # bad upstream inputs. Coerce NaN/inf to safe defaults at the boundary
+    # so a corrupt input falls through to the legitimate fps=0 / total_frames=0
+    # path (which already returns 0 confidence via the `else 0` branch)
+    # AND so `duration_sec`/`coverage` math is NaN-free downstream.
+    # Mirrors the PR 1025 (commit 258488c8) `np.isfinite` guard pattern.
+    if not math.isfinite(fps):
+        fps = 0.0
+    if not math.isfinite(float(total_frames)):
+        total_frames = 0
+
     duration_frames = phase.end_frame - phase.start_frame
     duration_sec = duration_frames / fps if fps > 0 else 0
 
@@ -54,8 +67,6 @@ def compute_phase_confidence(
     # missing/NaN upstream confidence was reported as 100% confident.
     # If confidence is NaN, the phase detection is unreliable —
     # return 0.0.
-    import math
-
     if math.isnan(confidence):
         return 0.0
     return max(0.0, min(1.0, confidence))
