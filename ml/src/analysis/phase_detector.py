@@ -479,10 +479,18 @@ class PhaseDetector:
             b_coeff = coeffs[1]
 
             # Compute R²
+            # #1267: guard against NaN in y_local (CoM segment). Without this,
+            # np.polyfit returns NaN coeffs -> ss_res=NaN, ss_tot=NaN ->
+            # `NaN > 1e-10` is False -> the else branch silently yields 0.0,
+            # indistinguishable from a real "0 fit" answer. Skip this segment
+            # (continue) when y_local is not finite so the parabola is rejected
+            # for the right reason (corrupt input), not silently mis-classified.
+            if not np.isfinite(y_local).all():
+                continue
             y_pred = np.polyval(coeffs, t_local)
             ss_res = float(np.sum((y_local - y_pred) ** 2))
             ss_tot = float(np.sum((y_local - np.mean(y_local)) ** 2))
-            r_squared = 1.0 - (ss_res / ss_tot) if ss_tot > 1e-10 else 0.0
+            r_squared = 1.0 - (ss_res / ss_tot) if math.isfinite(ss_tot) and ss_tot > 1e-10 else 0.0
 
             # Peak of parabola
             parabola_peak_t = -b_coeff / (2.0 * a_coeff) if abs(a_coeff) > 1e-12 else -1.0
