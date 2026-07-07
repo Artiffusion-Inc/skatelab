@@ -1348,6 +1348,12 @@ class BiomechanicsAnalyzer:
             hip = poses[:, H36Key.RHIP]
             shoulder = poses[:, H36Key.RSHOULDER]
 
+        # #977: NaN hip/shoulder (occluded joint) -> NaN spine_vector ->
+        # arctan2(NaN)=NaN -> clip(NaN)=NaN -> np.std(NaN)=NaN leaks NaN into
+        # edge_change_smoothness. nan_to_num is identity on finite joints.
+        hip = np.nan_to_num(hip, nan=0.0)
+        shoulder = np.nan_to_num(shoulder, nan=0.0)
+
         # Vector from hip to shoulder: (N, 2)
         spine_vector = shoulder - hip
 
