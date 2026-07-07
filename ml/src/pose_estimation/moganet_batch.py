@@ -12,6 +12,7 @@ MogaNet-B specifics:
 from __future__ import annotations
 
 import logging
+import math
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -58,10 +59,10 @@ def preprocess_crops(
     for i, crop in enumerate(crops):
         crop_h, crop_w = crop.shape[:2]
 
-        if crop_w <= 0 or crop_h <= 0:
+        if not math.isfinite(crop_w) or not math.isfinite(crop_h) or crop_w <= 0 or crop_h <= 0:
             raise ValueError(
                 f"preprocess_crops: crop[{i}] has degenerate shape "
-                f"(h={crop_h}, w={crop_w}); both must be > 0"
+                f"(h={crop_h}, w={crop_w}); both must be finite and > 0"
             )
 
         # Aspect-ratio-preserving scale
@@ -150,10 +151,10 @@ def rescale_keypoints(
         crop_h, crop_w = crops[i].shape[:2]
         x1, y1, _x2, _y2 = bboxes[i]
 
-        if crop_w <= 0 or crop_h <= 0:
+        if not math.isfinite(crop_w) or not math.isfinite(crop_h) or crop_w <= 0 or crop_h <= 0:
             raise ValueError(
                 f"rescale_keypoints: crops[{i}] has degenerate shape "
-                f"(h={crop_h}, w={crop_w}); both must be > 0"
+                f"(h={crop_h}, w={crop_w}); both must be finite and > 0"
             )
 
         # Undo letterbox: must match exact forward computation in preprocess_crops
