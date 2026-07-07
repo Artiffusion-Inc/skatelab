@@ -175,7 +175,11 @@ class VizPipeline:
         total = self.meta.num_frames
         fps = self.meta.fps
 
-        time_sec = frame_idx / fps
+        # #959: corrupt video reports fps=0 (cv2.CAP_PROP_FPS sentinel).
+        # Guard before /fps — timestamp degrades to 00:00.00, frame counter
+        # (frame_idx/total, fps-independent) still rendered. Mirrors the
+        # TimerLayer overlay sibling (timer_layer.py:25 `if fps <= 0`).
+        time_sec = frame_idx / fps if fps > 0 else 0.0
         minutes = int(time_sec) // 60
         seconds = time_sec % 60
         ms = int((seconds % 1) * 100)
@@ -197,7 +201,13 @@ class VizPipeline:
         from src.analysis.angles import compute_joint_angles
 
         self.export_frames.append(frame_idx)
-        self.export_timestamps.append(round(frame_idx / self.meta.fps, 3))
+        # #959: corrupt video reports fps=0 (cv2.CAP_PROP_FPS sentinel).
+        # Guard before /fps — timestamp column degrades to 0.0 (unknown
+        # elapsed time), export collection continues. Mirrors the
+        # draw_frame_counter guard above + TimerLayer sibling.
+        self.export_timestamps.append(
+            round(frame_idx / self.meta.fps, 3) if self.meta.fps > 0 else 0.0
+        )
         self.export_floor_angles.append(round(floor_angle, 2))
         ja = compute_joint_angles(self.poses_norm[pose_idx])
         self.export_joint_angles.append(ja)
