@@ -220,7 +220,17 @@ class PhaseDetector:
             if len(peaks) == 0:
                 peak_idx = len(poses) // 2
             else:
-                peak_idx = peaks[np.argmax(-properties["prominences"])]
+                # #1324: `properties["prominences"]` from scipy.find_peaks may
+                # contain NaN (com_y NaN propagation). `np.argmax` of a NaN-
+                # mixed array returns the first-NaN index, so peak points to
+                # a wrong frame silently. Use `np.nanargmax` to skip NaN and
+                # fall back to the mid-frame default if ALL prominences are
+                # NaN (nanargmax raises ValueError on all-NaN slices).
+                prominences = properties["prominences"]
+                if np.isfinite(prominences).any():
+                    peak_idx = int(peaks[np.nanargmax(-prominences)])
+                else:
+                    peak_idx = len(poses) // 2
 
         # Set takeoff and landing indices
         if len(takeoff_candidates) > 0:
