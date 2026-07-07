@@ -271,8 +271,15 @@ def _generate_positions(n: int) -> list[dict]:
     ``seed is not None`` (Python OS-seeds on first use otherwise). A bare
     no-arg reseed wipes the seeded state, making positions non-reproducible
     across identical-seed calls.
+
+    #1214: guard against non-finite/negative n — int(NaN) and int(inf) raise
+    ValueError, which would abort the entire CSP solver. Treat any unusable n
+    as zero (no positions).
     """
     positions: list[dict] = []
+
+    if not (isinstance(n, (int, float)) and math.isfinite(n) and n >= 0):
+        return positions
 
     # Grid-based jittered sampling for even distribution
     cols = max(1, int(n**0.5 * 1.5))
