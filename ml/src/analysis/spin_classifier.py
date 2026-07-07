@@ -6,6 +6,7 @@ biomechanical features: duration, hip vertical displacement, and angular velocit
 
 from __future__ import annotations
 
+import math
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -31,6 +32,20 @@ def classify_spin(
     Returns:
         (spin_name, confidence) tuple. Confidence in [0, 1].
     """
+    # #1053: NaN/-inf inputs must not poison the [0, 1] confidence contract.
+    # The else-branch on the duration check actively produces NaN/-inf in the
+    # score (0.1 * (NaN / x) = NaN, 0.1 * (-inf / x) = -inf), and the
+    # min(score, 1.0) clamp on the return propagates non-finite values.
+    # json.dumps(allow_nan=False) crashes, the GOE composite poisons, the UI
+    # displays NaN/-inf. Guard the trust boundary — return the documented
+    # ("unknown", 0.0) sentinel for "no data". Identity on all-finite input.
+    if not (
+        math.isfinite(duration_s)
+        and math.isfinite(hip_y_range)
+        and math.isfinite(angular_velocity_mean)
+    ):
+        return "unknown", 0.0
+
     candidates: list[tuple[str, float]] = []
     for spin in SPIN_TYPES.values():
         score = 0.0
