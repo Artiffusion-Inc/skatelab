@@ -730,8 +730,12 @@ class ElementSegmenter:
 
         # Use x-component of velocity as edge indicator
         # (positive = outside edge, negative = inside edge)
-        edge_left = np.sign(left_vel[:, 0])
-        edge_right = np.sign(right_vel[:, 0])
+        # #1352: NaN in LFOOT/RFOOT (occluded foot) propagates through
+        # np.diff → np.sign(NaN)=NaN, corrupting the edge indicator and
+        # downstream edge_change_count. nan_to_num masks NaN→0 (no edge)
+        # so sign(0)=0 contributes zero to the average.
+        edge_left = np.sign(np.nan_to_num(left_vel[:, 0], nan=0.0))
+        edge_right = np.sign(np.nan_to_num(right_vel[:, 0], nan=0.0))
 
         # Average both feet
         edge = (edge_left + edge_right) / 2
