@@ -109,6 +109,13 @@ def decode_heatmaps(
 
     # Flatten and argmax
     flat = heatmaps.reshape(batch_size, num_joints, -1)
+    # NaN guard: np.argmax treats NaN as smallest value, returning the
+    # first NaN's index. If upstream numerics propagate NaN into the
+    # heatmap, argmax silently locks onto the wrong position. nan_to_num
+    # with nan=-inf below shifts NaN to "least possible" so the real
+    # finite maximum wins.
+    if not np.isfinite(flat).all():
+        flat = np.nan_to_num(flat, nan=-np.inf, posinf=-np.inf, neginf=-np.inf)
     flat_max = flat.max(axis=2)
     flat_idx = flat.argmax(axis=2)
 
