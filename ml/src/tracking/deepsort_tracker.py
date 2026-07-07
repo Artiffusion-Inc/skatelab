@@ -100,11 +100,23 @@ class DeepSORTTracker:
             self._frame_count += 1
             return []
 
+        # All-NaN persons (full occlusion / detector glitch) would make
+        # nanmin/nanmax return NaN + emit "All-NaN slice encountered" warnings
+        # and feed a NaN bbox to DeepSORT. Skip them at the bbox-compute site.
+        valid = np.isfinite(keypoints).any(axis=(1, 2))
+        valid_idx = np.flatnonzero(valid)
+        if valid_idx.size == 0:
+            self._frame_count += 1
+            return [-1] * n_curr
+
+        kp_valid = keypoints[valid_idx]
+        sc_valid = scores[valid_idx]
+
         # Bounding boxes из ключевых точек (Pose2Sim bbox_ltwh_compute)
-        x_min = np.nanmin(keypoints[:, :, 0], axis=1)
-        x_max = np.nanmax(keypoints[:, :, 0], axis=1)
-        y_min = np.nanmin(keypoints[:, :, 1], axis=1)
-        y_max = np.nanmax(keypoints[:, :, 1], axis=1)
+        x_min = np.nanmin(kp_valid[:, :, 0], axis=1)
+        x_max = np.nanmax(kp_valid[:, :, 0], axis=1)
+        y_min = np.nanmin(kp_valid[:, :, 1], axis=1)
+        y_max = np.nanmax(kp_valid[:, :, 1], axis=1)
 
         padding = 20.0
         width = x_max - x_min
@@ -121,17 +133,18 @@ class DeepSORTTracker:
         bboxes_ltwh[:, 1] *= frame_height  # y_min
         bboxes_ltwh[:, 2] *= frame_width  # width
         bboxes_ltwh[:, 3] *= frame_height  # height
-        bbox_scores = np.nanmean(scores, axis=1)
+        bbox_scores = np.nanmean(sc_valid, axis=1)
 
         detections = list(
             zip(
                 bboxes_ltwh.tolist(),
                 bbox_scores.tolist(),
-                ["person"] * n_curr,
+                ["person"] * valid_idx.size,
                 strict=False,
             )
         )
-        det_ids = list(range(n_curr))
+        # Preserve original person indices so the ID mapping below stays aligned.
+        det_ids = valid_idx.tolist()
 
         if frame is not None and self._tracker is not None:
             tracks = self._tracker.update_tracks(detections, frame=frame, others=det_ids)
