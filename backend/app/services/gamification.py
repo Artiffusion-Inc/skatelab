@@ -1,5 +1,6 @@
 """Gamification service: XP, levels, skill unlock logic."""
 
+import math
 from datetime import UTC
 
 from app.crud.skill_progress import get_or_create
@@ -17,6 +18,11 @@ async def award_session_xp(db: AsyncSession, user_id: str, overall_score: float)
     level/skill-reward economy (L2=100 XP, gold skill reward=300 XP). Old code
     used int(score*10), a 0..1-scale formula that inflated XP 10x (#437).
     """
+    # #1235: round(NaN) raises ValueError ("cannot convert float NaN to integer").
+    # Corrupt upstream metrics (missing references, gap-filled NaN scores) must
+    # not crash the XP award path. Fall back to 0 XP — no award, no crash.
+    if not math.isfinite(overall_score):
+        overall_score = 0.0
     # #546: round() instead of int(). int(9.9) = 9 (truncates), but
     # round(9.9) = 10. Users lose 0-1 XP per session on a 0-10 scale
     # with decimal subscores. round() uses banker's rounding (half-to-even)
