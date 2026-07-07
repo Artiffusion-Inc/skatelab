@@ -243,6 +243,17 @@ def _compute_trs(
     bone_vec = end_pos - start_pos
     bone_length = np.linalg.norm(bone_vec)
 
+    # NaN joint (3D lift NaN on occluded keypoint) → NaN translation and NaN
+    # bone_length, which bypasses the `bone_length < 1e-6` degenerate guard
+    # (NaN < 1e-6 is False) and leaks NaN into quaternion/scale. Treat NaN/inf
+    # joints like a degenerate bone: finite identity-quat unit-scale fallback.
+    if not (np.isfinite(start_pos).all() and np.isfinite(end_pos).all()):
+        return (
+            np.zeros(3, dtype=translation.dtype),
+            np.array([1.0, 0.0, 0.0, 0.0]),
+            np.array([bone_radius, 0.5, bone_radius]),
+        )
+
     if bone_length < 1e-6:
         # Degenerate bone: no rotation, unit scale
         return (
