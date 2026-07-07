@@ -206,8 +206,11 @@ class PhaseDetector:
             search_end = min(len(poses), first_landing + 1)
 
             com_y_search = com_y[search_start:search_end]
+            # np.argmin treats NaN as smallest, returning the first NaN
+            # position when the slice mixes finite and NaN values — silent
+            # wrong-index bug. Use np.nanargmin to skip NaN.
             if len(com_y_search) > 0 and np.isfinite(com_y_search).any():
-                peak_offset = np.argmin(com_y_search)
+                peak_offset = int(np.nanargmin(com_y_search))
                 peak_idx = search_start + peak_offset
             else:
                 peak_idx = len(poses) // 2
