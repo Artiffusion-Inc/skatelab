@@ -116,8 +116,15 @@ class ONNXPoseExtractor:
             window_weights = np.ones(frame_count, dtype=np.float32)
             ramp_len = min(frame_count, w // 4)
             if ramp_len > 0:
-                window_weights[:ramp_len] = np.linspace(0.5, 1.0, ramp_len)
-                window_weights[-ramp_len:] = np.linspace(1.0, 0.5, ramp_len)
+                # #1047: build a symmetric triangle via np.minimum of the up
+                # and down ramps. The previous two sequential slice writes
+                # overlapped on `frame_count <= 2*ramp_len` (every short
+                # last window of a sliding-window pass) and the second
+                # write silently overwrote the first, reversing the ramp
+                # so the peak ended up at idx 0 instead of the center.
+                up = np.linspace(0.5, 1.0, frame_count)
+                down = np.linspace(1.0, 0.5, frame_count)
+                window_weights = np.minimum(up, down).astype(np.float32)
             results[start:end] += out[:frame_count] * window_weights[:, np.newaxis, np.newaxis]
             weights[start:end] += window_weights
 
