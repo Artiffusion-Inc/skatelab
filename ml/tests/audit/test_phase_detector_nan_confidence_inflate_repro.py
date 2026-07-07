@@ -306,18 +306,24 @@ def test_phase_detector_confidence_inflate_source_repro():
     to 1.0 on degenerate input. `calculate_com_trajectory` masks NaN keypoints
     so an occluded joint cannot NaN-poison the CoM (the source-level fix that
     repairs every CoM-based metric).
+
+    #1088: the prominence guard is `math.isfinite` (broader than the prior
+    `math.isnan` from #562 — catches inf too). Source check asserts the
+    broader guard.
     """
     src = inspect.getsource(PhaseDetector._detect_jump_phases_com_improved)
     # The prominence is still derived from the flight CoM (max - min).
     assert "prominence = float(np.max(flight_com) - np.min(flight_com))" in src, (
         "BUG: _detect_jump_phases_com_improved must still derive prominence from the flight CoM."
     )
-    # The #454 arg-order trap is defused: a NaN guard on prominence forces
+    # The #454 arg-order trap is defused: a finite guard on prominence forces
     # confidence to 0.0 instead of inflating via `min(1.0, nan) = 1.0`.
-    assert "_math.isnan(prominence)" in src and "confidence = 0.0" in src, (
+    # #1088: guard is now `math.isfinite` (broader than `math.isnan` from
+    # #562 — catches inf too).
+    assert "math.isfinite(prominence)" in src and "confidence = 0.0" in src, (
         "BUG: _detect_jump_phases_com_improved must guard prominence against "
-        "NaN so the confidence clamp cannot inflate to 1.0 via "
-        "`min(1.0, nan) = 1.0` (#454, #886)."
+        "non-finite values (math.isfinite) so the confidence clamp cannot "
+        "inflate to 1.0 via `min(1.0, nan) = 1.0` (#454, #886, #1088)."
     )
 
     # And the CoM trajectory is NaN-aware — masking NaN keypoints so an

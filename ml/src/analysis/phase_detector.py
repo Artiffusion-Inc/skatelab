@@ -4,6 +4,8 @@ This module detects key phases like takeoff, peak height, and landing
 from pose sequences using biomechanical cues.
 """
 
+import math
+
 import numpy as np
 from scipy.signal import find_peaks
 
@@ -297,7 +299,14 @@ class PhaseDetector:
         # and min(1.0, NaN) returns 1.0 in Python -> NaN-weighted terms inflate to
         # full weight -> ~0.5 confidence on a video with no jump at all. Sibling
         # parabolic path guards with a 1e-6 threshold; this velocity path did not. #425
-        if vy_std < 1e-6:
+        # #1088: the `vy_std < 1e-6` threshold does NOT catch NaN (NaN < 1e-6 is
+        # False in Python). A NaN keypoint outside the flight window (e.g. RKNEE[0]
+        # = NaN) → com_y masked-but-degraded → parabolic segment detection fails →
+        # com_improved fallback with `peak_idx = len//2` → prominence over a wider
+        # window exceeds 0.05 → `min(1.0, prominence/0.05) = 1.0` → confidence =
+        # 0.5, HIGHER than the all-valid baseline (false BEST on corrupted
+        # input). Use math.isfinite (NOT math.isnan) to also catch inf.
+        if not math.isfinite(vy_std) or vy_std < 1e-6:
             velocity_confidence = 0.0
         else:
             velocity_confidence = (
@@ -312,18 +321,23 @@ class PhaseDetector:
         # confidence for a phase with missing data. If prominence is
         # NaN, the phase detection is unreliable — return 0.0 confidence
         # instead. Same root cause as #561 confidence.py:51.
-        import math as _math
+        # #1088: broaden the guard from isnan to isfinite (catches inf too)
+        # and apply the same guard to the sum-of-terms BEFORE the outer
+        # min(1.0, ...) clamp — once min(1.0, NaN) has run, you get 1.0
+        # which is finite, so the guard must be on the input to the clamp,
+        # not the output (sibling to #1025 three_turn fix).
 
-        if _math.isnan(prominence):
+        if not math.isfinite(prominence):
             confidence = 0.0
         else:
-            confidence = min(
-                1.0,
-                (
-                    min(1.0, prominence / 0.05) * 0.5  # Peak prominence (max 0.05)
-                    + velocity_confidence
-                ),
+            conf_sum = (
+                min(1.0, prominence / 0.05) * 0.5  # Peak prominence (max 0.05)
+                + velocity_confidence
             )
+            if not math.isfinite(conf_sum):
+                confidence = 0.0
+            else:
+                confidence = min(1.0, conf_sum)
 
         rotations = _compute_flight_rotations(poses, int(phases.takeoff), int(phases.landing))
         return PhaseDetectionResult(
