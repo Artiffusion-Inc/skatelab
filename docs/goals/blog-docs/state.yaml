@@ -6,6 +6,7 @@ spec_ref: docs/specs/2026-07-07-blog-docs-design.md
 
 goal:
   status: active
+  slug: blog-docs
   title: "Blog & Docs (docs.skatelab.ru / blog.skatelab.ru)"
   created: 2026-07-07
   intake:
