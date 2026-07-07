@@ -49,6 +49,19 @@ def get_video_meta(path: Path) -> VideoMeta:
         fps = cap.get(cv2.CAP_PROP_FPS)
         num_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
 
+        # #961: corrupt/damaged video reports CAP_PROP_FPS=0.0 (OpenCV
+        # sentinel for "unknown framerate"); some builds return None for a
+        # missing metadata atom; damaged containers can return NaN. `float()`
+        # of any of these leaks a degenerate fps into VideoMeta — the
+        # upstream root cause of the #499 fps=0 family (11+ downstream
+        # per-site guards exist because this producer leaks). Normalize at
+        # the trust boundary to a sane default (30.0), matching
+        # VideoMeta.duration_sec's "fps=0 is degenerate" philosophy. The
+        # video is NOT rejected — frames still extract; analysis runs at a
+        # nominal framerate. Per-site guards become defense-in-depth.
+        if fps is None or fps <= 0 or not np.isfinite(fps):
+            fps = 30.0
+
         return VideoMeta(
             path=path,
             fps=float(fps),
