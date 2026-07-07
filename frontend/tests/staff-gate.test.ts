@@ -75,10 +75,7 @@ describe("staff gate", () => {
     // by reading the source instead. Bun's transpiler can't be used either
     // for the same reason.
     const { readFileSync } = await import("node:fs")
-    const src = readFileSync(
-      "src/app/(docs)/[locale]/internal/[[...slug]]/page.tsx",
-      "utf8",
-    )
+    const src = readFileSync("src/app/(docs)/[locale]/internal/[[...slug]]/page.tsx", "utf8")
     expect(src).toMatch(/export\s+const\s+dynamic\s*=\s*["']force-dynamic["']/)
   })
 })

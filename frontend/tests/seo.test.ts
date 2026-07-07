@@ -5,7 +5,7 @@ describe("robots disallow internal", () => {
     const mod = await import("../src/app/(docs)/[locale]/robots")
     const { rules } = mod.default()
     const disallows = (rules as any[]).flatMap((r: any) =>
-      Array.isArray(r.disallow) ? r.disallow : [r.disallow].filter(Boolean)
+      Array.isArray(r.disallow) ? r.disallow : [r.disallow].filter(Boolean),
     )
     expect(disallows).toContain("/internal/")
   })
