@@ -46,6 +46,51 @@ def _segment_iou(seg1: dict, seg2: dict) -> float:
     return inter / union if union > 0 else 0.0
 
 
+def _match_segments(
+    pred_segs: list[dict],
+    true_segs: list[dict],
+    iou_threshold: float,
+) -> dict[str, float]:
+    """Match pred vs true segments by best IoU, return F1/precision/recall.
+
+    Greedy by descending IoU: build all same-label candidate pairs above
+    threshold, sort by IoU desc, assign while both sides are unmatched.
+    Replaces the first-match-wins greedy that paired a pred with the FIRST
+    unmatched true instead of the highest-IoU one (issue #815).
+    Shared by OverlapF1 and MultiOverlapF1 so segments are extracted once
+    (issue #816).
+    """
+    candidates: list[tuple[float, int, int]] = []
+    for pi, ps in enumerate(pred_segs):
+        for ti, ts in enumerate(true_segs):
+            if ps["label"] != ts["label"]:
+                continue
+            iou = _segment_iou(ps, ts)
+            if iou >= iou_threshold:
+                candidates.append((iou, pi, ti))
+    # ponytail: sorted-greedy by IoU desc — O(n log n), no scipy dep;
+    # upgrade to linear_sum_assignment if pred/true counts grow large.
+    candidates.sort(key=lambda c: c[0], reverse=True)
+
+    matched_true: set[int] = set()
+    matched_pred: set[int] = set()
+    for _iou, pi, ti in candidates:
+        if pi in matched_pred or ti in matched_true:
+            continue
+        matched_pred.add(pi)
+        matched_true.add(ti)
+
+    tp = len(matched_pred)
+    fp = len(pred_segs) - tp
+    fn = len(true_segs) - len(matched_true)
+
+    precision = tp / (tp + fp) if (tp + fp) > 0 else 0.0
+    recall = tp / (tp + fn) if (tp + fn) > 0 else 0.0
+    f1 = 2 * precision * recall / (precision + recall) if (precision + recall) > 0 else 0.0
+
+    return {"f1": f1, "precision": precision, "recall": recall}
+
+
 class OverlapF1:
     """Temporal segmentation evaluation: F1 with IoU >= threshold.
 
@@ -73,31 +118,7 @@ class OverlapF1:
         """
         pred_segs = _extract_segments(pred_labels, self.id2label)
         true_segs = _extract_segments(true_labels, self.id2label)
-
-        matched_true: set[int] = set()
-        matched_pred: set[int] = set()
-
-        for pi, ps in enumerate(pred_segs):
-            for ti, ts in enumerate(true_segs):
-                if ti in matched_true:
-                    continue
-                if ps["label"] != ts["label"]:
-                    continue
-                iou = _segment_iou(ps, ts)
-                if iou >= self.iou_threshold:
-                    matched_pred.add(pi)
-                    matched_true.add(ti)
-                    break
-
-        tp = len(matched_pred)
-        fp = len(pred_segs) - tp
-        fn = len(true_segs) - len(matched_true)
-
-        precision = tp / (tp + fp) if (tp + fp) > 0 else 0.0
-        recall = tp / (tp + fn) if (tp + fn) > 0 else 0.0
-        f1 = 2 * precision * recall / (precision + recall) if (precision + recall) > 0 else 0.0
-
-        return {"f1": f1, "precision": precision, "recall": recall}
+        return _match_segments(pred_segs, true_segs, self.iou_threshold)
 
 
 class MultiOverlapF1:
@@ -116,19 +137,22 @@ class MultiOverlapF1:
         pred_labels: "NDArray",
         true_labels: "NDArray",
     ) -> dict[str, float]:
-        """Compute OverlapF1 at multiple IoU thresholds."""
+        """Compute OverlapF1 at multiple IoU thresholds.
+
+        Segments are extracted ONCE and reused across all thresholds (only the
+        IoU threshold changes, not the segments).
+        """
         pred_segs = _extract_segments(pred_labels, self.id2label)
         true_segs = _extract_segments(true_labels, self.id2label)
 
         result: dict[str, float] = {}
         for threshold in self.thresholds:
             tag = str(int(threshold * 100))
-            metric = OverlapF1(iou_threshold=threshold, num_classes=self.num_classes)
-            single = metric.compute(pred_labels, true_labels)
+            single = _match_segments(pred_segs, true_segs, threshold)
             result[f"f1@{tag}"] = single["f1"]
             result[f"precision@{tag}"] = single["precision"]
             result[f"recall@{tag}"] = single["recall"]
         return result
 
 
-__all__ = ["MultiOverlapF1", "OverlapF1", "_extract_segments", "_segment_iou"]
+__all__ = ["MultiOverlapF1", "OverlapF1", "_extract_segments", "_match_segments", "_segment_iou"]
