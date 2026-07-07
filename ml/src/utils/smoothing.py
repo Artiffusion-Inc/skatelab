@@ -7,6 +7,7 @@ Ideal for smoothing human motion capture data from BlazePose.
 Reference: https://github.com/jaantollander/OneEuroFilter
 """
 
+import math
 from dataclasses import dataclass
 from typing import Final
 
@@ -269,8 +270,17 @@ class OneEuroFilter:
             Filtered value.
 
         Raises:
-            ValueError: If timestamps are not monotonically increasing.
+            ValueError: If the timestamp is not finite, or if timestamps are
+                not monotonically increasing.
         """
+        # Reject non-finite timestamps (NaN/inf) before any arithmetic.
+        # NaN bypasses the monotonic guard (`NaN <= x == False`) and poisons
+        # `te = t - self._t_prev`, crashing `_smoothing_factor_numba` under
+        # `fastmath=True` (NaN-as-0 → ZeroDivisionError). See #1033.
+        if not math.isfinite(t):
+            msg = f"Timestamp must be finite: t={t}"
+            raise ValueError(msg)
+
         if not self._initialized:
             # First sample - pass through
             self._x_prev = x
