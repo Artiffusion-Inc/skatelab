@@ -646,8 +646,14 @@ class ElementSegmenter:
         if not segments:
             return 0.0
 
-        # Average of segment confidences
-        return float(np.mean([s.confidence for s in segments]))
+        # #1265: guard against NaN confidences (corrupt classifier output
+        # or upstream NaN propagate). `np.mean([..., NaN, ...])` is NaN
+        # silently; `np.nanmean` of all-NaN still returns NaN with a
+        # RuntimeWarning. Filter to finite values first, then mean.
+        finite = [s.confidence for s in segments if math.isfinite(s.confidence)]
+        if not finite:
+            return 0.0
+        return float(np.mean(finite))
 
     def _compute_edge_indicator(self, poses: NormalizedPose) -> NDArray[np.float32]:
         """Compute edge indicator for step/turn detection.
