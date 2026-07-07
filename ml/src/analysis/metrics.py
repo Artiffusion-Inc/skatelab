@@ -597,6 +597,22 @@ class BiomechanicsAnalyzer:
         angles = np.arctan2(shoulder_vector[:, 1], shoulder_vector[:, 0])
         unwrapped = np.unwrap(angles)
         angular_velocity = np.abs(np.gradient(unwrapped) * fps) * (180.0 / np.pi)
+        # #912: NaN shoulder on a spin frame (occlusion during fast rotation)
+        # -> shoulder_vector NaN -> arctan2(nan, x) = NaN -> np.unwrap(NaN) = NaN
+        # -> np.gradient(NaN) = NaN -> angular_velocity carries NaN frames.
+        # Bare np.max(angular_velocity[spin_mask]) propagates NaN -> spin_peak_velocity
+        # = NaN, and the leaf compute_total_rotation(unwrapped, fps) does
+        # abs(unwrapped[-1] - unwrapped[0]) = NaN on NaN endpoints -> total_rotation_deg
+        # / rotation_count = NaN. Guard the inline unwrapped series at the trust
+        # boundary (the leaf helper stays unguarded by design — #913 guards
+        # upstream in compute_total_rotation_from_poses; _analyze_spin builds its
+        # own unwrapped inline so the guard belongs here). Return the 0.0 sentinel
+        # (neutral "no data") matching the degenerate-phases guards, instead of NaN.
+        # Identity on all-finite input. ponytail: all-NaN shoulders yield 0.0
+        # (biased finite, not NaN); upgrade to inf sentinel if a degenerate-spin
+        # signal is needed.
+        if not np.all(np.isfinite(unwrapped)):
+            unwrapped = np.where(np.isfinite(unwrapped), unwrapped, 0.0)
 
         # Hip Y position for spin detection
         hip_y = (poses[:, H36Key.LHIP][:, 1] + poses[:, H36Key.RHIP][:, 1]) / 2.0
@@ -614,7 +630,17 @@ class BiomechanicsAnalyzer:
         # — a gradient spike unrelated to the spin — become the reported peak.
         # Restrict to the detected spin frames; 0.0 when no spin is detected.
         if is_spin and np.any(spin_mask):
-            peak_velocity = float(np.max(angular_velocity[spin_mask]))
+            # #912: np.nanmax (NOT np.max) so a NaN frame in angular_velocity
+            # (occluded LSHOULDER/RSHOULDER that slips past the unwrapped guard
+            # above, or a NaN injected by detect_spin's hip path) does not
+            # poison the peak into NaN. nanmax skips NaN frames; if every
+            # masked frame is NaN there is no data — 0.0 instead of NaN, which
+            # breaks JSON serialization and the GOE composite. Mirrors #962
+            # (_analyze_step) nanmax+isfinite and #903 (compute_rotation_speed).
+            # Identity on all-finite input.
+            peak_velocity = float(np.nanmax(angular_velocity[spin_mask]))
+            if not np.isfinite(peak_velocity):
+                peak_velocity = 0.0
         else:
             peak_velocity = 0.0
         results.append(
