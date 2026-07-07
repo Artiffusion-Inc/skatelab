@@ -520,10 +520,27 @@ class ElementSegmenter:
         features["duration_frames"] = num_frames
 
         # Motion energy
+        # #1308: occluded joint / CoM NaN / missing keypoint propagates
+        # through _compute_motion_energy -> np.linalg.norm / smooth_signal
+        # into a NaN-bearing array. The bare np.mean/std/max reductions
+        # absorb NaN -> NaN written to features dict -> NaN feature vector
+        # consumed by the element classifier (BiGRU coarse + RF fine in
+        # ml/src/tas/). The upstream #922 nan_to_num at line 507 currently
+        # masks the bug by coercing NaN keypoints to 0.0; this is a
+        # defense-in-depth guard at the feature-math trust boundary so a
+        # future revert of #922 doesn't silently break the classifier
+        # chain. Mirrors the #1276 hip_y_range isfinite filter pattern in
+        # the same function.
         motion_energy = self._compute_motion_energy(poses)
-        features["motion_energy_mean"] = float(np.mean(motion_energy))
-        features["motion_energy_std"] = float(np.std(motion_energy))
-        features["motion_energy_max"] = float(np.max(motion_energy))
+        finite_motion_energy = motion_energy[np.isfinite(motion_energy)]
+        if finite_motion_energy.size > 0:
+            features["motion_energy_mean"] = float(np.mean(finite_motion_energy))
+            features["motion_energy_std"] = float(np.std(finite_motion_energy))
+            features["motion_energy_max"] = float(np.max(finite_motion_energy))
+        else:
+            features["motion_energy_mean"] = 0.0
+            features["motion_energy_std"] = 0.0
+            features["motion_energy_max"] = 0.0
 
         # Hip Y trajectory (for jumps)
         hip_y = get_mid_hip(poses)[:, 1]
