@@ -206,7 +206,7 @@ class PhaseDetector:
             search_end = min(len(poses), first_landing + 1)
 
             com_y_search = com_y[search_start:search_end]
-            if len(com_y_search) > 0:
+            if len(com_y_search) > 0 and np.isfinite(com_y_search).any():
                 peak_offset = np.argmin(com_y_search)
                 peak_idx = search_start + peak_offset
             else:
