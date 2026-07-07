@@ -374,6 +374,15 @@ class PhaseDetector:
         """
         from scipy.ndimage import median_filter as _median_filter
 
+        # #1061: NaN/neg fps guard at the trust boundary. The downstream
+        # `if fps > 0 else 0.0` airtime clamp is NaN-blind (NaN > 0 is False)
+        # and silently coerces NaN fps to airtime=0.0, indistinguishable from
+        # a legitimate fps=0 broken-header video. Reject non-finite or
+        # non-positive fps with a typed error naming the bad value, mirroring
+        # the #1043/#1044/#1063/#1066 fps guard pattern.
+        if not (math.isfinite(fps) and fps > 0):
+            raise ValueError(f"fps must be finite and > 0, got {fps!r}")
+
         N = len(poses)
         if N < 12:
             return self._detect_jump_phases_com_improved(poses, fps, poses_3d=poses_3d)
