@@ -1,5 +1,6 @@
 """End-to-end TAS inference: poses → ONNX BiGRU(+Refiner) coarse → segments → ONNX/CNN fine."""
 
+import math
 from pathlib import Path
 
 import numpy as np
@@ -77,14 +78,23 @@ class TASElementSegmenter:
         poses: np.ndarray,
         fps: float,
     ) -> list[dict]:
-        """Extract contiguous segments with per-type minimum duration filter."""
+        """Extract contiguous segments with per-type minimum duration filter.
+
+        #1094: NaN labels (degenerate model confidence, NaN pose features
+        feeding the BiGRU, padding frames) used to crash `int(labels[i])`
+        with ValueError. Guard every cast with `math.isfinite` — NaN/inf
+        labels are skipped, treating them as a 1-frame "not yet
+        classified" gap inside the current segment.
+        """
         segments: list[dict] = []
         if len(labels) == 0:
             return segments
 
-        current = int(labels[0])
         start = 0
+        current = 0 if not math.isfinite(labels[0]) else int(labels[0])
         for i in range(1, len(labels)):
+            if not math.isfinite(labels[i]):
+                continue  # NaN/inf frame — gap inside the current segment
             if int(labels[i]) != current:
                 if current != 0:
                     seg = self._try_add_segment(current, start, i, poses, fps)

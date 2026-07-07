@@ -4,6 +4,7 @@ OverlapF1: F1 score where a predicted segment matches a true segment
 if their IoU >= threshold and labels match.
 """
 
+import math
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -17,13 +18,24 @@ def _extract_segments(labels: "NDArray", id2label: dict[int, str]) -> list[dict]
     """Extract contiguous segments from frame-wise labels.
 
     Returns list of {label, start, end} dicts. Skips class 0 (None).
+
+    #1094: NaN labels (missing GT annotation, blank cell in label CSV)
+    used to crash `int(labels[i])` with ValueError. Guard every cast with
+    `math.isfinite` — NaN/inf labels are skipped, treating them as a
+    1-frame "not yet classified" gap inside the current segment.
     """
     segments: list[dict] = []
     if len(labels) == 0:
         return segments
-    current = int(labels[0])
+    # #1094: NaN/inf labels are skipped — they become a 1-frame "not yet
+    # classified" gap inside the current segment. Leading NaN means no
+    # current segment yet; we start the loop with current=0 so the first
+    # finite label is treated as a fresh start.
     start = 0
+    current = 0 if not math.isfinite(labels[0]) else int(labels[0])
     for i in range(1, len(labels)):
+        if not math.isfinite(labels[i]):
+            continue  # NaN/inf frame — gap inside the current segment
         if int(labels[i]) != current:
             if current != 0:
                 segments.append({"label": id2label[current], "start": start, "end": i - 1})
