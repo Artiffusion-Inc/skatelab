@@ -15,6 +15,7 @@ Based on research from:
 - Exa/Gemini spatial reference research (2026-03-28)
 """
 
+import math
 from dataclasses import dataclass
 from typing import Literal
 
@@ -189,9 +190,18 @@ class SpatialReferenceDetector:
         if not all_angles:
             return CameraPose(roll=0.0, pitch=0.0, yaw=0.0, confidence=0.0)
 
+        # Filter non-finite angles so np.mean cannot propagate NaN to
+        # CameraPose.roll. The abs(angle) < 10 check at line 186 normally
+        # blocks NaN (abs(NaN) = NaN, NaN < 10 is False), but an upstream
+        # chain could produce NaN-positive values, or a sibling caller
+        # could construct all_angles from a different detector.
+        finite_angles = [a for a in all_angles if math.isfinite(a)]
+        if not finite_angles:
+            return CameraPose(roll=0.0, pitch=0.0, yaw=0.0, confidence=0.0)
+
         # Use mean instead of median to detect actual tilt
         # Median gives 0 for symmetric distributions
-        roll = float(np.mean(all_angles))
+        roll = float(np.mean(finite_angles))
 
         # Confidence based on number of horizontal lines found
         confidence = min(len(all_angles) / 3.0, 1.0)
