@@ -114,6 +114,15 @@ async def soft_delete(db: AsyncSession, session: Session) -> None:
     await db.flush()
 
 
+async def soft_delete_many(db: AsyncSession, session_ids: list[str]) -> None:
+    """Batch soft-delete: single UPDATE ... WHERE id IN (:ids). #964."""
+    if not session_ids:
+        return
+    stmt = sa.update(Session).where(Session.id.in_(session_ids)).values(status="deleted")
+    await db.execute(stmt)
+    await db.flush()
+
+
 async def update_session_analysis(
     db: AsyncSession,
     session_id: str,
