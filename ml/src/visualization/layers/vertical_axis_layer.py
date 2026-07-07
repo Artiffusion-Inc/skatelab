@@ -204,6 +204,12 @@ class VerticalAxisLayer(Layer):
         """Draw a dashed line between two points."""
         x1, y1 = pt1
         x2, y2 = pt2
+        # NaN guard (#1156): dist < 1 doesn't catch NaN (NaN < 1 is False),
+        # so NaN coords would propagate to dx/dy and crash int(NaN).
+        if not (
+            math.isfinite(x1) and math.isfinite(x2) and math.isfinite(y1) and math.isfinite(y2)
+        ):
+            return
         dist = math.hypot(x2 - x1, y2 - y1)
         if dist < 1:
             return
