@@ -85,8 +85,8 @@ class BoundaryRefinerCNN(nn.Module):
         dropout: float = 0.3,
     ) -> None:
         super().__init__()
-        self.conv1 = nn.Conv1d(input_channels, hidden_channels, kernel_size=10, padding="same")
-        self.conv2 = nn.Conv1d(hidden_channels, hidden_channels, kernel_size=10, padding="same")
+        self.conv1 = nn.Conv1d(input_channels, hidden_channels, kernel_size=9, padding="same")
+        self.conv2 = nn.Conv1d(hidden_channels, hidden_channels, kernel_size=9, padding="same")
         self.dropout = nn.Dropout(dropout)
         self.classifier = nn.Linear(hidden_channels, 4)
 
