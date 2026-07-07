@@ -38,6 +38,14 @@ def compute_phase_confidence(
     duration_sec = duration_frames / fps if fps > 0 else 0
 
     # Factor 1: Duration reasonableness
+    # #1221: NaN guard. `NaN < 0.05` and `NaN < 0.1` are both False in
+    # IEEE 754, so NaN duration silently falls into the `else` branch
+    # (best-case factor 1.0). NaN is "I don't know / corrupt input" — not
+    # "this is a great phase". Coerce to 0.0 so it lands in the
+    # suspicious-short branch (factor 0.3) and is flagged as a data
+    # quality issue downstream.
+    if not math.isfinite(duration_sec):
+        duration_sec = 0.0
     if duration_sec < 0.05:  # Less than 50ms is suspicious
         duration_factor = 0.3
     elif duration_sec < 0.1:
