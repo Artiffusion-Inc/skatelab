@@ -366,10 +366,14 @@ class ElementSegmenter:
                 search_start = 0
                 search_end = min(start + self._boundary_window, len(poses))
 
-            # Find velocity minimum in search window
+            # Find velocity minimum in search window.
+            # #972: np.argmin on a NaN-bearing window treats NaN as smallest
+            # and snaps the boundary to the NaN frame (occluded hip). Use
+            # nanargmin over finite frames; fall back to 0 when all-NaN
+            # (sentinel, no crash — boundary left at search_start).
             window_vel = velocity_mag[search_start:search_end]
-            if len(window_vel) > 0:
-                min_idx = np.argmin(window_vel)
+            if len(window_vel) > 0 and np.isfinite(window_vel).any():
+                min_idx = int(np.nanargmin(window_vel))
                 new_start = search_start + min_idx
             else:
                 new_start = start
@@ -383,8 +387,8 @@ class ElementSegmenter:
                 search_end = len(poses)
 
             window_vel = velocity_mag[search_start:search_end]
-            if len(window_vel) > 0:
-                min_idx = np.argmin(window_vel)
+            if len(window_vel) > 0 and np.isfinite(window_vel).any():
+                min_idx = int(np.nanargmin(window_vel))
                 new_end = search_start + min_idx
             else:
                 new_end = end
