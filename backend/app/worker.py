@@ -11,6 +11,7 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import logging
+import math
 import os
 from datetime import UTC, datetime
 from pathlib import Path
@@ -468,9 +469,15 @@ async def process_video_task(
 
                         # Save timeline segments (same transaction as metrics)
                         if vast_result.segments:
-                            seg_confidence = float(
-                                np.mean([s["confidence"] for s in vast_result.segments])
-                            )
+                            # #1257: filter NaN/inf so a single corrupt
+                            # Vast.ai segment confidence doesn't poison the
+                            # mean and store NaN in segmentation_confidence.
+                            finite_confs = [
+                                s["confidence"]
+                                for s in vast_result.segments
+                                if s["confidence"] is not None and math.isfinite(s["confidence"])
+                            ]
+                            seg_confidence = float(np.mean(finite_confs)) if finite_confs else 0.0
                             await batch_insert_elements(
                                 db,
                                 session_id,
