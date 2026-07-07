@@ -658,8 +658,21 @@ class PhaseDetector:
                 confidence=0.0,
             )
 
-        # Use most prominent change point as turn center
-        turn_center = change_points[np.argmax(np.abs(edge_derivative[change_points]))]
+        # Use most prominent change point as turn center.
+        # #1307: NaN in edge_derivative (occluded hip, missing keypoint, corrupt
+        # CoM trajectory) makes `np.argmax` return the first-NaN index silently
+        # — a finite wrong index that shifts phase boundaries and the `peak`
+        # field. Sibling to #978/#924/#1007 (count_rotations / hip_y_min_idx
+        # NaN guards, same file). Use isfinite filter before argmax so a
+        # NaN-bearing change_point is skipped and the real max abs derivative
+        # wins. Falls back to the legacy `change_points[0]` for all-NaN input
+        # (preserves prior behavior for that edge case).
+        abs_slice = np.abs(edge_derivative[change_points])
+        finite_mask = np.isfinite(abs_slice)
+        if finite_mask.any():
+            turn_center = int(change_points[finite_mask][np.argmax(abs_slice[finite_mask])])
+        else:
+            turn_center = int(change_points[0])
 
         # Set boundaries around turn
         start_idx = max(0, turn_center - 15)
