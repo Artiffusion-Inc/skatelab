@@ -22,7 +22,10 @@ def extract_segment_features(
     Features: duration, hip_y_range, motion_energy, rotation_speed, num_frames.
     """
     T = poses.shape[0]
-    duration = T / fps
+    # #950: corrupt video reports fps=0 (cv2.CAP_PROP_FPS sentinel). Guard
+    # before /fps — duration 0.0 (no meaningful duration without a
+    # framerate). Mirrors #505 rule-based sibling (element_segmenter.py:458).
+    duration = T / fps if fps > 0 else 0.0
 
     # Hip Y trajectory (for jumps)
     midhip = poses[:, 11:13, :].mean(axis=1)  # (T, 2)

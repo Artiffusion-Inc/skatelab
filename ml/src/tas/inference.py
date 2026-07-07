@@ -111,7 +111,11 @@ class TASElementSegmenter:
     ) -> dict | None:
         """Add segment if it passes per-type minimum duration check."""
         element_type = self.id2label[label]
-        duration = (end - start) / fps
+        # #950: corrupt video reports fps=0 (cv2.CAP_PROP_FPS sentinel).
+        # Guard before /fps — duration 0.0 → min-duration filter drops the
+        # segment (no meaningful duration without a framerate). Mirrors the
+        # #505 rule-based sibling (element_segmenter.py:458).
+        duration = (end - start) / fps if fps > 0 else 0.0
         min_dur = MIN_DURATION.get(element_type, self.min_segment_duration)
         if duration < min_dur:
             return None
