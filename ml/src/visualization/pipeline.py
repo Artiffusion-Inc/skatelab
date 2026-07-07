@@ -7,6 +7,7 @@ per-frame rendering, and data export. Callers provide video I/O.
 from __future__ import annotations
 
 import csv as _csv
+import math
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
@@ -198,17 +199,28 @@ class VizPipeline:
         """Collect data for NPY + CSV export."""
         if pose_idx is None:
             return
-        from src.analysis.angles import compute_joint_angles
-
+        # #1115: NaN/inf on EITHER side of `frame_idx / self.meta.fps`
+        # silently leaks NaN to the CSV (`round(NaN, 3) = NaN`). The
+        # #959 `if fps > 0` guard is NaN-fps-blind-pass by accident
+        # (`NaN > 0` is False → 0.0 branch) but inf-fps-blind-fail
+        # (`inf > 0` is True → `5/inf = 0.0` indistinguishable from a
+        # legitimate fps=0 broken-header video), AND it ignores
+        # `frame_idx=nan` entirely (NaN/30 = NaN). Use `math.isfinite`
+        # on both inputs — mirror the trust-boundary pattern at
+        # `types.py:459 VideoMeta.duration_sec`,
+        # `phase_detector.py:383`, `physics_engine.py:381/486`. Degrade
+        # to 0.0 (mirror the #959 contract) instead of skipping the
+        # frame — the row is still useful (joint angles, floor angle,
+        # poses), only the timestamp column is unknowable.
+        fps_finite = math.isfinite(self.meta.fps) and self.meta.fps > 0
+        frame_finite = math.isfinite(float(frame_idx))
         self.export_frames.append(frame_idx)
-        # #959: corrupt video reports fps=0 (cv2.CAP_PROP_FPS sentinel).
-        # Guard before /fps — timestamp column degrades to 0.0 (unknown
-        # elapsed time), export collection continues. Mirrors the
-        # draw_frame_counter guard above + TimerLayer sibling.
         self.export_timestamps.append(
-            round(frame_idx / self.meta.fps, 3) if self.meta.fps > 0 else 0.0
+            round(frame_idx / self.meta.fps, 3) if fps_finite and frame_finite else 0.0
         )
         self.export_floor_angles.append(round(floor_angle, 2))
+        from src.analysis.angles import compute_joint_angles
+
         ja = compute_joint_angles(self.poses_norm[pose_idx])
         self.export_joint_angles.append(ja)
         if self.poses_px is not None:
