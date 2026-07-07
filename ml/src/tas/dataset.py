@@ -17,23 +17,23 @@ if TYPE_CHECKING:
     from numpy.typing import NDArray
 
 
-# OP25 -> COCO17 index mapping (13 keypoints)
+# OP25 -> COCO17 index mapping (13 keypoints). OP25 L/R conventions match
+# COCO L/R; only the 13 OP25 joints that have a direct COCO counterpart are mapped.
 OP25_TO_COCO17 = {
-    0: 0,
-    2: 5,
-    3: 6,
-    4: 7,
-    5: 8,
-    6: 9,
-    7: 10,
-    9: 11,
-    10: 12,
-    11: 13,
-    12: 14,
-    13: 15,
-    14: 16,
+    0: 0,  # Nose
+    2: 6,  # RShoulder -> COCO RShoulder
+    3: 8,  # RElbow   -> COCO RElbow
+    4: 10,  # RWrist   -> COCO RWrist
+    5: 5,  # LShoulder -> COCO LShoulder
+    6: 7,  # LElbow   -> COCO LElbow
+    7: 9,  # LWrist   -> COCO LWrist
+    9: 12,  # RHip     -> COCO RHip
+    10: 14,  # RKnee    -> COCO RKnee
+    11: 16,  # RAnkle   -> COCO RAnkle
+    12: 11,  # LHip     -> COCO LHip
+    13: 13,  # LKnee    -> COCO LKnee
+    14: 15,  # LAnkle   -> COCO LAnkle
 }
-OP25_MIDHIP_SRC = [9, 12]  # RHip, LHip in OP25
 
 
 def coarse_label(fine_label: str) -> int:
@@ -65,33 +65,34 @@ def op25_to_coco17(poses_op25: "NDArray[np.float64]") -> "NDArray[np.float32]":
         poses_coco17: (T, 17, 2) array with x, y only.
     """
     T = poses_op25.shape[0]
-    # Compute mid-hip from left/right hip
-    midhip = poses_op25[:, OP25_MIDHIP_SRC, :2].mean(axis=1, keepdims=True)  # (T, 1, 2)
     out = np.zeros((T, 17, 2), dtype=np.float32)
     for op_idx, coco_idx in OP25_TO_COCO17.items():
         out[:, coco_idx, :] = poses_op25[:, op_idx, :2].astype(np.float32)
-    # COCO index 11 is mid-hip
-    out[:, 11, :] = midhip.squeeze(1)
+    # COCO17 has no mid-hip keypoint — LHip/RHip slots keep their mapped values;
+    # coco_to_h36m_batch derives HIP_CENTER from L+R hip itself.
     return out
 
 
 def normalize_poses(poses: "NDArray[np.float32]") -> "NDArray[np.float32]":
-    """Root-center + spine-length scale normalization.
+    """Root-center + spine-length scale normalization on H3.6M poses.
+
+    Called after ``coco_to_h36m_batch``, so ``poses`` are H3.6M 17kp:
+    0=HIP_CENTER, 1=RHIP, 4=LHIP, 8=THORAX, 9=NECK, ... (see H36Key).
 
     Args:
-        poses: (T, 17, 2) COCO17 or H3.6M format.
+        poses: (T, 17, 2) H3.6M format keypoints.
 
     Returns:
-        Normalized poses.
+        Normalized poses (root at hip, scaled by hip->thorax spine length).
     """
-    # Use mid-hip (COCO idx 11, H36M idx 0 after conversion)
-    # For COCO17, mid-hip is idx 11
-    mid = poses[:, 11:13, :].mean(axis=1, keepdims=True)  # (T, 1, 2)
+    # H3.6M hip root: midpoint of RHIP(1) and LHIP(4). Falls back to HIP_CENTER(0)
+    # alone if one hip is zero/degenerate, but both are present in normal data.
+    mid = poses[:, [1, 4], :].mean(axis=1, keepdims=True)  # (T, 1, 2)
     p = poses - mid
-    # Spine: shoulder midpoint to hip midpoint
-    sh = p[:, 5:7, :].mean(axis=1, keepdims=True)  # (T, 1, 2)
-    spine = np.linalg.norm(sh, axis=2, keepdims=True)  # (T, 1, 1)
-    return p / np.maximum(spine, 0.01)
+    # Spine length: distance from hip root to THORAX(8). Use NECK(9) as fallback
+    # anchor if THORAX is degenerate; both are torso joints (not a leg segment).
+    spine = np.linalg.norm(p[:, 8, :], axis=1, keepdims=True)  # (T, 1)
+    return p / np.maximum(spine[:, :, None], 0.01)
 
 
 class MCFSCoarseDataset(Dataset):
