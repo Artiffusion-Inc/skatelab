@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -31,7 +32,15 @@ def detect_deductions(metrics: dict[str, float]) -> list[DetectedDeduction]:
     # (hard impact) + LOW landing_smoothness — not a soft landing. See #421.
     smoothness = metrics.get("landing_smoothness", 1.0)
     hard_landing = metrics.get("hard_landing", 1.0)
-    if smoothness < 0.05 and hard_landing < 0.1:
+    # NaN/inf on either metric must NOT silently skip the fall branch via
+    # `NaN < X == False` — that's a safety miss (real fall hidden as no
+    # fall). #1230: guard both with math.isfinite before the threshold.
+    if (
+        math.isfinite(smoothness)
+        and math.isfinite(hard_landing)
+        and smoothness < 0.05
+        and hard_landing < 0.1
+    ):
         fall_def = next((d for d in DETECTABLE_DEDUCTIONS if d.id == "fall"), None)
         if fall_def:
             results.append(
