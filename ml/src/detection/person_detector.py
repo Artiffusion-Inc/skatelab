@@ -4,6 +4,7 @@ Replaces YOLOv8n ONNX with RF-DETR (Apache 2.0).
 Pure onnxruntime — no torch/ultralytics dependency.
 """
 
+import math
 from pathlib import Path
 
 import cv2
@@ -188,6 +189,15 @@ class PersonDetector:
         conf = float(scores[best_idx])
 
         # Clip to frame bounds
+        # #1100: NaN bbox coords silently clamp to (0, 0) corner via
+        # Python's NaN-arg-order in min/max (min(NaN, w) = NaN, then
+        # max(0.0, NaN) = 0.0 → x1=0.0 silent corner collapse; 0-area
+        # bbox at the (0, 0) corner is INDISTINGUISHABLE from a
+        # legitimate zero-area detection and can be picked as "best").
+        # Guard at the trust boundary so the upstream NaN source
+        # surfaces instead of producing a phantom bbox at the corner.
+        if not all(math.isfinite(float(v)) for v in bx):
+            raise ValueError(f"bbox coords must be finite, got {bx.tolist()}")
         x1 = max(0.0, min(float(bx[0]), float(w)))
         y1 = max(0.0, min(float(bx[1]), float(h)))
         x2 = max(0.0, min(float(bx[2]), float(w)))
