@@ -550,6 +550,15 @@ class PhaseDetector:
 
                 # Score = R² × excursion magnitude
                 seg_excursion = float(baseline[peak_frame] - com_smooth[peak_frame])
+                # #1301: skip NaN/inf seg_excursion. score = r_squared * NaN
+                # is NaN, and `NaN > best_score` (best_score starts at -1.0)
+                # is always False (NaN-cmp rule) — the candidate is silently
+                # rejected, best_score stays at -1.0, and the function falls
+                # through to the com_improved fallback. Downstream metrics
+                # then compute on the wrong segments and emit a wrong
+                # biomechanical report. Skip the corrupt candidate explicitly.
+                if not math.isfinite(seg_excursion):
+                    continue
                 score = r_squared * seg_excursion
 
                 if score > best_score:
