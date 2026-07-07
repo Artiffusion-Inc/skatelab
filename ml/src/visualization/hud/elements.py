@@ -439,6 +439,18 @@ def _draw_direction_arrow(
     """
     import math
 
+    # ponytail: NaN/inf x/y/size/angle/thickness → int(NaN) ValueError crash
+    # in the four int() casts below. Skip arrow for corrupted frame.
+    # Mirrors #965 (draw_blade_indicator_hud) / #974 / #970 convention.
+    if not (
+        math.isfinite(x)
+        and math.isfinite(y)
+        and math.isfinite(size)
+        and math.isfinite(angle)
+        and math.isfinite(thickness)
+    ):
+        return
+
     # Convert angle to radians
     angle_rad = math.radians(angle)
 
