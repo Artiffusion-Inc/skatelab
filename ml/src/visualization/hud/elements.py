@@ -271,8 +271,17 @@ def draw_phase_indicator(
     )
 
     # Draw confidence if provided
-    if confidence is not None:
+    # ponytail: NaN/inf confidence → "Conf: nan" HUD leak (issue #974).
+    # isfinite guard rejects NaN (NaN is not None) and inf; placeholder "—"
+    # mirrors #970 draw_axes convention.
+    if confidence is not None and np.isfinite(confidence):
         conf_text = f"Conf: {confidence:.2f}"
+    elif confidence is not None:
+        conf_text = "Conf: —"
+    else:
+        conf_text = None
+
+    if conf_text is not None:
         draw_text_box(
             frame,
             conf_text,
