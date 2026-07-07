@@ -6,6 +6,7 @@ Provides grid-based positioning system for HUD elements:
 - Spacing management
 """
 
+import math
 from dataclasses import dataclass
 from enum import IntEnum
 
@@ -356,6 +357,18 @@ def clip_to_frame(
         >>> clip_to_frame(-10, -10, 100, 100, 1920, 1080)
         (0, 0, 90, 90)  # Clipped to frame
     """
+    # #1075: NaN x/y silently coerces to (0, 0) — top-left frame
+    # origin — via Python's NaN-arg-order in min/max: min(NaN, w-1)
+    # propagates NaN (first-arg NaN wins), then max(0, NaN) returns
+    # 0 (literal 0 first-arg wins). Same root cause as
+    # `core.geometry.clip_to_frame` (#1070, PR #1130), but the
+    # opposite corner: there first-arg = `width - margin` → right
+    # edge; here first-arg = `x` → left edge / top-left origin.
+    # Guard at the trust boundary so upstream bugs surface instead
+    # of corrupting HUD / overlay positioning with a phantom
+    # element at the frame origin.
+    if not (math.isfinite(x) and math.isfinite(y)):
+        raise ValueError(f"x and y must be finite, got ({x}, {y})")
     x = max(0, min(x, frame_width - 1))
     y = max(0, min(y, frame_height - 1))
     width = min(width, frame_width - x)
