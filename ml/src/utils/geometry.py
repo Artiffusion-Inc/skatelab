@@ -157,8 +157,23 @@ def normalize_poses(
     if raw.shape[1] != 17:
         raise ValueError(f"Expected 17 keypoints (H3.6M format), got {raw.shape[1]}")
 
-    # Mid-hip point (N, 2)
-    mid_hip_raw = (raw[:, H36Key.LHIP, :2] + raw[:, H36Key.RHIP, :2]) / 2
+    # Mid-hip point (N, 2). #1039: NaN in either hip (LHIP is a default
+    # spine_index) propagated through `(LHIP + RHIP) / 2` into the root shift,
+    # NaN-poisoning all 17 joints at centering. NaN-aware mean: average the
+    # finite hips only; both-NaN → 0 (no shift, identity). All-finite case is
+    # byte-identical to `(LHIP + RHIP) / 2`.
+    lhip = raw[:, H36Key.LHIP, :2]
+    rhip = raw[:, H36Key.RHIP, :2]
+    lhip_f = np.where(np.isfinite(lhip), lhip, 0.0)
+    rhip_f = np.where(np.isfinite(rhip), rhip, 0.0)
+    n_finite = np.isfinite(lhip).all(axis=1).astype(np.float32) + np.isfinite(rhip).all(
+        axis=1
+    ).astype(np.float32)
+    mid_hip_raw = np.where(
+        (n_finite > 0)[:, np.newaxis],
+        (lhip_f + rhip_f) / np.where(n_finite[:, np.newaxis] > 0, n_finite[:, np.newaxis], 1.0),
+        0.0,
+    )
 
     # 1. Root-centering: shift mid-hip to origin (N, 17, 2)
     centered = raw[:, :, :2] - mid_hip_raw[:, np.newaxis, :]
@@ -168,7 +183,16 @@ def normalize_poses(
     spine_vector = centered[:, shoulder_idx] - centered[:, hip_idx]  # (N, 2)
     spine_length = np.linalg.norm(spine_vector, axis=1)  # (N,)
 
-    scale = np.where(spine_length < 1e-6, 1.0, target_spine_length / spine_length)  # (N,)
+    # #1039: NaN-blind `spine_length < 1e-6` guard lets NaN through (`NaN < 1e-6`
+    # = False → picks `target/NaN` = NaN) → scale=NaN → whole (17,2) frame NaN.
+    # One occluded LSHOULDER/LHIP (default spine_indices) poisoned the entire
+    # 2D pose. Build a safe spine_length: NaN/degenerate → 1.0 so scale is
+    # finite (identity for NaN-spine frames — the NaN joint stays NaN, the 16
+    # finite joints are NOT multiplied by NaN). All-valid case is
+    # byte-identical: isfinite & >=1e-6 selects the real spine_length.
+    valid = np.isfinite(spine_length) & (spine_length >= 1e-6)
+    spine_length_safe = np.where(valid, spine_length, 1.0)
+    scale = target_spine_length / spine_length_safe  # (N,)
 
     normalized = centered * scale[:, np.newaxis, np.newaxis]  # (N, 17, 2)
 
