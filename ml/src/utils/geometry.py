@@ -396,13 +396,32 @@ def calculate_com_trajectory_3d(poses: NormalizedPose3D) -> NDArray[np.float32]:
     l_leg = (poses[:, H36Key.LKNEE] + poses[:, H36Key.LFOOT]) / 2
     r_leg = (poses[:, H36Key.RKNEE] + poses[:, H36Key.RFOOT]) / 2
 
+    # #994: NaN-aware CoM — mirror the 2D #871 mask. The 3D trajectory
+    # previously propagated an occluded joint's NaN straight into com_z (no
+    # `_w` guard), so ONE NaN frame → NaN CoM → `np.std(excursion)=NaN` in
+    # `_detect_jump_phases_parabolic` → the `threshold < 1e-6` guard is
+    # `NaN < 1e-6`=False (bypassed) → `elevated = x < NaN`=all False → silent
+    # fallback to the velocity-based detector, losing parabolic precision for
+    # the WHOLE video on one occluded frame. Mask each segment's contribution
+    # to 0 when NaN (its mass is simply absent for that frame). All-valid case
+    # is byte-identical: np.where(isfinite, term, 0) == term when finite. No
+    # renormalization — same contract as the 2D path.
+    def _w(mass: float, y: NDArray[np.floating]) -> NDArray[np.floating]:
+        term = mass * y
+        return np.where(np.isfinite(y), term, 0.0)
+
     # Weighted sum of Z-coordinates (index 2 = height axis)
     com_z = (
-        head_mass * head[:, 2]
-        + torso_mass * torso[:, 2]
-        + arm_mass * (l_upper_arm[:, 2] + r_upper_arm[:, 2] + l_forearm[:, 2] + r_forearm[:, 2])
-        + thigh_mass * (l_thigh[:, 2] + r_thigh[:, 2])
-        + leg_mass * (l_leg[:, 2] + r_leg[:, 2])
+        _w(head_mass, head[:, 2])
+        + _w(torso_mass, torso[:, 2])
+        + _w(arm_mass, l_upper_arm[:, 2])
+        + _w(arm_mass, r_upper_arm[:, 2])
+        + _w(arm_mass, l_forearm[:, 2])
+        + _w(arm_mass, r_forearm[:, 2])
+        + _w(thigh_mass, l_thigh[:, 2])
+        + _w(thigh_mass, r_thigh[:, 2])
+        + _w(leg_mass, l_leg[:, 2])
+        + _w(leg_mass, r_leg[:, 2])
     )
 
     return com_z.astype(np.float32)
