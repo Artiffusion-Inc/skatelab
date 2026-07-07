@@ -92,7 +92,7 @@ def check_declining_trend(
         return None
     slope, r_squared = linear_regression(values)
     is_decline = (slope < 0) if direction == "higher" else (slope > 0)
-    if is_decline and r_squared > R_SQUARED_TREND_THRESHOLD:
+    if is_decline and math.isfinite(r_squared) and r_squared > R_SQUARED_TREND_THRESHOLD:
         return Finding(
             severity="warning",
             element=element,
