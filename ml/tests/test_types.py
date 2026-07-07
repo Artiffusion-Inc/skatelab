@@ -146,7 +146,7 @@ class TestVideoMeta:
         assert meta.duration_sec == 30.0
 
     def test_video_meta_zero_fps(self, tmp_path: Path):
-        """Should handle zero fps gracefully."""
+        """Should reject zero fps — corrupt-metadata signal (#1066)."""
         meta = VideoMeta(
             path=tmp_path / "test.mp4",
             fps=0.0,
@@ -155,7 +155,12 @@ class TestVideoMeta:
             num_frames=900,
         )
 
-        assert meta.duration_sec == 0.0
+        # #1066: fps=0 is a corrupt-metadata signal (broken-header video),
+        # not a 0-second video. The property must raise ValueError so the
+        # corrupt input is surfaced instead of silently masquerading as
+        # "0-second video" in UI / recommender / DB.
+        with pytest.raises(ValueError, match=r"fps"):
+            _ = meta.duration_sec
 
 
 class TestElementPhase:

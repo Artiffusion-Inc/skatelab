@@ -5,6 +5,7 @@ Types are annotated for mypy strict mode compatibility.
 """
 
 import json
+import math
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
 from enum import Enum, IntEnum
@@ -447,7 +448,24 @@ class VideoMeta:
     @property
     def duration_sec(self) -> float:
         """Video duration in seconds."""
-        return self.num_frames / self.fps if self.fps > 0 else 0.0
+        # #1066: NaN/neg fps must NOT silently coerce to 0.0. The old
+        # `if self.fps > 0 else 0.0` guard is NaN-blind (`NaN > 0` is
+        # False → duration_sec=0.0), so a corrupt-metadata video is
+        # INDISTINGUISHABLE from a legitimate fps=0 broken-header video.
+        # Mirror the trust-boundary pattern from get_video_meta (#1041):
+        # reject non-finite and non-positive inputs explicitly. fps=0
+        # and fps=NaN are both corrupt-metadata signals, not 0-second
+        # videos.
+        if not (math.isfinite(self.fps) and self.fps > 0):
+            raise ValueError(
+                f"VideoMeta.duration_sec: fps must be finite and > 0, got {self.fps!r}"
+            )
+        if not (math.isfinite(float(self.num_frames)) and self.num_frames >= 0):
+            raise ValueError(
+                f"VideoMeta.duration_sec: num_frames must be finite and >= 0, "
+                f"got {self.num_frames!r}"
+            )
+        return self.num_frames / self.fps
 
 
 @dataclass(frozen=True)
@@ -800,6 +818,13 @@ class SegmentationResult:
 
     def export_segments_json(self, output_path: Path) -> None:
         """Export segmentation results as JSON for verification/editing."""
+        # #1066: VideoMeta.duration_sec now raises ValueError on degenerate
+        # fps (NaN/<=0). We can't call the property blindly — guard the
+        # call here, mirroring the segments-loop guard below.
+        try:
+            video_duration_sec = self.video_meta.duration_sec
+        except ValueError:
+            video_duration_sec = 0.0
         data = {
             "video_path": str(self.video_path),
             "method": self.method,
@@ -807,7 +832,7 @@ class SegmentationResult:
             "video_meta": {
                 "fps": self.video_meta.fps,
                 "num_frames": self.video_meta.num_frames,
-                "duration_sec": self.video_meta.duration_sec,
+                "duration_sec": video_duration_sec,
             },
             "segments": [
                 {
