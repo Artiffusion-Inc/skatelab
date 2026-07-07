@@ -159,6 +159,8 @@ class MultiOverlapF1:
 
         result: dict[str, float] = {}
         for threshold in self.thresholds:
+            if not math.isfinite(threshold):
+                continue
             tag = str(int(threshold * 100))
             single = _match_segments(pred_segs, true_segs, threshold)
             result[f"f1@{tag}"] = single["f1"]
