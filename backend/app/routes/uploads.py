@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 import uuid
 from collections.abc import Sequence  # noqa: TC003
 from pathlib import PurePosixPath
@@ -144,6 +145,18 @@ class UploadsController(Controller):
         # parts → unplayable video that retries can't fix (multipart state
         # corrupted) and a storage leak. Reject before the S3 call.
         part_numbers = [p.part_number for p in data.parts]
+        # #1215: defense-in-depth against non-finite part_number. Pydantic's
+        # `int` type already rejects NaN/inf at the schema layer, but a
+        # future schema change (or a non-Pydantic entry point) could let a
+        # non-finite value reach the sort key — that 500s the handler and
+        # leaves the S3 multipart upload dangling. Reject explicitly so the
+        # client gets a 400 with a clear message.
+        for pn in part_numbers:
+            if not math.isfinite(pn):
+                raise ClientException(
+                    status_code=HTTP_400_BAD_REQUEST,
+                    detail="Part numbers must be finite integers",
+                )
         expected = set(range(1, len(part_numbers) + 1))
         if set(part_numbers) != expected:
             raise ClientException(
