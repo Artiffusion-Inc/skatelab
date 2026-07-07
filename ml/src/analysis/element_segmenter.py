@@ -7,6 +7,7 @@ ML backend: set `tas_model_path` to use BiGRU+RF instead of rules.
 Method "tas_ml_v2" uses BiGRUTASRefiner + Skeleton1DCNN v2 pipeline.
 """
 
+import math
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, cast
 
@@ -476,13 +477,16 @@ class ElementSegmenter:
         poses = np.nan_to_num(poses, nan=0.0, posinf=0.0, neginf=0.0)
 
         # Duration
+        # #1063: corrupt metadata can yield NaN/inf/negative fps — the
+        # previous `if fps > 0 else 0.0` is NaN-blind (NaN > 0 is False)
+        # and silently coerces NaN fps to duration_sec=0.0, indistinguishable
+        # from a legitimate fps=0 broken-header video. Reject non-finite
+        # or non-positive fps at the trust boundary with a typed error
+        # naming the bad value, mirroring PR 1043/1044 fps guard pattern.
+        if not (math.isfinite(fps) and fps > 0):
+            raise ValueError(f"fps must be finite and > 0, got {fps!r}")
         num_frames = len(poses)
-        # #505: fps=0.0 (cv2 returns 0.0 for broken-header/remuxed videos) makes
-        # pure-int / 0.0 raise ZeroDivisionError, killing the worker job. Fall
-        # back to 0.0 duration for a degenerate fps; the frame count is still
-        # recorded. (types.py fps=0 is guarded by #499/#501; these analysis
-        # siblings were missed.)
-        features["duration_sec"] = round(num_frames / fps, 3) if fps > 0 else 0.0
+        features["duration_sec"] = round(num_frames / fps, 3)
         features["duration_frames"] = num_frames
 
         # Motion energy
