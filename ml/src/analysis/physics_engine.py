@@ -12,6 +12,7 @@ References:
 - AthletePose3D: Monocular 3D pose for sports
 """
 
+import math
 from dataclasses import dataclass
 from typing import Any
 
@@ -620,9 +621,12 @@ class PhysicsEngine:
 
         if takeoff_idx is not None and landing_idx is not None:
             # #939: corrupt video reports fps=0 (cv2.CAP_PROP_FPS sentinel).
+            # #1064: NaN fps also propagates to flight_time, takeoff_velocity,
+            # and silently coerces fit_quality to 0.0 (NaN-blind `ss_tot > 0`).
+            # `math.isfinite` rejects NaN/Inf; `fps > 0` rejects 0/neg.
             # Guard before any /fps — skip jump-physics, fields stay None
             # (graceful "unknown"). Mirrors #937 (3D sibling) guard-before-/fps.
-            if fps <= 0:
+            if not (math.isfinite(fps) and fps > 0):
                 return {
                     "jump_height": None,
                     "flight_time": None,
