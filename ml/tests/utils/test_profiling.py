@@ -212,7 +212,7 @@ def test_profiler_negative_time_error() -> None:
         profiler.record("test", -1.0)
         raise AssertionError("Should have raised ValueError")
     except ValueError as e:
-        assert "non-negative" in str(e)
+        assert "finite and >= 0" in str(e)
 
 
 def test_profiler_empty_summary() -> None:
