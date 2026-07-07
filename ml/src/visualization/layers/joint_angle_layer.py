@@ -297,6 +297,12 @@ class JointAngleLayer(Layer):
         vc = c_3d - v_3d
         va_len = np.linalg.norm(va)
         vc_len = np.linalg.norm(vc)
+        # #1263: NaN inputs (corrupt 3D keypoint) make va_len/vc_len NaN;
+        # `NaN < 1e-6` is False, so the guard below would let NaN flow
+        # through `np.clip(np.dot(e1, vc_hat), -1.0, 1.0) = NaN` and
+        # `arccos(NaN) = NaN` silently. Catch NaN at the source.
+        if not (math.isfinite(va_len) and math.isfinite(vc_len)):
+            return None
         if va_len < 1e-6 or vc_len < 1e-6:
             return None
 
@@ -305,13 +311,19 @@ class JointAngleLayer(Layer):
         vc_hat = vc / vc_len
         normal = np.cross(e1, vc_hat)
         normal_len = np.linalg.norm(normal)
-        if normal_len < 1e-6:
+        # Same NaN guard for the cross-product length.
+        if not math.isfinite(normal_len) or normal_len < 1e-6:
             return None  # collinear in 3D
         normal /= normal_len
         e2 = np.cross(normal, e1)
 
         # True 3D angle and arc direction
         cos_angle = np.clip(np.dot(e1, vc_hat), -1.0, 1.0)
+        # Defensive: if upstream NaN slipped past the length guards
+        # (e.g. e1/vc_hat components are +/-inf), arccos(NaN/inf) would
+        # silently produce NaN. Bail to None.
+        if not math.isfinite(cos_angle):
+            return None
         sweep = np.arccos(cos_angle)
         if np.dot(np.cross(va, vc), normal) < 0:
             sweep = 2 * np.pi - sweep
