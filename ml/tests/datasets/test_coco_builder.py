@@ -92,20 +92,32 @@ class TestMergeCocoFootKeypoints:
         assert vis[24] == 0.0
         assert vis[25] == 0.0
 
-    def test_face_duplicates_from_invisible_source(self):
-        """Face duplicates are 0.0 visibility when source is NaN (and also
-        when visible — see #806: dupes are always unlabeled)."""
+    def test_face_duplicates_from_nan_source_raises(self):
+        """#1069: NaN source keypoint must raise — silent zeroing was
+        INDISTINGUISHABLE from a dupe whose source is genuinely missing
+        (the `isnan` branch above already zero-initializes local
+        `pts[src_idx]`). Surface corrupted upstream data instead.
+        """
         coco_2d = np.ones((17, 2), dtype=np.float64)
         coco_2d[0] = np.nan  # Source for index 25
-        coco_2d[1] = np.nan  # Source for index 23
+        foot_2d = np.ones((6, 2), dtype=np.float32)
+
+        with pytest.raises(ValueError, match=r"finite"):
+            merge_coco_foot_keypoints(coco_2d, foot_2d)
+
+    def test_face_duplicates_visible_source_unlabeled(self):
+        """Face duplicates are 0.0 visibility when source is visible
+        (see #806: dupes are always unlabeled, regardless of src vis).
+        """
+        coco_2d = np.ones((17, 2), dtype=np.float64)
         foot_2d = np.ones((6, 2), dtype=np.float32)
 
         _, vis = merge_coco_foot_keypoints(coco_2d, foot_2d)
 
+        # #806: dupe vis is always 0.0 (unlabeled).
         assert vis[23] == 0.0
-        assert vis[25] == 0.0
-        # Index 24 source (index 2) is visible, but #806: dupe is still unlabeled
         assert vis[24] == 0.0
+        assert vis[25] == 0.0
 
 
 class TestFormatKeypoints:
