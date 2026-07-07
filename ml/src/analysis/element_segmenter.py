@@ -459,6 +459,17 @@ class ElementSegmenter:
         """
         features: dict[str, float | int | bool] = {}
 
+        # #922: occluded joint → NaN keypoint propagates through np.linalg.norm
+        # (motion energy), np.arctan2 (shoulder rotation), np.gradient, and the
+        # non-NaN-aware reductions (np.max/np.mean/np.std) into the metadata
+        # feature dict → NaN features persisted in segment.metadata AND
+        # _classify_by_rules reads rotation_speed_max as `NaN > 200` = False →
+        # jump branch silently skipped → element misclassified as "unknown".
+        # Guard at the feature-math trust boundary: replace NaN/inf keypoints
+        # with 0.0 before any feature computation. No-op on all-finite input
+        # (byte-identical features). Mirrors #979 extract_segment_features.
+        poses = np.nan_to_num(poses, nan=0.0, posinf=0.0, neginf=0.0)
+
         # Duration
         num_frames = len(poses)
         # #505: fps=0.0 (cv2 returns 0.0 for broken-header/remuxed videos) makes
