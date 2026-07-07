@@ -94,53 +94,44 @@ import numpy as np
 
 from src.visualization.core.geometry import normalized_to_pixel
 
-
 # =============================================================================
 # Source check — root cause locked.
 # =============================================================================
 
 
 def test_normalized_to_pixel_scalar_path_has_no_nan_guard():
-    """Lock the root cause: `normalized_to_pixel` vectorized branch (line 62-75)
-    NaN-masks (`nan_mask = np.isnan(...); result[nan_mask] = 0` — line 69, 74)
-    before the int cast, but the scalar branch (line 76-81) does
-    `int(np.clip(x * width, 0, width - 1))` (line 79) with NO NaN guard —
-    `np.clip(NaN, ...)` = NaN, `int(NaN)` raises ValueError.
-
-    A fix would NaN-guard the scalar path (mirror the vectorized mask / route
-    through the vectorized branch). As long as the code is unfixed this passes
-    — flip on fix.
+    """GREEN contract source check: `normalized_to_pixel` vectorized branch
+    NaN-masks (`nan_mask = np.isnan(...); result[nan_mask] = 0`) before the int
+    cast; the scalar branch now mirrors that guard (`np.isfinite(x) → 0.0`
+    before the clip/int). The unfixed scalar branch did
+    `int(np.clip(x * width, 0, width - 1))` with NO NaN guard → `int(NaN)`
+    ValueError. The fix NaN-guards x/y before the clip/int so a NaN scalar
+    tuple → (0, 0), matching the vectorized path.
     """
     src = inspect.getsource(normalized_to_pixel)
 
-    # The vectorized NaN guard the scalar path is MISSING.
+    # The vectorized NaN guard (unchanged).
     assert "nan_mask = np.isnan(result[..., 0]) | np.isnan(result[..., 1])" in src, (
         "normalized_to_pixel vectorized branch must NaN-mask "
-        "(`nan_mask = np.isnan(result[..., 0]) | np.isnan(result[..., 1])`, "
-        "line 69) for this repro to be valid. If the vectorized guard changed, "
-        "update the repro."
+        "(`nan_mask = np.isnan(result[..., 0]) | np.isnan(result[..., 1])`) "
+        "for this repro to be valid. If the vectorized guard changed, update."
     )
     assert "result[nan_mask] = 0" in src, (
         "normalized_to_pixel vectorized branch must NaN-mask "
-        "(`result[nan_mask] = 0`, line 74) for this repro to be valid. If the "
-        "vectorized guard changed, update the repro."
+        "(`result[nan_mask] = 0`) for this repro to be valid."
     )
-    # The scalar-path crash: int(np.clip(x * width, 0, width - 1)) on NaN x
-    # → int(NaN) → ValueError.
+    # The scalar-path int cast (unchanged).
     assert "int(np.clip(x * width, 0, width - 1))" in src, (
         "normalized_to_pixel scalar branch must compute "
-        "`int(np.clip(x * width, 0, width - 1))` (line 79, NaN x → int(NaN) → "
-        "ValueError) for this repro to be valid. If the scalar computation "
-        "changed, update the repro."
+        "`int(np.clip(x * width, 0, width - 1))` for this repro to be valid."
     )
-    # NO NaN guard on the scalar path. The scalar `else:` branch must not
-    # contain isfinite / isnan / nan_to_num.
+    # GREEN: the scalar `else:` branch now NaN-guards (isfinite / nan_to_num).
     scalar_branch = src.split("else:")[1] if "else:" in src else ""
-    assert "isfinite" not in scalar_branch and "isnan" not in scalar_branch and \
-           "nan_to_num" not in scalar_branch, (
-        "normalized_to_pixel scalar branch now guards NaN (isfinite / isnan / "
-        "nan_to_num) — root cause fixed, update this repro to the GREEN contract "
-        "(NaN scalar tuple → (0, 0), mirroring the vectorized path, not crash)."
+    assert "isfinite" in scalar_branch or "nan_to_num" in scalar_branch, (
+        "normalized_to_pixel scalar branch must NaN-guard x/y (np.isfinite → "
+        "0.0) before the clip/int, mirroring the vectorized NaN-mask. The "
+        "unfixed branch does `int(np.clip(NaN, ...))` → int(NaN) → ValueError "
+        "crash — root cause not fixed."
     )
 
 
@@ -190,9 +181,9 @@ def test_int_nan_raises_valueerror():
         raised = True
     # BUG: int(NaN) raises ValueError.
     assert raised, (
-        f"FIXED or Python semantics changed: int(NaN) did NOT raise "
-        f"ValueError. If Python now accepts NaN→int, the crash is gone — "
-        f"update repro to the GREEN contract."
+        "FIXED or Python semantics changed: int(NaN) did NOT raise "
+        "ValueError. If Python now accepts NaN→int, the crash is gone — "
+        "update repro to the GREEN contract."
     )
 
 
@@ -226,18 +217,15 @@ def test_scalar_nan_crashes_vectorized_nan_guarded():
         f"the repro."
     )
 
-    # Scalar path: NaN tuple → ValueError (NOT guarded).
-    raised = False
-    try:
-        normalized_to_pixel((nan, nan), 100, 100)
-    except ValueError:
-        raised = True
-    # BUG: scalar NaN tuple crashes; vectorized NaN is guarded.
-    assert raised, (
-        f"FIXED: normalized_to_pixel with a NaN scalar tuple did NOT raise "
-        f"ValueError. A NaN guard (isfinite / nan_to_num on the scalar path) "
-        f"landed. Update this repro to the GREEN contract (NaN scalar tuple → "
-        f"(0, 0), mirroring the vectorized path, not crash)."
+    # Scalar path: NaN tuple → (0, 0) (GREEN, mirroring the vectorized path).
+    out_scalar = normalized_to_pixel((nan, nan), 100, 100)
+    assert out_scalar == (0, 0), (
+        f"BUG: normalized_to_pixel with a NaN scalar tuple raised ValueError "
+        f"or returned {out_scalar} (expected (0, 0)). The scalar path does "
+        f"`int(np.clip(NaN, ...))` = int(NaN) → crash, while the vectorized "
+        f"path NaN-masks to (0, 0). NaN-guard the scalar path (np.isfinite → "
+        f"0.0) so the SAME input does not crash in one branch and succeed in "
+        f"the other."
     )
 
 

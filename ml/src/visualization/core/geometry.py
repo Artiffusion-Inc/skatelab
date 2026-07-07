@@ -76,6 +76,16 @@ def normalized_to_pixel(
     else:
         # Single position
         x, y = pos_normalized
+        # #996: NaN coordinate (occluded keypoint → NaN pose → NaN position
+        # tuple) → np.clip(NaN)=NaN → int(NaN) ValueError crash. The
+        # vectorized branch above NaN-masks to 0 (line 69-74); mirror that
+        # guard here so the scalar (tuple) path does not crash on the SAME
+        # input the ndarray path handles gracefully. isfinite guard → 0.0;
+        # finite x/y pass through unchanged (finite path byte-identical).
+        if not np.isfinite(x):
+            x = 0.0
+        if not np.isfinite(y):
+            y = 0.0
         x_px = int(np.clip(x * width, 0, width - 1))
         y_px = int(np.clip(y * height, 0, height - 1))
         return (x_px, y_px)
