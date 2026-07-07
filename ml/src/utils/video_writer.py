@@ -11,6 +11,7 @@ libx264 uses the caller-supplied ``preset`` and ``crf`` parameters.
 from __future__ import annotations
 
 import logging
+import math
 from fractions import Fraction
 from typing import TYPE_CHECKING
 
@@ -52,6 +53,16 @@ class H264Writer:
         preset: str = "fast",
         crf: int = 23,
     ) -> None:
+        # #1048: cv2.CAP_PROP_FPS can return 0 (unknown fps, broken moov
+        # atom), NaN (some webm/mkv), or -1 (unknown) on corrupt input.
+        # Unguarded `Fraction(fps)` silently produces a 0-time-base
+        # unplayable MP4 (fps=0) or raises ValueError/OverflowError
+        # AFTER `av.open` has already allocated the container (NaN/inf
+        # → resource leak). Reject degenerate fps at the trust
+        # boundary, BEFORE the container is opened. Mirror of #1041 /
+        # #982 / #961 fps/load guards.
+        if not (math.isfinite(fps) and fps > 0):
+            raise ValueError(f"fps must be finite and strictly positive, got fps={fps!r}")
         self._container = av.open(str(path), "w")
         rate = Fraction(fps).limit_denominator(1000)
 
