@@ -6,6 +6,8 @@ Provides functions for:
 - Measuring text size for layout
 """
 
+import math
+
 import cv2
 import numpy as np
 from numpy.typing import NDArray
@@ -283,6 +285,10 @@ def render_cyrillic_text(
         overlay_draw = ImageDraw.Draw(overlay)
 
         bg_rgb = (background[2], background[1], background[0])
+        # Guard against NaN/Inf (corrupt theme config) before int() conversion.
+        # NaN * 255 = NaN; int(NaN) raises ValueError. Fall back to fully opaque.
+        if not math.isfinite(background_alpha):
+            background_alpha = 1.0
         alpha_int = int(background_alpha * 255)
         overlay_draw.rectangle(bg_bbox, fill=(*bg_rgb, alpha_int))
 
