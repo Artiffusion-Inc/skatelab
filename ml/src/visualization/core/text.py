@@ -62,7 +62,13 @@ def draw_text_outlined(
     """
     x, y = position
     black = (0, 0, 0)
-    _pos = (int(x), int(y))
+    # Guard against NaN/Inf (corrupt text position, missing HUD anchor, partial
+    # layer state). NaN/Inf -> int() raises ValueError, aborting the whole
+    # text render. Fall back to (0, 0) so the frame is still produced.
+    if not (math.isfinite(x) and math.isfinite(y)):
+        _pos = (0, 0)
+    else:
+        _pos = (int(x), int(y))
 
     # Black outline (thicker)
     cv2.putText(
