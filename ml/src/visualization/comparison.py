@@ -15,6 +15,7 @@ Optimizations:
 from __future__ import annotations
 
 import logging
+import math
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import TYPE_CHECKING
@@ -152,6 +153,31 @@ class ComparisonRenderer:
 
         fps = self.config.fps or athlete_meta.fps
         target_w = self.config.resize_width
+
+        # #1108: guard non-finite resize meta. `get_video_meta` rejects
+        # non-finite width/height at the I/O source (#1041), but
+        # `resize_width` is config-sourced (YAML / hand-crafted fixture) and
+        # not covered by that guard. `int(NaN * x / y)` = `int(NaN)` raises
+        # the opaque stdlib `ValueError: cannot convert float NaN to
+        # integer` from the resize calculation. Reject at the resize trust
+        # boundary with a typed "corrupt resize meta" error.
+        if not (
+            math.isfinite(target_w)
+            and math.isfinite(athlete_meta.width)
+            and math.isfinite(athlete_meta.height)
+            and math.isfinite(reference_meta.width)
+            and math.isfinite(reference_meta.height)
+            and target_w > 0
+            and athlete_meta.width > 0
+            and athlete_meta.height > 0
+            and reference_meta.width > 0
+            and reference_meta.height > 0
+        ):
+            raise ValueError(
+                f"Corrupt resize meta (non-finite or non-positive): "
+                f"target_w={target_w!r}, athlete={athlete_meta.width}x{athlete_meta.height}, "
+                f"reference={reference_meta.width}x{reference_meta.height}"
+            )
 
         # Calculate resize dimensions (even)
         a_h = int(athlete_meta.height * target_w / athlete_meta.width)
