@@ -515,7 +515,16 @@ class BiomechanicsAnalyzer:
 
         # Spread eagle angle
         se_angle = self.compute_spread_eagle_angle(poses)
-        peak_se = float(np.max(se_angle))
+        # #962: np.nanmax (NOT np.max) so a NaN frame in the series (occluded
+        # RKNEE/RFOOT that slips past the #976 producer guard, or a caller-
+        # supplied NaN se_angle) does not poison the peak into NaN. nanmax
+        # skips NaN frames; if every frame is NaN there is no data — 0.0
+        # instead of NaN, which breaks JSON serialization and the GOE
+        # composite. Mirrors #903 (compute_rotation_speed) nanmax+isfinite
+        # and #993 (get_spine_length) nanmean. Identity on all-finite input.
+        peak_se = float(np.nanmax(se_angle)) if np.isfinite(se_angle).any() else 0.0
+        if not np.isfinite(peak_se):
+            peak_se = 0.0
         results.append(
             MetricResult(
                 name="spread_eagle_angle",
@@ -528,7 +537,10 @@ class BiomechanicsAnalyzer:
 
         # Ina Bauer score (only meaningful when spread eagle angle >= 150)
         ib_score = self.compute_ina_bauer_score(poses, se_angle=se_angle)
-        peak_ib = float(np.max(ib_score))
+        # #962: np.nanmax + isfinite fallback — see peak_se above.
+        peak_ib = float(np.nanmax(ib_score)) if np.isfinite(ib_score).any() else 0.0
+        if not np.isfinite(peak_ib):
+            peak_ib = 0.0
         results.append(
             MetricResult(
                 name="ina_bauer_score",
@@ -541,7 +553,10 @@ class BiomechanicsAnalyzer:
 
         # Spiral indicator (foot Y difference - large = one-foot element)
         spiral_ind = self.compute_spiral_indicator(poses)
-        max_spiral = float(np.max(spiral_ind))
+        # #962: np.nanmax + isfinite fallback — see peak_se above.
+        max_spiral = float(np.nanmax(spiral_ind)) if np.isfinite(spiral_ind).any() else 0.0
+        if not np.isfinite(max_spiral):
+            max_spiral = 0.0
         results.append(
             MetricResult(
                 name="spiral_indicator",
