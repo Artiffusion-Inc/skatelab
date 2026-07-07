@@ -58,6 +58,12 @@ def preprocess_crops(
     for i, crop in enumerate(crops):
         crop_h, crop_w = crop.shape[:2]
 
+        if crop_w <= 0 or crop_h <= 0:
+            raise ValueError(
+                f"preprocess_crops: crop[{i}] has degenerate shape "
+                f"(h={crop_h}, w={crop_w}); both must be > 0"
+            )
+
         # Aspect-ratio-preserving scale
         scale = min(input_w / crop_w, input_h / crop_h)
         new_w = int(crop_w * scale)
@@ -143,6 +149,12 @@ def rescale_keypoints(
     for i in range(batch_size):
         crop_h, crop_w = crops[i].shape[:2]
         x1, y1, _x2, _y2 = bboxes[i]
+
+        if crop_w <= 0 or crop_h <= 0:
+            raise ValueError(
+                f"rescale_keypoints: crops[{i}] has degenerate shape "
+                f"(h={crop_h}, w={crop_w}); both must be > 0"
+            )
 
         # Undo letterbox: must match exact forward computation in preprocess_crops
         scale = min(input_w / crop_w, input_h / crop_h)
