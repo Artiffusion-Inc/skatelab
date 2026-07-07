@@ -27,6 +27,13 @@ def extract_segment_features(
     # framerate). Mirrors #505 rule-based sibling (element_segmenter.py:458).
     duration = T / fps if fps > 0 else 0.0
 
+    # #979: occluded joint → NaN keypoint propagates through non-NaN-aware
+    # reductions (np.max/np.min/np.mean) and np.arctan2 into the feature dict
+    # → RandomForest silent misclassification. Guard at the trust boundary:
+    # replace NaN/inf keypoints with 0.0 before any feature math. No-op on
+    # all-finite input (byte-identical features). Mirrors aligner.py:249.
+    poses = np.nan_to_num(poses, nan=0.0, posinf=0.0, neginf=0.0)
+
     # Hip Y trajectory (for jumps)
     midhip = poses[:, 11:13, :].mean(axis=1)  # (T, 2)
     hip_y_range = float(np.max(midhip[:, 1]) - np.min(midhip[:, 1]))
