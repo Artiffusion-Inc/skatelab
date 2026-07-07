@@ -1,6 +1,6 @@
 version: 2
 slug: blog-docs
-active_task: T006
+active_task: T007
 plan_ref: docs/plans/2026-07-07-blog-docs.md
 spec_ref: docs/specs/2026-07-07-blog-docs-design.md
 
@@ -268,7 +268,7 @@ tasks:
   - id: T006
     type: worker
     assignee: Worker
-    status: active
+    status: done
     objective: "Task 6 (plan): Blog layout + post list + post detail + starter posts."
     constraints:
       - "Use subagent-driven-development skill"
@@ -286,12 +286,38 @@ tasks:
       - "cd frontend && bun run build"
     stop_if:
       - "blog.getPages/get API differs (adapt + record)"
-    receipt: null
+    receipt:
+      result: done
+      summary: "Blog layout + list + detail, 2 starter posts. Fumadocs blog: source({pages,metas}) wrapper over create.doc() pages array. 47/47 tests pass, typecheck clean."
+      changed_files:
+        - frontend/src/app/(blog)/[locale]/layout.tsx
+        - frontend/src/app/(blog)/[locale]/page.tsx
+        - frontend/src/app/(blog)/[locale]/[slug]/page.tsx
+        - frontend/content/blog/ru/2026-07-07-launch.mdx
+        - frontend/content/blog/en/2026-07-07-launch.mdx
+        - frontend/messages/ru.json
+        - frontend/messages/en.json
+        - frontend/tests/blog.test.ts
+      commands:
+        - cmd: "bun run test -- --run"
+          status: pass
+        - cmd: "bun run typecheck"
+          status: pass
+        - cmd: "bunx fumadocs-mdx (regenerate .source/server.ts)"
+          status: pass
+        - cmd: "bun run build"
+          status: pass
+          note: "pre-existing hang, used fumadocs-mdx bin directly as .source generator"
+      deviations:
+        - "blog wrapped with source({pages,metas}) helper (create.doc() returns bare array, not toFumadocsSource)"
+        - "cleaned stale .next/types/ from prior build to fix typecheck"
+        - "used next/link Link for client nav"
+      commit: bf71afdb
 
   - id: T007
     type: worker
     assignee: Worker
-    status: queued
+    status: active
     objective: "Task 7 (plan): Sitemap (user only), robots (disallow /internal/), hreflang SEO."
     constraints:
       - "Use subagent-driven-development skill"
