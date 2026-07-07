@@ -350,6 +350,12 @@ def blend_colors(
     if len(colors) != len(weights):
         raise ValueError("colors and weights must have same length")
 
+    # NaN/Inf weight guard: any non-finite weight makes the blend undefined.
+    # Return gray "unknown" (consistent with fade_color NaN handling, #624)
+    # rather than crashing on int(NaN) or producing NaN pixels downstream.
+    if not all(math.isfinite(w) for w in weights):
+        return (128, 128, 128)
+
     total_weight = sum(weights)
     if total_weight == 0:
         return (0, 0, 0)
