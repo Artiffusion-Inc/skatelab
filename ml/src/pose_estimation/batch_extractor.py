@@ -139,6 +139,12 @@ class BatchPoseExtractor:
         if detection is None:
             return [], []
 
+        # Skip corrupt detection with non-finite bbox fields — stdlib
+        # int(NaN) at lines 148-151 would crash the whole batch (#1199).
+        # Sibling guard for h/w resize at line 209 (#1160).
+        if not all(math.isfinite(getattr(detection, a)) for a in ("x1", "y1", "x2", "y2")):
+            return [], []
+
         # Expand by 20% padding (10% on each side)
         bw = detection.x2 - detection.x1
         bh = detection.y2 - detection.y1
