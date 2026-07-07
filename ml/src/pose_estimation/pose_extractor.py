@@ -12,6 +12,7 @@ Key advantages:
 
 import importlib.util
 import logging
+import math
 from collections.abc import Callable
 from pathlib import Path
 from types import TracebackType
@@ -707,6 +708,18 @@ class PoseExtractor:
             valid_mask = (kps[:, 2] > 0.1) & np.isfinite(kps[:, 0]) & np.isfinite(kps[:, 1])
             valid = kps[valid_mask]
             if len(valid) < 3:
+                continue
+            # Guard against NaN in `valid` coords or NaN frame dims before
+            # the int() conversions — stdlib int(NaN) raises ValueError
+            # and aborts the per-person label draw. The input valid_mask
+            # (#1093) filters most NaN, but this is defense-in-depth at the
+            # int() conversion site (#1206).
+            if not (
+                np.all(np.isfinite(valid[:, 0]))
+                and np.all(np.isfinite(valid[:, 1]))
+                and math.isfinite(frame_w)
+                and math.isfinite(frame_h)
+            ):
                 continue
             bx1 = int(np.min(valid[:, 0]) * frame_w)
             by1 = int(np.min(valid[:, 1]) * frame_h)
