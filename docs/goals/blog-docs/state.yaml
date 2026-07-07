@@ -91,7 +91,7 @@ tasks:
   - id: T002
     type: worker
     assignee: Worker
-    status: active
+    status: done
     objective: "Task 2 (plan): Frontend Fumadocs deps + source.config.ts + Tailwind wiring."
     constraints:
       - "Use subagent-driven-development skill"
