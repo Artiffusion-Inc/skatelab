@@ -40,16 +40,21 @@ def test_com_improved_confidence_nan_silently_1_0():
     #562 fix: explicit NaN check before the clamp — if prominence is
     NaN, the source must contain a `math.isnan(prominence)` guard that
     returns 0.0 confidence (the phase is unreliable, not perfect).
+
+    #1088 fix: broaden the guard from `math.isnan` to `math.isfinite` so
+    inf is also caught (isnan misses inf → would still leak through
+    `min(1.0, inf) = 1.0`). Source check now asserts the broader guard.
     """
     from pathlib import Path
 
     # Inspect the source code: the post-fix com_improved must contain
-    # an explicit isnan guard on prominence.
+    # an explicit isfinite guard on prominence (broader than isnan).
     source = Path(__file__).resolve().parents[2] / "src" / "analysis" / "phase_detector.py"
     text = source.read_text()
-    assert "isnan(prominence)" in text, (
-        "Expected `isnan(prominence)` guard in phase_detector.py com_improved "
-        "function. Pre-fix: min(1.0, NaN/0.05) silently returns 1.0, "
+    assert "isfinite(prominence)" in text, (
+        "Expected `isfinite(prominence)` guard in phase_detector.py "
+        "com_improved function. #562 used isnan; #1088 broadens to isfinite "
+        "to also catch inf. Pre-fix: min(1.0, NaN/0.05) silently returns 1.0, "
         "inflating confidence for a phase with missing data."
     )
 
@@ -59,7 +64,7 @@ def test_com_improved_confidence_nan_silently_1_0():
     nan = float("nan")
     flight_com = np.array([0.5, 0.4, nan, 0.3])
     prominence = float(np.max(flight_com) - np.min(flight_com))  # NaN
-    if math.isnan(prominence):
+    if not math.isfinite(prominence):
         confidence = 0.0
     else:
         confidence = min(1.0, prominence / 0.05)
