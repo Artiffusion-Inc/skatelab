@@ -704,7 +704,8 @@ class PoseExtractor:
         placements: list[tuple[int, int, int, int, int, int, float, int]] = []
         for person in persons:
             kps = person["best_kps"]
-            valid = kps[kps[:, 2] > 0.1]
+            valid_mask = (kps[:, 2] > 0.1) & np.isfinite(kps[:, 0]) & np.isfinite(kps[:, 1])
+            valid = kps[valid_mask]
             if len(valid) < 3:
                 continue
             bx1 = int(np.min(valid[:, 0]) * frame_w)
