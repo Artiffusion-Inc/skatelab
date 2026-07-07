@@ -61,11 +61,13 @@ def test_finite_poses_features_unchanged() -> None:
     feats = extract_segment_features(poses, fps=30.0)
     # Recompute expected directly from the same finite array (no NaN guard
     # needed since input is finite — nan_to_num is a no-op on finite data).
-    midhip = poses[:, 11:13, :].mean(axis=1)
+    # #811: H3.6M indices — RHIP=1, LHIP=4 for midhip; LSHOULDER=11,
+    # RSHOULDER=14 for shoulder vector (NOT COCO 11:13 / [5,6]).
+    midhip = poses[:, [1, 4], :].mean(axis=1)
     expected_hip_y_range = float(np.max(midhip[:, 1]) - np.min(midhip[:, 1]))
     diff = np.diff(poses, axis=0)
     expected_motion_energy = float(np.mean(np.linalg.norm(diff, axis=(1, 2))))
-    shoulders = poses[:, [5, 6], :]
+    shoulders = poses[:, [11, 14], :]
     shoulder_vec = shoulders[:, 1] - shoulders[:, 0]
     angles = np.arctan2(shoulder_vec[:, 1], shoulder_vec[:, 0])
     expected_rot_speed = float(np.max(np.abs(np.gradient(angles)) * 30.0))
