@@ -7,6 +7,8 @@ Provides functions for:
 - Spatial axis transformations
 """
 
+import math
+
 import numpy as np
 from numpy.typing import NDArray
 
@@ -110,18 +112,28 @@ def pixel_to_normalized(
         >>> pixel_to_normalized((960, 540), 1920, 1080)
         (0.5, 0.5)  # Center of frame
     """
+    # #1065: NaN-blind `width > 0` / `height > 0` guards silently coerced
+    # NaN/zero/negative width/height to 0.5 (frame center) — INDISTINGUISHABLE
+    # from a legitimate width=0, and a NaN width corrupts every consumer
+    # (skeleton / HUD / comparison / 3D export / axis endpoints / bounding box)
+    # with no error. isfinite guard raises at the trust boundary so the
+    # upstream bug surfaces.
+    if not (math.isfinite(width) and width > 0):
+        raise ValueError(f"width must be finite and > 0, got {width}")
+    if not (math.isfinite(height) and height > 0):
+        raise ValueError(f"height must be finite and > 0, got {height}")
     if isinstance(pos_pixel, np.ndarray):
         # Vectorized conversion for arrays
         result = pos_pixel.copy().astype(np.float32)
         if result.shape[-1] >= 2:
-            result[..., 0] = result[..., 0] / width if width > 0 else 0.5
-            result[..., 1] = result[..., 1] / height if height > 0 else 0.5
+            result[..., 0] = result[..., 0] / width
+            result[..., 1] = result[..., 1] / height
         return result
     else:
         # Single position
         x, y = pos_pixel
-        x_norm = x / width if width > 0 else 0.5
-        y_norm = y / height if height > 0 else 0.5
+        x_norm = x / width
+        y_norm = y / height
         return (x_norm, y_norm)
 
 
