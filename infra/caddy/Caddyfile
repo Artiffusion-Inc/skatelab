@@ -150,3 +150,65 @@ skatelab.ru {
     }
   }
 }
+
+docs.skatelab.ru {
+  tls {
+    dns cloudflare {env.CLOUDFLARE_API_TOKEN} {
+      propagation_timeout -1
+    }
+  }
+
+  header {
+    Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+    X-Content-Type-Options "nosniff"
+    X-Frame-Options "DENY"
+    X-XSS-Protection "1; mode=block"
+    Referrer-Policy "strict-origin-when-cross-origin"
+    -permissions-policy "accelerometer=(), camera=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), payment=(), usb=()"
+  }
+
+  handle {
+    reverse_proxy frontend:3000 {
+      health_uri /
+      health_interval 10s
+      health_timeout 5s
+      flush_interval -1
+      transport http {
+        read_timeout 300s
+        write_timeout 300s
+        dial_timeout 30s
+      }
+    }
+  }
+}
+
+blog.skatelab.ru {
+  tls {
+    dns cloudflare {env.CLOUDFLARE_API_TOKEN} {
+      propagation_timeout -1
+    }
+  }
+
+  header {
+    Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+    X-Content-Type-Options "nosniff"
+    X-Frame-Options "DENY"
+    X-XSS-Protection "1; mode=block"
+    Referrer-Policy "strict-origin-when-cross-origin"
+    -permissions-policy "accelerometer=(), camera=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), payment=(), usb=()"
+  }
+
+  handle {
+    reverse_proxy frontend:3000 {
+      health_uri /
+      health_interval 10s
+      health_timeout 5s
+      flush_interval -1
+      transport http {
+        read_timeout 300s
+        write_timeout 300s
+        dial_timeout 30s
+      }
+    }
+  }
+}
