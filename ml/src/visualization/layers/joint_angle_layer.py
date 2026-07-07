@@ -365,6 +365,12 @@ class JointAngleLayer(Layer):
     ) -> None:
         """Draw an angle arc at vertex between point_a and point_c."""
         vx, vy = vertex
+        # #1244: NaN vertex (corrupt joint / missing data) would crash
+        # int(NaN) on the cv2.ellipse center. Skip the arc — caller
+        # already filters pose NaN for the spec, this is the second
+        # line of defense for any direct caller.
+        if not (math.isfinite(vx) and math.isfinite(vy)):
+            return
         # OpenCV y-down → negate for standard math angle
         angle_a = math.degrees(math.atan2(-(point_a[1] - vy), point_a[0] - vx))
         angle_c = math.degrees(math.atan2(-(point_c[1] - vy), point_c[0] - vx))
