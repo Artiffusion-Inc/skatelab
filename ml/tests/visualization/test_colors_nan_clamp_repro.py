@@ -96,12 +96,11 @@ def test_get_depth_color_valid_unchanged():
     assert out_mid != out_far
 
 
-def test_get_heatmap_color_nan_raises():
-    """NaN heatmap value must raise (#1072: no silent end-color mapping)."""
-    import pytest
-
-    with pytest.raises(ValueError):
-        get_heatmap_color(float("nan"), 0.0, 1.0, "jet")
+def test_get_heatmap_color_nan_returns_unknown_gray():
+    """NaN heatmap value must return gray "unknown" (#1072: no silent end-color
+    mapping; #1204: must not crash — return gray instead of raising)."""
+    out = get_heatmap_color(float("nan"), 0.0, 1.0, "jet")
+    assert out == (128, 128, 128), f"NaN heatmap should return gray, got {out}"
 
 
 def test_interpolate_color_nan_t_returns_unknown():
