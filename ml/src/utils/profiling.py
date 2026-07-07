@@ -116,7 +116,7 @@ class PipelineProfiler:
 
         total = self.total_wall_time_s
         for stage in self.stages:
-            pct = (stage.wall_time_s / total * 100) if total > 0 else 0
+            pct = (stage.wall_time_s / total * 100) if (math.isfinite(total) and total > 0) else 0
             lines.append(
                 f"{stage.name:<30} {stage.wall_time_s:>12.4f} {pct:>7.1f}% {stage.call_count:>8d}"
             )
