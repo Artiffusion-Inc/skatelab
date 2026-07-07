@@ -276,8 +276,15 @@ class ElementSegmenter:
         # Adaptive threshold if not provided
         adaptive = self._stillness_threshold is None
         if adaptive:
-            # Use 25th percentile as threshold
-            threshold = np.percentile(motion_energy, 25)
+            # Use 25th percentile as threshold.
+            # #985: np.nanpercentile (not np.percentile) — a NaN motion-energy
+            # frame (occluded joint → NaN pose → NaN _compute_motion_energy)
+            # propagates through np.percentile as NaN, collapsing `energy <
+            # threshold` to all-False (NaN comparison always False) → no
+            # element boundaries → whole video one segment. nanpercentile
+            # ignores NaN, computing the threshold over finite frames so
+            # low-energy finite frames still register as stillness.
+            threshold = np.nanpercentile(motion_energy, 25)
         else:
             threshold = self._stillness_threshold
 
