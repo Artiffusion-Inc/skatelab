@@ -1,5 +1,6 @@
 """Video processing utilities using OpenCV."""
 
+import math
 from collections.abc import Iterator
 from pathlib import Path
 
@@ -168,6 +169,24 @@ def select_person_crop(
         Cropped frame (crop_height, crop_width, 3).
     """
     h, w = frame.shape[:2]
+
+    # #1163: corrupt/broken bbox coords (x1/y1/x2/y2 NaN from upstream
+    # detector) or NaN padding propagate through bbox.width/height/center_*
+    # into the four int() calls below — int(float('nan')) raises the
+    # stdlib ValueError("cannot convert float NaN to integer") with no
+    # hint the cause is non-finite input. Guard at the trust boundary:
+    # return the input frame unchanged (graceful no-op) on any non-finite
+    # value, matching the `crop_w <= 0` fallback at line 188. Sibling
+    # of #1041 (CAP_PROP_FRAME_* NaN guard in get_video_meta) — same
+    # philosophy, different site.
+    if (
+        not math.isfinite(bbox.width)
+        or not math.isfinite(bbox.height)
+        or not math.isfinite(bbox.center_x)
+        or not math.isfinite(bbox.center_y)
+        or not math.isfinite(padding)
+    ):
+        return frame
 
     # Calculate crop dimensions with padding
     crop_w = int(bbox.width * (1 + 2 * padding))
