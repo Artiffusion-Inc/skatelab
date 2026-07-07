@@ -1239,7 +1239,12 @@ class BiomechanicsAnalyzer:
             return 0.0
 
         trunk_lean = self.compute_trunk_lean(approach_poses)
-        return float(np.mean(trunk_lean))
+        # Guard against NaN propagation from corrupted keypoints in the
+        # approach window: np.mean(NaN-series) silently returns NaN. See #1271.
+        finite_lean = trunk_lean[np.isfinite(trunk_lean)]
+        if finite_lean.size == 0:
+            return 0.0
+        return float(np.mean(finite_lean))
 
     def compute_approach_direction_change(
         self,
