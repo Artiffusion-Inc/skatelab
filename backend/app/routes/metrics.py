@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 from collections import defaultdict
 from collections.abc import Sequence  # noqa: TC003
 from datetime import UTC, datetime, timedelta
@@ -152,15 +153,25 @@ class MetricsController(Controller):
             from app.services.diagnostics import linear_regression
 
             slope, r_sq = linear_regression(values)
-            improving = (slope > 0) if mdef.direction == "higher" else (slope < 0)
-            declining = (slope < 0) if mdef.direction == "higher" else (slope > 0)
-            # #633: use the constant from diagnostics module — /trend and
-            # /diagnostics must share a single R² threshold to avoid
-            # inconsistent UX (one says "improving", the other silent).
-            if improving and r_sq > R_SQUARED_TREND_THRESHOLD:
-                trend = "improving"
-            elif declining and r_sq > R_SQUARED_TREND_THRESHOLD:
-                trend = "declining"
+            # #1249: guard non-finite slope/r² before classification. NaN and
+            # ±inf comparisons in IEEE 754 are always False (or, for inf,
+            # falsely True), so without this guard NaN silently falls through
+            # to "stable" and inf is misreported as a real trend. linear_regression
+            # already filters NaN/inf from the input series (#634), so this
+            # is a defense-in-depth check for any future regression in the
+            # underlying function or for callers passing non-finite directly.
+            if not (math.isfinite(slope) and math.isfinite(r_sq)):
+                trend = "unknown"
+            else:
+                improving = (slope > 0) if mdef.direction == "higher" else (slope < 0)
+                declining = (slope < 0) if mdef.direction == "higher" else (slope > 0)
+                # #633: use the constant from diagnostics module — /trend and
+                # /diagnostics must share a single R² threshold to avoid
+                # inconsistent UX (one says "improving", the other silent).
+                if improving and r_sq > R_SQUARED_TREND_THRESHOLD:
+                    trend = "improving"
+                elif declining and r_sq > R_SQUARED_TREND_THRESHOLD:
+                    trend = "declining"
 
         # Current PR
         pr_val = None
