@@ -224,7 +224,12 @@ class ElementSegmenter:
                     end=seg["end"],
                     confidence=seg["confidence"],
                     phases=phases,
-                    metadata={"coarse_type": seg["element_type"]},
+                    metadata={
+                        "coarse_type": seg["element_type"],
+                        # #813: fine label from optional RF classifier
+                        # (None when no classifier loaded).
+                        "fine_label": seg.get("fine_label"),
+                    },
                 )
             )
 

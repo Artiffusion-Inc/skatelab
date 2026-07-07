@@ -121,14 +121,24 @@ class TASElementSegmenter:
             return None
 
         seg_poses = poses[start:end]
-        confidence = 1.0
+        # #814: without a classifier there is no model-backed confidence —
+        # the previous `confidence = 1.0` default misrepresented coarse-only
+        # segments as maximally confident. Use a neutral 0.5 so downstream
+        # filters / rankings can distinguish "no model" from "model is sure".
+        # #813: `element_type` stays coarse (Jump/Spin/Step/None); the
+        # classifier's fine label (e.g. "3Flip") goes to a separate
+        # `fine_label` field so the return shape is stable across both paths
+        # and `element_type == "Jump"` switches downstream keep working.
+        confidence = 0.5
+        fine_label: str | None = None
 
         if self.classifier is not None and label in (1, 2, 3):
             features = extract_segment_features(seg_poses, fps)
-            element_type, confidence = self.classifier.predict(features)
+            fine_label, confidence = self.classifier.predict(features)
 
         return {
             "element_type": element_type,
+            "fine_label": fine_label,
             "start": start,
             "end": end - 1,
             "confidence": confidence,
