@@ -4,6 +4,7 @@ Pre-computes analysis results and renders a broadcast-style overlay
 showing element name, key metrics, and recommendations in Russian.
 """
 
+import math
 from dataclasses import dataclass
 
 import cv2
@@ -145,6 +146,12 @@ def _format_metric(metric: MetricResult) -> tuple[str, str, bool]:
         Tuple of Russian name, formatted string value, and goodness flag.
     """
     name_ru = METRIC_NAMES_RU.get(metric.name, metric.name)
+
+    # ponytail: #963 NaN/inf here leaks "nan"/"inf" into the Russian HUD
+    # overlay via f-string format spec (no exception, silent text leak).
+    # Guard once at the trust boundary \u2014 placeholder "\u2014" for non-finite.
+    if not math.isfinite(metric.value):
+        return (name_ru, "\u2014", metric.is_good)
 
     if metric.unit == "s":
         value_str = f"{metric.value:.2f}\u0441"
