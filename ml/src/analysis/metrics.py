@@ -1480,8 +1480,14 @@ class BiomechanicsAnalyzer:
             Per-frame angle series in degrees [0, 180].
             Near 0° = legs parallel (normal skating), near 180° = spread eagle.
         """
-        l_leg = poses[:, H36Key.LKNEE] - poses[:, H36Key.LHIP]  # 5 - 4
-        r_leg = poses[:, H36Key.RKNEE] - poses[:, H36Key.RHIP]  # 2 - 1
+        # #976: NaN joint (occluded hip/knee) -> NaN leg -> NaN cos ->
+        # np.arccos(NaN)=NaN silently leaks into the angle series. +1e-8 does
+        # NOT mask NaN, np.clip(NaN) is no-op. Guard the leg-vector joint
+        # inputs at the trust boundary (NaN -> 0.0 sentinel), mirroring #978
+        # (compute_goe_score nan_to_num) and #868 (compute_knee_angle_series
+        # finite-frame mask). nan_to_num is identity on finite joints.
+        l_leg = np.nan_to_num(poses[:, H36Key.LKNEE] - poses[:, H36Key.LHIP], nan=0.0)  # 5 - 4
+        r_leg = np.nan_to_num(poses[:, H36Key.RKNEE] - poses[:, H36Key.RHIP], nan=0.0)  # 2 - 1
 
         dot_prod = np.sum(l_leg * r_leg, axis=-1)
         norms = np.linalg.norm(l_leg, axis=-1) * np.linalg.norm(r_leg, axis=-1) + 1e-8
@@ -1499,7 +1505,13 @@ class BiomechanicsAnalyzer:
         Returns:
             Per-frame |LFOOT_y - RFOOT_y| difference. Large = spiral candidate.
         """
-        return np.abs(poses[:, H36Key.LFOOT, 1] - poses[:, H36Key.RFOOT, 1])
+        # #976: NaN foot joint (occluded LFOOT/RFOOT) -> np.abs(NaN - finite) =
+        # NaN silently leaks into the indicator series. Guard the foot joint
+        # inputs at the trust boundary (NaN -> 0.0 sentinel), mirroring #978.
+        # nan_to_num is identity on finite joints.
+        l_foot_y = np.nan_to_num(poses[:, H36Key.LFOOT, 1], nan=0.0)
+        r_foot_y = np.nan_to_num(poses[:, H36Key.RFOOT, 1], nan=0.0)
+        return np.abs(l_foot_y - r_foot_y)
 
     def compute_ina_bauer_score(
         self, poses: np.ndarray, se_angle: np.ndarray | None = None
@@ -1519,11 +1531,20 @@ class BiomechanicsAnalyzer:
         if se_angle is None:
             se_angle = self.compute_spread_eagle_angle(poses)
 
+        # #976: NaN joint (occluded thorax/hip/knee/foot, or a caller-supplied
+        # NaN se_angle) -> NaN leg_angle_norm / NaN trunk_norm -> arccos(NaN) =
+        # NaN torso_lean / NaN knee_diff -> NaN composite (any NaN -> NaN sum).
+        # Guard each component at the trust boundary (NaN -> 0.0 sentinel),
+        # mirroring #978 (compute_goe_score nan_to_num). nan_to_num is identity
+        # on finite inputs, so the all-finite case is unchanged.
         # Leg angle: 150 deg -> 0, 180 deg -> 1
+        se_angle = np.nan_to_num(se_angle, nan=0.0)
         leg_angle_norm = np.clip((se_angle - 150.0) / 30.0, 0, 1)
 
         # Torso lean: angle between hip_center->thorax and vertical (0, -1)
-        trunk = poses[:, H36Key.THORAX] - poses[:, H36Key.HIP_CENTER]  # 8 - 0
+        trunk = np.nan_to_num(
+            poses[:, H36Key.THORAX] - poses[:, H36Key.HIP_CENTER], nan=0.0
+        )  # 8 - 0
         trunk_norm = trunk / (np.linalg.norm(trunk, axis=-1, keepdims=True) + 1e-8)
         torso_lean = np.degrees(np.arccos(np.clip(-trunk_norm[:, 1], -1, 1)))
         torso_lean_norm = np.clip(torso_lean / 45.0, 0, 1)
@@ -1541,7 +1562,11 @@ class BiomechanicsAnalyzer:
                 for f in range(len(poses))
             ]
         )
-        knee_diff_norm = np.clip(np.abs(l_knee - r_knee) / 40.0, 0, 1)
+        knee_diff_norm = np.clip(
+            np.abs(np.nan_to_num(l_knee, nan=0.0) - np.nan_to_num(r_knee, nan=0.0)) / 40.0,
+            0,
+            1,
+        )
 
         return 0.5 * leg_angle_norm + 0.3 * torso_lean_norm + 0.2 * knee_diff_norm
 
