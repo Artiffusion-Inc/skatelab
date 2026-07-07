@@ -34,8 +34,9 @@ def extract_segment_features(
     # all-finite input (byte-identical features). Mirrors aligner.py:249.
     poses = np.nan_to_num(poses, nan=0.0, posinf=0.0, neginf=0.0)
 
-    # Hip Y trajectory (for jumps)
-    midhip = poses[:, 11:13, :].mean(axis=1)  # (T, 2)
+    # Hip Y trajectory (for jumps). #811: input is H3.6M, not COCO —
+    # RHIP=1, LHIP=4 (NOT 11:13 which is LSHOULDER+LELBOW).
+    midhip = poses[:, [1, 4], :].mean(axis=1)  # (T, 2) RHIP+LHIP
     hip_y_range = float(np.max(midhip[:, 1]) - np.min(midhip[:, 1]))
 
     # #467: np.gradient on a 1-element array raises ValueError (needs >=
@@ -56,8 +57,9 @@ def extract_segment_features(
     diff = np.diff(poses, axis=0)
     motion_energy = float(np.mean(np.linalg.norm(diff, axis=(1, 2))))
 
-    # Shoulder rotation speed
-    shoulders = poses[:, [5, 6], :]  # LSHOULDER, RSHOULDER
+    # Shoulder rotation speed. #811: H3.6M LSHOULDER=11, RSHOULDER=14
+    # (NOT [5, 6] which is LKNEE/LFOOT).
+    shoulders = poses[:, [11, 14], :]  # LSHOULDER, RSHOULDER
     shoulder_vec = shoulders[:, 1] - shoulders[:, 0]
     angles = np.arctan2(shoulder_vec[:, 1], shoulder_vec[:, 0])
     rot_speed = float(np.max(np.abs(np.gradient(angles)) * fps))
@@ -123,8 +125,16 @@ class Skeleton1DCNN(nn.Module):
         input_dim: int = 34,
         num_classes: int = 15,
         dropout: float = 0.5,
+        max_seq_len: int = 512,
     ) -> None:
         super().__init__()
+        # #817: fixed reference for the duration feature. The old code
+        # normalized by lengths.max(), which collapses to 1.0 at B=1
+        # (common at inference) → zero discrimination between segment
+        # lengths. Normalizing by a fixed constant keeps absolute duration
+        # info across batch sizes. 512 frames ≈ 17s at 30fps, comfortably
+        # above any realistic skating element segment.
+        self.max_seq_len = max_seq_len
         self.conv1 = nn.Conv1d(input_dim, 128, kernel_size=7, padding=3)
         self.bn1 = nn.BatchNorm1d(128)
         self.conv2 = nn.Conv1d(128, 256, kernel_size=5, padding=2)
@@ -154,8 +164,10 @@ class Skeleton1DCNN(nn.Module):
         x = torch.relu(self.bn2(self.conv2(x)))
         x = torch.relu(self.bn3(self.conv3(x)))
         x = self.pool(x).squeeze(-1)  # (B, 512)
-        # Concatenate normalized duration — prevents losing temporal info in AdaptiveMaxPool
-        dur = (lengths.float() / lengths.max().float()).unsqueeze(1)  # (B, 1)
+        # Concatenate normalized duration — prevents losing temporal info in
+        # AdaptiveMaxPool. #817: normalize by a fixed reference (max_seq_len),
+        # not lengths.max() which is 1.0 at B=1 (inference) → no discrimination.
+        dur = (lengths.float() / float(self.max_seq_len)).unsqueeze(1)  # (B, 1)
         x = torch.cat([x, dur], dim=1)  # (B, 513)
         return self.fc(x)
 
