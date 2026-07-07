@@ -7,6 +7,8 @@ Provides functions for rendering specific HUD elements:
 - Blade indicator
 """
 
+import math
+
 import cv2
 import numpy as np
 from numpy.typing import NDArray
@@ -362,14 +364,18 @@ def draw_blade_indicator_hud(
     label_x = x - text_width // 2
     label_y = y + size + 20
 
+    # ponytail: NaN/inf font_scale → int(NaN) ValueError crash in put_text
+    # font_size (line 372). Default to 32 (the documented default font_size)
+    # on corruption; rendering with the default is better than aborting the
+    # entire label. Mirrors #1205 (vertical_axis int) / #1156 convention.
+    safe_font_size = int(font_scale * 32) if math.isfinite(font_scale) else 32
+
     put_text(
         frame,
         label,
         (label_x, label_y),
         font_path=font_path,
-        font_size=int(
-            font_scale * 32
-        ),  # Convert from font_scale to font_size (32 is default font_size)
+        font_size=safe_font_size,
         color=color,
         bg_color=None,
         bg_alpha=0,
@@ -387,14 +393,18 @@ def draw_blade_indicator_hud(
     angle_x = x - angle_width // 2
     angle_y = label_y + angle_height + 15
 
+    # ponytail: Same NaN/inf font_scale guard as the label put_text above.
+    # 0.8 factor preserves the visual scaling for the angle value text.
+    safe_angle_font_size = (
+        int(font_scale * 0.8 * 32) if math.isfinite(font_scale) else 32
+    )
+
     put_text(
         frame,
         angle_text,
         (angle_x, angle_y),
         font_path=font_path,
-        font_size=int(
-            font_scale * 0.8 * 32
-        ),  # Convert from font_scale to font_size (32 is default font_size)
+        font_size=safe_angle_font_size,
         color=font_color,
         bg_color=None,
         bg_alpha=0,
@@ -503,15 +513,18 @@ def draw_info_text(
     """
     x, y = position
 
+    # ponytail: NaN/inf font_scale → int(NaN) ValueError crash in put_text
+    # font_size (line 522). Default to 32 on corruption; loop would otherwise
+    # abort on the first line and skip the rest. Mirrors #1205 / #1156.
+    safe_font_size = int(font_scale * 32) if math.isfinite(font_scale) else 32
+
     for line in lines:
         put_text(
             frame,
             line,
             (x, y),
             font_path=font_path,
-            font_size=int(
-                font_scale * 32
-            ),  # Convert from font_scale to font_size (32 is default font_size)
+            font_size=safe_font_size,
             color=font_color,
             bg_color=None,
             bg_alpha=0,
