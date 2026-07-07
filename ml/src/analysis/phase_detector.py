@@ -32,6 +32,13 @@ def count_rotations(angles: np.ndarray) -> int:
         return 0
     unwrapped = np.unwrap(angles)
     total_radians = float(np.abs(unwrapped[-1] - unwrapped[0]))
+    # #983: NaN shoulder (occluded LSHOULDER/RSHOULDER on a flight frame)
+    # → np.arctan2(NaN) → np.unwrap(NaN) → total_radians=NaN. int(np.ceil(
+    # NaN)) raises ValueError, aborting jump-level classification on one
+    # occluded shoulder. Guard before the int() — NaN → 0 rotations
+    # (unknown count, NOT crash), mirroring the len(angles)<2 → 0 guard.
+    if not np.isfinite(total_radians):
+        return 0
     # #514: rotation LEVEL = full completed turns. A half-turn overshoot is an
     # over-rotation of the LOWER level, not a completed next level: 3.5 turns =
     # an over-rotated triple (3), NOT a quad (4). But a slight UNDER-rotation
