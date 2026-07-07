@@ -23,7 +23,16 @@ def angle_3pt_rad(a: np.ndarray, b: np.ndarray, c: np.ndarray) -> float:
     ba = a - b
     bc = c - b
 
-    cosine_angle = np.dot(ba, bc) / (np.linalg.norm(ba) * np.linalg.norm(bc) + 1e-8)
+    # #1055: explicit norm guard — a zero-length ba or bc (degenerate joint:
+    # A=B, B=C, or A=B=C) is an UNDEFINED angle. The previous ``+ 1e-8``
+    # epsilon hid this case: 0/eps=0 → arccos(0)=π/2 (90 deg) silently,
+    # indistinguishable from a real 90 deg joint by the caller. Return NaN so
+    # ``compute_joint_angles`` and other callers can mask it.
+    norm_ba = np.linalg.norm(ba)
+    norm_bc = np.linalg.norm(bc)
+    if norm_ba < 1e-9 or norm_bc < 1e-9:
+        return float("nan")
+    cosine_angle = np.dot(ba, bc) / (norm_ba * norm_bc)
     # Manual clamp instead of np.clip for scalar
     cosine_angle = max(-1.0, min(1.0, cosine_angle))
     angle = np.arccos(cosine_angle)

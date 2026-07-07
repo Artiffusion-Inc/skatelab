@@ -116,12 +116,12 @@ class TestGeometryNumba:
         np.testing.assert_allclose(angles_batch, angles_loop, rtol=1e-6)
 
     def test_angle_3pt_zero_vector(self):
-        """Handle zero-length vectors gracefully."""
+        """Handle zero-length vectors — degenerate joint is NaN, not 90 deg (#1055)."""
         a = np.array([0.0, 0.0])
         b = np.array([0.0, 0.0])
         c = np.array([1.0, 0.0])
 
-        # Should not crash due to 1e-8 epsilon in denominator
+        # #1055: zero-length ba/bc is an UNDEFINED angle. Must return NaN so
+        # the caller can mask it (e.g., compute_joint_angles → NaN angles dict).
         angle = angle_3pt(a, b, c)
-        # Result is undefined but should be finite
-        assert np.isfinite(angle)
+        assert np.isnan(angle)
