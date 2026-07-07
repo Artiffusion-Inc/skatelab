@@ -286,6 +286,14 @@ class MotionAligner:
             # Find all user frames mapped to this reference frame
             user_indices = index1[index2 == ref_idx]
 
+            # #1097: filter NaN index1 entries — `int(NaN) = ValueError`
+            # and `user_indices.astype(int)` of NaN truncates to a huge
+            # negative int → `IndexError`. NaN reaches the path from a NaN
+            # keypoint in the cost matrix (#1090). Mirrors the motion_dtw.py
+            # #1097 guard. If all are NaN, fall back to nearest (same as the
+            # empty-mapping branch).
+            user_indices = user_indices[np.isfinite(user_indices)]
+
             if len(user_indices) == 0:
                 # No mapping, use nearest
                 warped[i] = sequence[int(ref_idx * len(sequence) / warped_length)]

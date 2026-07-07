@@ -420,6 +420,14 @@ class MotionDTWAligner:
             # Find all user frames mapped to this reference frame
             user_indices = warp_path[:, 0][warp_path[:, 1] == ref_idx]
 
+            # #1097: filter NaN warp_path entries — `int(NaN) = ValueError`
+            # and `user_indices.astype(int)` of NaN truncates to a huge
+            # negative int → `IndexError`. NaN reaches the path from a NaN
+            # keypoint in the cost matrix (#1090). Mirrors the aligner.py
+            # #1097 guard. If all are NaN, fall back to nearest-neighbor
+            # (same as the empty-mapping branch).
+            user_indices = user_indices[np.isfinite(user_indices)]
+
             if len(user_indices) == 0:
                 # No mapping, use nearest neighbor
                 if ref_idx > 0:
