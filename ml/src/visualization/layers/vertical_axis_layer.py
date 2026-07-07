@@ -303,6 +303,23 @@ class VerticalAxisLayer(Layer):
         shoulder = mid_shoulder[:2]
         head_pt = head[:2]
 
+        # #1090: guard against NaN inputs — `int(nan)` raises ValueError
+        # (crash), and the `min(1.0, t)` clamp on NaN `t` silently max-rewards
+        # to 1.0 (projection lands at the shoulder). Defense-in-depth: even
+        # if `render`'s `required_keys` guard is bypassed (direct call,
+        # future refactor), the function is safe.
+        if not (
+            math.isfinite(hip[0])
+            and math.isfinite(hip[1])
+            and math.isfinite(shoulder[0])
+            and math.isfinite(shoulder[1])
+            and math.isfinite(head_pt[0])
+            and math.isfinite(head_pt[1])
+            and math.isfinite(spine_vector[0])
+            and math.isfinite(spine_vector[1])
+        ):
+            return
+
         spine_len_sq = float(np.dot(spine_vector, spine_vector))
         if spine_len_sq < 1.0:
             return
