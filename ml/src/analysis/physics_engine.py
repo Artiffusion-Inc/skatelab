@@ -286,7 +286,14 @@ class PhysicsEngine:
                 offset = pos - com_trajectory
                 offset = np.delete(offset, drop, axis=-1)
                 r = np.linalg.norm(offset, axis=1)
-                inertia[:] += mass * r**2
+                # #980: NaN-aware contribution — an occluded keypoint makes `r`
+                # NaN for that frame; `NaN + finite = NaN` in-place would poison
+                # per-frame inertia and leak into angular momentum / avg_inertia
+                # in report JSON. Mask each segment's contribution to 0 when `r`
+                # is non-finite (its mass is simply absent for that frame). Same
+                # contract as the CoM `_w` mask (#884). All-valid case is
+                # byte-identical: np.where(isfinite, term, 0) == term when finite.
+                inertia[:] += np.where(np.isfinite(r), mass * r**2, 0.0)
 
         # Head
         add_segment_inertia([(head, self.segment_masses["head"])])
