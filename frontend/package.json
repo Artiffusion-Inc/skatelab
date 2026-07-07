@@ -11,7 +11,9 @@
     "lint": "biome check src/",
     "lint:fix": "biome check --write src/",
     "test": "vitest",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "fumadocs-mdx && tsc --noEmit",
+    "fumadocs": "fumadocs-mdx",
+    "prebuild": "bun run fumadocs"
   },
   "dependencies": {
     "@ffmpeg/ffmpeg": "^0.12.15",
