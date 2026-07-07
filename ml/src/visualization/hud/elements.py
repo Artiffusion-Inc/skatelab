@@ -334,8 +334,21 @@ def draw_blade_indicator_hud(
     # Get color for blade type
     color = _get_blade_color(blade_state.blade_type)
 
+    # ponytail: NaN/inf foot_angle → int(NaN) ValueError crash in
+    # _draw_direction_arrow (line 435) and "nan°" / "inf°" HUD text leak.
+    # One isfinite guard feeds both the arrow draw and the f-string render.
+    # NaN → 0.0 (neutral arrow up), placeholder "—" for the angle text.
+    # Mirrors #974 (draw_phase_indicator) / #970 (draw_axes) convention.
+    foot_angle = blade_state.foot_angle
+    if not np.isfinite(foot_angle):
+        arrow_angle = 0.0
+        angle_text = "—"
+    else:
+        arrow_angle = foot_angle
+        angle_text = f"{foot_angle:.1f}°"
+
     # Draw directional arrow based on foot angle
-    _draw_direction_arrow(frame, x, y, blade_state.foot_angle, size, thickness, color)
+    _draw_direction_arrow(frame, x, y, arrow_angle, size, thickness, color)
 
     # Draw blade type label
     label = blade_state.blade_type.name.lower()
@@ -364,7 +377,6 @@ def draw_blade_indicator_hud(
     )
 
     # Draw foot angle value
-    angle_text = f"{blade_state.foot_angle:.1f}°"
     (angle_width, angle_height), _ = cv2.getTextSize(
         angle_text,
         cv2.FONT_HERSHEY_SIMPLEX,
