@@ -206,6 +206,7 @@ class BatchPoseExtractor:
                 if max(h, w) > 1920:
                     scale = 1920 / max(h, w)
                     frame = cv2.resize(frame, (int(w * scale), int(h * scale)))
+                    h, w = frame.shape[:2]  # ponytail: re-read after resize (#1036)
 
                 crops, bboxes = self._detect_and_crop(frame)
 
