@@ -121,6 +121,12 @@ def check_stagnation(
     variance = sum((v - mean) ** 2 for v in finite) / len(finite)
     std = variance**0.5
     cv = std / abs(mean)
+    # #1228: defense-in-depth guard — NaN cv must not silently skip the
+    # warning via `NaN < 0.05 == False`. Upstream `finite` filter
+    # prevents this in the current call path, but a future refactor
+    # could drop it; the comparison-site guard is the last line.
+    if not math.isfinite(cv):
+        return None
     if cv < 0.05:
         return Finding(
             severity="info",
@@ -175,6 +181,10 @@ def check_high_variability(
     variance = sum((v - mean) ** 2 for v in finite) / len(finite)
     std = variance**0.5
     cv = std / abs(mean)
+    # #1228: defense-in-depth guard — NaN cv must not route through the
+    # `NaN > 0.20 == False` shortcut and silently skip the warning.
+    if not math.isfinite(cv):
+        return None
     if cv > 0.20:
         return Finding(
             severity="warning",
