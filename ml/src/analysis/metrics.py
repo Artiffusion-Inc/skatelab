@@ -621,6 +621,20 @@ class BiomechanicsAnalyzer:
         # signal is needed.
         if not np.all(np.isfinite(unwrapped)):
             unwrapped = np.where(np.isfinite(unwrapped), unwrapped, 0.0)
+        # #1328 MT: NaN shoulder -> angular_velocity NaN frames. The existing
+        # #912 guard sanitizes `unwrapped` (downstream of compute_total_rotation)
+        # and `peak_velocity` uses np.nanmax. But `mean_velocity` (line 665
+        # below) is a bare np.mean(angular_velocity) — numpy mean is NOT
+        # NaN-aware, so a single NaN frame propagates to mean_velocity=NaN,
+        # which `classify_spin` silently degrades to ("unknown", 0.0) via
+        # its isfinite guard. Sanitize the inline angular_velocity series at
+        # the same trust boundary as `unwrapped` so BOTH downstream
+        # aggregations (np.nanmax for peak, np.mean for mean) see a clean
+        # series. Identity on all-finite input. ponytail: all-NaN shoulders
+        # yield 0.0 (biased finite, not NaN); upgrade to inf sentinel if a
+        # degenerate-spin signal is needed.
+        if not np.all(np.isfinite(angular_velocity)):
+            angular_velocity = np.where(np.isfinite(angular_velocity), angular_velocity, 0.0)
 
         # Hip Y position for spin detection
         hip_y = (poses[:, H36Key.LHIP][:, 1] + poses[:, H36Key.RHIP][:, 1]) / 2.0
