@@ -698,6 +698,16 @@ class PhaseDetector:
 
         # Use 3-sigma rule for threshold
         accel_std = float(np.std(accel_y[search_start:search_end]))
+        # #1278: NaN-skip on accel_std. np.std propagates NaN when accel_y
+        # is NaN-tainted (hip occluded during tuck / sit spin / loose top),
+        # and `arr[i] > NaN` is always False (NaN-comparison rule), so the
+        # loop below never enters — silent fallback. Use math.isfinite
+        # (NOT math.isnan) to also catch inf. Skip the threshold loop when
+        # the std is not finite, falling through to the derivative
+        # fallback below.
+        if not math.isfinite(accel_std):
+            derivative = np.gradient(com_y)
+            return self._find_takeoff_derivative(derivative, peak_idx)
         threshold = accel_std * 3.0
 
         # Find first significant positive acceleration before peak
@@ -749,6 +759,13 @@ class PhaseDetector:
 
         # Use 2-sigma rule for threshold (more sensitive for landing)
         accel_std = float(np.std(accel_y[search_start:search_end]))
+        # #1278: NaN-skip on accel_std (same root cause as takeoff above).
+        # NaN-tainted accel_y → std NaN → threshold NaN → `arr[i] < NaN`
+        # always False → loop never enters. Skip the threshold loop and
+        # fall through to the baseline-return fallback when the std is
+        # not finite.
+        if not math.isfinite(accel_std):
+            return self._find_landing_baseline(com_y, peak_idx, takeoff_idx)
         threshold = -accel_std * 2.0
 
         # Find first significant negative acceleration after peak
