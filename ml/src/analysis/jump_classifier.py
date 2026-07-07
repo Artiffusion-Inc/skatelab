@@ -4,6 +4,8 @@ Classifies observed biomechanical features into ISU jump types based on
 rotation count, toe pick usage, and takeoff direction.
 """
 
+import numpy as np
+
 from .element_defs import ELEMENT_DEFS
 
 
@@ -29,6 +31,14 @@ def classify_jump(
     Returns:
         Tuple of (element_name, confidence) where confidence is 0.0-1.0.
     """
+    # rotation_count is the PRIMARY jump identifier. NaN (from NaN shoulder
+    # upstream in count_rotations or a failed 3D yaw cross-check) must NOT
+    # enter the threshold chain — NaN < x is always False, silently zeroing
+    # the rotation bonus for every candidate while toe_pick/direction bonuses
+    # survive, yielding a named jump with false positive confidence (#966).
+    if not np.isfinite(rotation_count):
+        return "unknown", 0.0
+
     candidates: list[tuple[str, float]] = []
 
     for elem in ELEMENT_DEFS.values():
