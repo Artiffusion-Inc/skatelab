@@ -1450,9 +1450,25 @@ class BiomechanicsAnalyzer:
         l_sho = poses_3d[flight_indices, H36Key.LSHOULDER]
         r_sho = poses_3d[flight_indices, H36Key.RSHOULDER]
 
-        # Shoulder length guard: skip frames where shoulder axis is near-zero
+        # Shoulder length guard: skip frames where shoulder axis is near-zero.
+        # #915: NaN shoulder (occlusion) -> shoulder_length NaN. np.median of a
+        # NaN-containing array is NaN (NOT np.nanmedian), `NaN < 1e-6` = False
+        # (NaN comparison) skips the degenerate guard, `NaN > 0.05*NaN` =
+        # all-False empties valid_idx -> false-BAD (0.0, 0.0) sentinel. The 3D
+        # yaw cross-check then OVERWRITES a valid 2D rotation_count with 0.0 in
+        # _analyze_jump (line 392-397): `abs(rotation_count - 0.0) > 0.5` ->
+        # rotation_count = 0.0. A triple with one occluded shoulder reads as
+        # "0 rotations". Use np.nanmedian so a few NaN shoulder frames don't
+        # poison the median; only all-NaN shoulder yields NaN. isfinite guard
+        # returns a NaN sentinel (NOT 0.0) -> consumer's
+        # `abs(rotation_count - nan) > 0.5` is False -> 2D rotation_count
+        # preserved. A finite near-zero median (empty/degenerate frame) still
+        # returns 0.0 (existing behavior). Mirrors #966 classify_jump
+        # isfinite guard.
         shoulder_length = np.linalg.norm(r_sho - l_sho, axis=1)
-        median_length = np.median(shoulder_length)
+        median_length = np.nanmedian(shoulder_length)
+        if not np.isfinite(median_length):
+            return float("nan"), float("nan"), np.zeros(len(flight_indices) - 1, dtype=bool)
         if median_length < 1e-6:
             return 0.0, 0.0, np.zeros(len(flight_indices) - 1, dtype=bool)
         valid = shoulder_length > 0.05 * median_length
@@ -1460,11 +1476,11 @@ class BiomechanicsAnalyzer:
         # Yaw from 3D: Z-depth avoids 2D collapse
         yaw = np.arctan2(r_sho[:, 2] - l_sho[:, 2], r_sho[:, 0] - l_sho[:, 0])
 
-        # Interpolate invalid frames from neighbors
+        # Interpolate invalid (incl. NaN-shoulder) frames from neighbors
         if not np.all(valid):
             valid_idx = np.where(valid)[0]
             if len(valid_idx) < 2:
-                return 0.0, 0.0, np.zeros(len(flight_indices) - 1, dtype=bool)
+                return float("nan"), float("nan"), np.zeros(len(flight_indices) - 1, dtype=bool)
             yaw[~valid] = np.interp(np.where(~valid)[0], valid_idx, yaw[valid])
 
         # Manual delta with wrap-around
