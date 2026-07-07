@@ -392,7 +392,7 @@ tasks:
   - id: T009
     type: worker
     assignee: Worker
-    status: queued
+    status: done
     objective: "Task 9 (plan): E2E dev smoke + docs/CLAUDE.md update. Run full test suites."
     constraints:
       - "Use subagent-driven-development skill"
@@ -406,7 +406,36 @@ tasks:
     stop_if:
       - "Any test suite red"
       - "Main app skatelab.ru broken by middleware"
-    receipt: null
+    receipt:
+      result: done
+      summary: "docs/CLAUDE.md surgically updated (specs/plans entries + new goals/ subdir + blog-docs key refs). Backend pytest 6/6 PASS, frontend vitest 170/170 PASS, typecheck PASS. 2 follow-ups: (1) biome lint RED on 8 files (missing trailing newlines, files from T002-T007) — fix with `cd frontend && bun run biome check --write src/`; (2) runtime smoke SKIPPED — pre-existing next build/dev hang blocks next start; human must run `cd frontend && bun run dev` + 4 curl checks."
+      changed_files:
+        - docs/CLAUDE.md
+      commands:
+        - cmd: ".venv/bin/python -m pytest backend/tests/routes/test_users_staff_flag.py"
+          status: pass
+          note: "6 passed (uv run pytest used worktree-cross shebang; .venv/bin/python -m pytest works)"
+        - cmd: "cd frontend && bun run test -- --run"
+          status: pass
+          note: "48 files, 170 tests"
+        - cmd: "cd frontend && bun run typecheck"
+          status: pass
+        - cmd: "cd frontend && bun run lint"
+          status: fail
+          note: "8 biome formatting errors in T002-T007 src files (missing trailing newlines); 8 pre-existing test-file warnings unrelated. Fix: `bun run biome check --write src/`"
+        - cmd: "bun run dev / next start (runtime smoke)"
+          status: skip
+          note: "pre-existing next build/dev hang; runtime smoke must be human-run"
+      deviations:
+        - "Lint RED — formatting-only, files not in allowed_files so cannot auto-fix from this task"
+        - "Runtime smoke SKIPPED — pre-existing build hang documented in T002-T007 receipts"
+      followups:
+        - "Run `cd frontend && bun run biome check --write src/` to clear 8 formatting errors"
+        - "Human runs `cd frontend && bun run dev` then 4 curl checks per plan"
+      followup_commits:
+        - commit: 0413c5de
+          summary: "biome auto-fix applied; lint now clean (8 pre-existing test-file warnings unrelated)"
+      commit: ff1fad35
 
   # ===== Final audit =====
   - id: T999
