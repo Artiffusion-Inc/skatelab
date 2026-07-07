@@ -474,7 +474,11 @@ class ElementSegmenter:
         # Hip Y trajectory (for jumps)
         hip_y = get_mid_hip(poses)[:, 1]
         features["hip_y_range"] = float(np.max(hip_y) - np.min(hip_y))
-        features["hip_y_min_idx"] = int(np.argmin(hip_y))
+        # #989: np.argmin on NaN-bearing hip_y treats NaN as smallest → returns
+        # the NaN-frame index (occluded hip) instead of the real CoM peak. Use
+        # nanargmin over finite frames; fall back to 0 when all-NaN (sentinel,
+        # no crash). hip_y_range still leaks NaN separately (covered elsewhere).
+        features["hip_y_min_idx"] = int(np.nanargmin(hip_y)) if np.isfinite(hip_y).any() else 0
 
         # Detect jump-like pattern
         hip_y_derivative = np.gradient(hip_y)
