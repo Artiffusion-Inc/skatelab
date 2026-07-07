@@ -4,6 +4,7 @@ This module provides metrics for analyzing skating technique,
 including joint angles, airtime, rotation speed, and edge quality.
 """
 
+import math
 import warnings
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
@@ -1078,6 +1079,12 @@ class BiomechanicsAnalyzer:
             Returns 1.0 if no post-landing data available.
         """
         if phases.end <= phases.landing + 1:
+            return 1.0
+
+        # #1114: NaN/inf fps guard — `int(0.5 * NaN)` raises ValueError.
+        # Corrupt video metadata (no frame rate) must not crash the
+        # smoothness score; the window-size step is the first fps use.
+        if not math.isfinite(fps) or fps <= 0:
             return 1.0
 
         post_landing_start = phases.landing + 1
