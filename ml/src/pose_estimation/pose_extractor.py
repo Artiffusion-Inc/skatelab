@@ -913,8 +913,8 @@ class PoseExtractor:
                             "first_frame": frame_idx,
                         }
                     person_data[tid]["hits"] += 1
-                    avg_conf = float(np.mean(h36m_poses[p, :, 2]))
-                    if avg_conf > person_data[tid]["best_conf"]:
+                    avg_conf = float(np.nanmean(h36m_poses[p, :, 2]))
+                    if math.isfinite(avg_conf) and avg_conf > person_data[tid]["best_conf"]:
                         person_data[tid]["best_conf"] = avg_conf
                         person_data[tid]["best_kps"] = h36m_poses[p].copy()
                         person_data[tid]["best_frame"] = frame_idx
