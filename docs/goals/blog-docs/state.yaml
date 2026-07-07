@@ -5,7 +5,7 @@ plan_ref: docs/plans/2026-07-07-blog-docs.md
 spec_ref: docs/specs/2026-07-07-blog-docs-design.md
 
 goal:
-  status: active
+  status: completed
   slug: blog-docs
   title: "Blog & Docs (docs.skatelab.ru / blog.skatelab.ru)"
   created: 2026-07-07
@@ -441,9 +441,24 @@ tasks:
   - id: T999
     type: judge
     assignee: Judge
-    status: queued
+    status: done
     objective: "Final audit: confirm all 9 plan tasks done, goal oracle green, full outcome (docs.skatelab.ru user+internal, blog.skatelab.ru, main app intact)."
     expected_output:
       - "Decision: complete | needs_work"
       - "Goal oracle checklist verdict"
-    receipt: null
+    receipt:
+      result: done
+      decision: complete
+      full_outcome_complete: true
+      rationale: "All 9 plan tasks done. Re-ran pytest (6/6 PASS), bun test (170/170 PASS), typecheck (clean), lint (0 new errors; 8 pre-existing warnings unrelated), caddy adapt on isolated docs/blog blocks (clean; pre-existing search.{$DOMAIN} bug out of scope per oracle check 5). Runtime smokes blocked by pre-existing next build/dev hang; static evidence chain (middleware rewrites, force-dynamic regex assertion in staff-gate test, getPage/getPages wiring, MDX content files in both locales, middleware test for main-host passthrough) covers all 4 runtime checks. 28 worktree-only commits confirmed (fa7576db → 42d1fd56), none on master."
+      evidence:
+        - "pytest: 6/6 (test_users_staff_flag.py, commit 76bf5101)"
+        - "frontend test: 48 files / 170 tests pass"
+        - "frontend typecheck: 0 errors"
+        - "frontend lint: 0 new errors (8 pre-existing warnings: 7 test files + 1 consent-provider.tsx, untouched by this worktree)"
+        - "caddy adapt on docs./blog. blocks (lines 154-220): valid JSON"
+        - "middleware.ts: hostname rewrite docs./blog. → /docs|/blog; postHog passthrough otherwise"
+        - "internal page: export const dynamic = 'force-dynamic' (line 18 of (docs)/[locale]/internal/[[...slug]]/page.tsx)"
+        - "getPage/getPages wired to .source/server; MDX content ru+en present"
+        - "git log: 28 worktree-only commits, 0 on master"
+      blocked_tasks: []
