@@ -178,13 +178,25 @@ def get_joint_radius_3d(
         >>> get_joint_radius_3d(1.0)
         4  # Medium depth, medium radius
     """
+    # #1068: NaN/Inf depth_min or depth_max silently propagates through
+    # `depth_max > depth_min` (NaN > x is False for any x), so the else
+    # branch picks t=0.5 — INDISTINGUISHABLE from a degenerate (equal
+    # bounds) call. Upstream 3D-pose / depth-stats failures would then
+    # render the entire skeleton at uniform mid-depth with no visible
+    # error. Guard at the trust boundary so the bug surfaces.
+    if not (math.isfinite(depth_min) and math.isfinite(depth_max) and depth_max > depth_min):
+        raise ValueError(
+            f"depth_min and depth_max must be finite and depth_max > depth_min, "
+            f"got depth_min={depth_min}, depth_max={depth_max}"
+        )
+
     # NaN/Inf: collapse to mid-range (scale=0.75, near min radius) so
     # missing depth doesn't crash and doesn't silently pick "max" color.
     if not math.isfinite(depth):
         depth = (depth_min + depth_max) / 2
 
     # Normalize depth to [0, 1]
-    t = (depth - depth_min) / (depth_max - depth_min) if depth_max > depth_min else 0.5
+    t = (depth - depth_min) / (depth_max - depth_min)
     t = max(0.0, min(1.0, t))
 
     # Scale radius: closer = larger
@@ -342,8 +354,20 @@ def get_bone_thickness_3d(
         >>> get_bone_thickness_3d(1.5)
         1  # Thinner for far bones
     """
+    # #1068: NaN/Inf depth_min or depth_max silently propagates through
+    # `depth_max > depth_min` (NaN > x is False for any x), so the else
+    # branch picks t=0.5 — INDISTINGUISHABLE from a degenerate (equal
+    # bounds) call. Upstream 3D-pose / depth-stats failures would then
+    # render the entire skeleton at uniform mid-depth with no visible
+    # error. Guard at the trust boundary so the bug surfaces.
+    if not (math.isfinite(depth_min) and math.isfinite(depth_max) and depth_max > depth_min):
+        raise ValueError(
+            f"depth_min and depth_max must be finite and depth_max > depth_min, "
+            f"got depth_min={depth_min}, depth_max={depth_max}"
+        )
+
     # Normalize depth to [0, 1]
-    t = (depth - depth_min) / (depth_max - depth_min) if depth_max > depth_min else 0.5
+    t = (depth - depth_min) / (depth_max - depth_min)
     t = max(0.0, min(1.0, t))
 
     # Scale thickness: closer = thicker
