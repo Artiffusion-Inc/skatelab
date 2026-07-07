@@ -185,14 +185,18 @@ class ElementSegmenter:
                     confidence=seg["confidence"],
                 )
             )
+        # #1316: filter NaN confidences (BiGRU coarse / RF fine / upstream
+        # NaN propagate) before averaging — same pattern as
+        # `_compute_overall_confidence` (line 670+).
+        finite_confs = [s.confidence for s in element_segs if math.isfinite(s.confidence)]
+        agg_conf = float(np.mean(finite_confs)) if finite_confs else 0.0
+
         return SegmentationResult(
             segments=element_segs,
             video_path=video_path,
             video_meta=video_meta,
             method="tas_ml",
-            confidence=float(np.mean([s.confidence for s in element_segs]))
-            if element_segs
-            else 0.0,
+            confidence=agg_conf,
         )
 
     def _segment_with_tas_v2(
@@ -243,12 +247,18 @@ class ElementSegmenter:
                 )
             )
 
+        # #1316: filter NaN confidences (BiGRU coarse / RF fine / upstream
+        # NaN propagate) before averaging — same pattern as
+        # `_compute_overall_confidence` (line 670+).
+        finite_confs = [s.confidence for s in segments if math.isfinite(s.confidence)]
+        agg_conf = float(np.mean(finite_confs)) if finite_confs else 0.0
+
         return SegmentationResult(
             segments=segments,
             video_path=video_meta.path,
             video_meta=video_meta,
             method="tas_ml_v2",
-            confidence=float(np.mean([s.confidence for s in segments])),
+            confidence=agg_conf,
         )
 
     def _compute_motion_energy(self, poses: NormalizedPose) -> NDArray[np.float32]:
