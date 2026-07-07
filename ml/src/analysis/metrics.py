@@ -1660,6 +1660,11 @@ class BiomechanicsAnalyzer:
         a = poses[frame, j1]
         b = poses[frame, j2]
         c = poses[frame, j3]
+        # #1262: NaN keypoint → NaN cos_val → np.clip(NaN, -1, 1) = NaN silently
+        # propagates through arccos/degrees. Return NaN explicitly so callers
+        # can skip via np.nanmean / nanstd instead of leaking silent NaN.
+        if not (np.isfinite(a).all() and np.isfinite(b).all() and np.isfinite(c).all()):
+            return float("nan")
         ba = a - b
         bc = c - b
         cos_val = np.dot(ba, bc) / (np.linalg.norm(ba) * np.linalg.norm(bc) + 1e-8)
