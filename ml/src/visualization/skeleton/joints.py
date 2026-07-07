@@ -366,6 +366,14 @@ def get_bone_thickness_3d(
             f"got depth_min={depth_min}, depth_max={depth_max}"
         )
 
+    # #1161: NaN/Inf base_thickness crashes int(NaN) and aborts the
+    # 3D skeleton render. Fall back to min thickness (1) so the
+    # broken-config bone is just thin instead of taking down the
+    # whole draw. Sibling of #1068 (depth bounds) and #1102
+    # (coach_panel is_visible_at).
+    if not math.isfinite(base_thickness):
+        return 1
+
     # Normalize depth to [0, 1]
     t = (depth - depth_min) / (depth_max - depth_min)
     t = max(0.0, min(1.0, t))
