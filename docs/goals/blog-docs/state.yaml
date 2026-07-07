@@ -462,3 +462,6 @@ tasks:
         - "getPage/getPages wired to .source/server; MDX content ru+en present"
         - "git log: 28 worktree-only commits, 0 on master"
       blocked_tasks: []
+      followups:
+        - "PR #1111 created; pushed 14eed793. 4 blog-docs-introduced CI failures fixed (biome, tsc, ruff format, typecheck script). 4 remaining CI failures are pre-existing master issues (Valkey sidecar missing, B008 metrics_summary.py, test_users_routes_bugfix collection, buildkit cache flake) — documented in PR comment."
+        - "Master branch needs 3 separate fixes before any PR can pass CI: Valkey sidecar in ci-reusable.yml, B008 noqa/refactor in metrics_summary.py:36, test_users_routes_bugfix module-level mock pattern."
