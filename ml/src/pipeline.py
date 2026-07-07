@@ -649,6 +649,13 @@ class AnalysisPipeline:
         Returns:
             Formatted text report in Russian.
         """
+
+        # ponytail: NaN/inf here leaks "nan"/"inf" into user-facing Russian
+        # text via f-string format spec — guard at the trust boundary once.
+        def _fmt(v: float, spec: str = ".2f") -> str:
+            s = f"{v:{spec}}"
+            return "н/д" if not np.isfinite(v) else s
+
         lines: list[str] = []
         lines.append("=" * 60)
         lines.append(f"АНАЛИЗ: {report.element_type.upper()}")
@@ -670,14 +677,14 @@ class AnalysisPipeline:
             status = "✓ ОК" if metric.is_good else "✗ ПЛОХО"
             ref_min, ref_max = metric.reference_range
             lines.append(
-                f"  {metric.name}: {metric.value:.2f} {metric.unit} [{status}] "
-                f"(референс: {ref_min:.2f}-{ref_max:.2f})"
+                f"  {metric.name}: {_fmt(metric.value)} {metric.unit} [{status}] "
+                f"(референс: {_fmt(ref_min)}-{_fmt(ref_max)})"
             )
 
         # DTW distance
         lines.append("\n--- Сходство с референсом ---")
         if report.dtw_distance is not None:
-            lines.append(f"  DTW-расстояние: {report.dtw_distance:.3f} (0 = идеально)")
+            lines.append(f"  DTW-расстояние: {_fmt(report.dtw_distance, '.3f')} (0 = идеально)")
         else:
             lines.append("  DTW-расстояние: н/д")
 
