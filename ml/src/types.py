@@ -727,13 +727,38 @@ class ReferenceData:
         """Load reference from .npz file."""
         data = np.load(path)
         phase_name, start, takeoff, peak, landing, end = data["phases"]
+
+        # #1232: trust-boundary guard. int(NaN) raises stdlib
+        # ValueError("cannot convert float NaN to integer") with no
+        # hint of the corrupt field; float(NaN) silently leaks. Check
+        # each phase field for finiteness before casting — same family
+        # as the #1041 get_video_meta fix and the #1230
+        # ReferenceBuilder.load_reference fix. On corrupt .npz, raise
+        # a typed RuntimeError naming the corrupt field.
+
+        def _finite_int(value: Any, field: str) -> int:
+            v = float(value)
+            if not np.isfinite(v):
+                raise RuntimeError(
+                    f"Corrupt reference .npz: non-finite {field}={v!r} for path={path}"
+                )
+            return int(v)
+
+        def _finite_float(value: Any, field: str) -> float:
+            v = float(value)
+            if not np.isfinite(v):
+                raise RuntimeError(
+                    f"Corrupt reference .npz: non-finite {field}={v!r} for path={path}"
+                )
+            return v
+
         phases = ElementPhase(
             name=str(phase_name),
-            start=int(start),
-            takeoff=int(takeoff),
-            peak=int(peak),
-            landing=int(landing),
-            end=int(end),
+            start=_finite_int(start, "start"),
+            takeoff=_finite_int(takeoff, "takeoff"),
+            peak=_finite_int(peak, "peak"),
+            landing=_finite_int(landing, "landing"),
+            end=_finite_int(end, "end"),
         )
         poses_3d = None
         if "poses_3d" in data:
@@ -744,7 +769,7 @@ class ReferenceData:
             poses=data["poses"].astype(np.float32),
             poses_3d=poses_3d,
             phases=phases,
-            fps=float(data["fps"]),
+            fps=_finite_float(data["fps"], "fps"),
         )
 
 
