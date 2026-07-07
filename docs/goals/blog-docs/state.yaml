@@ -1,6 +1,6 @@
 version: 2
 slug: blog-docs
-active_task: T001
+active_task: T002
 plan_ref: docs/plans/2026-07-07-blog-docs.md
 spec_ref: docs/specs/2026-07-07-blog-docs-design.md
 
@@ -53,12 +53,13 @@ tasks:
   - id: T001
     type: worker
     assignee: Worker
-    status: active
+    status: done
     objective: "Task 1 (plan): Backend STAFF_EMAILS config + is_staff flag on /v1/users/me. TDD."
     constraints:
       - "Use subagent-driven-development skill: fresh subagent, failing-test-first, commit per step"
     allowed_files:
       - backend/app/config.py
+      - backend/app/auth/staff.py
       - backend/app/schemas.py
       - backend/app/routes/users.py
       - backend/tests/routes/test_users_staff_flag.py
@@ -68,12 +69,29 @@ tasks:
       - "Litestar AppConfig injection pattern unclear (need to inspect existing routes)"
       - "client_factory fixture name differs from test_users_routes_bugfix.py"
       - "Verification fails twice"
-    receipt: null
+    receipt:
+      result: done
+      summary: "StaffConfig→Settings, is_staff_email pure helper, UserResponse.is_staff, get_me computes it. 6 tests pass, 24 regression pass."
+      changed_files:
+        - backend/app/config.py
+        - backend/app/auth/staff.py
+        - backend/app/schemas.py
+        - backend/app/routes/users.py
+        - backend/tests/routes/test_users_staff_flag.py
+      commands:
+        - cmd: "uv run pytest tests/routes/test_users_staff_flag.py -v"
+          status: pass
+        - cmd: "uv run pytest tests/test_user_routes.py tests/routes/test_users_routes_bugfix.py -q"
+          status: pass
+      deviations:
+        - "NoDecode annotation on emails field (pydantic-settings JSON-parse before validator)"
+        - "Integration test uses auth_headers fixture (CurrentUser rejects unauth even with skip_auth)"
+      commit: 76bf5101
 
   - id: T002
     type: worker
     assignee: Worker
-    status: queued
+    status: active
     objective: "Task 2 (plan): Frontend Fumadocs deps + source.config.ts + Tailwind wiring."
     constraints:
       - "Use subagent-driven-development skill"
