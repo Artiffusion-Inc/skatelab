@@ -112,6 +112,11 @@ def get_depth_colors_vectorized(
     original_shape = depths.shape
     depths_flat = depths.ravel()
 
+    # NaN/Inf: gray "unknown" (mirrors scalar get_depth_color, #1241).
+    # Without this, np.clip(NaN, 0, 1) = NaN, NaN.astype(int) = np.int64.min
+    # → negative index, RuntimeWarning, garbage RGB.
+    finite_mask = np.isfinite(depths_flat)
+
     # Normalize to [0, 1]
     if depth_max > depth_min:
         t = (depths_flat - depth_min) / (depth_max - depth_min)
@@ -123,6 +128,8 @@ def get_depth_colors_vectorized(
     # Map to color gradient
     num_colors = len(DEPTH_COLORS)
     indices = t * (num_colors - 1)
+    # Replace non-finite with 0 to avoid NaN.astype(int) → np.int64.min (out-of-range)
+    indices = np.where(finite_mask, indices, 0.0)
     idx_low = indices.astype(int)
     idx_high = np.minimum(idx_low + 1, num_colors - 1)
     local_t = indices - idx_low
@@ -134,6 +141,9 @@ def get_depth_colors_vectorized(
         c1 = np.array(DEPTH_COLORS[idx_low[i]])
         c2 = np.array(DEPTH_COLORS[idx_high[i]])
         colors[i] = (c1 * (1 - local_t[i]) + c2 * local_t[i]).astype(np.int32)
+
+    # Non-finite depths → gray "unknown" sentinel
+    colors[~finite_mask] = np.array([128, 128, 128], dtype=np.int32)
 
     return colors.reshape((*original_shape, 3))
 
