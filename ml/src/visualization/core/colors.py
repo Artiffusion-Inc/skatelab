@@ -170,10 +170,11 @@ def get_heatmap_color(
         >>> get_heatmap_color(0.5, 0.0, 1.0, "jet")
         (0, 255, 255)  # Cyan (midpoint)
     """
-    # Non-finite: raise so callers can't silently render NaN similarity
-    # as 'max heat' (false-positive perfect match) or Inf as end color.
+    # Non-finite: return gray "unknown" so missing data is visually distinct
+    # from real "max" color (which min/max clamp would silently produce)
+    # and the colormap sample doesn't abort the whole render.
     if not (math.isfinite(value) and math.isfinite(vmin) and math.isfinite(vmax)):
-        raise ValueError(f"value, vmin, vmax must be finite, got {value}, {vmin}, {vmax}")
+        return (128, 128, 128)
 
     # Normalize to [0, 1]
     t = (value - vmin) / (vmax - vmin) if vmax > vmin else 0.5
