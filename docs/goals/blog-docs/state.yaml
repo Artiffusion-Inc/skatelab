@@ -1,6 +1,6 @@
 version: 2
 slug: blog-docs
-active_task: T000
+active_task: T001
 plan_ref: docs/plans/2026-07-07-blog-docs.md
 spec_ref: docs/specs/2026-07-07-blog-docs-design.md
 
@@ -33,7 +33,7 @@ tasks:
   - id: T000
     type: judge
     assignee: Judge
-    status: active
+    status: done
     objective: "Validate the plan in docs/plans/2026-07-07-blog-docs.md against the spec: evidence, risk, allowed files, verify, stop conditions. Approve before queuing Worker slices."
     inputs:
       - docs/plans/2026-07-07-blog-docs.md
@@ -41,13 +41,19 @@ tasks:
     expected_output:
       - "Decision: approved | revised"
       - "List of any task corrections (Fumadocs API, Litestar injection, fixture names)"
-    receipt: null
+    receipt:
+      result: done
+      decision: revised
+      full_outcome_complete: false
+      rationale: "Plan structurally valid. Task 1 corrected: StaffConfig→Settings (not AppConfig), get_me uses get_settings().staff.emails (not DI), pure is_staff_email() helper + unit test, integration test patches app.routes.users.get_settings (lru_cache + conftest mock reality). Other tasks unchanged."
+      note: notes/T000-plan-validation.md
+      changed_plan: docs/plans/2026-07-07-blog-docs.md
 
   # ===== Worker slices — one per plan task, sequential (shared frontend/backend scope) =====
   - id: T001
     type: worker
     assignee: Worker
-    status: queued
+    status: active
     objective: "Task 1 (plan): Backend STAFF_EMAILS config + is_staff flag on /v1/users/me. TDD."
     constraints:
       - "Use subagent-driven-development skill: fresh subagent, failing-test-first, commit per step"
