@@ -722,5 +722,9 @@
     "search": "Search",
     "openApp": "Open app",
     "translationMissing": "Translation missing, Russian version shown"
+  },
+  "blog": {
+    "title": "SkateLab Blog",
+    "backToList": "All posts"
   }
 }

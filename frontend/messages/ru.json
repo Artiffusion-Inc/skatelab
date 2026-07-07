@@ -762,5 +762,9 @@
     "search": "Поиск",
     "openApp": "Открыть приложение",
     "translationMissing": "Перевод отсутствует, показана русская версия"
+  },
+  "blog": {
+    "title": "Блог SkateLab",
+    "backToList": "Все статьи"
   }
 }
