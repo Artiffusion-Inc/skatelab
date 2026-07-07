@@ -274,13 +274,20 @@ class PhaseDetector:
         start_idx = max(0, takeoff_idx - 10)
         end_idx = min(len(poses) - 1, landing_idx + 10)
 
+        # #1240: NaN idx guard. CoM/peak detection can produce NaN
+        # indices when keypoints are occluded or tracking is partial;
+        # `int(NaN)` raises ValueError and aborts the entire analysis
+        # chain (no ElementPhase → metrics skip → alignment skip → broken
+        # session). Coerce NaN/inf to 0 with `math.isfinite` so the
+        # phase result is still produced (with confidence=0.0 for the
+        # upstream isfinite guards on vy_std/prominence).
         phases = ElementPhase(
             name="jump",
-            start=int(start_idx),
-            takeoff=int(takeoff_idx),
-            peak=int(peak_idx),
-            landing=int(landing_idx),
-            end=int(end_idx),
+            start=int(start_idx) if math.isfinite(start_idx) else 0,
+            takeoff=int(takeoff_idx) if math.isfinite(takeoff_idx) else 0,
+            peak=int(peak_idx) if math.isfinite(peak_idx) else 0,
+            landing=int(landing_idx) if math.isfinite(landing_idx) else 0,
+            end=int(end_idx) if math.isfinite(end_idx) else 0,
         )
 
         # Confidence based on multiple factors
