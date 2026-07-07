@@ -129,23 +129,26 @@ def test_argmin_valid_com_correct_peak_repro():
 
 
 def test_argmin_nan_guard_source_repro():
-    """Source check: phase_detector.py has the isfinite guard.
+    """Source check: phase_detector.py peak search handles NaN correctly.
 
-    GREEN on master (post-fix): the `isfinite(com_y_search).any()` guard
-    must be present alongside the `np.argmin(com_y_search)` call.
+    The unguarded `np.argmin` (returns first-NaN index silently on mixed-NaN
+    windows) is replaced with `np.nanargmin` (skips NaN, picks true min over
+    finite frames). Mirrors element_segmenter._refine_boundaries fix #972.
     """
     from pathlib import Path as P
 
     src_path = P(__file__).parent.parent.parent / "src" / "analysis" / "phase_detector.py"
     src = src_path.read_text(encoding="utf-8")
-    # The peak argmin call is still present.
-    assert "peak_offset = np.argmin(com_y_search)" in src, (
-        "Source mismatch: `peak_offset = np.argmin(com_y_search)` is no longer "
-        "present in phase_detector.py — refactored. Update test."
+    # The peak search block must be present.
+    assert "com_y_search = com_y[search_start:search_end]" in src
+    # The unguarded `np.argmin(com_y_search)` is gone (replaced with nanargmin).
+    assert "np.argmin(com_y_search)" not in src, (
+        "BUG: `np.argmin(com_y_search)` unguarded at phase_detector.py:210. "
+        "Mixed-NaN windows return first-NaN index silently. Use "
+        "`np.nanargmin(com_y_search)` instead (skips NaN)."
     )
-    # The NaN guard is present (fix applied).
-    assert "isfinite(com_y_search).any()" in src, (
-        "BUG: `np.isfinite(com_y_search).any()` guard missing in "
-        "phase_detector.py — all-NaN CoM silently returns 0 from np.argmin. "
-        "Add the isfinite guard before the argmin call."
+    # The fix uses nanargmin.
+    assert "np.nanargmin(com_y_search)" in src, (
+        "Fix missing: phase_detector.py:210 must use `np.nanargmin(com_y_search)` "
+        "to skip NaN frames and pick the true minimum over finite frames."
     )

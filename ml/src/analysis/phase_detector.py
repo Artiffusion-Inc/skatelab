@@ -207,7 +207,10 @@ class PhaseDetector:
 
             com_y_search = com_y[search_start:search_end]
             if len(com_y_search) > 0 and np.isfinite(com_y_search).any():
-                peak_offset = np.argmin(com_y_search)
+                # #1322: isfinite.any() passes for mixed-NaN, but np.argmin
+                # then returns the first-NaN index (silent wrong peak).
+                # Use nanargmin: skip NaN, pick true min over finite frames.
+                peak_offset = int(np.nanargmin(com_y_search))
                 peak_idx = search_start + peak_offset
             else:
                 peak_idx = len(poses) // 2
