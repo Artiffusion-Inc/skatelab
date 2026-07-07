@@ -1,6 +1,6 @@
 version: 2
 slug: blog-docs
-active_task: T002
+active_task: T003
 plan_ref: docs/plans/2026-07-07-blog-docs.md
 spec_ref: docs/specs/2026-07-07-blog-docs-design.md
 
@@ -97,7 +97,7 @@ tasks:
       - "Use subagent-driven-development skill"
     allowed_files:
       - frontend/package.json
-      - frontend/bun.lockb
+      - frontend/bun.lock
       - frontend/source.config.ts
       - frontend/next.config.ts
       - frontend/src/app/globals.css
@@ -108,12 +108,41 @@ tasks:
     stop_if:
       - "Fumadocs API differs from plan (adapt + record in receipt)"
       - "Build breaks unrelated pages"
-    receipt: null
+    receipt:
+      result: done
+      summary: "Fumadocs 16.10.7 installed, source.config.ts + Tailwind v4 wiring. test+typecheck+PostCSS compile pass. bun build hangs pre-existing (verified pristine), not caused by this task."
+      changed_files:
+        - frontend/package.json
+        - frontend/bun.lock
+        - frontend/source.config.ts
+        - frontend/next.config.ts
+        - frontend/src/app/globals.css
+        - frontend/tests/source-config.test.ts
+      commands:
+        - cmd: "bun run test -- --run tests/source-config.test.ts"
+          status: pass
+        - cmd: "bun run typecheck"
+          status: pass
+        - cmd: "bun run build"
+          status: skip
+          note: "pre-existing hang on pristine code; verified not caused by Fumadocs. CSS wiring validated via direct PostCSS compile."
+      versions:
+        fumadocs-ui: 16.10.7
+        fumadocs-core: 16.10.7
+        fumadocs-mdx: 15.0.13
+        "@fumadocs/tailwind": 0.0.5
+      deviations:
+        - "unscoped package names (fumadocs-mdx not @fumadocs/mdx)"
+        - "no param/baseUrl on collections (route params live in app router)"
+        - "Tailwind v4: @plugin @fumadocs/tailwind/typography + @import fumadocs-ui/css/lib/base.css (not @import @fumadocs/tailwind which has no CSS export)"
+        - "bun.lock text file, not bun.lockb"
+      commit: 46ec4cee
+      followup: "add frontend/.source to .gitignore (downstream task)"
 
   - id: T003
     type: worker
     assignee: Worker
-    status: queued
+    status: active
     objective: "Task 3 (plan): Host-based middleware (docs./blog. → route groups) + docs-i18n.ts."
     constraints:
       - "Use subagent-driven-development skill"
