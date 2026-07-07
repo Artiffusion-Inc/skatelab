@@ -757,5 +757,14 @@
   "errorState": {
     "title": "Что-то пошло не так",
     "retry": "Попробовать снова"
+  },
+  "docs": {
+    "search": "Поиск",
+    "openApp": "Открыть приложение",
+    "translationMissing": "Перевод отсутствует, показана русская версия"
+  },
+  "blog": {
+    "title": "Блог SkateLab",
+    "backToList": "Все статьи"
   }
 }

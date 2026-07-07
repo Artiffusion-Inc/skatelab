@@ -32,16 +32,27 @@ docs/
 │   ├── 2026-04-19-choreography-parallelism-design.md
 │   ├── 2026-04-19-parallelism-async-audit-design.md
 │   ├── 2026-04-29-api-design-fixes.md
+│   ├── 2026-07-07-blog-docs-design.md  # docs.skatelab.ru + blog.skatelab.ru design
 │   └── ...
-└── plans/                             # Implementation plans (from writing-plans skill)
-    ├── 2026-04-02-rtmpose-finetune-dataset.md
-    ├── 2026-04-11-i18n.md
-    ├── 2026-04-11-s3-only-storage.md
-    ├── 2026-04-11-saas-auth-db-profiles.md
-    ├── 2026-04-11-strava-fs-mvp.md
-    ├── 2026-04-12-choreography-planner.md
-    ├── 2026-04-29-test-coverage-improvement.md
-    └── ...
+├── plans/                             # Implementation plans (from writing-plans skill)
+│   ├── 2026-04-02-rtmpose-finetune-dataset.md
+│   ├── 2026-04-11-i18n.md
+│   ├── 2026-04-11-s3-only-storage.md
+│   ├── 2026-04-11-saas-auth-db-profiles.md
+│   ├── 2026-04-11-strava-fs-mvp.md
+│   ├── 2026-04-12-choreography-planner.md
+│   ├── 2026-04-29-test-coverage-improvement.md
+│   ├── 2026-07-07-blog-docs.md         # 9-task blog+docs subdomain implementation
+│   └── ...
+└── goals/                             # GoalBuddy boards — long-running multi-task work
+    ├── blog-docs/                      # docs.skatelab.ru + blog.skatelab.ru rollout
+    │   ├── goal.md
+    │   ├── state.yaml                  # PM-owned rolling board
+    │   └── notes/                      # per-task evidence receipts
+    ├── fix-all-open-issues/
+    ├── mobile-polish-e2e/
+    ├── skating-analyzer-integration/
+    └── e2e-testing-implementation/
 ```
 
 ## Subdirectories
@@ -51,6 +62,7 @@ docs/
 | `research/` | Paper summaries, Exa/Gemini findings, integration notes | `RESEARCH_*.md`, `*_RESEARCH.md`, `PIPELINE_PROFILING_*.md` |
 | `specs/` | Design documents from brainstorming skill | `YYYY-MM-DD-<topic>-design.md` |
 | `plans/` | Implementation plans with bite-sized tasks | `YYYY-MM-DD-<feature>.md` |
+| `goals/` | GoalBuddy boards: one folder per long-running goal (`goal.md` + `state.yaml` + `notes/`) | `<goal-name>/` (kebab-case) |
 
 ## Key References
 
@@ -60,5 +72,8 @@ docs/
 - `research/RESEARCH_POSE_PARADIGMS_2026-04-25.md` — SimCC vs RLE (8.5pp gap analysis)
 - `research/PIPELINE_PROFILING_2026-04-18.md` — ONNX op-level profiling, DeepSORT internals
 - `research/RESEARCH_CHOREOGRAPHY_PLANNING_2026-04-12.md` — Gemini deep research on choreography planning
+- `specs/2026-07-07-blog-docs-design.md` — docs.skatelab.ru + blog.skatelab.ru architecture
+- `plans/2026-07-07-blog-docs.md` — 9-task implementation plan for blog+docs subdomains
+- `goals/blog-docs/` — GoalBuddy board for the blog+docs rollout (receipts, state, notes)
 - `../data/DATASETS.md` — dataset registry with download links and relationships
 - `@CLAUDE.md` — project overview and architecture reference

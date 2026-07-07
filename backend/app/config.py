@@ -18,12 +18,12 @@ Env Prefixes:
 
 from functools import lru_cache
 from pathlib import Path
-from typing import Any, Literal
+from typing import Annotated, Any, Literal
 from urllib.parse import urlparse
 
 from pydantic import Field, SecretStr, field_validator
 from pydantic_settings import BaseSettings as _BaseSettings
-from pydantic_settings import SettingsConfigDict
+from pydantic_settings import NoDecode, SettingsConfigDict
 
 # Look for .env in project root (one level up from backend/)
 _PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
@@ -185,6 +185,26 @@ class PostHogConfig(BaseSettings):
         env_prefix = "POSTHOG_"
 
 
+class StaffConfig(BaseSettings):
+    """Staff allowlist for internal docs access.
+
+    MVP: email allowlist. Upgrade path = User.is_staff column + migration (Phase 2).
+    """
+
+    emails: Annotated[list[str], NoDecode] = Field(default_factory=list)
+
+    @field_validator("emails", mode="before")
+    @classmethod
+    def _split_emails(cls, v):
+        # STAFF_EMAILS="a@x.ru, b@x.ru" -> ["a@x.ru", "b@x.ru"]
+        if isinstance(v, str):
+            return [e.strip() for e in v.split(",") if e.strip()]
+        return v
+
+    class Config:
+        env_prefix = "STAFF_"
+
+
 class AppConfig(BaseSettings):
     """General application settings."""
 
@@ -232,6 +252,7 @@ class Settings(BaseSettings):
     resend: ResendConfig = Field(default_factory=ResendConfig)
     sentry: SentryConfig = Field(default_factory=SentryConfig)
     posthog: PostHogConfig = Field(default_factory=PostHogConfig)
+    staff: StaffConfig = Field(default_factory=StaffConfig)
     app: AppConfig = Field(default_factory=AppConfig)
 
     model_config = SettingsConfigDict(

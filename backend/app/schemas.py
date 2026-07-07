@@ -84,6 +84,7 @@ class UserResponse(BaseModel):
     onboarding_role: str | None
     is_active: bool
     is_verified: bool
+    is_staff: bool = False
     created_at: str
     updated_at: str
 
