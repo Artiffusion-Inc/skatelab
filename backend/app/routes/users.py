@@ -16,6 +16,8 @@ from litestar.params import Body
 from litestar.status_codes import HTTP_409_CONFLICT, HTTP_422_UNPROCESSABLE_ENTITY
 
 from app.auth.deps import CurrentUser, DbDep, VerifiedUser
+from app.auth.staff import is_staff_email
+from app.config import get_settings
 from app.crud.user import update
 from app.middleware import check_rate_limit
 from app.schemas import (
@@ -45,7 +47,9 @@ class UsersController(Controller):
     @get("")
     async def get_me(self, user: CurrentUser) -> UserResponse:
         """Get current user profile."""
-        return UserResponse.model_validate(user)
+        resp = UserResponse.model_validate(user)
+        resp.is_staff = is_staff_email(user.email, get_settings().staff.emails)
+        return resp
 
     @patch("")
     async def update_profile(
