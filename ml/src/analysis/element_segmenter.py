@@ -530,10 +530,24 @@ class ElementSegmenter:
         has_landing = np.any(hip_y_derivative > 0.02)  # Rapid descent
         features["has_jump_pattern"] = bool(has_takeoff and has_landing)
 
-        # Edge indicator (for steps/turns)
+        # Edge indicator (for steps/turns).
+        # #1279: occluded foot (LFOOT/RFOOT NaN) propagates through
+        # np.diff → NaN, and the NaN-comparison rule `NaN > 0.3 = False`
+        # silently coerces the count to a plausible-looking value with
+        # no analyst signal. Filter NaN frames out of the diff and
+        # surface n_nan_frames so the analyst sees the contamination.
+        # All-finite input: byte-identical to the prior expression.
         edge_ind = self._compute_edge_indicator(poses)
-        features["edge_change_count"] = int(np.sum(np.abs(np.diff(edge_ind)) > 0.3))
-        features["edge_indicator_mean"] = float(np.mean(np.abs(edge_ind)))
+        n_nan_frames = int(edge_ind.size - int(np.isfinite(edge_ind).sum()))
+        finite_edge = edge_ind[np.isfinite(edge_ind)]
+        if finite_edge.size >= 2:
+            features["edge_change_count"] = int(np.sum(np.abs(np.diff(finite_edge)) > 0.3))
+        else:
+            features["edge_change_count"] = 0
+        features["n_nan_frames"] = n_nan_frames
+        features["edge_indicator_mean"] = (
+            float(np.mean(np.abs(finite_edge))) if finite_edge.size else 0.0
+        )
 
         # Rotation speed (shoulder axis).
         # #860: _compute_shoulder_rotation returns unwrapped radians, so
