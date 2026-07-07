@@ -69,9 +69,22 @@ def compute_identity_profile(bones: np.ndarray) -> np.ndarray:
     Returns:
         (NUM_BONES,) normalized identity vector.
     """
+    # #968: a bone column that is NaN in every surviving frame (fully occluded
+    # limb across the tracklet) makes `np.nanmedian` emit "All-NaN slice
+    # encountered" + return NaN — the NaN then leaks into the profile, the
+    # `spine > 1e-6` guard (`NaN > x` == False) silently skips spine
+    # normalization, and `identity_similarity` returns NaN. Replace all-NaN
+    # columns with a finite 0.0 sentinel BEFORE nanmedian so the warning is not
+    # raised and the profile stays finite. All-finite columns are byte-identical
+    # (nanmedian over a column with at least one finite value is unchanged).
+    all_nan_cols = np.all(np.isnan(bones), axis=0)
+    if all_nan_cols.any():
+        bones = np.where(all_nan_cols, 0.0, bones)
     median_bones = np.nanmedian(bones, axis=0)
     spine = median_bones[SPINE_INDICES[0]] + median_bones[SPINE_INDICES[1]]
-    if spine > 1e-6:
+    # ponytail: isfinite guard mirrors normalizer #993 — NaN spine → skip
+    # normalization (scale=1.0 fallthrough) instead of NaN-poisoning the divide.
+    if np.isfinite(spine) and spine > 1e-6:
         median_bones = median_bones / spine
     return median_bones.astype(np.float32)
 
@@ -84,6 +97,12 @@ def identity_similarity(profile_a: np.ndarray, profile_b: np.ndarray) -> float:
     """
     norm_a = np.linalg.norm(profile_a)
     norm_b = np.linalg.norm(profile_b)
+    # #968: a NaN in either profile makes the norm NaN; `NaN < 1e-8` is False
+    # so the original guard did not fire and the dot/(norm*norm) returned NaN,
+    # which `max(0.0, NaN)` in the caller masked as 0.0 by arg-order accident.
+    # Fail closed explicitly: NaN/inf norm → 0.0 similarity, not NaN.
+    if not np.isfinite(norm_a) or not np.isfinite(norm_b):
+        return 0.0
     if norm_a < 1e-8 or norm_b < 1e-8:
         return 0.0
     return float(np.dot(profile_a, profile_b) / (norm_a * norm_b))
