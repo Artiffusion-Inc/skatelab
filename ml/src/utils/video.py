@@ -49,6 +49,19 @@ def get_video_meta(path: Path) -> VideoMeta:
         fps = cap.get(cv2.CAP_PROP_FPS)
         num_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
 
+        # #982: corrupt/truncated mp4 (ftyp box present, moov atom damaged
+        # / missing) opens (isOpened()=True) but reports CAP_PROP_FRAME_WIDTH
+        # / HEIGHT = 0 — cv2's corrupt-video sentinel for "no frame dims
+        # parseable". Leaking VideoMeta(width=0) crashes downstream callers
+        # that divide by meta.width (ComparisonRenderer.process resize:
+        # `int(... / meta.width)` ZeroDivisionError, far from the I/O
+        # source). Reject at the trust boundary with a typed "corrupt video"
+        # RuntimeError — no sane default dimension exists (0x0 frames are
+        # undecodable, unlike #961's fps where 30.0 is a valid nominal).
+        # Sibling of #961 (fps=0 normalize) — width/height=0 must REJECT.
+        if width <= 0 or height <= 0:
+            raise RuntimeError(f"Corrupt video (width={width}, height={height}): {path}")
+
         # #961: corrupt/damaged video reports CAP_PROP_FPS=0.0 (OpenCV
         # sentinel for "unknown framerate"); some builds return None for a
         # missing metadata atom; damaged containers can return NaN. `float()`
