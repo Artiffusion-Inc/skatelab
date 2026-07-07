@@ -137,6 +137,15 @@ class ElementSegmenter:
         active_segments = self._extract_active_segments(stillness_mask)
 
         # Stage 4: Filter short segments
+        # #1109: NaN fps from corrupt video metadata propagates as
+        # 0.5 * NaN = NaN → int(NaN) crashes the whole segmentation.
+        # Mirror the PR #1063 typed-error pattern from
+        # _extract_segment_features — reject non-finite / non-positive
+        # fps at the trust boundary with a typed error naming the bad
+        # value, so the worker surfaces a clear failure instead of an
+        # opaque int(NaN) ValueError deep in the math.
+        if not (math.isfinite(video_meta.fps) and video_meta.fps > 0):
+            raise ValueError(f"video_meta.fps must be finite and > 0, got {video_meta.fps!r}")
         min_frames = int(self._min_segment_duration * video_meta.fps)
         filtered_segments = [(s, e) for s, e in active_segments if e - s >= min_frames]
 
@@ -307,6 +316,17 @@ class ElementSegmenter:
             still = np.ones_like(still)
 
         # Morphological opening to remove short noise bursts
+        # #1109: corrupt metadata (NaN/inf/negative fps) or NaN
+        # `_min_still_duration` config — `0.5 * NaN = NaN` →
+        # `int(NaN) = ValueError`. Mirror PR #1063 typed-error pattern
+        # at the trust boundary so the failure is a clear, named
+        # domain error instead of an opaque int(NaN) deep in the math.
+        if not (math.isfinite(fps) and fps > 0):
+            raise ValueError(f"fps must be finite and > 0, got {fps!r}")
+        if not (math.isfinite(self._min_still_duration) and self._min_still_duration > 0):
+            raise ValueError(
+                f"min_still_duration must be finite and > 0, got {self._min_still_duration!r}"
+            )
         min_frames = int(self._min_still_duration * fps)
         if min_frames > 1:
             still = cast(
