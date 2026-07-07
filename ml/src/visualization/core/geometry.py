@@ -415,6 +415,13 @@ def calculate_bounding_box(
     if len(points) == 0:
         return (padding, padding, width - padding, height - padding)
 
+    # #1201: np.min is NaN-propagating (unlike Python builtin min), so
+    # int(np.min(NaN)) crashes. Guard every x/y at the trust boundary
+    # so upstream bugs (gap-filler miss, 3D lift failure, undetected
+    # joint) surface here instead of as int(NaN) far downstream.
+    if not np.all(np.isfinite(points)):
+        raise ValueError("points must be finite, got NaN or inf values")
+
     x_coords = points[:, 0]
     y_coords = points[:, 1]
 
