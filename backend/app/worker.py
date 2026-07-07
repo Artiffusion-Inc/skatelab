@@ -145,8 +145,12 @@ def _compute_frame_metrics(poses: np.ndarray) -> dict:
         # Dot product
         dot = np.sum(vec1 * vec2, axis=1)
 
-        # Cosine with clipping
+        # Cosine with clipping. Guard non-finite cos (NaN keypoints silently
+        # propagate through np.clip(NaN, -1, 1) = NaN) and zero-norm inputs
+        # (b==a or c==b), which would otherwise produce 0→90° instead of NaN.
         cos = np.clip(dot / (norm1 * norm2 + 1e-8), -1, 1)
+        valid_cos = np.isfinite(cos) & (norm1 > 0) & (norm2 > 0)
+        cos = np.where(valid_cos, cos, np.nan)
 
         # Convert to degrees
         angles = np.degrees(np.arccos(cos))
