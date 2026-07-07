@@ -176,11 +176,22 @@ class VizPipeline:
         total = self.meta.num_frames
         fps = self.meta.fps
 
-        # #959: corrupt video reports fps=0 (cv2.CAP_PROP_FPS sentinel).
-        # Guard before /fps — timestamp degrades to 00:00.00, frame counter
-        # (frame_idx/total, fps-independent) still rendered. Mirrors the
-        # TimerLayer overlay sibling (timer_layer.py:25 `if fps <= 0`).
-        time_sec = frame_idx / fps if fps > 0 else 0.0
+        # #1105: NaN/inf on EITHER side of `frame_idx / fps` reaches the
+        # unguarded `int(time_sec) // 60` and `int((seconds % 1) * 100)`
+        # and raises ValueError / OverflowError. The #959 `if fps > 0`
+        # guard is NaN-fps-blind-pass by accident (`NaN > 0` is False
+        # -> 0.0 branch) but is fps-only - NaN/inf frame_idx with valid
+        # fps LEAKS NaN to the int() conversions. Use `math.isfinite`
+        # on both inputs - mirror the #1115 sibling at line 215-220
+        # and the trust-boundary pattern at `types.py:459
+        # VideoMeta.duration_sec`, `phase_detector.py:383`,
+        # `physics_engine.py:381/486`. Degrade to 0.0 (mirror the
+        # #959 contract): the frame counter (frame_idx/total, fps-
+        # independent) is still rendered, only the timestamp is
+        # unknowable.
+        fps_finite = math.isfinite(fps) and fps > 0
+        frame_finite = math.isfinite(float(frame_idx))
+        time_sec = frame_idx / fps if fps_finite and frame_finite else 0.0
         minutes = int(time_sec) // 60
         seconds = time_sec % 60
         ms = int((seconds % 1) * 100)
