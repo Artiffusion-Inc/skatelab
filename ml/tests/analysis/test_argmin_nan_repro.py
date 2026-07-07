@@ -129,23 +129,28 @@ def test_argmin_valid_com_correct_peak_repro():
 
 
 def test_argmin_nan_guard_source_repro():
-    """Source check: phase_detector.py has the isfinite guard.
+    """Source check: phase_detector.py uses NaN-safe argmin (#1323).
 
-    GREEN on master (post-fix): the `isfinite(com_y_search).any()` guard
-    must be present alongside the `np.argmin(com_y_search)` call.
+    #1254 added `np.isfinite(com_y_search).any()` guard + `np.argmin`, but
+    that still returns the FIRST NaN position when the slice mixes
+    finite and NaN values (numpy treats NaN as smallest). The fix
+    (issue #1323) replaces `np.argmin` with `np.nanargmin` so NaN
+    positions are skipped.
     """
     from pathlib import Path as P
 
     src_path = P(__file__).parent.parent.parent / "src" / "analysis" / "phase_detector.py"
     src = src_path.read_text(encoding="utf-8")
-    # The peak argmin call is still present.
-    assert "peak_offset = np.argmin(com_y_search)" in src, (
-        "Source mismatch: `peak_offset = np.argmin(com_y_search)` is no longer "
-        "present in phase_detector.py — refactored. Update test."
+    # Bare np.argmin on the CoM search slice is gone (was the silent-NaN bug).
+    assert "peak_offset = np.argmin(com_y_search)" not in src, (
+        "BUG: `peak_offset = np.argmin(com_y_search)` is still present in "
+        "phase_detector.py — `np.argmin` returns first NaN position when "
+        "slice contains NaN mixed with finite values (issue #1323). "
+        "Replace with `np.nanargmin(com_y_search)` or pre-filter NaN."
     )
-    # The NaN guard is present (fix applied).
-    assert "isfinite(com_y_search).any()" in src, (
-        "BUG: `np.isfinite(com_y_search).any()` guard missing in "
-        "phase_detector.py — all-NaN CoM silently returns 0 from np.argmin. "
-        "Add the isfinite guard before the argmin call."
+    # NaN-safe variant is now in place.
+    assert "np.nanargmin(com_y_search)" in src, (
+        "BUG: `np.nanargmin(com_y_search)` missing in phase_detector.py — "
+        "partial-NaN CoM slice silently returns first NaN index. "
+        "Use np.nanargmin to skip NaN positions."
     )
