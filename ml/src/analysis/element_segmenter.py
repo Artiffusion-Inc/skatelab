@@ -517,7 +517,17 @@ class ElementSegmenter:
 
         # Hip Y trajectory (for jumps)
         hip_y = get_mid_hip(poses)[:, 1]
-        features["hip_y_range"] = float(np.max(hip_y) - np.min(hip_y))
+        # #1276: occluded mid-hip (NaN keypoint at LHIP/RHIP) would propagate
+        # through np.max/min into hip_y_range (NaN - NaN = NaN -> RF
+        # classifier ValueError -> "no elements detected"). Even with the
+        # #922 upstream nan_to_num, the zeroed-NaN frame pollutes the
+        # range (max(0.4) - min(0.0) = 0.4 instead of 0.0). Filter hip_y
+        # to finite values before the range math; fall back to 0.0 when
+        # all-NaN. Mirrors #989 hip_y_min_idx isfinite guard.
+        finite_hip_y = hip_y[np.isfinite(hip_y)]
+        features["hip_y_range"] = (
+            float(np.max(finite_hip_y) - np.min(finite_hip_y)) if len(finite_hip_y) > 0 else 0.0
+        )
         # #989: np.argmin on NaN-bearing hip_y treats NaN as smallest → returns
         # the NaN-frame index (occluded hip) instead of the real CoM peak. Use
         # nanargmin over finite frames; fall back to 0 when all-NaN (sentinel,
