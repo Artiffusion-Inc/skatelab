@@ -24,7 +24,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
         url: `https://blog.skatelab.ru/${loc}${page.url}`,
         alternates: {
           languages: Object.fromEntries(
-            LOCALES.map((l) => [l, `https://blog.skatelab.ru/${l}${page.url}`])
+            LOCALES.map(l => [l, `https://blog.skatelab.ru/${l}${page.url}`]),
           ),
         },
       })

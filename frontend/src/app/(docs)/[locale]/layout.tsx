@@ -26,10 +26,7 @@ export default async function Layout({
   const { locale } = await params
   const loc: Locale = resolveLocale(locale)
   return (
-    <DocsLayout
-      nav={{ title: "SkateLab" }}
-      tree={docs.getPageTree(loc)}
-    >
+    <DocsLayout nav={{ title: "SkateLab" }} tree={docs.getPageTree(loc)}>
       {children}
     </DocsLayout>
   )

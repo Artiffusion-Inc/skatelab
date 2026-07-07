@@ -20,7 +20,7 @@ export default async function Layout({
           SkateLab
         </Link>
         <nav className="flex gap-3 text-sm">
-          {LOCALES.map((l) => (
+          {LOCALES.map(l => (
             <Link key={l} href={`/${l}`} hrefLang={l} className="uppercase">
               {l}
             </Link>

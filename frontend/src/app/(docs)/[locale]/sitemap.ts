@@ -30,7 +30,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
         url: `https://docs.skatelab.ru/${loc}${page.url}`,
         alternates: {
           languages: Object.fromEntries(
-            LOCALES.map((l) => [l, `https://docs.skatelab.ru/${l}${page.url}`])
+            LOCALES.map(l => [l, `https://docs.skatelab.ru/${l}${page.url}`]),
           ),
         },
       })

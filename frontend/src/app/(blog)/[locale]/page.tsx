@@ -23,22 +23,16 @@ type BlogPageView = Awaited<ReturnType<typeof blog.getPages>>[number] & {
   data: { title?: string; date?: string }
 }
 
-export default async function Page({
-  params,
-}: {
-  params: Promise<{ locale: string }>
-}) {
+export default async function Page({ params }: { params: Promise<{ locale: string }> }) {
   const { locale } = await params
   const loc: Locale = resolveLocale(locale)
   // ponytail: date in frontmatter is YYYY-MM-DD; lexicographic sort = chrono.
   const posts = blog.getPages(loc) as unknown as BlogPageView[]
-  posts.sort((a, b) =>
-    String(b.data.date ?? "").localeCompare(String(a.data.date ?? ""))
-  )
+  posts.sort((a, b) => String(b.data.date ?? "").localeCompare(String(a.data.date ?? "")))
   return (
     <main className="px-6 py-8">
       <ul className="space-y-3">
-        {posts.map((p) => (
+        {posts.map(p => (
           <li key={p.url}>
             <Link href={p.url} className="underline">
               {p.data.title}
