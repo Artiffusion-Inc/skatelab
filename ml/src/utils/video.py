@@ -44,10 +44,35 @@ def get_video_meta(path: Path) -> VideoMeta:
     cap = open_video(path)
 
     try:
-        width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-        height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+        # #1041: corrupt video (truncated mp4, broken moov atom, damaged
+        # timescale) can return NaN from CAP_PROP_FRAME_* — unguarded
+        # int(NaN) raises the stdlib `ValueError("cannot convert float
+        # NaN to integer")` deep in the pipeline, with no hint that the
+        # cause is corrupt metadata. Read each prop once, check
+        # np.isfinite, then int — raise a typed RuntimeError naming the
+        # corrupt field at the trust boundary. Sibling of the existing
+        # `width <= 0 or height <= 0` rejection below — same
+        # philosophy, different sentinel.
+        width_raw = cap.get(cv2.CAP_PROP_FRAME_WIDTH)
+        if not np.isfinite(width_raw):
+            raise RuntimeError(
+                f"Corrupt video metadata: non-finite CAP_PROP_FRAME_WIDTH={width_raw!r} for path={path}"
+            )
+        height_raw = cap.get(cv2.CAP_PROP_FRAME_HEIGHT)
+        if not np.isfinite(height_raw):
+            raise RuntimeError(
+                f"Corrupt video metadata: non-finite CAP_PROP_FRAME_HEIGHT={height_raw!r} for path={path}"
+            )
+        num_frames_raw = cap.get(cv2.CAP_PROP_FRAME_COUNT)
+        if not np.isfinite(num_frames_raw):
+            raise RuntimeError(
+                f"Corrupt video metadata: non-finite CAP_PROP_FRAME_COUNT={num_frames_raw!r} for path={path}"
+            )
+
+        width = int(width_raw)
+        height = int(height_raw)
         fps = cap.get(cv2.CAP_PROP_FPS)
-        num_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+        num_frames = int(num_frames_raw)
 
         # #982: corrupt/truncated mp4 (ftyp box present, moov atom damaged
         # / missing) opens (isOpened()=True) but reports CAP_PROP_FRAME_WIDTH
