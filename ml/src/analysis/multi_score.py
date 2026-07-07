@@ -10,12 +10,17 @@ from .types import MultiDimensionalScore, SubScore
 def _normalize(value: float, min_val: float = 0.0, max_val: float = 1.0) -> float:
     """Clamp and normalize to [0, 1].
 
-    #850: NaN must be treated as a missing metric (neutral 0.0), not perfect.
-    Bare ``max(0.0, min(1.0, NaN))`` clips to 1.0 because NaN comparisons are
-    always False (the non-NaN operand wins), inflating broken/failed-metric
-    sessions to a perfect 10.0. Guard before the clamp.
+    #850 / #924: a non-finite metric (NaN or inf) must be treated as a missing
+    metric (neutral 0.0), not perfect. Bare ``max(0.0, min(1.0, NaN))`` clips
+    to 1.0 because NaN comparisons are always False (the non-NaN operand wins),
+    and ``min(1.0, inf) = 1.0`` — both inflate broken/failed-metric sessions to
+    a perfect 10.0. ``math.isnan`` alone misses inf (#850 incomplete), so guard
+    with ``math.isfinite`` (catches NaN AND inf) before the clamp, mirroring
+    #978 ``compute_goe_score`` (`np.isfinite` / `np.nan_to_num`).
     """
-    if math.isnan(value):
+    # ponytail: isfinite over isnan — covers NaN AND inf in one guard, no
+    # separate branch; mirror of #978's np.isfinite cap-site pattern.
+    if not math.isfinite(value):
         return 0.0
     return max(0.0, min(1.0, (value - min_val) / (max_val - min_val)))
 
