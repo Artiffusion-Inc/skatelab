@@ -15,11 +15,20 @@ from litestar.status_codes import (
     HTTP_400_BAD_REQUEST,
     HTTP_403_FORBIDDEN,
     HTTP_404_NOT_FOUND,
+    HTTP_422_UNPROCESSABLE_ENTITY,
 )
 
 from app.auth.deps import CurrentUser, DbDep, VerifiedUser
 from app.crud.connection import is_connected_as
-from app.crud.session import count_by_user, create, get_by_id, list_by_user, soft_delete, update
+from app.crud.session import (
+    count_by_user,
+    create,
+    get_by_id,
+    list_by_user,
+    soft_delete,
+    soft_delete_many,
+    update,
+)
 from app.middleware.rate_limit import check_rate_limit
 from app.models.connection import ConnectionType
 from app.models.session import Session
@@ -35,6 +44,13 @@ from app.storage import get_object_url_async
 
 if TYPE_CHECKING:
     from app.models.session import Session
+
+
+# #964: cap on the number of session ids accepted by delete_sessions_bulk.
+# Without it a client sending a huge ids list forces N+1 DB round-trips in a
+# single request → DoS. The cap is the DoS guard; per-route rate-limiting is
+# intentionally out of scope (belongs in middleware, YAGNI here).
+MAX_BULK_DELETE_IDS = 100
 
 
 def _encode_cursor(created_at: datetime, session_id: str) -> str:
@@ -275,6 +291,18 @@ class SessionsController(Controller):
     ) -> None:
         session_ids = [sid.strip() for sid in ids.split(",") if sid.strip()]
 
+        # #964: DoS guard — reject empty or over-cap ids lists before any DB work.
+        if not session_ids:
+            raise ClientException(
+                status_code=HTTP_400_BAD_REQUEST,
+                detail="ids list must not be empty",
+            )
+        if len(session_ids) > MAX_BULK_DELETE_IDS:
+            raise ClientException(
+                status_code=HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=f"ids list exceeds max length of {MAX_BULK_DELETE_IDS}",
+            )
+
         # #680: pre-check ownership of ALL ids before deleting any. The old loop
         # soft-deleted each owned session in turn and raised 403 on the first
         # non-owned id — sessions processed before the failure were already
@@ -298,5 +326,7 @@ class SessionsController(Controller):
                 detail=f"Cannot delete another user's session: {forbidden}",
             )
 
-        for session in sessions:
-            await soft_delete(db, session)
+        # #964: single batched UPDATE (WHERE id IN (...)) instead of a per-id
+        # soft_delete loop (N+1 round-trips). soft_delete_many flushes once.
+        if sessions:
+            await soft_delete_many(db, [s.id for s in sessions])
