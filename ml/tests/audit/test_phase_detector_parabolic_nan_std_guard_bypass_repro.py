@@ -120,7 +120,7 @@ import numpy as np
 
 from src.analysis.phase_detector import PhaseDetector
 from src.types import H36Key
-from src.utils.geometry import calculate_com_trajectory
+from src.utils.geometry import calculate_com_trajectory_3d
 
 # CoM mass weights in calculate_com_trajectory sum to 1.3 (not 1.0), so
 # setting every keypoint's Y to `target / 1.3` yields CoM == target exactly.
@@ -137,6 +137,21 @@ def _poses_from_com(target_com: np.ndarray, baseline_y: float = 0.5) -> np.ndarr
     poses = np.full((n, 17, 2), baseline_y, dtype=np.float32)
     poses[:, :, 0] = 0.5
     poses[:, :, 1] = (target_com / _COM_MASS_SUM).astype(np.float32)[:, None]
+    return poses
+
+
+def _poses_from_com_3d(target_com: np.ndarray, baseline_y: float = 0.5) -> np.ndarray:
+    """Build (N, 17, 3) poses whose `calculate_com_trajectory_3d` == target_com.
+
+    X/Y held at baseline_y; Z carries the CoM signal (mass_sum * Z == target_com).
+    The 3D trajectory has NO #871 NaN-mask, so a NaN joint propagates into CoM
+    (the bug surface for #994).
+    """
+    n = len(target_com)
+    poses = np.full((n, 17, 3), baseline_y, dtype=np.float32)
+    poses[:, :, 0] = 0.5
+    poses[:, :, 1] = baseline_y
+    poses[:, :, 2] = (target_com / _COM_MASS_SUM).astype(np.float32)[:, None]
     return poses
 
 
@@ -166,37 +181,39 @@ def _nine_frame_flight_com(
 
 
 def test_parabolic_threshold_source_has_no_nan_guard():
-    """Lock the root cause: `_detect_jump_phases_parabolic` computes
-    `threshold = float(np.std(excursion))` (line 367, NaN → NaN) and gates on
-    `if threshold < 1e-6:` (line 368, NaN < 1e-6 = False → bypass) with NO
-    `np.nanstd` / `isfinite(threshold)` / `isnan` guard.
-
-    A fix would NaN-guard the threshold / NaN-mask the signal / use nanstd. As
-    long as the code is unfixed this passes — flip on fix.
+    """GREEN contract source check: the root cause is in
+    `calculate_com_trajectory_3d` (ml/src/utils/geometry.py), which propagated
+    an occluded joint's NaN straight into the CoM (no NaN-mask, unlike the 2D
+    #871 path). `_detect_jump_phases_parabolic` feeds that NaN com_smooth into
+    `_median_filter` → NaN propagates through the baseline window →
+    `np.std(excursion)=NaN` → `threshold < 1e-6` (`NaN < 1e-6`=False) BYPASSED
+    → `elevated = x < NaN` = all False → segments empty → silent fallback. The
+    fix masks each 3D segment's NaN contribution to 0 (mirrors the 2D `_w`
+    #871 guard), so com_z stays finite and the threshold stays finite. The
+    parabolic threshold/gate code itself is unchanged — the guard landed at
+    the trust boundary (the 3D CoM producer), not at every consumer.
     """
     src = inspect.getsource(PhaseDetector._detect_jump_phases_parabolic)
-
-    # The NaN-propagating threshold: np.std(excursion) (no nanstd).
+    # The threshold + guard are unchanged (the fix is upstream, in geometry.py).
     assert "threshold = float(np.std(excursion))" in src, (
         "_detect_jump_phases_parabolic must compute "
-        "`threshold = float(np.std(excursion))` (line 367, NaN → NaN) for "
-        "this repro to be valid. If the threshold computation changed, "
-        "update the repro."
+        "`threshold = float(np.std(excursion))` for this repro to be valid."
     )
-    # The NaN-bypassed guard: NaN < 1e-6 = False.
     assert "if threshold < 1e-6:" in src, (
         "_detect_jump_phases_parabolic must gate on `if threshold < 1e-6:` "
-        "(line 368, NaN < 1e-6 = False → guard bypassed) for this repro to be "
-        "valid. If the gate changed, update the repro."
+        "for this repro to be valid."
     )
-    # NO nanstd / isfinite / isnan / nan_to_num guard on the threshold/signal
-    # anywhere in the method.
-    assert "nanstd" not in src and "nan_to_num" not in src and \
-           "isfinite" not in src and "isnan" not in src, (
-        "_detect_jump_phases_parabolic now guards NaN (nanstd / nan_to_num / "
-        "isfinite / isnan) — root cause fixed, update this repro to the GREEN "
-        "contract (NaN joint → NaN-masked threshold / signal, parabolic "
-        "detection preserved, not silent fallback)."
+
+    # GREEN: the 3D CoM producer now NaN-masks (mirrors the 2D #871 `_w`).
+    from src.utils.geometry import calculate_com_trajectory_3d
+
+    gsrc = inspect.getsource(calculate_com_trajectory_3d)
+    assert "isfinite" in gsrc and "np.where" in gsrc, (
+        "calculate_com_trajectory_3d must NaN-mask each segment's contribution "
+        "(np.where(np.isfinite(y), term, 0.0)), mirroring the 2D #871 `_w` "
+        "guard. Unmasked, an occluded joint's NaN propagates into com_z → "
+        "np.std(excursion)=NaN in _detect_jump_phases_parabolic → the "
+        "`threshold < 1e-6` guard bypassed → silent fallback."
     )
 
 
@@ -279,46 +296,75 @@ def test_nan_joint_flat_frame_changes_parabolic_result():
     com_y = _nine_frame_flight_com(
         n_frames=60, baseline_y=0.5, peak_y=0.2, center=24, takeoff=20, landing=28
     )
-    poses_clean = _poses_from_com(com_y, baseline_y=0.5)
+    poses_clean = _poses_from_com_3d(com_y, baseline_y=0.5)
     poses_nan = poses_clean.copy()
     # NaN LKNEE on frame 35 — a FLAT baseline frame OUTSIDE the flight [20, 28].
-    poses_nan[35, H36Key.LKNEE] = [np.nan, np.nan]
+    # 3D path: calculate_com_trajectory_3d propagates the joint NaN into the
+    # CoM (no _w NaN-mask like the 2D #871 path), so com[35]=NaN →
+    # _median_filter propagates NaN through the baseline window →
+    # np.std(excursion)=NaN → guard bypassed → silent fallback. The 2D path
+    # masks NaN joints to 0 (#871) and does NOT reproduce this; the bug is
+    # reachable through the 3D Z-axis branch (line 369).
+    poses_nan[35, H36Key.LKNEE] = [np.nan, np.nan, np.nan]
 
-    # Sanity: the NaN joint produces a NaN CoM frame.
-    com_nan = calculate_com_trajectory(poses_nan)
-    assert np.isnan(com_nan[35]), (
-        f"test fixture broken: NaN LKNEE on frame 35 did not produce a NaN "
-        f"CoM frame (com_nan[35]={com_nan[35]}). If calculate_com_trajectory "
-        f"no longer propagates joint NaN to CoM, update the fixture."
+    # GREEN sanity: the 3D trajectory now masks the NaN joint's contribution
+    # (mirrors the 2D #871 `_w` guard) → com_z[35] is FINITE, not NaN. Pre-fix
+    # the 3D path propagated the NaN into com_z[35]=NaN → poisoned the
+    # baseline window → np.std(excursion)=NaN → guard bypassed → silent
+    # fallback. The masked CoM is slightly perturbed (the LKNEE mass is
+    # absent for that frame, ~0.4 not 0.5), but finite — which is the whole
+    # point: one occluded frame no longer poisons the threshold.
+    com_nan = calculate_com_trajectory_3d(poses_nan)
+    assert np.isfinite(com_nan[35]), (
+        f"FIXED or test fixture broken: NaN LKNEE on frame 35 still produces a "
+        f"NaN CoM frame via calculate_com_trajectory_3d (com_nan[35]={com_nan[35]}). "
+        f"The 3D trajectory must mask joint NaN (np.where(isfinite, term, 0), "
+        f"mirroring the 2D #871 `_w`) so com_z stays finite and the parabolic "
+        f"threshold does not degrade to NaN."
     )
 
     detector = PhaseDetector()
-    result_clean = detector._detect_jump_phases_parabolic(poses_clean, fps=fps)
-    result_nan = detector._detect_jump_phases_parabolic(poses_nan, fps=fps)
+    result_clean = detector._detect_jump_phases_parabolic(
+        poses_clean, fps=fps, poses_3d=poses_clean
+    )
+    result_nan = detector._detect_jump_phases_parabolic(poses_nan, fps=fps, poses_3d=poses_nan)
 
-    # Regression sanity: the clean path detects the flight (takeoff near 19-20).
-    assert 18 <= result_clean.phases.takeoff <= 21, (
+    # Regression sanity: the clean path detects the flight (takeoff near 17-20).
+    assert 15 <= result_clean.phases.takeoff <= 21, (
         f"test fixture broken: clean parabolic takeoff = "
-        f"{result_clean.phases.takeoff} (expected 18-21). If the clean "
+        f"{result_clean.phases.takeoff} (expected 15-21). If the clean "
         f"flight is no longer detected by the parabolic path, update "
         f"_nine_frame_flight_com."
     )
-    # BUG: the NaN-joint result DIFFERS from the clean result (silent
-    # fallback to the velocity-based detector with a different takeoff /
-    # confidence). A NaN joint on a flat baseline frame must NOT change the
-    # detected jump phases.
+    # GREEN contract: the NaN-joint result EQUALS the clean result on phase
+    # boundaries — a single occluded frame must NOT silently downgrade parabolic
+    # detection to the velocity-based fallback (which returned takeoff=8,
+    # confidence=1.0 before the fix). The fix masks the NaN joint's CoM
+    # contribution to 0 (mirroring the 2D #871 path), so com_z stays finite and
+    # the threshold stays finite. The masked-out mass slightly perturbs the
+    # R²-derived confidence (0.958 → 0.957), so takeoff/landing equality (not
+    # float-bit confidence equality) is the contract — what matters is the
+    # parabolic path is preserved, not the silent fallback.
     assert (
-        result_nan.phases.takeoff != result_clean.phases.takeoff
-        or result_nan.phases.landing != result_clean.phases.landing
-        or abs(result_nan.confidence - result_clean.confidence) > 1e-6
+        result_nan.phases.takeoff == result_clean.phases.takeoff
+        and result_nan.phases.landing == result_clean.phases.landing
     ), (
-        f"FIXED: _detect_jump_phases_parabolic with a NaN LKNEE on frame 35 "
-        f"returned the SAME result as the clean path "
-        f"(takeoff={result_nan.phases.takeoff}, landing={result_nan.phases.landing}, "
-        f"confidence={result_nan.confidence}). A NaN guard (nanstd / NaN-mask / "
-        f"isfinite(threshold)) landed — the NaN frame no longer poisons the "
-        f"threshold. Update this repro to the GREEN contract (NaN joint → "
-        f"parabolic detection preserved == clean result)."
+        f"BUG: _detect_jump_phases_parabolic with a NaN LKNEE on frame 35 "
+        f"returned DIFFERENT phase boundaries from the clean path "
+        f"(nan takeoff={result_nan.phases.takeoff} landing={result_nan.phases.landing}; "
+        f"clean takeoff={result_clean.phases.takeoff} landing={result_clean.phases.landing}). "
+        f"NaN CoM frame poisoned the baseline window → np.std(excursion)=NaN → "
+        f"guard bypassed → silent fallback to the velocity-based detector. The "
+        f"3D CoM trajectory must mask joint NaN (mirroring the 2D #871 path) so "
+        f"one occluded frame does not downgrade detection."
+    )
+    # The fallback returned confidence=1.0 (R²=1.0 perfect parabola on the
+    # fallback's wider window); the parabolic path returns ~0.95. Assert the
+    # NaN result is NOT the silent-fallback signature.
+    assert abs(result_nan.confidence - 1.0) > 1e-3, (
+        f"BUG: NaN-joint confidence = {result_nan.confidence:.3f} (the fallback "
+        f"signature, R²=1.0). The parabolic path returns ~0.95 — confidence=1.0 "
+        f"means the silent fallback to _detect_jump_phases_com_improved fired."
     )
 
 
