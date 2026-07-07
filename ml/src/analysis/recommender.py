@@ -4,6 +4,8 @@ This module generates specific, actionable recommendations in Russian
 based on biomechanics metrics analysis.
 """
 
+import math
+
 from ..types import GOEGrade, MetricResult, RecommendationRule
 from .rules import jump_rules, three_turn_rules
 
@@ -58,8 +60,6 @@ class Recommender:
             # text on 3.11/3.12 or raises ValueError on 3.13+. We can't
             # tell if the metric is good or bad with NaN, so no advice is
             # actionable — skip the metric entirely.
-            import math
-
             if not math.isfinite(metric.value):
                 continue
 
@@ -172,9 +172,19 @@ class Recommender:
             reference_range: (min_good, max_good) range.
 
         Returns:
-            Severity key: "too_low", "too_high", or "default".
+            Severity key: "too_low", "too_high", "default", or "no_data".
         """
         min_good, max_good = reference_range
+
+        # #1226: NaN-safe. NaN comparisons return False, so a NaN `value`
+        # would otherwise fall through both branches and silently return
+        # "default" — the same severity as a healthy in-range value, which
+        # is the opposite signal ("data missing" rendered as "data fine").
+        # The `Recommender.recommend` entry guard is the primary defense
+        # (#584); this guard is defense-in-depth for direct callers of
+        # `_determine_severity` (refactors, tests, debug prints).
+        if not math.isfinite(value):
+            return "no_data"
 
         if value < min_good:
             return "too_low"
