@@ -475,7 +475,14 @@ class BiomechanicsAnalyzer:
 
         # Knee angle (average during element)
         knee_angles = self.compute_knee_angle_series(poses, side="left")
-        avg_knee_angle = float(np.mean(knee_angles))
+        # #1312: np.mean propagates NaN — filter to isfinite first, fall
+        # back to 0.0 sentinel when the filtered series is empty (matches
+        # the #962 / #1275 / #1271 nanmax+isfinite / nanmean idiom at the
+        # other 5 sites in this block).
+        finite_knee = knee_angles[np.isfinite(knee_angles)]
+        avg_knee_angle = float(np.mean(finite_knee)) if finite_knee.size > 0 else 0.0
+        if not np.isfinite(avg_knee_angle):
+            avg_knee_angle = 0.0
         results.append(
             MetricResult(
                 name="knee_angle",
