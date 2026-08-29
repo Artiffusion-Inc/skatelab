@@ -21,6 +21,12 @@ status: active
 
 ## Documents
 
+### Current Strategy
+
+| File | Date | Content |
+|------|------|---------|
+| [RESEARCH_SUMMARY_2026-08-29.md](RESEARCH_SUMMARY_2026-08-29.md) | 2026-08-29 | MVP wedge, competitive evidence, and Android-first cross-platform strategy |
+
 ### Active References
 
 | File | Date | Content |
