@@ -140,6 +140,11 @@ abstract class AppModule {
 
         @Provides
         @Singleton
+        fun provideSharedPasswordRecoveryViewModel(client: SkateLabClient): ru.skatelab.shared.state.PasswordRecoveryViewModel =
+            ru.skatelab.shared.state.PasswordRecoveryViewModel(client.auth)
+
+        @Provides
+        @Singleton
         fun provideSharedAuthViewModel(
             authRepo: AuthRepository,
             usersApi: UsersApi,

@@ -45,6 +45,7 @@ fun LoginScreen(
     uiState: AuthUiState,
     onLogin: (email: String, password: String) -> Unit,
     onNavigateToRegister: () -> Unit,
+    onNavigateToForgotPassword: () -> Unit,
     onNavigateToCamera: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -159,6 +160,9 @@ fun LoginScreen(
 
         Spacer(Modifier.height(12.dp))
 
+        TextButton(onClick = onNavigateToForgotPassword) {
+            Text(stringResource(R.string.auth_forgot_link))
+        }
         TextButton(onClick = onNavigateToRegister) {
             Text(stringResource(R.string.auth_no_account))
         }

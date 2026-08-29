@@ -9,6 +9,7 @@ import io.ktor.http.*
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import ru.skatelab.shared.models.TokenResponse
+import ru.skatelab.shared.state.AuthRecoveryApi
 import ru.skatelab.shared.utils.expectSuccess
 
 /**
@@ -89,7 +90,7 @@ data class ResetPasswordRequest(
 
 class AuthApi(
     private val client: HttpClient,
-) {
+) : AuthRecoveryApi {
     suspend fun login(
         email: String,
         password: String,
@@ -138,7 +139,7 @@ class AuthApi(
         }.expectSuccess()
     }
 
-    suspend fun forgotPassword(email: String) {
+    override suspend fun forgotPassword(email: String) {
         client.post("auth/forgot-password") {
             contentType(ContentType.Application.Json)
             setBody(ForgotPasswordRequest(email))

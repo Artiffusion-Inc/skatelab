@@ -9,6 +9,8 @@ import kotlinx.serialization.Serializable
 
 @Serializable object RegisterRoute
 
+@Serializable object ForgotPasswordRoute
+
 // --- Main app flow ---
 @Serializable object CameraRoute
 

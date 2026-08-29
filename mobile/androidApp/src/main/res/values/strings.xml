@@ -150,6 +150,12 @@
     <string name="auth_register_button">Register</string>
     <string name="auth_no_account">Don\'t have an account? Register</string>
     <string name="auth_has_account">Already have an account? Log in</string>
+    <string name="auth_forgot_title">Forgot password</string>
+    <string name="auth_forgot_subtitle">Enter email and we will send reset link.</string>
+    <string name="auth_forgot_button">Send reset link</string>
+    <string name="auth_forgot_link">Forgot password?</string>
+    <string name="auth_forgot_sent">If email exists, reset link sent.</string>
+    <string name="auth_back_to_login">Back to login</string>
     <string name="auth_no_network">No internet connection. Check your network and try again.</string>
     <string name="auth_retry">Retry</string>
 

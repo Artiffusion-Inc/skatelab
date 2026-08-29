@@ -17,6 +17,7 @@ import java.io.File
 import ru.skatelab.capture.navigation.BleScanRoute
 import ru.skatelab.capture.navigation.CalibrationRoute
 import ru.skatelab.capture.navigation.CameraRoute
+import ru.skatelab.capture.navigation.ForgotPasswordRoute
 import ru.skatelab.capture.navigation.LoginRoute
 import ru.skatelab.capture.navigation.MetricTrendRoute
 import ru.skatelab.capture.navigation.ProcessingRoute
@@ -33,7 +34,9 @@ import ru.skatelab.capture.presentation.calibration.CalibrationScreen
 import ru.skatelab.capture.presentation.calibration.CalibrationViewModel
 import ru.skatelab.capture.presentation.recording.RecordingScreen
 import ru.skatelab.capture.presentation.recording.RecordingViewModel
+import ru.skatelab.capture.ui.auth.AndroidPasswordRecoveryViewModel
 import ru.skatelab.capture.ui.auth.AuthViewModel
+import ru.skatelab.capture.ui.auth.ForgotPasswordScreen
 import ru.skatelab.capture.ui.auth.LoginScreen
 import ru.skatelab.capture.ui.auth.RegisterScreen
 import ru.skatelab.capture.ui.auth.SplashScreen
@@ -86,11 +89,24 @@ fun AppNavigation() {
                 onNavigateToRegister = {
                     navController.navigate(RegisterRoute)
                 },
+                onNavigateToForgotPassword = {
+                    navController.navigate(ForgotPasswordRoute)
+                },
                 onNavigateToCamera = {
                     navController.navigate(CameraRoute) {
                         popUpTo<LoginRoute> { inclusive = true }
                     }
                 },
+            )
+        }
+
+        composable<ForgotPasswordRoute> {
+            val viewModel: AndroidPasswordRecoveryViewModel = hiltViewModel()
+            val recoveryState by viewModel.uiState.collectAsState()
+            ForgotPasswordScreen(
+                uiState = recoveryState,
+                onRequestReset = viewModel::requestReset,
+                onBack = { navController.popBackStack() },
             )
         }
 
