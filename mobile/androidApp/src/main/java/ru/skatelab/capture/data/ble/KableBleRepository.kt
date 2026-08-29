@@ -406,7 +406,15 @@ class KableBleRepository
                         .collect { bytes ->
                             val arrivalNs = SystemClock.elapsedRealtimeNanos()
                             val samples = parser.feed(bytes, arrivalNs)
-                            samples.forEach { sample ->
+                            // WT901 notifications may batch several 100 Hz frames.
+                            // Parser arrival time is identical for the batch, so spread
+                            // samples over the nominal period before persisting them.
+                            val periodNs = 10_000_000L
+                            samples.mapIndexed { index, sample ->
+                                sample.copy(
+                                    timestampNs = arrivalNs - (samples.size - 1 - index) * periodNs,
+                                )
+                            }.forEach { sample ->
                                 _imuSamples.tryEmit(sensorId to sample)
                             }
                         }
