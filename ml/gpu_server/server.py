@@ -311,7 +311,14 @@ async def detect(req: DetectRequest):
 
                 imu_stats: dict[str, object] = {}
                 imu_fusion: dict[str, object] = {}
-                from src.sensor_fusion import decode_imu_file
+                from src.sensor_fusion import (
+                    ImuStream,
+                    annotate_video_phase,
+                    decode_imu_file,
+                    summarize_pair,
+                )
+
+                imu_streams: dict[str, ImuStream] = {}
 
                 capture_t0_ns = 0
                 if req.manifest_s3_key:
@@ -326,6 +333,7 @@ async def detect(req: DetectRequest):
                     imu_local = Path(tmpdir) / f"{side}.binpb"
                     await _s3_download(s3, req.s3_bucket, key, str(imu_local))
                     stream = decode_imu_file(imu_local)
+                    imu_streams[side] = stream
                     imu_stats[side] = {
                         "samples": len(stream.timestamps_ns),
                         "gaps": stream.gaps,
@@ -574,6 +582,18 @@ async def process(req: ProcessRequest):
 
                 # Wait for TAS to finish
                 segments_result = await segments_coro
+
+                if "left" in imu_streams and "right" in imu_streams:
+                    imu_fusion["pair"] = summarize_pair(imu_streams["left"], imu_streams["right"])
+                if phases is not None:
+                    for side in ("left", "right"):
+                        if side in imu_fusion:
+                            imu_fusion[side] = annotate_video_phase(
+                                imu_fusion[side],
+                                fps=prepared.meta.fps,
+                                takeoff=phases.takeoff,
+                                landing=phases.landing,
+                            )
                 # --- Upload results to S3 ---
                 poses_key, metrics_key = _make_output_keys(req.video_s3_key)
                 upload_tasks = []
