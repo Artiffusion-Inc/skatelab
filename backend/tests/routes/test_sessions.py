@@ -7,6 +7,7 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 from app.auth.security import create_access_token, hash_password
+from app.models.session import Session
 from app.models.user import User
 
 if TYPE_CHECKING:
@@ -118,6 +119,30 @@ async def test_create_session_with_video_key(client, auth_headers, db_session: A
     assert data["status"] == "queued"
     assert data["video_key"] == "uploads/user123/video.mp4"
     assert data["video_url"] == "https://fake.url"
+
+
+@pytest.mark.asyncio
+async def test_create_session_preserves_isu_code(client, auth_headers, db_session: AsyncSession):
+    """POST /sessions returns and persists the optional ISU element code."""
+    from sqlalchemy import select
+
+    with patch(
+        "app.routes.sessions.get_object_url_async",
+        new_callable=AsyncMock,
+        return_value="https://fake.url",
+    ):
+        response = await client.post(
+            "/v1/sessions",
+            json={"element_type": "axel", "isu_code": "3A"},
+            headers=auth_headers,
+        )
+
+    assert response.status_code == 201
+    data = response.json()
+    assert data["isu_code"] == "3A"
+
+    result = await db_session.execute(select(Session).where(Session.id == data["id"]))
+    assert result.scalar_one().isu_code == "3A"
 
 
 @pytest.mark.asyncio

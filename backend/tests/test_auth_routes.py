@@ -405,13 +405,40 @@ async def test_reset_password_valid_token(client, db_session: AsyncSession):
 
 
 async def test_reset_password_invalid_token(client):
-    """Reset password with invalid token returns 400."""
+    """Reset password with invalid token returns a generic safe 400 body."""
     resp = await client.post(
         "/v1/auth/reset-password",
         json={"token": "invalidtoken", "password": "newpass123"},
     )
     assert resp.status_code == 400
     assert "invalid" in resp.json()["message"].lower()
+    assert "invalidtoken" not in resp.text
+    assert "newpass123" not in resp.text
+
+
+async def test_reset_password_rejects_short_password_without_echoing_secret(client):
+    """Schema validation rejects short passwords without exposing token/password."""
+    resp = await client.post(
+        "/v1/auth/reset-password",
+        json={"token": "reset-secret-token", "password": "short"},
+    )
+
+    assert resp.status_code == 400
+    assert "reset-secret-token" not in resp.text
+    assert '"short"' not in resp.text
+
+
+async def test_reset_password_rejects_legacy_new_password_field(client):
+    """The reset endpoint requires the canonical ``password`` wire field."""
+    resp = await client.post(
+        "/v1/auth/reset-password",
+        json={"token": "reset-secret-token", "new_password": "newpass123"},
+    )
+
+    assert resp.status_code == 400
+    assert "new_password" not in resp.text
+    assert "newpass123" not in resp.text
+    assert "reset-secret-token" not in resp.text
 
 
 async def test_reset_password_expired_token(client, db_session: AsyncSession):

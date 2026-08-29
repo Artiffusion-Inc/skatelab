@@ -90,6 +90,7 @@ async def _session_to_response(session: Session) -> SessionResponse:
         {
             "id": session.id,
             "user_id": session.user_id,
+            "workspace_id": session.workspace_id,
             "element_type": session.element_type,
             "video_key": session.video_key,
             "video_url": video_url,
@@ -108,6 +109,8 @@ async def _session_to_response(session: Session) -> SessionResponse:
             "imu_left_key": session.imu_left_key,
             "imu_right_key": session.imu_right_key,
             "manifest_key": session.manifest_key,
+            "isu_code": session.isu_code,
+            "segmentation_status": session.segmentation_status,
             "created_at": session.created_at,
             "processed_at": session.processed_at,
             "metrics": session.metrics,
@@ -136,6 +139,7 @@ class SessionsController(Controller):
             imu_left_key=data.imu_left_key,
             imu_right_key=data.imu_right_key,
             manifest_key=data.manifest_key,
+            isu_code=data.isu_code,
             status="queued" if data.video_key else "uploading",
         )
         return await _session_to_response(session)

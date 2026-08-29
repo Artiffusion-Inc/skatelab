@@ -287,7 +287,7 @@ async def process_video_task(
     *,
     task_id: str,
     video_key: str,
-    person_click: dict[str, int],
+    person_click: dict[str, int] | None,
     frame_skip: int = 1,
     tracking: str = "auto",
     ml_flags: dict[str, bool] | None = None,

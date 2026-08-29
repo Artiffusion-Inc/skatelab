@@ -52,12 +52,11 @@ async def test_sse_stream_times_out_after_no_messages(mock_settings):
         mock_valkey = MagicMock()
         mock_pubsub = MagicMock()
 
-        # Simulate pubsub listen that hangs (never yields), forcing timeout
-        async def listen_hang():
-            await asyncio.sleep(10)  # Sleep longer than the 10ms timeout
-            yield  # unreachable
+        # Block longer than the patched timeout so the timeout path is exercised.
+        async def get_message_hang(*_args, **_kwargs):
+            await asyncio.sleep(10)
 
-        mock_pubsub.listen = listen_hang
+        mock_pubsub.get_message = get_message_hang
         mock_pubsub.subscribe = AsyncMock()
         mock_pubsub.unsubscribe = AsyncMock()
         mock_pubsub.aclose = AsyncMock()
@@ -71,8 +70,9 @@ async def test_sse_stream_times_out_after_no_messages(mock_settings):
         mock_user = MagicMock(id="test-user-id")
 
         # stream_process_status is async, returns ServerSentEvent
+        request = MagicMock(is_connected=True)
         response = await ProcessController.stream_process_status.fn(
-            MagicMock(), user=mock_user, task_id="proc_test123"
+            MagicMock(), request=request, user=mock_user, task_id="proc_test123"
         )
 
         # ServerSentEvent.iterator yields raw SSE wire-format bytes
@@ -96,12 +96,13 @@ async def test_sse_stream_yields_progress_events(mock_settings):
         mock_valkey = MagicMock()
         mock_pubsub = MagicMock()
 
-        # Simulate one progress message then a completed message
-        async def listen_progress_then_done():
-            yield {"type": "message", "data": b'{"status": "running", "progress": 0.5}'}
-            yield {"type": "message", "data": b'{"status": "completed"}'}
-
-        mock_pubsub.listen = listen_progress_then_done
+        # Simulate one progress message then a completed message.
+        mock_pubsub.get_message = AsyncMock(
+            side_effect=[
+                {"type": "message", "data": b'{"status": "running", "progress": 0.5}'},
+                {"type": "message", "data": b'{"status": "completed"}'},
+            ]
+        )
         mock_pubsub.subscribe = AsyncMock()
         mock_pubsub.unsubscribe = AsyncMock()
         mock_pubsub.aclose = AsyncMock()
@@ -114,8 +115,9 @@ async def test_sse_stream_yields_progress_events(mock_settings):
 
         mock_user = MagicMock(id="test-user-id")
 
+        request = MagicMock(is_connected=True)
         response = await ProcessController.stream_process_status.fn(
-            MagicMock(), user=mock_user, task_id="proc_test456"
+            MagicMock(), request=request, user=mock_user, task_id="proc_test456"
         )
 
         events = []
