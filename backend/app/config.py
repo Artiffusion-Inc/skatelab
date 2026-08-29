@@ -82,8 +82,7 @@ class ValkeyConfig(BaseSettings):
             "password": password,
         }
 
-    class Config:
-        env_prefix = "VALKEY_"
+    model_config = SettingsConfigDict(env_prefix="VALKEY_")
 
 
 class DatabaseConfig(BaseSettings):
@@ -91,8 +90,7 @@ class DatabaseConfig(BaseSettings):
 
     url: str = "postgresql+asyncpg://skatelab:skatelab_dev@localhost:5432/skatelab"
 
-    class Config:
-        env_prefix = "DATABASE_"
+    model_config = SettingsConfigDict(env_prefix="DATABASE_")
 
 
 class JWTConfig(BaseSettings):
@@ -106,8 +104,7 @@ class JWTConfig(BaseSettings):
     def is_default_secret(self) -> bool:
         return self.secret_key.get_secret_value() == "change-me-to-a-random-secret"
 
-    class Config:
-        env_prefix = "JWT_"
+    model_config = SettingsConfigDict(env_prefix="JWT_")
 
 
 class CORSConfig(BaseSettings):
@@ -119,8 +116,7 @@ class CORSConfig(BaseSettings):
         "https://skatelab.ru",
     ]
 
-    class Config:
-        env_prefix = "CORS_"
+    model_config = SettingsConfigDict(env_prefix="CORS_")
 
 
 class S3Config(BaseSettings):
@@ -135,8 +131,7 @@ class S3Config(BaseSettings):
     path_style: bool = True
     presign_expires: int = 3600
 
-    class Config:
-        env_prefix = "S3_"
+    model_config = SettingsConfigDict(env_prefix="S3_")
 
 
 class VastAIConfig(BaseSettings):
@@ -145,8 +140,7 @@ class VastAIConfig(BaseSettings):
     api_key: SecretStr = SecretStr("")
     endpoint_name: str = "skatelab-workers"
 
-    class Config:
-        env_prefix = "VASTAI_"
+    model_config = SettingsConfigDict(env_prefix="VASTAI_")
 
 
 class ResendConfig(BaseSettings):
@@ -159,8 +153,7 @@ class ResendConfig(BaseSettings):
     verify_url_template: str = "https://skatelab.ru/verify-email?token={token}"
     dashboard_url: str = "https://skatelab.ru/dashboard"
 
-    class Config:
-        env_prefix = "RESEND_"
+    model_config = SettingsConfigDict(env_prefix="RESEND_")
 
 
 class SentryConfig(BaseSettings):
@@ -171,8 +164,7 @@ class SentryConfig(BaseSettings):
     traces_sample_rate: float = 0.1
     profiles_sample_rate: float = 0.1
 
-    class Config:
-        env_prefix = "SENTRY_"
+    model_config = SettingsConfigDict(env_prefix="SENTRY_")
 
 
 class PostHogConfig(BaseSettings):
@@ -181,8 +173,7 @@ class PostHogConfig(BaseSettings):
     api_key: SecretStr = SecretStr("")
     host: str = "https://us.i.posthog.com"
 
-    class Config:
-        env_prefix = "POSTHOG_"
+    model_config = SettingsConfigDict(env_prefix="POSTHOG_")
 
 
 class AppConfig(BaseSettings):
@@ -201,8 +192,7 @@ class AppConfig(BaseSettings):
     cookie_secure: bool = False
     cookie_samesite: Literal["lax", "strict", "none"] = "lax"
 
-    class Config:
-        env_prefix = "APP_"
+    model_config = SettingsConfigDict(env_prefix="APP_")
 
 
 # ---------------------------------------------------------------------------

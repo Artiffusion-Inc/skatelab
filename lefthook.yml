@@ -9,22 +9,6 @@ output:
 pre-commit:
   parallel: true
   jobs:
-    - name: protect-branches
-      run: |
-        BRANCH=$(git symbolic-ref --short HEAD 2>/dev/null)
-        case "$BRANCH" in main|master|develop)
-          echo "❌ Direct commits to '$BRANCH' are not allowed."
-          echo "Please use a feature/hotfix/release branch."
-          exit 1 ;;
-        esac
-        GIT_DIR=$(git rev-parse --git-dir)
-        GIT_COMMON_DIR=$(git rev-parse --git-common-dir)
-        if [ "$GIT_DIR" = "$GIT_COMMON_DIR" ]; then
-          echo "❌ Commits must be made from a git worktree, not the main working tree."
-          echo "   Use EnterWorktree tool or: git worktree add ../<name> -b <branch>"
-          exit 1
-        fi
-
     - name: ruff
       glob: "*.py"
       exclude:

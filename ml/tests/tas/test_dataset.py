@@ -9,6 +9,7 @@ import types
 from pathlib import Path
 
 import numpy as np
+import pytest
 
 # Load h36m module directly without triggering __init__.py chain
 H36M_PATH = Path(__file__).parent.parent.parent / "src" / "pose_estimation" / "h36m.py"
@@ -45,7 +46,21 @@ normalize_poses = data_mod.normalize_poses
 MCFSCoarseDataset = data_mod.MCFSCoarseDataset
 pad_collate = data_mod.pad_collate
 
-DATA_DIR = Path("data/datasets/mcfs")
+# MCFS preprocessing outputs are external dataset assets under ignored data/datasets/.
+REPO_ROOT = Path(__file__).resolve().parents[3]
+DATA_DIR = REPO_ROOT / "data" / "datasets" / "mcfs"
+MCFS_FEATURES_DIR = DATA_DIR / "features"
+MCFS_LABELS_DIR = DATA_DIR / "groundTruth"
+
+
+def _mcfs_dataset_available() -> bool:
+    """Return whether local MCFS feature and label directories are installed."""
+    return (
+        MCFS_FEATURES_DIR.is_dir()
+        and MCFS_LABELS_DIR.is_dir()
+        and any(MCFS_FEATURES_DIR.glob("*.npy"))
+        and any(MCFS_LABELS_DIR.glob("*.txt"))
+    )
 
 
 def test_coarse_label():
@@ -79,8 +94,16 @@ def test_normalize_poses():
     np.testing.assert_allclose(mid, 0, atol=1e-5)
 
 
+@pytest.mark.skipif(
+    not _mcfs_dataset_available(),
+    reason=(
+        "requires external MCFS files in data/datasets/mcfs/features and "
+        "data/datasets/mcfs/groundTruth; omitted from clean checkouts per data/DATASETS.md"
+    ),
+)
 def test_mcfs_dataset_exists():
-    ds = MCFSCoarseDataset(DATA_DIR / "features", DATA_DIR / "groundTruth")
+    """Validate MCFS loader against local dataset when external files are installed."""
+    ds = MCFSCoarseDataset(MCFS_FEATURES_DIR, MCFS_LABELS_DIR)
     assert len(ds) > 0
     poses, labels, length = ds[0]
     assert poses.shape == (length, 17, 2)

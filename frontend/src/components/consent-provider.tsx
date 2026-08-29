@@ -57,6 +57,7 @@ function writeConsent(state: ConsentState) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state))
   // Cookie for server-side consent detection
   const consentCookie = `skatelab_consent=analytics:${state.analytics},recordings:${state.recordings}; path=/; max-age=31536000; SameSite=Lax`
+  // biome-ignore lint/suspicious/noDocumentCookie: intentional consent cookie for SSR detection
   document.cookie = consentCookie
 }
 

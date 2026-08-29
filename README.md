@@ -4,7 +4,7 @@
 [![codecov](https://codecov.io/github/Artiffusion-Inc/skatelab/graph/badge.svg?token=0QK5TTR8QZ)](https://codecov.io/github/Artiffusion-Inc/skatelab)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen)](https://github.com/Artiffusion-Inc/skatelab/pulls)
 
-[![Python 3.12+](https://img.shields.io/badge/Python-3.12%2B-3776AB?logo=python&logoColor=white)](https://www.python.org)
+[![Python 3.11+](https://img.shields.io/badge/Python-3.11%2B-3776AB?logo=python&logoColor=white)](https://www.python.org)
 [![Litestar](https://img.shields.io/badge/Litestar-2.x%2B-EDDA7A?logo=python&logoColor=black)](https://litestar.dev)
 [![Next.js](https://img.shields.io/badge/Next.js-16-black?logo=nextdotjs&logoColor=white)](https://nextjs.org)
 [![CUDA](https://img.shields.io/badge/CUDA-GPU-76B900?logo=nvidia&logoColor=white)](https://developer.nvidia.com/cuda-zone)
@@ -19,17 +19,17 @@ AI-тренер по фигурному катанию — анализ виде
 ## Quick Start
 
 ```bash
-uv sync
+uv sync --all-packages --dev
 bash ml/scripts/setup_cuda_compat.sh   # CUDA GPU setup (RTX 3050 Ti)
 
 # Анализ видео (ML pipeline)
-cd ml && uv run python -m src.cli analyze video.mp4 --element waltz_jump --pose-backend rtmlib
+uv run --frozen --package ml python ml/scripts/cli.py analyze video.mp4 --element waltz_jump --pose-backend rtmlib
 
 # Сравнение двух видео (тренировочный режим)
-cd ml && uv run python -m src.cli compare attempt.mp4 reference.mp4 --overlays skeleton,angles,timer
+uv run --frozen --package ml python ml/scripts/cli.py compare attempt.mp4 reference.mp4 --overlays skeleton,angles,timer
 
 # Визуализация с 3D-коррекцией скелета
-cd ml && uv run python scripts/visualize_with_skeleton.py video.mp4 --layer 2 --3d --output out.mp4
+uv run --frozen --package ml python ml/scripts/visualize_with_skeleton.py video.mp4 --layer 2 --3d --output out.mp4
 ```
 
 ## Architecture
@@ -97,7 +97,7 @@ skatelab/
 │   ├── app/               # App router pages
 │   ├── components/        # React components
 │   ├── lib/               # API client, hooks, utils
-│   └── pyproject.toml     # Frontend dependencies (bun)
+│   └── package.json       # Frontend dependencies (bun)
 ├── ml/                    # ML pipeline (pure library)
 │   ├── src/               # Python package (src.*)
 │   ├── tests/             # ML tests
@@ -120,15 +120,18 @@ See [`docs/research/RESEARCH.md`](docs/research/RESEARCH.md) — index of all re
 ## Quality
 
 ```bash
+# Static CI/workflow audits
+set -e; for audit in scripts/ci-audit/test_*.py; do uv run --all-packages --frozen python "$audit"; done
+
 # Tests
-uv run pytest backend/tests/ ml/tests/ -v -m "not slow"
+uv run --all-packages --frozen pytest backend/tests/ ml/tests/ -v -m "not slow and not integration"
 
 # Lint
-uv run ruff check backend/ ml/
-uv run ruff format backend/ ml/
+uv run --all-packages --frozen ruff format --check backend/ ml/
+uv run --all-packages --frozen ruff check backend/ ml/
 
 # Type check
-uv run basedpyright --level error backend/app ml/src
+uv run --all-packages --frozen basedpyright --level error backend/app ml/src
 ```
 
 ## License

@@ -5,6 +5,7 @@ import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestScope
@@ -28,6 +29,7 @@ import ru.skatelab.capture.domain.usecase.StartStreamingUseCase
 import ru.skatelab.capture.domain.usecase.StopStreamingUseCase
 import ru.skatelab.capture.presentation.SessionState
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class CalibrationViewModelTest {
     private val testDispatcher = StandardTestDispatcher()
     private val testScope = TestScope(testDispatcher)

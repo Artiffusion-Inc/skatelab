@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 import torch
 from torch import nn
+from torch.nn import functional as F
 
 if TYPE_CHECKING:
     from numpy.typing import NDArray
@@ -140,13 +141,14 @@ class Skeleton1DCNN(nn.Module):
             logits: (B, num_classes)
         """
         x = x.permute(0, 2, 1)  # (B, 34, T)
-        x = torch.relu(self.bn1(self.conv1(x)))
-        x = torch.relu(self.bn2(self.conv2(x)))
-        x = torch.relu(self.bn3(self.conv3(x)))
+        x = F.relu(self.bn1(self.conv1(x)))
+        x = F.relu(self.bn2(self.conv2(x)))
+        x = F.relu(self.bn3(self.conv3(x)))
         x = self.pool(x).squeeze(-1)  # (B, 512)
         # Concatenate normalized duration — prevents losing temporal info in AdaptiveMaxPool
         dur = (lengths.float() / lengths.max().float()).unsqueeze(1)  # (B, 1)
-        x = torch.cat([x, dur], dim=1)  # (B, 513)
+        x = F.pad(x, (0, 1))
+        x[:, -1:] = dur
         return self.fc(x)
 
 

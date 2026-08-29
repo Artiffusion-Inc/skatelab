@@ -14,6 +14,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 
 if TYPE_CHECKING:
+    import onnxruntime as ort
     from numpy.typing import NDArray
 
 logger = logging.getLogger(__name__)
@@ -52,12 +53,13 @@ class ONNXPoseExtractor:
         opts = ort.SessionOptions()
         opts.intra_op_num_threads = 1
         opts.inter_op_num_threads = 2
-        self.session = ort.InferenceSession(
+        session = ort.InferenceSession(
             str(model_path), sess_options=opts, providers=cfg.onnx_providers
         )
-        self.input_name = self.session.get_inputs()[0].name
+        self.session: ort.InferenceSession | None = session
+        self.input_name = session.get_inputs()[0].name
 
-        active = self.session.get_providers()[0]
+        active = session.get_providers()[0]
         logger.info(f"ONNX 3D pose: {model_path.name}, provider={active}")
 
     def estimate_3d(self, poses_2d: NDArray[np.float32]) -> NDArray[np.float32]:
@@ -148,7 +150,8 @@ class ONNXPoseExtractor:
         batch_input = np.concatenate([batch_input, conf], axis=3)
 
         # Run batched inference
-        result = self.session.run(None, {self.input_name: batch_input})[0]
+        session = self._get_session()
+        result = session.run(None, {self.input_name: batch_input})[0]
 
         # Extract results, truncating to original window lengths
         results = []
@@ -157,6 +160,12 @@ class ONNXPoseExtractor:
             results.append(result[i][:n])  # type: ignore[index]
 
         return results
+
+    def _get_session(self) -> ort.InferenceSession:
+        """Return active ONNX session or fail after ``release``."""
+        if self.session is None:
+            raise RuntimeError("ONNX pose extractor has been released")
+        return self.session
 
     def release(self) -> None:
         """Release ONNX session and free GPU memory.
@@ -189,6 +198,7 @@ class ONNXPoseExtractor:
         conf = np.ones((w, 17, 1), dtype=np.float32)
         inp = np.concatenate([padded, conf], axis=2)[np.newaxis]
 
-        result = self.session.run(None, {self.input_name: inp})[0]
+        session = self._get_session()
+        result = session.run(None, {self.input_name: inp})[0]
         # result: (1, w, 17, 3) → (w, 17, 3)
         return result[0]  # type: ignore[index]

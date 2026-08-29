@@ -7,11 +7,12 @@ ML backend: set `tas_model_path` to use BiGRU+RF instead of rules.
 Method "tas_ml_v2" uses BiGRUTASRefiner + Skeleton1DCNN v2 pipeline.
 """
 
+from __future__ import annotations
+
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, cast
 
 import numpy as np
-from numpy.typing import NDArray
 from scipy.ndimage import binary_opening
 
 from ..types import (
@@ -23,6 +24,9 @@ from ..types import (
 from ..utils.geometry import get_mid_hip, smooth_signal
 
 if TYPE_CHECKING:
+    from numpy.typing import NDArray
+
+    from ..tas.inference import TASElementSegmenter
     from ..utils.video import VideoMeta
 
 
@@ -62,9 +66,9 @@ class ElementSegmenter:
         self._boundary_window = boundary_window
         self._tas_model_path = Path(tas_model_path) if tas_model_path else None
         self._tas_classifier_path = Path(tas_classifier_path) if tas_classifier_path else None
-        self._tas_segmenter: object | None = None
+        self._tas_segmenter: TASElementSegmenter | None = None
 
-    def _get_tas_segmenter(self) -> object | None:
+    def _get_tas_segmenter(self) -> TASElementSegmenter | None:
         """Lazy init TAS segmenter."""
         if self._tas_segmenter is not None:
             return self._tas_segmenter
@@ -83,7 +87,7 @@ class ElementSegmenter:
         self,
         poses: NormalizedPose,
         video_path: Path,
-        video_meta: "VideoMeta",
+        video_meta: VideoMeta,
         method: str = "adaptive",
     ) -> SegmentationResult:
         """Detect element boundaries in video.
@@ -161,7 +165,7 @@ class ElementSegmenter:
         tas_segmenter: Any,
         poses: NormalizedPose,
         video_path: Path,
-        video_meta: "VideoMeta",
+        video_meta: VideoMeta,
     ) -> SegmentationResult:
         """Run TAS ML segmentation and wrap result."""
         segs = tas_segmenter.segment(poses, fps=video_meta.fps)
@@ -189,7 +193,7 @@ class ElementSegmenter:
         self,
         poses: NormalizedPose,
         fps: float,
-        video_meta: "VideoMeta",
+        video_meta: VideoMeta,
     ) -> SegmentationResult | None:
         """Segment using BiGRUTASRefiner + Skeleton1DCNN v2 pipeline."""
 
@@ -277,9 +281,11 @@ class ElementSegmenter:
         adaptive = self._stillness_threshold is None
         if adaptive:
             # Use 25th percentile as threshold
-            threshold = np.percentile(motion_energy, 25)
+            threshold = float(np.percentile(motion_energy, 25))
         else:
             threshold = self._stillness_threshold
+            if threshold is None:
+                return np.zeros_like(motion_energy, dtype=bool)
 
         # Binary mask: energy below threshold = stillness
         still = motion_energy < threshold

@@ -6,6 +6,7 @@ Output: (B, T, 4) logits for [None, Jump, Spin, Step]
 
 import torch
 from torch import nn
+from torch.nn import functional as F
 
 
 class BiGRUTAS(nn.Module):
@@ -93,9 +94,9 @@ class BoundaryRefinerCNN(nn.Module):
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """Args: x: (B, T, 38) — coarse logits + raw features concatenated."""
         x = x.permute(0, 2, 1)  # (B, 38, T)
-        x = torch.relu(self.conv1(x))
+        x = F.relu(self.conv1(x))
         x = self.dropout(x)
-        x = torch.relu(self.conv2(x))
+        x = F.relu(self.conv2(x))
         x = x.permute(0, 2, 1)  # (B, T, 64)
         return self.classifier(x)
 
@@ -143,7 +144,9 @@ class BiGRUTASRefiner(nn.Module):
         B, T, J, C = poses.shape
         coarse_logits = self.bigru(poses, lengths)  # (B, T, 4)
         raw_features = poses.reshape(B, T, J * C)  # (B, T, 34)
-        refiner_input = torch.cat([coarse_logits, raw_features], dim=-1)  # (B, T, 38)
+        coarse_width = coarse_logits.shape[-1]
+        refiner_input = F.pad(raw_features, (coarse_width, 0))
+        refiner_input[..., :coarse_width] = coarse_logits
         refined_logits = self.refiner(refiner_input)  # (B, T, 4)
         return refined_logits
 

@@ -2,25 +2,34 @@
 version: '3'
 
 vars:
-  UV_RUN: uv run
+  # Root quality commands install every workspace member from root .venv.
+  UV_WORKSPACE_RUN: uv run --all-packages --frozen
+  # Member commands still discover root workspace explicitly from member dirs.
+  UV_BACKEND_RUN: uv run --project .. --package backend --frozen
+  UV_ML_RUN: uv run --project .. --package ml --frozen
   BUNX: bunx
 
 tasks:
   # Python tasks
   py-lint:
-    desc: Run ruff check and format on Python code
+    desc: Check Python formatting and lint
     dir: .
-    cmd: "{{.UV_RUN}} ruff check backend/ ml/ --fix && {{.UV_RUN}} ruff format backend/ ml/"
+    cmd: "{{.UV_WORKSPACE_RUN}} ruff format --check backend/ ml/ && {{.UV_WORKSPACE_RUN}} ruff check backend/ ml/"
 
   py-test:
-    desc: Run pytest tests (excluding slow tests)
+    desc: Run pytest tests (excluding slow and integration tests)
     dir: .
-    cmd: "{{.UV_RUN}} pytest backend/tests/ ml/tests/ -v -m \"not slow\" --tb=short --import-mode=importlib"
+    cmd: "{{.UV_WORKSPACE_RUN}} pytest backend/tests/ ml/tests/ -v -m \"not slow and not integration\" --tb=short --import-mode=importlib"
 
   py-typecheck:
     desc: Run basedpyright type checker on backend/app and ml/src
     dir: .
-    cmd: "{{.UV_RUN}} basedpyright --level error backend/app ml/src"
+    cmd: "{{.UV_WORKSPACE_RUN}} basedpyright --level error backend/app ml/src"
+
+  ci-audit:
+    desc: Run static CI workflow and infrastructure audit checks
+    dir: .
+    cmd: 'set -euo pipefail; for audit in scripts/ci-audit/test_*.py; do {{.UV_WORKSPACE_RUN}} python "$audit"; done'
 
   py-all:
     desc: Run all Python quality checks (lint, test, typecheck)
@@ -34,30 +43,30 @@ tasks:
   db-migrate:
     desc: Run database migrations (Alembic upgrade)
     dir: backend
-    cmd: "{{.UV_RUN}} alembic upgrade head"
+    cmd: "{{.UV_BACKEND_RUN}} alembic upgrade head"
 
   db-rollback:
     desc: Rollback last database migration
     dir: backend
-    cmd: "{{.UV_RUN}} alembic downgrade -1"
+    cmd: "{{.UV_BACKEND_RUN}} alembic downgrade -1"
 
   db-reset:
     desc: Reset database (drop all, recreate, migrate)
     dir: backend
     cmds:
-      - "{{.UV_RUN}} alembic downgrade base"
-      - "{{.UV_RUN}} alembic upgrade head"
+      - "{{.UV_BACKEND_RUN}} alembic downgrade base"
+      - "{{.UV_BACKEND_RUN}} alembic upgrade head"
 
   db-migration:
     desc: Create a new autogenerate migration
     dir: backend
-    cmd: "{{.UV_RUN}} alembic revision --autogenerate -m '{{.migration_name}}'"
+    cmd: "{{.UV_BACKEND_RUN}} alembic revision --autogenerate -m '{{.migration_name}}'"
 
   # Frontend tasks
   fe-lint:
-    desc: Run Biome check and format on frontend code
+    desc: Check Biome formatting and lint on frontend code
     dir: frontend
-    cmd: "{{.BUNX}} biome check --write ."
+    cmd: "{{.BUNX}} biome check ."
 
   fe-test:
     desc: Run vitest tests
@@ -67,7 +76,7 @@ tasks:
   fe-typecheck:
     desc: Run TypeScript type checker
     dir: frontend
-    cmd: "{{.BUNX}} tsc -p tsconfig.app.json"
+    cmd: "bun run typecheck"
 
   fe-build:
     desc: Build frontend for production
@@ -98,6 +107,7 @@ tasks:
     dir: .
     cmds:
       - task: sg-test
+      - task: ci-audit
       - task: py-all
       - task: fe-all
 
@@ -112,7 +122,7 @@ tasks:
   dev-backend:
     desc: Start Python backend dev server
     dir: backend
-    cmd: "{{.UV_RUN}} litestar run --port 8000 --reload"
+    cmd: "{{.UV_BACKEND_RUN}} litestar run --port 8000 --reload"
 
   dev-frontend:
     desc: Start frontend dev server
@@ -129,7 +139,7 @@ tasks:
     desc: Generate pre-signed S3 URLs for FP16 model embedding (requires RustFS S3 env vars)
     dir: ml
     cmds:
-      - uv run python scripts/generate_model_presigned_urls.py --output /tmp/model_urls.json
+      - "{{.UV_ML_RUN}} python scripts/generate_model_presigned_urls.py --output /tmp/model_urls.json"
       - jq -r .moganet /tmp/model_urls.json > /tmp/moganet_url.txt
       - jq -r .rf_detr /tmp/model_urls.json > /tmp/rf_detr_url.txt
       - jq -r .tcpformer /tmp/model_urls.json > /tmp/tcpformer_url.txt
@@ -161,13 +171,13 @@ tasks:
     desc: Authenticate CLI with backend
     dir: ml
     cmds:
-      - uv run python scripts/cli.py login
+      - "{{.UV_ML_RUN}} python scripts/cli.py login"
 
   cli-analyze:
     desc: Analyze a video using remote GPU (set VIDEO and ELEMENT vars)
     dir: ml
     cmds:
-      - uv run python scripts/cli.py analyze {{.VIDEO}} --element {{.ELEMENT}}
+      - "{{.UV_ML_RUN}} python scripts/cli.py analyze {{.VIDEO}} --element {{.ELEMENT}}"
     vars:
       VIDEO: '{{.VIDEO | default "data/samples/test.mp4"}}'
       ELEMENT: '{{.ELEMENT | default "waltz_jump"}}'

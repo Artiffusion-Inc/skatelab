@@ -140,13 +140,11 @@ experiments/yolo26-pose-kd/work_dirs/
 experiments/yolo26-pose-kd/runs/
 
 # Stray generated artifacts
-row
 runs/
 .worktrees/
 .playwright-cli/
 
 # Design token pipeline
-node_modules/
 scripts/design/build.log
 docs/design-audit.json
 
@@ -159,6 +157,11 @@ docs/design-audit.json
 
 # TypeScript incremental build cache
 frontend/tsconfig.tsbuildinfo
+
+# Generated profiling and test scheduling data
+/.test_durations
+/ml/onnxruntime_profile__*.json
+
 branch_structure.json
 temp_auto_push.bat
 temp_interactive_push.bat

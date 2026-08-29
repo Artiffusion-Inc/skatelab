@@ -123,15 +123,6 @@ describe("demo-axel overall_score scale display (repro)", () => {
 
     const bodyText = document.body.textContent ?? ""
 
-    expect(bodyText).not.toMatch(/1\.0\s*из\s*10/),
-      `BUG: demo-axel renders overall_score=1.0 (0..1 ratio from ` +
-        `session_saver.py:94) with the "из 10" label (ru.json:570) → ` +
-        `"1.0 из 10" — reads as 10%, a 10x display deflation. A perfect demo ` +
-        `looks terrible on the marketing/onboarding surface. ` +
-        `demo-axel/page.tsx:58 renders the raw value + tSession("scoreOutOf") ` +
-        `with no scaling — SAME scale-contract mismatch as #504 (session-detail ` +
-        `page.tsx:173), SAME scoreOutOf translation string, SEPARATE display ` +
-        `site. If the #504 fix only touches sessions/[id], demo-axel stays ` +
-        `broken. Rendered: "${bodyText.slice(0, 120)}...". #504 sibling.`
+    expect(bodyText).not.toMatch(/1\.0\s*из\s*10/)
   })
 })

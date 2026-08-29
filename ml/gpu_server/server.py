@@ -13,6 +13,7 @@ import logging
 import os
 import tempfile
 import time
+from contextlib import asynccontextmanager
 from pathlib import Path
 
 import aiobotocore.session
@@ -30,7 +31,19 @@ _fh = logging.FileHandler(_log_file)
 _fh.setFormatter(logging.Formatter("%(levelname)s:%(name)s:%(message)s"))
 logging.getLogger().addHandler(_fh)
 
-app = FastAPI(title="Skating ML GPU Worker")
+
+@asynccontextmanager
+async def app_lifespan(_app: FastAPI):
+    """Verify models in background while keeping server startup responsive."""
+    background_task = asyncio.create_task(_background_init())
+    try:
+        yield
+    finally:
+        background_task.cancel()
+        await asyncio.gather(background_task, return_exceptions=True)
+
+
+app = FastAPI(title="Skating ML GPU Worker", lifespan=app_lifespan)
 
 # Prometheus metrics
 from prometheus_client import CONTENT_TYPE_LATEST, Counter, Gauge, Histogram, generate_latest
@@ -136,14 +149,6 @@ async def _background_init():
     except (OSError, ValueError, RuntimeError):
         logger.exception("Background init failed")
         _models_ready = False
-
-
-@app.on_event("startup")
-async def warmup_gpu():
-    """Start background model verification — server accepts requests immediately."""
-    import asyncio
-
-    _bg_task = asyncio.create_task(_background_init())  # noqa: RUF006
 
 
 @app.get("/metrics")

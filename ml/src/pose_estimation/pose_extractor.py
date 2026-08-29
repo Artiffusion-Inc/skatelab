@@ -48,15 +48,15 @@ def _lerp_bbox(bboxes: dict[int, BoundingBox | None], frame_idx: int) -> Boundin
         if i in bboxes and bboxes[i] is not None:
             next_idx = i
             break
-    if prev_idx is None and next_idx is None:
+    prev_box = bboxes.get(prev_idx) if prev_idx is not None else None
+    next_box = bboxes.get(next_idx) if next_idx is not None else None
+    if prev_box is None:
+        return next_box
+    if next_box is None:
+        return prev_box
+    if prev_idx is None or next_idx is None:
         return None
-    if prev_idx is None:
-        return bboxes[next_idx]
-    if next_idx is None:
-        return bboxes[prev_idx]
     t = (frame_idx - prev_idx) / (next_idx - prev_idx)
-    prev_box = bboxes[prev_idx]
-    next_box = bboxes[next_idx]
     return BoundingBox(
         x1=prev_box.x1 + t * (next_box.x1 - prev_box.x1),
         y1=prev_box.y1 + t * (next_box.y1 - prev_box.y1),

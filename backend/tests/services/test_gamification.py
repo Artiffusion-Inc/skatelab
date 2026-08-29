@@ -60,6 +60,8 @@ async def test_award_xp_and_skill_unlocks_agree_on_score_scale():
     from app.services.gamification import award_session_xp, check_skill_unlocks
 
     db = AsyncMock()
+    # AsyncSession.add is synchronous; keep this test double aligned with its contract.
+    db.add = MagicMock()
     score = 8.0  # unlocks gold per check_skill_unlocks thresholds
 
     # award_session_xp

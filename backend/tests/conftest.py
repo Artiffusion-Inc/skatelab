@@ -45,7 +45,7 @@ except (ImportError, ValueError):
 # Force SKIP_AUTH=false for all tests so auth logic is exercised.
 # Must happen before any import of app.config (which caches settings via @lru_cache).
 os.environ["APP_SKIP_AUTH"] = "false"
-os.environ["JWT_SECRET_KEY"] = "test-secret"
+os.environ["JWT_SECRET_KEY"] = "test-secret-key-for-backend-tests-32b"
 
 # Add backend to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -115,7 +115,9 @@ def auth_headers(authed_user: User):
     with patch("app.auth.security.get_settings") as mock_get:
         mock_get.return_value = MagicMock(
             jwt=MagicMock(
-                secret_key=MagicMock(get_secret_value=lambda: "test-secret"),
+                secret_key=MagicMock(
+                    get_secret_value=lambda: "test-secret-key-for-backend-tests-32b"
+                ),
                 access_token_expire_minutes=15,
             )
         )
@@ -180,7 +182,7 @@ def app():
                                         "https://skatelab.ru",
                                     ]
                                     settings.jwt.secret_key.get_secret_value.return_value = (
-                                        "test-secret"
+                                        "test-secret-key-for-backend-tests-32b"
                                     )
                                     settings.valkey.host = "localhost"
                                     settings.valkey.port = 6379
@@ -257,7 +259,9 @@ async def client(db_engine, db_session):
         mock_get = stack.enter_context(patch("app.main.get_settings"))
         settings = MagicMock()
         settings.cors.origins = ["http://localhost:3000", "https://skatelab.ru"]
-        settings.jwt.secret_key.get_secret_value.return_value = "test-secret"
+        settings.jwt.secret_key.get_secret_value.return_value = (
+            "test-secret-key-for-backend-tests-32b"
+        )
         settings.valkey.host = "localhost"
         settings.valkey.port = 6379
         settings.valkey.db = 0

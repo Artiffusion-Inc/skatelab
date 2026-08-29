@@ -91,9 +91,11 @@ describe("auth-provider logout cache leak (RED repro)", () => {
     originalCookie = document.cookie
     // Simulate an authenticated session so the mount effect takes the
     // fetchMe path rather than the early return.
+    // biome-ignore lint/suspicious/noDocumentCookie: intentional test cookie setup
     document.cookie = "sb_auth=1; path=/"
   })
   afterEach(() => {
+    // biome-ignore lint/suspicious/noDocumentCookie: intentional test cookie cleanup
     document.cookie = originalCookie
     vi.clearAllMocks()
   })

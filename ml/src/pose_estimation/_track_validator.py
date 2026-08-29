@@ -11,6 +11,13 @@ if TYPE_CHECKING:
 class TrackValidator:
     """Anti-steal detection and biometric track migration."""
 
+    @staticmethod
+    def _nanmean_or_nan(values: NDArray[np.float32]) -> float:
+        """Compute NaN-aware mean without warning for all-NaN input."""
+        if np.all(np.isnan(values)):
+            return float("nan")
+        return float(np.nanmean(values))
+
     CENTROID_JUMP_THRESHOLD = 0.15
     RATIO_CHANGE_THRESHOLD = 0.25
     MAX_LOST_FRAMES = 60
@@ -22,10 +29,10 @@ class TrackValidator:
         last_target_pose: NDArray[np.float32],
         last_target_ratios: NDArray[np.float32] | None = None,
     ) -> bool:
-        cur_cx = float(np.nanmean(current_pose[:, 0]))
-        cur_cy = float(np.nanmean(current_pose[:, 1]))
-        prev_cx = float(np.nanmean(last_target_pose[:, 0]))
-        prev_cy = float(np.nanmean(last_target_pose[:, 1]))
+        cur_cx = self._nanmean_or_nan(current_pose[:, 0])
+        cur_cy = self._nanmean_or_nan(current_pose[:, 1])
+        prev_cx = self._nanmean_or_nan(last_target_pose[:, 0])
+        prev_cy = self._nanmean_or_nan(last_target_pose[:, 1])
         jump = np.sqrt((cur_cx - prev_cx) ** 2 + (cur_cy - prev_cy) ** 2)
 
         skeletal_anomaly = False
@@ -60,10 +67,10 @@ class TrackValidator:
     ) -> float:
         from ..pose_estimation.h36m import biometric_distance
 
-        cur_cx = float(np.nanmean(candidate_pose[:, 0]))
-        cur_cy = float(np.nanmean(candidate_pose[:, 1]))
-        prev_cx = float(np.nanmean(last_target_pose[:, 0]))
-        prev_cy = float(np.nanmean(last_target_pose[:, 1]))
+        cur_cx = self._nanmean_or_nan(candidate_pose[:, 0])
+        cur_cy = self._nanmean_or_nan(candidate_pose[:, 1])
+        prev_cx = self._nanmean_or_nan(last_target_pose[:, 0])
+        prev_cy = self._nanmean_or_nan(last_target_pose[:, 1])
         pos_dist = np.sqrt((cur_cx - prev_cx) ** 2 + (cur_cy - prev_cy) ** 2)
         bio_dist = biometric_distance(candidate_pose, last_target_pose)
 

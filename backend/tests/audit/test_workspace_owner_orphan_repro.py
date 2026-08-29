@@ -40,7 +40,9 @@ def _make_token(user: User) -> str:
     with patch("app.auth.security.get_settings") as mock_get:
         mock_get.return_value = MagicMock(
             jwt=MagicMock(
-                secret_key=MagicMock(get_secret_value=lambda: "test-secret"),
+                secret_key=MagicMock(
+                    get_secret_value=lambda: "test-secret-key-for-backend-tests-32b"
+                ),
                 access_token_expire_minutes=15,
             )
         )

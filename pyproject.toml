@@ -6,7 +6,11 @@ readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
     "sentry-sdk[litestar]>=2.58.0",
+    "ml",
 ]
+
+[tool.uv.sources]
+ml = { workspace = true }
 
 [tool.uv.workspace]
 members = [".", "backend", "ml"]

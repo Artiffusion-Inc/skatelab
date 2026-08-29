@@ -35,6 +35,8 @@ frame and the AND-gate fires.
 This test MUST fail (RED) against the current code. Repro, not a fix.
 """
 
+import warnings
+
 import numpy as np
 
 from src.pose_estimation._track_validator import TrackValidator
@@ -77,7 +79,9 @@ def test_is_stolen_nan_centroid_current_pose_is_conservative():
         "so the skeletal half flags it (#451)."
     )
 
-    stolen = validator.is_stolen(nan_pose, last, last_ratios)
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always", RuntimeWarning)
+        stolen = validator.is_stolen(nan_pose, last, last_ratios)
 
     assert stolen is True, (
         "BUG: all-NaN current_pose → np.nanmean→NaN → jump=NaN → "
@@ -89,3 +93,4 @@ def test_is_stolen_nan_centroid_current_pose_is_conservative():
         "NaN-centroid sibling is reachable. Fix: treat non-finite jump as "
         "exceeding the threshold (conservative), mirroring the ratio half."
     )
+    assert not caught, "all-NaN centroid must not emit RuntimeWarning"

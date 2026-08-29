@@ -18,12 +18,13 @@ from __future__ import annotations
 
 import asyncio
 import time
-from typing import TYPE_CHECKING
+from dataclasses import dataclass
+from typing import TYPE_CHECKING, cast
 
 import numpy as np
 
 from .device import DeviceConfig
-from .types import AnalysisReport, ElementPhase, PersonClick, SegmentationResult
+from .types import AnalysisReport, ElementPhase, PersonClick, ReferenceData, SegmentationResult
 from .utils.geometry import calculate_com_trajectory
 from .utils.profiling import PipelineProfiler
 from .utils.video import VideoMeta, get_video_meta
@@ -40,6 +41,14 @@ if TYPE_CHECKING:
     from .pose_estimation.pose_extractor import PoseExtractor
     from .references import ReferenceStore
     from .utils.smoothing import OneEuroFilterConfig, PoseSmoother
+
+
+@dataclass(frozen=True)
+class _SOVEntry:
+    """Typed subset of ISU Scale of Values used during GOE grading."""
+
+    base_value: float
+    rotations: float
 
 
 class AnalysisPipeline:
@@ -106,7 +115,7 @@ class AnalysisPipeline:
         """
         # 1. Lazy-init extractor (model download + ONNX session)
         t0 = time.perf_counter()
-        extractor = self._get_pose_2d_extractor()
+        extractor = cast("PoseExtractor | None", self._get_pose_2d_extractor())
         self._profiler.record("extractor_init", time.perf_counter() - t0)
 
         if extractor is None:
@@ -551,7 +560,7 @@ class AnalysisPipeline:
             self._recommender = Recommender()
         return self._recommender
 
-    def _get_sov_entry(self, isu_code: str):
+    def _get_sov_entry(self, isu_code: str) -> _SOVEntry | None:
         """Load SOV entry for ISU code from data/isu JSON."""
         import json
         from pathlib import Path
@@ -565,14 +574,10 @@ class AnalysisPipeline:
             for section in ("jumps", "spins", "step_sequences", "choreo_sequences"):
                 entry = sov.get(section, {}).get(isu_code)
                 if entry:
-                    return type(
-                        "SOVEntry",
-                        (),
-                        {
-                            "base_value": entry["base_value"],
-                            "rotations": entry.get("rotations", 0.0),
-                        },
-                    )()
+                    return _SOVEntry(
+                        base_value=float(entry["base_value"]),
+                        rotations=float(entry.get("rotations", 0.0)),
+                    )
         except (json.JSONDecodeError, KeyError):
             return None
         return None
@@ -743,7 +748,7 @@ class AnalysisPipeline:
         wave0_results = await asyncio.gather(*wave0_tasks) if wave0_tasks else []
 
         poses_3d = None
-        reference: np.ndarray | None = None
+        reference: ReferenceData | None = None
         result_idx = 0
         if lifter is not None and len(wave0_results) > result_idx:
             poses_3d = wave0_results[result_idx]
@@ -944,7 +949,7 @@ class AnalysisPipeline:
         )
         return metrics
 
-    async def _load_reference_async(self, element_type: str):
+    async def _load_reference_async(self, element_type: str) -> ReferenceData | None:
         """Async reference loading from store.
 
         Args:
@@ -967,7 +972,7 @@ class AnalysisPipeline:
         self,
         normalized: np.ndarray,
         phases: ElementPhase,
-        reference,
+        reference: ReferenceData,
         poses_3d: np.ndarray | None = None,
     ) -> float:
         """Async DTW alignment against reference.
@@ -987,18 +992,13 @@ class AnalysisPipeline:
         loop = asyncio.get_event_loop()
         aligner = self._get_aligner()
 
-        use_3d = (
-            poses_3d is not None
-            and hasattr(reference, "poses_3d")
-            and reference.poses_3d is not None
-        )
-
-        if use_3d:
+        reference_poses_3d = reference.poses_3d
+        if poses_3d is not None and reference_poses_3d is not None:
             return await loop.run_in_executor(
                 None,
                 aligner.compute_distance_3d,
                 poses_3d[phases.start : phases.end],
-                reference.poses_3d[reference.phases.start : reference.phases.end],
+                reference_poses_3d[reference.phases.start : reference.phases.end],
             )
         else:
             return await loop.run_in_executor(

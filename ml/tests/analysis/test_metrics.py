@@ -83,7 +83,9 @@ class TestBiomechanicsAnalyzer:
             end=4,
         )
 
-        height = analyzer.compute_jump_height(hip_y, phases)
+        # Compatibility API intentionally emits its deprecation warning.
+        with pytest.warns(DeprecationWarning, match="compute_jump_height"):
+            height = analyzer.compute_jump_height(hip_y, phases)
 
         # Height = baseline(0.3) - peak(0.1) = 0.2
         assert height == pytest.approx(0.2)
@@ -190,7 +192,9 @@ class TestBiomechanicsAnalyzer:
 
         # Hip-only method (overestimates due to bent knees)
         hip_y = (poses[:, H36Key.LEFT_HIP, 1] + poses[:, H36Key.RIGHT_HIP, 1]) / 2
-        height_hip = analyzer.compute_jump_height(hip_y, phases)
+        # Compatibility API intentionally emits its deprecation warning.
+        with pytest.warns(DeprecationWarning, match="compute_jump_height"):
+            height_hip = analyzer.compute_jump_height(hip_y, phases)
 
         # CoM method (physics-accurate)
         height_com = analyzer.compute_jump_height_com(poses, phases)

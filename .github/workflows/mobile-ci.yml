@@ -1,6 +1,13 @@
 name: Mobile CI
 
 on:
+  workflow_call:
+    inputs:
+      run-all:
+        description: 'Run all jobs regardless of changed files'
+        required: false
+        default: false
+        type: boolean
   push:
     branches: [master]
     paths:

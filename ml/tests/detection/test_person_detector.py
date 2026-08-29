@@ -1,10 +1,18 @@
 """Tests for RF-DETR ONNX person detector."""
 
+from pathlib import Path
+
 import numpy as np
 import pytest
 
 from src.detection.person_detector import PersonDetector
 from src.types import BoundingBox
+
+_DETECTOR_MODEL = Path("data/models/rf_detr_nano_fp16.onnx")
+_requires_detector_model = pytest.mark.skipif(
+    not _DETECTOR_MODEL.exists(),
+    reason=f"Requires detector model: {_DETECTOR_MODEL}",
+)
 
 
 @pytest.mark.slow
@@ -24,6 +32,7 @@ class TestPersonDetector:
         assert detector._confidence == 0.7
         assert detector._input_size == 512
 
+    @_requires_detector_model
     def test_model_lazy_load(self):
         """Should load ONNX session on first access."""
         detector = PersonDetector()
@@ -31,6 +40,7 @@ class TestPersonDetector:
         _ = detector.model  # Access property — triggers InferenceSession creation
         assert detector._session is not None
 
+    @_requires_detector_model
     def test_detect_single_person(self, sample_frame):
         """Should detect person in frame with single person."""
         detector = PersonDetector()
@@ -41,6 +51,7 @@ class TestPersonDetector:
             assert bbox.width > 0
             assert bbox.height > 0
 
+    @_requires_detector_model
     def test_detect_empty_frame(self):
         """Should return None for empty frame."""
         detector = PersonDetector()

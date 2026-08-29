@@ -195,7 +195,8 @@ class GOEGrader:
                 return clean_bv * 0.80
             case "<<" | "e" | "!":
                 return clean_bv  # Downgraded/e/! need external BV lookup
-        return clean_bv
+            case _:
+                return clean_bv
 
     def _negative_weight(self, negatives: list[str], mv: dict[str, float]) -> int:
         weight = 0

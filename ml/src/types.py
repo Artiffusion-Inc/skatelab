@@ -682,23 +682,25 @@ class ReferenceData:
 
     def save(self, path: Path) -> None:
         """Save reference to .npz file."""
-        save_dict = {
-            "element_type": self.element_type,
-            "name": self.name,
-            "poses": self.poses,
-            "phases": (
-                self.phases.name,
-                self.phases.start,
-                self.phases.takeoff,
-                self.phases.peak,
-                self.phases.landing,
-                self.phases.end,
+        save_dict: dict[str, np.ndarray] = {
+            "element_type": np.asarray(self.element_type),
+            "name": np.asarray(self.name),
+            "poses": np.asarray(self.poses),
+            "phases": np.asarray(
+                (
+                    self.phases.name,
+                    self.phases.start,
+                    self.phases.takeoff,
+                    self.phases.peak,
+                    self.phases.landing,
+                    self.phases.end,
+                ),
             ),
-            "fps": self.fps,
+            "fps": np.asarray(self.fps),
         }
         if self.poses_3d is not None:
-            save_dict["poses_3d"] = self.poses_3d
-        np.savez(path, **save_dict)
+            save_dict["poses_3d"] = np.asarray(self.poses_3d)
+        np.savez(path, **save_dict)  # pyright: ignore[reportArgumentType]
 
     @classmethod
     def load(cls, path: Path) -> "ReferenceData":

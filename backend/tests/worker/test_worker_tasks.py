@@ -39,6 +39,9 @@ def _make_vast_result(**overrides):
     result.metrics = None
     result.phases = None
     result.recommendations = None
+    result.goe_grade = None
+    result.segments = []
+    result.rotations = None
     for k, v in overrides.items():
         setattr(result, k, v)
     return result
@@ -274,6 +277,8 @@ class TestProcessVideoTask:
             )
 
             mock_db = AsyncMock()
+            # AsyncSession.add is synchronous; keep this test double aligned with its contract.
+            mock_db.add = MagicMock()
             mock_async_session.return_value = _make_async_session_cm(mock_db)
 
             # Mock session record
@@ -407,6 +412,8 @@ class TestProcessVideoTask:
             mock_remote.return_value = _make_vast_result()
 
             mock_db = AsyncMock()
+            # AsyncSession.add is synchronous; keep this test double aligned with its contract.
+            mock_db.add = MagicMock()
             mock_async_session.return_value = _make_async_session_cm(mock_db)
 
             mock_session = MagicMock()
@@ -567,6 +574,8 @@ class TestProcessVideoTask:
             )
 
             mock_db = AsyncMock()
+            # AsyncSession.add is synchronous; keep this test double aligned with its contract.
+            mock_db.add = MagicMock()
             mock_async_session.return_value = _make_async_session_cm(mock_db)
 
             mock_session = MagicMock()

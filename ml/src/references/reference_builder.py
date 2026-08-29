@@ -97,25 +97,25 @@ class ReferenceBuilder:
         output_path = output_dir / filename
 
         # Save to .npz format
-        save_dict = {
-            "element_type": ref.element_type,
-            "poses": ref.poses,
-            "meta_fps": ref.meta.fps if ref.meta else 30.0,
-            "meta_width": ref.meta.width if ref.meta else 1920,
-            "meta_height": ref.meta.height if ref.meta else 1080,
-            "meta_num_frames": ref.meta.num_frames if ref.meta else len(ref.poses),
-            "meta_path": str(ref.meta.path) if ref.meta else "",
-            "phases_name": ref.phases.name,
-            "phases_start": ref.phases.start,
-            "phases_takeoff": ref.phases.takeoff,
-            "phases_peak": ref.phases.peak,
-            "phases_landing": ref.phases.landing,
-            "phases_end": ref.phases.end,
-            "source": ref.source,
+        save_dict: dict[str, np.ndarray] = {
+            "element_type": np.asarray(ref.element_type),
+            "poses": np.asarray(ref.poses),
+            "meta_fps": np.asarray(ref.meta.fps if ref.meta else 30.0),
+            "meta_width": np.asarray(ref.meta.width if ref.meta else 1920),
+            "meta_height": np.asarray(ref.meta.height if ref.meta else 1080),
+            "meta_num_frames": np.asarray(ref.meta.num_frames if ref.meta else len(ref.poses)),
+            "meta_path": np.asarray(str(ref.meta.path) if ref.meta else ""),
+            "phases_name": np.asarray(ref.phases.name),
+            "phases_start": np.asarray(ref.phases.start),
+            "phases_takeoff": np.asarray(ref.phases.takeoff),
+            "phases_peak": np.asarray(ref.phases.peak),
+            "phases_landing": np.asarray(ref.phases.landing),
+            "phases_end": np.asarray(ref.phases.end),
+            "source": np.asarray(ref.source),
         }
         if ref.poses_3d is not None:
-            save_dict["poses_3d"] = ref.poses_3d
-        np.savez_compressed(output_path, **save_dict)
+            save_dict["poses_3d"] = np.asarray(ref.poses_3d)
+        np.savez_compressed(output_path, **save_dict)  # pyright: ignore[reportArgumentType]
 
         return output_path
 

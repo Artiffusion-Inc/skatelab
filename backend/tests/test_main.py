@@ -21,7 +21,9 @@ def app():
                     with patch("app.main.get_settings") as mock_get:
                         settings = MagicMock()
                         settings.cors.origins = ["http://localhost:3000"]
-                        settings.jwt.secret_key.get_secret_value.return_value = "test-secret"  # noqa: S105
+                        settings.jwt.secret_key.get_secret_value.return_value = (
+                            "test-secret-key-for-backend-tests-32b"  # noqa: S105
+                        )
                         settings.valkey.host = "localhost"
                         settings.valkey.port = 6379
                         settings.valkey.db = 0

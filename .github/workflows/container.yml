@@ -28,6 +28,8 @@ jobs:
         with:
           fetch-depth: 1
 
+      - uses: astral-sh/setup-uv@v7
+
       - name: Lowercase GHCR owner
         id: ghcr
         run: echo "owner=${GITHUB_REPOSITORY_OWNER,,}" >> "$GITHUB_OUTPUT"
@@ -45,8 +47,8 @@ jobs:
       - name: Generate pre-signed S3 URLs for models
         id: presign
         run: |
-          pip install boto3
-          python ml/scripts/generate_model_presigned_urls.py --output /tmp/model_urls.json
+          uv run --no-project --isolated --with 'boto3==1.42.91' \
+            python ml/scripts/generate_model_presigned_urls.py --output /tmp/model_urls.json
           echo "moganet_url=$(jq -r .moganet /tmp/model_urls.json)" >> "$GITHUB_OUTPUT"
           echo "rf_detr_url=$(jq -r .rf_detr /tmp/model_urls.json)" >> "$GITHUB_OUTPUT"
           echo "tcpformer_url=$(jq -r .tcpformer /tmp/model_urls.json)" >> "$GITHUB_OUTPUT"

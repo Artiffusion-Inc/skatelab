@@ -702,7 +702,7 @@ class BiomechanicsAnalyzer:
         # produce a ~360° jump. Idempotent for already-continuous series. #422
         unwrapped = np.unwrap(np.radians(angle_series))
         gradient = np.degrees(np.gradient(unwrapped))
-        return gradient * fps
+        return (gradient * fps).astype(np.float32)
 
     def compute_airtime(self, phases: ElementPhase, fps: float) -> float:
         """Compute flight time.

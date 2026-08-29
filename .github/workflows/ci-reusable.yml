@@ -31,6 +31,7 @@ jobs:
     outputs:
       python: ${{ steps.filter.outputs.python }}
       ml: ${{ steps.filter.outputs.ml }}
+      audit: ${{ steps.filter.outputs.audit }}
       frontend: ${{ steps.filter.outputs.frontend }}
       docker: ${{ steps.filter.outputs.docker }}
       design: ${{ steps.filter.outputs.design }}
@@ -52,6 +53,12 @@ jobs:
               - "ml/**"
               - "pyproject.toml"
               - "ml/pyproject.toml"
+            audit:
+              - "Taskfile.yml"
+              - ".github/workflows/**"
+              - "scripts/ci-audit/**"
+              - "infra/deploy.sh"
+              - "infra/prometheus/**"
             frontend:
               - "frontend/**"
             docker:
@@ -68,6 +75,24 @@ jobs:
               - "mobile/androidApp/**/theme/**"
               - "mobile/iosApp/**/Theme/**"
 
+  ci-audit:
+    name: CI Audit
+    needs: [changes]
+    if: ${{ inputs.run-all || needs.changes.outputs.audit == 'true' }}
+    runs-on: blacksmith-2vcpu-ubuntu-2404
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/setup-python-venv
+        with:
+          python-version: ${{ inputs.python-version }}
+      - name: Run static audit scripts
+        run: |
+          set -euo pipefail
+          for audit in scripts/ci-audit/test_*.py; do
+            uv run --all-packages --frozen python "$audit"
+          done
+
   lint-typecheck:
     name: Lint + Type Check
     needs: [changes]
@@ -80,19 +105,19 @@ jobs:
         with:
           python-version: ${{ inputs.python-version }}
       - name: Ruff format
-        run: uv run ruff format --check backend/ ml/
+        run: uv run --all-packages --frozen ruff format --check backend/ ml/
       - name: Ruff check
-        run: uv run ruff check backend/ ml/ --output-format=github
+        run: uv run --all-packages --frozen ruff check backend/ ml/ --output-format=github
       - name: Alembic single head
         run: |
-          HEADS=$(cd backend && uv run alembic heads 2>&1 | grep -c '(head)')
+          HEADS=$(uv run --frozen --project . --package backend alembic -c backend/alembic.ini heads 2>&1 | grep -c '(head)')
           if [ "$HEADS" -ne 1 ]; then
             echo "::error::Alembic has $HEADS heads (expected 1)"
-            cd backend && uv run alembic heads 2>&1
+            uv run --frozen --project . --package backend alembic -c backend/alembic.ini heads 2>&1
             exit 1
           fi
       - name: basedpyright
-        run: uv run basedpyright --level error backend/app
+        run: uv run --all-packages --frozen basedpyright --level error backend/app ml/src
 
   design-ci:
     name: Design Lint + Drift
@@ -127,7 +152,7 @@ jobs:
           python-version: ${{ inputs.python-version }}
       - name: pytest
         run: >
-          uv run pytest backend/tests/
+          uv run --all-packages --frozen pytest backend/tests/
           ml/tests/test_device.py ml/tests/test_types.py ml/tests/test_gap_filling.py
           ml/tests/test_worker_metrics.py ml/tests/test_tracked_extraction.py
           ml/tests/test_projection.py ml/tests/test_pipeline_parallel.py
@@ -180,9 +205,9 @@ jobs:
             echo "No coverage artifacts found — tests were skipped"
             exit 0
           fi
-          uv run coverage combine "${files[@]}"
-          uv run coverage xml -o coverage.xml
-          uv run coverage report --fail-under=0
+          uv run --all-packages --frozen coverage combine "${files[@]}"
+          uv run --all-packages --frozen coverage xml -o coverage.xml
+          uv run --all-packages --frozen coverage report --fail-under=0
       - uses: codecov/codecov-action@v6
         with:
           files: coverage.xml
@@ -211,7 +236,7 @@ jobs:
         with:
           python-version: ${{ inputs.python-version }}
       - name: pytest smoke
-        run: uv run pytest ml/tests/smoke/ -v -m smoke --tb=short
+        run: uv run --all-packages --frozen pytest ml/tests/smoke/ -v -m smoke --tb=short
 
   fe-check:
     name: Check (Biome + tsc)
@@ -361,7 +386,7 @@ jobs:
     name: CI Summary
     runs-on: blacksmith-2vcpu-ubuntu-2404-arm
     timeout-minutes: 5
-    needs: [changes, lint-typecheck, coverage, design-ci, test, smoke, fe-check, fe-build, fe-test, docker-backend, docker-frontend]
+    needs: [changes, ci-audit, lint-typecheck, coverage, design-ci, test, smoke, fe-check, fe-build, fe-test, docker-backend, docker-frontend]
     if: always()
     outputs:
       result: ${{ steps.check.outputs.result }}
@@ -380,6 +405,7 @@ jobs:
           DOCKER_FRONTEND: ${{ needs.docker-frontend.result }}
           DESIGN_CI: ${{ needs.design-ci.result }}
           CHANGES: ${{ needs.changes.result }}
+          CI_AUDIT: ${{ needs.ci-audit.result }}
         run: |
           FAILED=0
 
@@ -396,6 +422,7 @@ jobs:
             fi
           }
 
+          check_job "CI Audit" "$CI_AUDIT"
           check_job "Lint + Type Check" "$LINT_TYPECHECK"
           check_job "Coverage" "$COVERAGE"
           check_job "Tests" "$TEST"

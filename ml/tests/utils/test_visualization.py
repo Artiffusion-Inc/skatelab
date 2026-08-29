@@ -4,6 +4,7 @@ Updated for modular visualization API (H3.6M 17kp format).
 """
 
 import numpy as np
+import pytest
 
 from src.types import H36Key
 from src.visualization import (
@@ -156,17 +157,18 @@ class TestDrawTextBox:
 
 
 class TestRenderCyrillicText:
-    """Tests for render_cyrillic_text function."""
+    """Tests for deprecated render_cyrillic_text compatibility path."""
 
     def test_render_cyrillic_text(self):
         """Test Cyrillic text rendering."""
         frame = np.zeros((480, 640, 3), dtype=np.uint8)
 
-        result = render_cyrillic_text(
-            frame,
-            text="Тестовый текст",
-            position=(50, 50),
-        )
+        with pytest.warns(DeprecationWarning, match="render_cyrillic_text"):
+            result = render_cyrillic_text(
+                frame,
+                text="Тестовый текст",
+                position=(50, 50),
+            )
 
         assert result.shape == (480, 640, 3)
 
@@ -174,10 +176,11 @@ class TestRenderCyrillicText:
         """Test with empty text."""
         frame = np.zeros((480, 640, 3), dtype=np.uint8)
 
-        result = render_cyrillic_text(
-            frame,
-            text="",
-            position=(50, 50),
-        )
+        with pytest.warns(DeprecationWarning, match="render_cyrillic_text"):
+            result = render_cyrillic_text(
+                frame,
+                text="",
+                position=(50, 50),
+            )
 
         assert result.shape == (480, 640, 3)

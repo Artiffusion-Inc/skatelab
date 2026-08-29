@@ -6,6 +6,7 @@ import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.StandardTestDispatcher
@@ -29,6 +30,7 @@ import ru.skatelab.capture.domain.usecase.AccCalibrateSensorUseCase
 import ru.skatelab.capture.domain.usecase.ConnectSensorUseCase
 import ru.skatelab.capture.domain.usecase.FactoryResetSensorUseCase
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class BleScanViewModelTest {
     private val testDispatcher = StandardTestDispatcher()
     private val testScope = TestScope(testDispatcher)

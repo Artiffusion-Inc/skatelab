@@ -5,6 +5,7 @@ Pure onnxruntime — no torch/ultralytics dependency.
 """
 
 from pathlib import Path
+from typing import cast
 
 import cv2
 import numpy as np
@@ -156,8 +157,8 @@ class PersonDetector:
 
         # outputs[0]: (1, 300, 4) cxcywh normalized boxes
         # outputs[1]: (1, 300, 91) logits (90 classes + 1 no-object)
-        boxes = outputs[0]  # (1, 300, 4)
-        logits = outputs[1]  # (1, 300, 91)
+        boxes = cast("np.ndarray", outputs[0])  # (1, 300, 4)
+        logits = cast("np.ndarray", outputs[1])  # (1, 300, 91)
 
         # Step 1: Drop no-object logit column
         logits = _drop_no_object_logit(logits)  # (1, 300, 90)

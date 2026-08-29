@@ -1,6 +1,7 @@
 """End-to-end TAS inference: poses → ONNX BiGRU(+Refiner) coarse → segments → ONNX/CNN fine."""
 
 from pathlib import Path
+from typing import cast
 
 import numpy as np
 import onnxruntime as ort
@@ -66,7 +67,7 @@ class TASElementSegmenter:
         lengths = np.array([T], dtype=np.int64)
 
         feeds = dict(zip(self._input_names, [poses_batch, lengths], strict=True))
-        logits = self.session.run(self._output_names, feeds)[0]  # (1, T, 4)
+        logits = cast("np.ndarray", self.session.run(self._output_names, feeds)[0])  # (1, T, 4)
         pred_labels = logits[0].argmax(axis=-1)  # (T,)
 
         return self._extract_segments(pred_labels, poses, fps)
