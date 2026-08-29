@@ -48,6 +48,8 @@ class VastResult:
     goe_grade: dict | None = None
     segments: list[dict] | None = None
     rotations: int | None = None
+    imu_stats: dict | None = None
+    sensor_fusion: dict | None = None
 
 
 @dataclass
@@ -195,6 +197,8 @@ async def process_video_remote_async(
         recommendations=result.get("recommendations"),
         segments=segments,
         rotations=result.get("rotations"),
+        imu_stats=result.get("imu_stats"),
+        sensor_fusion=result.get("sensor_fusion"),
     )
 
 

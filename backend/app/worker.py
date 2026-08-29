@@ -436,7 +436,11 @@ async def process_video_task(
         response_data = {
             "poses_key": vast_result.poses_key or "",
             "metrics_key": vast_result.metrics_key or "",
-            "stats": vast_result.stats,
+            "stats": {
+                **vast_result.stats,
+                "imu_stats": vast_result.imu_stats,
+                "sensor_fusion": vast_result.sensor_fusion,
+            },
             "status": "Analysis complete!",
         }
         # Track whether the (non-critical) analyzer post-processing failed. When
