@@ -8,12 +8,25 @@ import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
+import io.ktor.http.content.ByteArrayContent
+import io.ktor.http.content.OutgoingContent
+import io.ktor.http.content.TextContent
 import io.ktor.http.headersOf
 import io.ktor.serialization.kotlinx.json.json
+import kotlinx.coroutines.flow.toList
+import kotlinx.serialization.SerializationException
 import kotlinx.serialization.json.Json
-import kotlin.math.roundToInt
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
+import kotlin.test.assertFalse
+import kotlin.test.assertTrue
+
+private fun bodyText(content: OutgoingContent): String = when (content) {
+    is TextContent -> content.text
+    is ByteArrayContent -> content.bytes().decodeToString()
+    else -> ""
+}
 
 class ProcessApiTest {
     private val json = Json { ignoreUnknownKeys = true }
@@ -37,8 +50,30 @@ class ProcessApiTest {
     }
 
     @Test
+    fun queue_withoutPersonClick_omitsPersonClick() = kotlinx.coroutines.test.runTest {
+        var requestBody = ""
+        val engine = MockEngine { request ->
+            requestBody = bodyText(request.body)
+            respond(
+                """{"task_id":"task-auto","status":"pending"}""",
+                status = HttpStatusCode.OK,
+                headers = headersOf(HttpHeaders.ContentType, ContentType.Application.Json.toString()),
+            )
+        }
+        val client = HttpClient(engine) {
+            install(ContentNegotiation) { json(json) }
+        }
+
+        ProcessApi(client).queue("video-key")
+
+        assertFalse(requestBody.contains("person_click"))
+    }
+
+    @Test
     fun queue_convertsPixelCoordinatesToBackendIntegers() = kotlinx.coroutines.test.runTest {
-        val engine = MockEngine {
+        var requestBody = ""
+        val engine = MockEngine { request ->
+            requestBody = bodyText(request.body)
             respond(
                 """{"task_id":"task-xy","status":"pending"}""",
                 status = HttpStatusCode.OK,
@@ -49,14 +84,54 @@ class ProcessApiTest {
             install(ContentNegotiation) { json(json) }
         }
 
-        val encoded = Json.encodeToString(
-            QueueProcessRequest(
-                videoKey = "video-key",
-                personClick = PersonClick(12.6f.roundToInt(), 40.4f.roundToInt()),
-            ),
+        ProcessApi(client).queue(
+            videoKey = "video-key",
+            personClickX = 12.6f,
+            personClickY = 40.4f,
         )
-        assertEquals(true, encoded.contains("\"x\":13"))
-        assertEquals(true, encoded.contains("\"y\":40"))
+
+        assertTrue(requestBody.contains("\"x\":13"))
+        assertTrue(requestBody.contains("\"y\":40"))
+        assertFalse(requestBody.contains("12.6"))
+    }
+
+    @Test
+    fun stream_stopsAfterCancelledTerminalEvent() = kotlinx.coroutines.test.runTest {
+        var requestCount = 0
+        val engine = MockEngine {
+            requestCount++
+            respond(
+                "data: {\"status\":\"cancelled\",\"message\":\"Cancelled\"}\n\n",
+                status = HttpStatusCode.OK,
+                headers = headersOf(HttpHeaders.ContentType, ContentType.Text.EventStream.toString()),
+            )
+        }
+        val client = HttpClient(engine)
+
+        val events = ProcessApi(client).stream("task-cancelled").toList()
+
+        assertEquals(1, events.size)
+        assertEquals("cancelled", events.single().status)
+        assertEquals(1, requestCount)
+    }
+
+    @Test
+    fun stream_doesNotRetryMalformedEvent() = kotlinx.coroutines.test.runTest {
+        var requestCount = 0
+        val engine = MockEngine {
+            requestCount++
+            respond(
+                "data: {not-json}\n\n",
+                status = HttpStatusCode.OK,
+                headers = headersOf(HttpHeaders.ContentType, ContentType.Text.EventStream.toString()),
+            )
+        }
+        val client = HttpClient(engine)
+
+        assertFailsWith<SerializationException> {
+            ProcessApi(client).stream("task-malformed").toList()
+        }
+        assertEquals(1, requestCount)
     }
 
     @Test

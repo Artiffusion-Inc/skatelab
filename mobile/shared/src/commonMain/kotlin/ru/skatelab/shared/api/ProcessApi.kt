@@ -2,13 +2,17 @@ package ru.skatelab.shared.api
 
 import io.ktor.client.*
 import io.ktor.client.call.*
+import io.ktor.client.network.sockets.SocketTimeoutException
+import io.ktor.client.plugins.HttpRequestTimeoutException
 import io.ktor.client.request.*
 import io.ktor.client.statement.*
 import io.ktor.http.*
 import io.ktor.utils.io.*
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
-import kotlin.math.roundToInt
 import kotlinx.coroutines.flow.flow
+import kotlinx.io.IOException
+import kotlin.math.roundToInt
 import kotlinx.serialization.EncodeDefault
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.SerialName
@@ -67,7 +71,8 @@ class ProcessApi(private val client: HttpClient) : IProcessApi {
                                 emit(event)
                                 receivedEvent = true
                                 if (event.parsedStatus == ProcessStatus.COMPLETED ||
-                                    event.parsedStatus == ProcessStatus.FAILED
+                                    event.parsedStatus == ProcessStatus.FAILED ||
+                                    event.parsedStatus == ProcessStatus.CANCELLED
                                 ) {
                                     return@flow
                                 }
@@ -84,12 +89,14 @@ class ProcessApi(private val client: HttpClient) : IProcessApi {
                     continue
                 }
                 return@flow
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: io.ktor.client.plugins.ResponseException) {
+                throw e
             } catch (e: Exception) {
-                // Auth/server errors (ResponseException) must propagate out of the
-                // flow so ProcessingViewModel.startProcessing's catch routes them via
-                // toAppError -> AppError.Auth (401/403) -> Failed + propagateIfAuth.
-                // Only retry transient network errors (IOException/SocketTimeout/timeout).
-                if (e is io.ktor.client.plugins.ResponseException) throw e
+                if (e !is IOException && e !is SocketTimeoutException && e !is HttpRequestTimeoutException) {
+                    throw e
+                }
                 retries++
                 if (retries > maxRetries) return@flow
                 kotlinx.coroutines.delay(1000L * retries)
