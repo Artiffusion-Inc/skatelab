@@ -23,7 +23,16 @@ def angle_3pt_rad(a: np.ndarray, b: np.ndarray, c: np.ndarray) -> float:
     ba = a - b
     bc = c - b
 
-    cosine_angle = np.dot(ba, bc) / (np.linalg.norm(ba) * np.linalg.norm(bc) + 1e-8)
+    # #1055: explicit norm guard — a zero-length ba or bc (degenerate joint:
+    # A=B, B=C, or A=B=C) is an UNDEFINED angle. The previous ``+ 1e-8``
+    # epsilon hid this case: 0/eps=0 → arccos(0)=π/2 (90 deg) silently,
+    # indistinguishable from a real 90 deg joint by the caller. Return NaN so
+    # ``compute_joint_angles`` and other callers can mask it.
+    norm_ba = np.linalg.norm(ba)
+    norm_bc = np.linalg.norm(bc)
+    if norm_ba < 1e-9 or norm_bc < 1e-9:
+        return float("nan")
+    cosine_angle = np.dot(ba, bc) / (norm_ba * norm_bc)
     # Manual clamp instead of np.clip for scalar
     cosine_angle = max(-1.0, min(1.0, cosine_angle))
     angle = np.arccos(cosine_angle)
@@ -61,6 +70,14 @@ def angle_3pt(a: NDArray[np.float64], b: NDArray[np.float64], c: NDArray[np.floa
     a = np.asarray(a, dtype=np.float64)
     b = np.asarray(b, dtype=np.float64)
     c = np.asarray(c, dtype=np.float64)
+
+    # #863: the @njit(fastmath=True) core divides by ``norm*norm + 1e-8``. Under
+    # fastmath NaN does not propagate through the division — a NaN vertex (e.g.
+    # an occluded knee keypoint) raises ZeroDivisionError instead of returning
+    # NaN, which crashes analyze() and kills the whole session. Guard before
+    # the jitted core: propagate NaN so callers can skip/mask the leg.
+    if not (np.all(np.isfinite(a)) and np.all(np.isfinite(b)) and np.all(np.isfinite(c))):
+        return float("nan")
 
     angle_rad = angle_3pt_rad(a, b, c)
     return float(np.degrees(angle_rad))
@@ -149,8 +166,23 @@ def normalize_poses(
     if raw.shape[1] != 17:
         raise ValueError(f"Expected 17 keypoints (H3.6M format), got {raw.shape[1]}")
 
-    # Mid-hip point (N, 2)
-    mid_hip_raw = (raw[:, H36Key.LHIP, :2] + raw[:, H36Key.RHIP, :2]) / 2
+    # Mid-hip point (N, 2). #1039: NaN in either hip (LHIP is a default
+    # spine_index) propagated through `(LHIP + RHIP) / 2` into the root shift,
+    # NaN-poisoning all 17 joints at centering. NaN-aware mean: average the
+    # finite hips only; both-NaN → 0 (no shift, identity). All-finite case is
+    # byte-identical to `(LHIP + RHIP) / 2`.
+    lhip = raw[:, H36Key.LHIP, :2]
+    rhip = raw[:, H36Key.RHIP, :2]
+    lhip_f = np.where(np.isfinite(lhip), lhip, 0.0)
+    rhip_f = np.where(np.isfinite(rhip), rhip, 0.0)
+    n_finite = np.isfinite(lhip).all(axis=1).astype(np.float32) + np.isfinite(rhip).all(
+        axis=1
+    ).astype(np.float32)
+    mid_hip_raw = np.where(
+        (n_finite > 0)[:, np.newaxis],
+        (lhip_f + rhip_f) / np.where(n_finite[:, np.newaxis] > 0, n_finite[:, np.newaxis], 1.0),
+        0.0,
+    )
 
     # 1. Root-centering: shift mid-hip to origin (N, 17, 2)
     centered = raw[:, :, :2] - mid_hip_raw[:, np.newaxis, :]
@@ -160,7 +192,16 @@ def normalize_poses(
     spine_vector = centered[:, shoulder_idx] - centered[:, hip_idx]  # (N, 2)
     spine_length = np.linalg.norm(spine_vector, axis=1)  # (N,)
 
-    scale = np.where(spine_length < 1e-6, 1.0, target_spine_length / spine_length)  # (N,)
+    # #1039: NaN-blind `spine_length < 1e-6` guard lets NaN through (`NaN < 1e-6`
+    # = False → picks `target/NaN` = NaN) → scale=NaN → whole (17,2) frame NaN.
+    # One occluded LSHOULDER/LHIP (default spine_indices) poisoned the entire
+    # 2D pose. Build a safe spine_length: NaN/degenerate → 1.0 so scale is
+    # finite (identity for NaN-spine frames — the NaN joint stays NaN, the 16
+    # finite joints are NOT multiplied by NaN). All-valid case is
+    # byte-identical: isfinite & >=1e-6 selects the real spine_length.
+    valid = np.isfinite(spine_length) & (spine_length >= 1e-6)
+    spine_length_safe = np.where(valid, spine_length, 1.0)
+    scale = target_spine_length / spine_length_safe  # (N,)
 
     normalized = centered * scale[:, np.newaxis, np.newaxis]  # (N, 17, 2)
 
@@ -323,13 +364,28 @@ def calculate_com_trajectory(poses: NormalizedPose) -> NDArray[np.float32]:
     l_leg = (poses[:, H36Key.LKNEE] + poses[:, H36Key.LFOOT]) / 2
     r_leg = (poses[:, H36Key.RKNEE] + poses[:, H36Key.RFOOT]) / 2
 
-    # Weighted sum of Y-coordinates: (N,)
+    # Weighted sum of Y-coordinates: (N,).
+    # #871: NaN-aware CoM — an occluded keypoint must NOT poison the CoM and
+    # flip hard_landing to a false best score. Mask each segment's contribution
+    # to 0 when NaN (its mass is simply absent for that frame). All-valid case
+    # is byte-identical: np.where(isfinite, term, 0) == term when finite. No
+    # renormalization — Dempster masses sum to 1.3 (not 1.0), so renormalizing
+    # would rescale every all-valid frame and regress the no-NaN contract.
+    def _w(mass: float, y: NDArray[np.floating]) -> NDArray[np.floating]:
+        term = mass * y
+        return np.where(np.isfinite(y), term, 0.0)
+
     com_y = (
-        head_mass * head[:, 1]
-        + torso_mass * torso[:, 1]
-        + arm_mass * (l_upper_arm[:, 1] + r_upper_arm[:, 1] + l_forearm[:, 1] + r_forearm[:, 1])
-        + thigh_mass * (l_thigh[:, 1] + r_thigh[:, 1])
-        + leg_mass * (l_leg[:, 1] + r_leg[:, 1])
+        _w(head_mass, head[:, 1])
+        + _w(torso_mass, torso[:, 1])
+        + _w(arm_mass, l_upper_arm[:, 1])
+        + _w(arm_mass, r_upper_arm[:, 1])
+        + _w(arm_mass, l_forearm[:, 1])
+        + _w(arm_mass, r_forearm[:, 1])
+        + _w(thigh_mass, l_thigh[:, 1])
+        + _w(thigh_mass, r_thigh[:, 1])
+        + _w(leg_mass, l_leg[:, 1])
+        + _w(leg_mass, r_leg[:, 1])
     )
 
     return com_y.astype(np.float32)
@@ -373,13 +429,32 @@ def calculate_com_trajectory_3d(poses: NormalizedPose3D) -> NDArray[np.float32]:
     l_leg = (poses[:, H36Key.LKNEE] + poses[:, H36Key.LFOOT]) / 2
     r_leg = (poses[:, H36Key.RKNEE] + poses[:, H36Key.RFOOT]) / 2
 
+    # #994: NaN-aware CoM — mirror the 2D #871 mask. The 3D trajectory
+    # previously propagated an occluded joint's NaN straight into com_z (no
+    # `_w` guard), so ONE NaN frame → NaN CoM → `np.std(excursion)=NaN` in
+    # `_detect_jump_phases_parabolic` → the `threshold < 1e-6` guard is
+    # `NaN < 1e-6`=False (bypassed) → `elevated = x < NaN`=all False → silent
+    # fallback to the velocity-based detector, losing parabolic precision for
+    # the WHOLE video on one occluded frame. Mask each segment's contribution
+    # to 0 when NaN (its mass is simply absent for that frame). All-valid case
+    # is byte-identical: np.where(isfinite, term, 0) == term when finite. No
+    # renormalization — same contract as the 2D path.
+    def _w(mass: float, y: NDArray[np.floating]) -> NDArray[np.floating]:
+        term = mass * y
+        return np.where(np.isfinite(y), term, 0.0)
+
     # Weighted sum of Z-coordinates (index 2 = height axis)
     com_z = (
-        head_mass * head[:, 2]
-        + torso_mass * torso[:, 2]
-        + arm_mass * (l_upper_arm[:, 2] + r_upper_arm[:, 2] + l_forearm[:, 2] + r_forearm[:, 2])
-        + thigh_mass * (l_thigh[:, 2] + r_thigh[:, 2])
-        + leg_mass * (l_leg[:, 2] + r_leg[:, 2])
+        _w(head_mass, head[:, 2])
+        + _w(torso_mass, torso[:, 2])
+        + _w(arm_mass, l_upper_arm[:, 2])
+        + _w(arm_mass, r_upper_arm[:, 2])
+        + _w(arm_mass, l_forearm[:, 2])
+        + _w(arm_mass, r_forearm[:, 2])
+        + _w(thigh_mass, l_thigh[:, 2])
+        + _w(thigh_mass, r_thigh[:, 2])
+        + _w(leg_mass, l_leg[:, 2])
+        + _w(leg_mass, r_leg[:, 2])
     )
 
     return com_z.astype(np.float32)
@@ -423,13 +498,28 @@ def calculate_com_trajectory_2d(poses: NormalizedPose) -> NDArray[np.float32]:
     l_leg = (poses[:, H36Key.LKNEE] + poses[:, H36Key.LFOOT]) / 2
     r_leg = (poses[:, H36Key.RKNEE] + poses[:, H36Key.RFOOT]) / 2
 
-    # Weighted sum of (x, y) coordinates: (N, 2)
+    # Weighted sum of (x, y) coordinates: (N, 2).
+    # #878: NaN-aware CoM — same contract as calculate_com_trajectory (#871).
+    # An occluded keypoint must NOT poison the CoM and leak nan into
+    # approach_direction_change (which then inflates the GOE via
+    # min(1.0, nan)=1.0, #454). Mask each segment's contribution to 0 when NaN
+    # (its mass is simply absent for that frame). All-valid case is
+    # byte-identical. No renormalization — Dempster masses sum to 1.3.
+    def _w2(mass: float, seg: NDArray[np.floating]) -> NDArray[np.floating]:
+        term = mass * seg
+        return np.where(np.isfinite(seg), term, 0.0)
+
     com = (
-        head_mass * head
-        + torso_mass * torso
-        + arm_mass * (l_upper_arm + r_upper_arm + l_forearm + r_forearm)
-        + thigh_mass * (l_thigh + r_thigh)
-        + leg_mass * (l_leg + r_leg)
+        _w2(head_mass, head)
+        + _w2(torso_mass, torso)
+        + _w2(arm_mass, l_upper_arm)
+        + _w2(arm_mass, r_upper_arm)
+        + _w2(arm_mass, l_forearm)
+        + _w2(arm_mass, r_forearm)
+        + _w2(thigh_mass, l_thigh)
+        + _w2(thigh_mass, r_thigh)
+        + _w2(leg_mass, l_leg)
+        + _w2(leg_mass, r_leg)
     )
 
     return com.astype(np.float32)

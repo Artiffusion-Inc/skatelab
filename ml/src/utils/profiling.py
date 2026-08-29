@@ -6,6 +6,7 @@ specifically designed for tracking execution time of pipeline stages.
 
 from __future__ import annotations
 
+import math
 import time
 from dataclasses import dataclass
 from functools import wraps
@@ -79,8 +80,8 @@ class PipelineProfiler:
             name: Stage identifier.
             wall_time_s: Wall-clock time in seconds (must be non-negative).
         """
-        if wall_time_s < 0:
-            raise ValueError(f"wall_time_s must be non-negative, got {wall_time_s}")
+        if not math.isfinite(wall_time_s) or wall_time_s < 0:
+            raise ValueError(f"wall_time_s must be finite and >= 0, got {wall_time_s}")
 
         if name in self._stages:
             existing = self._stages[name]
@@ -115,7 +116,7 @@ class PipelineProfiler:
 
         total = self.total_wall_time_s
         for stage in self.stages:
-            pct = (stage.wall_time_s / total * 100) if total > 0 else 0
+            pct = (stage.wall_time_s / total * 100) if (math.isfinite(total) and total > 0) else 0
             lines.append(
                 f"{stage.name:<30} {stage.wall_time_s:>12.4f} {pct:>7.1f}% {stage.call_count:>8d}"
             )

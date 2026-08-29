@@ -118,9 +118,13 @@ class VelocityLayer(Layer):
             self._prev_pose_2d = context.pose_2d.copy()
             self._prev_pose_3d = context.pose_3d.copy() if context.pose_3d is not None else None
         elif context.pose_2d is None:
+            # #797: occlusion / person-switch frame — reset BOTH. A pasted-twice
+            # unconditional `self._prev_pose_3d = ...` line used to run after this
+            # and undo the 3D reset when pose_3d was set (3D lift ok, 2D detection
+            # failed), so a stale 3D pose survived → spurious velocity arrow next
+            # frame, and the 2D person-switch guard never fired (2D was None).
             self._prev_pose_2d = None
             self._prev_pose_3d = None
-        self._prev_pose_3d = context.pose_3d.copy() if context.pose_3d is not None else None
 
         return frame
 
@@ -137,15 +141,20 @@ class VelocityLayer(Layer):
         if np.all(np.isnan(context.pose_2d)):
             return
 
-        # Detect person switch: if mid-hip jumped too far, reset history
+        # Detect person switch: if mid-hip jumped too far, reset history.
+        # NaN hip (occlusion) → fail closed: treat as switch, clear history (#973),
+        # so a person switch hidden behind a NaN hip is not silently missed.
         hip_now = context.pose_2d[H36Key.RHIP, :2]
         hip_prev = self._prev_pose_2d[H36Key.RHIP, :2]
-        if np.linalg.norm(hip_now - hip_prev) > self.max_jump:
+        hip_jump = np.linalg.norm(hip_now - hip_prev)
+        if not np.isfinite(hip_jump) or hip_jump > self.max_jump:
             self._vel_history.clear()
             return
 
-        # Raw velocity for this frame
+        # Raw velocity for this frame — mask NaN joints so history stays finite (#973),
+        # one occluded joint must not poison np.mean over the window.
         raw_vel = (context.pose_2d - self._prev_pose_2d) * self.scale
+        raw_vel = np.nan_to_num(raw_vel, nan=0.0)
 
         # Smooth over a sliding window to eliminate jitter
         self._vel_history.append(raw_vel)

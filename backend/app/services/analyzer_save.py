@@ -2,10 +2,13 @@
 
 from __future__ import annotations
 
+import logging
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession
+
+_logger = logging.getLogger(__name__)
 
 
 def _metrics_to_dict(metrics: list[Any]) -> dict[str, float]:
@@ -63,6 +66,18 @@ async def save_analyzer_results(
     Returns:
         Dict with overall_score, element_type, and rotations for gamification.
     """
+    # #647 / #1251: validate fps at the trust boundary. fps=0 raises
+    # ZeroDivisionError in the first phase dict's `start / fps`,
+    # crashing the whole save with HTTP 500. fps=NaN (corrupt video
+    # metadata) silently produces NaN phase times (#1251) — frame / NaN
+    # = NaN propagates to SessionPhase rows. NaN comparison always
+    # returns False, so a plain `<= 0` check passes through NaN —
+    # also need `not math.isfinite` to catch it.
+    import math as _math
+
+    if not _math.isfinite(fps) or fps <= 0:
+        raise ValueError(f"fps must be > 0, got {fps}")
+
     from app.crud.session_phase import create as create_phase
     from app.crud.session_score import create as create_score
 
@@ -98,13 +113,40 @@ async def save_analyzer_results(
         landing = _field("landing", 0) or 0
         end = _field("end", 0) or 0
 
+        # #1248: `or 0` does not catch NaN/Inf (NaN is truthy), and the
+        # monotonicity chain silently returns False for non-finite values,
+        # producing an empty phase list with no operator signal. Check
+        # isfinite up front and log a WARNING so the silent skip is
+        # traceable to corrupted phase input.
+        import math as _math
+
+        _bad = [
+            name
+            for name, val in (
+                ("start", start),
+                ("takeoff", takeoff),
+                ("peak", peak),
+                ("landing", landing),
+                ("end", end),
+            )
+            if not _math.isfinite(val)
+        ]
+        if _bad:
+            _logger.warning(
+                "analyzer_save: non-finite phase field(s) %s "
+                "for element_type=%r session_id=%s; skipping phase build",
+                _bad,
+                element_type,
+                session_id,
+            )
+            phase_dicts = []
         # #461: monotonicity guard. The dict-path (#445) made degenerate
         # boundaries reachable — if end < landing, landing_mid = landing +
         # max(1, (end-landing)//2) yields a landing phase end beyond `end`,
         # and the glide_out phase gets start_frame > end_frame (negative
         # duration SessionPhase row). Reject any non-monotonic ordering; the
         # caller records fallback_used=True and no SessionPhase rows instead.
-        if not (start <= takeoff <= peak <= landing <= end):
+        elif not (start <= takeoff <= peak <= landing <= end):
             phase_dicts = []
         elif takeoff > 0 and landing > 0:
             # #472: clamp landing_mid to end. When end == landing the

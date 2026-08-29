@@ -7,6 +7,7 @@ per-frame rendering, and data export. Callers provide video I/O.
 from __future__ import annotations
 
 import csv as _csv
+import math
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
@@ -175,7 +176,22 @@ class VizPipeline:
         total = self.meta.num_frames
         fps = self.meta.fps
 
-        time_sec = frame_idx / fps
+        # #1105: NaN/inf on EITHER side of `frame_idx / fps` reaches the
+        # unguarded `int(time_sec) // 60` and `int((seconds % 1) * 100)`
+        # and raises ValueError / OverflowError. The #959 `if fps > 0`
+        # guard is NaN-fps-blind-pass by accident (`NaN > 0` is False
+        # -> 0.0 branch) but is fps-only - NaN/inf frame_idx with valid
+        # fps LEAKS NaN to the int() conversions. Use `math.isfinite`
+        # on both inputs - mirror the #1115 sibling at line 215-220
+        # and the trust-boundary pattern at `types.py:459
+        # VideoMeta.duration_sec`, `phase_detector.py:383`,
+        # `physics_engine.py:381/486`. Degrade to 0.0 (mirror the
+        # #959 contract): the frame counter (frame_idx/total, fps-
+        # independent) is still rendered, only the timestamp is
+        # unknowable.
+        fps_finite = math.isfinite(fps) and fps > 0
+        frame_finite = math.isfinite(float(frame_idx))
+        time_sec = frame_idx / fps if fps_finite and frame_finite else 0.0
         minutes = int(time_sec) // 60
         seconds = time_sec % 60
         ms = int((seconds % 1) * 100)
@@ -194,11 +210,28 @@ class VizPipeline:
         """Collect data for NPY + CSV export."""
         if pose_idx is None:
             return
+        # #1115: NaN/inf on EITHER side of `frame_idx / self.meta.fps`
+        # silently leaks NaN to the CSV (`round(NaN, 3) = NaN`). The
+        # #959 `if fps > 0` guard is NaN-fps-blind-pass by accident
+        # (`NaN > 0` is False → 0.0 branch) but inf-fps-blind-fail
+        # (`inf > 0` is True → `5/inf = 0.0` indistinguishable from a
+        # legitimate fps=0 broken-header video), AND it ignores
+        # `frame_idx=nan` entirely (NaN/30 = NaN). Use `math.isfinite`
+        # on both inputs — mirror the trust-boundary pattern at
+        # `types.py:459 VideoMeta.duration_sec`,
+        # `phase_detector.py:383`, `physics_engine.py:381/486`. Degrade
+        # to 0.0 (mirror the #959 contract) instead of skipping the
+        # frame — the row is still useful (joint angles, floor angle,
+        # poses), only the timestamp column is unknowable.
+        fps_finite = math.isfinite(self.meta.fps) and self.meta.fps > 0
+        frame_finite = math.isfinite(float(frame_idx))
+        self.export_frames.append(frame_idx)
+        self.export_timestamps.append(
+            round(frame_idx / self.meta.fps, 3) if fps_finite and frame_finite else 0.0
+        )
+        self.export_floor_angles.append(round(floor_angle, 2))
         from src.analysis.angles import compute_joint_angles
 
-        self.export_frames.append(frame_idx)
-        self.export_timestamps.append(round(frame_idx / self.meta.fps, 3))
-        self.export_floor_angles.append(round(floor_angle, 2))
         ja = compute_joint_angles(self.poses_norm[pose_idx])
         self.export_joint_angles.append(ja)
         if self.poses_px is not None:

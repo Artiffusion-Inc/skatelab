@@ -3,11 +3,24 @@
 These rules generate specific Russian recommendations for common three-turn errors.
 """
 
+import math
+
 from ...types import RecommendationRule
 
 
 def _is_bad(value: float, ref_range: tuple[float, float]) -> bool:
-    """Check if value is outside acceptable range."""
+    """Check if value is outside acceptable range.
+
+    #1333: NaN-aware — a non-finite value is "unknown", not "bad". The bare
+    chained comparison `not (low <= nan <= high)` evaluates to True (NaN
+    comparisons are False, so the chain is False, and `not False` is True),
+    which would false-trigger a rule on missing data. NaN metrics must not
+    produce actionable advice. The Recommender.recommend entry-guard (#584)
+    skips non-finite values first; this guard is defense-in-depth for any
+    direct caller of _is_bad. Mirror of jump_rules._is_bad (#887).
+    """
+    if not math.isfinite(value):
+        return False
     return not (ref_range[0] <= value <= ref_range[1])
 
 

@@ -7,6 +7,8 @@ Provides functions for rendering specific HUD elements:
 - Blade indicator
 """
 
+import math
+
 import cv2
 import numpy as np
 from numpy.typing import NDArray
@@ -271,8 +273,17 @@ def draw_phase_indicator(
     )
 
     # Draw confidence if provided
-    if confidence is not None:
+    # ponytail: NaN/inf confidence → "Conf: nan" HUD leak (issue #974).
+    # isfinite guard rejects NaN (NaN is not None) and inf; placeholder "—"
+    # mirrors #970 draw_axes convention.
+    if confidence is not None and np.isfinite(confidence):
         conf_text = f"Conf: {confidence:.2f}"
+    elif confidence is not None:
+        conf_text = "Conf: —"
+    else:
+        conf_text = None
+
+    if conf_text is not None:
         draw_text_box(
             frame,
             conf_text,
@@ -325,8 +336,21 @@ def draw_blade_indicator_hud(
     # Get color for blade type
     color = _get_blade_color(blade_state.blade_type)
 
+    # ponytail: NaN/inf foot_angle → int(NaN) ValueError crash in
+    # _draw_direction_arrow (line 435) and "nan°" / "inf°" HUD text leak.
+    # One isfinite guard feeds both the arrow draw and the f-string render.
+    # NaN → 0.0 (neutral arrow up), placeholder "—" for the angle text.
+    # Mirrors #974 (draw_phase_indicator) / #970 (draw_axes) convention.
+    foot_angle = blade_state.foot_angle
+    if not np.isfinite(foot_angle):
+        arrow_angle = 0.0
+        angle_text = "—"
+    else:
+        arrow_angle = foot_angle
+        angle_text = f"{foot_angle:.1f}°"
+
     # Draw directional arrow based on foot angle
-    _draw_direction_arrow(frame, x, y, blade_state.foot_angle, size, thickness, color)
+    _draw_direction_arrow(frame, x, y, arrow_angle, size, thickness, color)
 
     # Draw blade type label
     label = blade_state.blade_type.name.lower()
@@ -340,14 +364,18 @@ def draw_blade_indicator_hud(
     label_x = x - text_width // 2
     label_y = y + size + 20
 
+    # ponytail: NaN/inf font_scale → int(NaN) ValueError crash in put_text
+    # font_size (line 372). Default to 32 (the documented default font_size)
+    # on corruption; rendering with the default is better than aborting the
+    # entire label. Mirrors #1205 (vertical_axis int) / #1156 convention.
+    safe_font_size = int(font_scale * 32) if math.isfinite(font_scale) else 32
+
     put_text(
         frame,
         label,
         (label_x, label_y),
         font_path=font_path,
-        font_size=int(
-            font_scale * 32
-        ),  # Convert from font_scale to font_size (32 is default font_size)
+        font_size=safe_font_size,
         color=color,
         bg_color=None,
         bg_alpha=0,
@@ -355,7 +383,6 @@ def draw_blade_indicator_hud(
     )
 
     # Draw foot angle value
-    angle_text = f"{blade_state.foot_angle:.1f}°"
     (angle_width, angle_height), _ = cv2.getTextSize(
         angle_text,
         cv2.FONT_HERSHEY_SIMPLEX,
@@ -366,14 +393,16 @@ def draw_blade_indicator_hud(
     angle_x = x - angle_width // 2
     angle_y = label_y + angle_height + 15
 
+    # ponytail: Same NaN/inf font_scale guard as the label put_text above.
+    # 0.8 factor preserves the visual scaling for the angle value text.
+    safe_angle_font_size = int(font_scale * 0.8 * 32) if math.isfinite(font_scale) else 32
+
     put_text(
         frame,
         angle_text,
         (angle_x, angle_y),
         font_path=font_path,
-        font_size=int(
-            font_scale * 0.8 * 32
-        ),  # Convert from font_scale to font_size (32 is default font_size)
+        font_size=safe_angle_font_size,
         color=font_color,
         bg_color=None,
         bg_alpha=0,
@@ -417,6 +446,18 @@ def _draw_direction_arrow(
         color: BGR color.
     """
     import math
+
+    # ponytail: NaN/inf x/y/size/angle/thickness → int(NaN) ValueError crash
+    # in the four int() casts below. Skip arrow for corrupted frame.
+    # Mirrors #965 (draw_blade_indicator_hud) / #974 / #970 convention.
+    if not (
+        math.isfinite(x)
+        and math.isfinite(y)
+        and math.isfinite(size)
+        and math.isfinite(angle)
+        and math.isfinite(thickness)
+    ):
+        return
 
     # Convert angle to radians
     angle_rad = math.radians(angle)
@@ -470,15 +511,18 @@ def draw_info_text(
     """
     x, y = position
 
+    # ponytail: NaN/inf font_scale → int(NaN) ValueError crash in put_text
+    # font_size (line 522). Default to 32 on corruption; loop would otherwise
+    # abort on the first line and skip the rest. Mirrors #1205 / #1156.
+    safe_font_size = int(font_scale * 32) if math.isfinite(font_scale) else 32
+
     for line in lines:
         put_text(
             frame,
             line,
             (x, y),
             font_path=font_path,
-            font_size=int(
-                font_scale * 32
-            ),  # Convert from font_scale to font_size (32 is default font_size)
+            font_size=safe_font_size,
             color=font_color,
             bg_color=None,
             bg_alpha=0,

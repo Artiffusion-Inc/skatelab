@@ -59,10 +59,29 @@ from app.storage import upload_file
 if TYPE_CHECKING:
     from app.models.choreography import ChoreographyProgram
 
+MAX_MUSIC_UPLOAD_BYTES = 100 * 1024 * 1024  # #704: 100 MB limit
+
 
 def _program_to_response(program: ChoreographyProgram) -> ChoreographyProgramResponse:
     """Convert ORM ChoreographyProgram to response schema."""
     return ChoreographyProgramResponse.model_validate(program)
+
+
+async def _verify_music_ownership(db: DbDep, music_id: str | None, user_id: str) -> None:
+    """#707 #708: Check that music_analysis_id belongs to the user, if provided."""
+    if music_id is None:
+        return
+    music = await get_music_analysis_by_id(db, music_id)
+    if not music:
+        raise ClientException(
+            status_code=HTTP_404_NOT_FOUND,
+            detail="Music analysis not found",
+        )
+    if music.user_id != user_id:
+        raise ClientException(
+            status_code=HTTP_403_FORBIDDEN,
+            detail="Not authorized",
+        )
 
 
 class ChoreographyController(Controller):
@@ -98,10 +117,17 @@ class ChoreographyController(Controller):
             else ".mp3"
         )
         content = await file.read()
+        if len(content) > MAX_MUSIC_UPLOAD_BYTES:  # #704: file size limit
+            raise ClientException(
+                status_code=HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=f"File too large (max {MAX_MUSIC_UPLOAD_BYTES // (1024 * 1024)} MB)",
+            )
 
         # Dedup: check if this exact file was already analyzed
         fingerprint = hashlib.sha256(content).hexdigest()
-        existing = await find_music_by_fingerprint(db, fingerprint)
+        existing = await find_music_by_fingerprint(
+            db, fingerprint, user_id=verified_user.id
+        )  # #705: scope to own music
         if existing:
             logger.info("Music fingerprint hit: %s (existing=%s)", fingerprint, existing.id)
             return UploadMusicResponse(music_id=existing.id, filename=existing.filename)
@@ -136,7 +162,7 @@ class ChoreographyController(Controller):
                 _queue_name="skatelab:queue:fast",
             )
             logger.info("Enqueued analyze_music_task for music_id=%s", music.id)
-        except (OSError, ValueError, RuntimeError) as e:
+        except Exception as e:  # #706: broadened from (OSError, ValueError, RuntimeError) to catch FailedEnqueueError etc
             # Log the raw exception server-side (logger.exception dumps the traceback
             # with full detail); send the client only a generic user-facing message
             # so internal S3 infrastructure (bucket name, endpoint host, paths) does
@@ -226,7 +252,7 @@ class ChoreographyController(Controller):
                     goe=e.get("goe", 0),
                     timestamp=e.get("timestamp", 0.0),
                     position=e.get("position"),
-                    is_back_half=False,
+                    is_back_half=e.get("is_back_half", False),  # #716: was hardcoded False
                     is_jump_pass="jump_pass_index" in e,
                     jump_pass_index=e.get("jump_pass_index"),
                 )
@@ -242,7 +268,9 @@ class ChoreographyController(Controller):
         return GenerateResponse(layouts=response_layouts)
 
     @post("/validate")
-    async def validate_choreography(self, data: ValidateRequest) -> ValidateResponse:
+    async def validate_choreography(
+        self, data: ValidateRequest, verified_user: VerifiedUser
+    ) -> ValidateResponse:  # #712: added auth
         """Validate a layout against ISU rules."""
         layout = {
             "discipline": data.discipline,
@@ -261,7 +289,9 @@ class ChoreographyController(Controller):
     # -----------------------------------------------------------------------
 
     @post("/render-rink")
-    async def render_rink_diagram(self, data: RenderRinkRequest) -> dict:
+    async def render_rink_diagram(
+        self, data: RenderRinkRequest, verified_user: VerifiedUser
+    ) -> dict:  # #709: added auth
         """Render an SVG rink diagram with element markers."""
         svg = render_rink(
             data.elements,
@@ -277,7 +307,9 @@ class ChoreographyController(Controller):
     # -----------------------------------------------------------------------
 
     @get("/elements/registry")
-    async def get_elements_registry(self) -> ElementRegistryResponse:
+    async def get_elements_registry(
+        self, verified_user: VerifiedUser
+    ) -> ElementRegistryResponse:  # #711: added auth
         from app.services.choreography.elements_db import ELEMENTS
 
         elements = [
@@ -328,6 +360,7 @@ class ChoreographyController(Controller):
         self, data: SaveProgramRequest, verified_user: VerifiedUser, db: DbDep
     ) -> ChoreographyProgramResponse:
         """Create a new choreography program."""
+        await _verify_music_ownership(db, data.music_analysis_id, verified_user.id)  # #707
         program = await create_program(
             db,
             user_id=verified_user.id,
@@ -384,9 +417,12 @@ class ChoreographyController(Controller):
                 status_code=HTTP_403_FORBIDDEN,
                 detail="Not authorized",
             )
+        await _verify_music_ownership(db, data.music_analysis_id, verified_user.id)  # #708
         program = await update_program(
             db,
             program,
+            discipline=data.discipline,  # #713: was silently dropped
+            segment=data.segment,  # #713: was silently dropped
             title=data.title,
             music_analysis_id=data.music_analysis_id,
             layout=data.layout,
@@ -451,21 +487,20 @@ class ChoreographyController(Controller):
                     "title": program.title,
                     "discipline": program.discipline,
                     "segment": program.segment,
+                    "season": program.season,
+                    "music_analysis_id": program.music_analysis_id,
                     "layout": program.layout,
                     "total_tes": program.total_tes,
+                    "estimated_goe": program.estimated_goe,
+                    "estimated_pcs": program.estimated_pcs,
                     "estimated_total": program.estimated_total,
+                    "is_valid": program.is_valid,
+                    "validation_errors": program.validation_errors,
+                    "validation_warnings": program.validation_warnings,
                 },
             }
 
         elements = program.layout.get("elements", []) if program.layout else []
         svg = render_rink(elements)
 
-        if data.format == "svg":
-            return {"format": "svg", "svg": svg}
-
-        # PDF: return SVG with a note (full PDF generation requires additional deps)
-        return {
-            "format": "pdf",
-            "note": "SVG source included; server-side PDF rendering requires headless browser",
-            "svg": svg,
-        }
+        return {"format": "svg", "svg": svg}

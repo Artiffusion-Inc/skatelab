@@ -39,15 +39,23 @@ class EmailService:
         self.from_email = settings.resend.from_email
         self.from_name = settings.resend.from_name
 
-    def _get_template_id(self, email_type: str, locale: str) -> str:
+    def _get_template_id(self, email_type: str, locale: str) -> str | None:
+        # #640: unknown email_type must return None, not raise KeyError.
         locale = locale if locale in ("ru", "en") else "en"
-        return self.TEMPLATES[email_type][locale]
+        template = self.TEMPLATES.get(email_type)
+        if template is None:
+            logger.warning("Unknown email_type %r; no template", email_type)
+            return None
+        return template[locale]
 
     def _from_header(self) -> str:
         return f"{self.from_name} <{self.from_email}>"
 
     async def send_password_reset(self, to: str, token: str, locale: str = "ru") -> str | None:
         """Send password reset email. Returns Resend email ID or None on failure."""
+        template_id = self._get_template_id("password_reset", locale)
+        if template_id is None:
+            return None
         settings = get_settings()
         reset_url = settings.resend.reset_url_template.format(token=token)
         try:
@@ -55,7 +63,7 @@ class EmailService:
                 "from": self._from_header(),
                 "to": [to],
                 "template": {
-                    "id": self._get_template_id("password_reset", locale),
+                    "id": template_id,
                     "variables": {"RESET_URL": reset_url},
                 },
             }
@@ -67,6 +75,9 @@ class EmailService:
 
     async def send_email_verification(self, to: str, token: str, locale: str = "ru") -> str | None:
         """Send email verification. Returns Resend email ID or None on failure."""
+        template_id = self._get_template_id("email_verification", locale)
+        if template_id is None:
+            return None
         settings = get_settings()
         verify_url = settings.resend.verify_url_template.format(token=token)
         try:
@@ -74,7 +85,7 @@ class EmailService:
                 "from": self._from_header(),
                 "to": [to],
                 "template": {
-                    "id": self._get_template_id("email_verification", locale),
+                    "id": template_id,
                     "variables": {"VERIFY_URL": verify_url},
                 },
             }
@@ -88,13 +99,16 @@ class EmailService:
         self, to: str, inviter_name: str, connection_type: str, locale: str = "ru"
     ) -> str | None:
         """Send coaching/choreography invite email. Returns Resend email ID or None on failure."""
+        template_id = self._get_template_id("coaching_invite", locale)
+        if template_id is None:
+            return None
         settings = get_settings()
         try:
             params: dict[str, Any] = {
                 "from": self._from_header(),
                 "to": [to],
                 "template": {
-                    "id": self._get_template_id("coaching_invite", locale),
+                    "id": template_id,
                     "variables": {
                         "INVITER_NAME": inviter_name,
                         "CONNECTION_TYPE": connection_type,

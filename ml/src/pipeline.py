@@ -426,9 +426,9 @@ class AnalysisPipeline:
             phases=phases,
             metrics=metrics,
             recommendations=recommendations,
-            overall_score=overall_score if overall_score is not None else 0.0,
+            overall_score=overall_score,
             goe_grade=goe_grade,
-            dtw_distance=dtw_distance if dtw_distance is not None else 0.0,
+            dtw_distance=dtw_distance,
             physics=physics_dict,
             profiling=self._profiler.to_dict(),
         )
@@ -622,11 +622,23 @@ class AnalysisPipeline:
         if not metrics:
             return 5.0
 
-        good_count = sum(1 for m in metrics if m.is_good)
-        total_count = len(metrics)
-
-        if total_count == 0:
+        # #487: exclude unregistered descriptive metrics (those whose
+        # `reference_range == (0, 0)` — the init default for "not graded").
+        # Pre-fix, all metrics were counted in both numerator and
+        # denominator — unregistered ones (total_rotation_deg,
+        # rotation_count, jump_type, etc) permanently had is_good=False,
+        # deflating the score. The "gradable" filter mirrors #432's
+        # session_saver fix: only metrics with a real ideal range
+        # participate in the score. `reference_range` is the reliable
+        # sentinel — every legitimate ideal_metrics entry in
+        # element_defs.py has min_good < max_good; (0, 0) is reserved
+        # for "not graded".
+        gradable = [m for m in metrics if m.reference_range != (0, 0)]
+        if not gradable:
             return 5.0
+
+        good_count = sum(1 for m in gradable if m.is_good)
+        total_count = len(gradable)
 
         ratio = good_count / total_count
         score = ratio * 10
@@ -642,6 +654,13 @@ class AnalysisPipeline:
         Returns:
             Formatted text report in Russian.
         """
+
+        # ponytail: NaN/inf here leaks "nan"/"inf" into user-facing Russian
+        # text via f-string format spec — guard at the trust boundary once.
+        def _fmt(v: float, spec: str = ".2f") -> str:
+            s = f"{v:{spec}}"
+            return "н/д" if not np.isfinite(v) else s
+
         lines: list[str] = []
         lines.append("=" * 60)
         lines.append(f"АНАЛИЗ: {report.element_type.upper()}")
@@ -663,13 +682,16 @@ class AnalysisPipeline:
             status = "✓ ОК" if metric.is_good else "✗ ПЛОХО"
             ref_min, ref_max = metric.reference_range
             lines.append(
-                f"  {metric.name}: {metric.value:.2f} {metric.unit} [{status}] "
-                f"(референс: {ref_min:.2f}-{ref_max:.2f})"
+                f"  {metric.name}: {_fmt(metric.value)} {metric.unit} [{status}] "
+                f"(референс: {_fmt(ref_min)}-{_fmt(ref_max)})"
             )
 
         # DTW distance
         lines.append("\n--- Сходство с референсом ---")
-        lines.append(f"  DTW-расстояние: {report.dtw_distance:.3f} (0 = идеально)")
+        if report.dtw_distance is not None:
+            lines.append(f"  DTW-расстояние: {_fmt(report.dtw_distance, '.3f')} (0 = идеально)")
+        else:
+            lines.append("  DTW-расстояние: н/д")
 
         # Recommendations
         if report.recommendations:
@@ -681,7 +703,10 @@ class AnalysisPipeline:
             lines.append("  Отличное выполнение! Продолжай в том же духе.")
 
         # Overall score
-        lines.append(f"\nОбщий балл: {report.overall_score:.1f} / 10")
+        if report.overall_score is not None:
+            lines.append(f"\nОбщий балл: {report.overall_score:.1f} / 10")
+        else:
+            lines.append("\nОбщий балл: н/д")
 
         lines.append("=" * 60)
 
@@ -885,9 +910,10 @@ class AnalysisPipeline:
             phases=phases,
             metrics=metrics,
             recommendations=recommendations,
-            overall_score=overall_score if overall_score is not None else 0.0,
-            dtw_distance=dtw_distance if dtw_distance is not None else 0.0,
+            overall_score=overall_score,
+            dtw_distance=dtw_distance,
             physics=physics_dict,
+            profiling=self._profiler.to_dict(),
         )
 
     async def _detect_phases_async(

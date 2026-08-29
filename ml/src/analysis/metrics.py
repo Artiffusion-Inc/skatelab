@@ -4,6 +4,7 @@ This module provides metrics for analyzing skating technique,
 including joint angles, airtime, rotation speed, and edge quality.
 """
 
+import math
 import warnings
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
@@ -165,6 +166,14 @@ class BiomechanicsAnalyzer:
                 min_good, max_good = self._element_def.ideal_metrics[result.name]
                 result.is_good = min_good <= result.value <= max_good
                 object.__setattr__(result, "reference_range", (min_good, max_good))
+            else:
+                # #856: this metric has no ideal range for the element (the
+                # element_def does not bond it — e.g. max_height for
+                # toe_loop/flip, which use relative_jump_height instead). The
+                # sentinel (0, 0) means "undefined", and is_good=False would
+                # lie to downstream (multi_score subscores, GOE) that a normal
+                # value is a defect. No data to judge → neutral (True).
+                result.is_good = True
 
         return results
 
@@ -373,7 +382,11 @@ class BiomechanicsAnalyzer:
         # Cross-check with yaw delta method (requires 3D poses)
         rotation_discrepancy = False
         if poses_3d is not None and poses_3d.shape[-1] == 3:
-            flight_indices = np.arange(phases.takeoff, phases.landing)
+            # #554: inclusive-end slice to match flight height at 797/1515.
+            # np.arange(takeoff, landing) drops the landing frame — rotation
+            # count ~1 frame short, off by ~1-2° on a triple (crosses the
+            # 0.25-revolution GOE threshold).
+            flight_indices = np.arange(phases.takeoff, phases.landing + 1)
             yaw_total, yaw_count, clamped = self.compute_rotation_yaw_delta(
                 poses_3d, flight_indices, fps
             )
@@ -462,7 +475,14 @@ class BiomechanicsAnalyzer:
 
         # Knee angle (average during element)
         knee_angles = self.compute_knee_angle_series(poses, side="left")
-        avg_knee_angle = float(np.mean(knee_angles))
+        # #1312: np.mean propagates NaN — filter to isfinite first, fall
+        # back to 0.0 sentinel when the filtered series is empty (matches
+        # the #962 / #1275 / #1271 nanmax+isfinite / nanmean idiom at the
+        # other 5 sites in this block).
+        finite_knee = knee_angles[np.isfinite(knee_angles)]
+        avg_knee_angle = float(np.mean(finite_knee)) if finite_knee.size > 0 else 0.0
+        if not np.isfinite(avg_knee_angle):
+            avg_knee_angle = 0.0
         results.append(
             MetricResult(
                 name="knee_angle",
@@ -503,7 +523,16 @@ class BiomechanicsAnalyzer:
 
         # Spread eagle angle
         se_angle = self.compute_spread_eagle_angle(poses)
-        peak_se = float(np.max(se_angle))
+        # #962: np.nanmax (NOT np.max) so a NaN frame in the series (occluded
+        # RKNEE/RFOOT that slips past the #976 producer guard, or a caller-
+        # supplied NaN se_angle) does not poison the peak into NaN. nanmax
+        # skips NaN frames; if every frame is NaN there is no data — 0.0
+        # instead of NaN, which breaks JSON serialization and the GOE
+        # composite. Mirrors #903 (compute_rotation_speed) nanmax+isfinite
+        # and #993 (get_spine_length) nanmean. Identity on all-finite input.
+        peak_se = float(np.nanmax(se_angle)) if np.isfinite(se_angle).any() else 0.0
+        if not np.isfinite(peak_se):
+            peak_se = 0.0
         results.append(
             MetricResult(
                 name="spread_eagle_angle",
@@ -516,7 +545,10 @@ class BiomechanicsAnalyzer:
 
         # Ina Bauer score (only meaningful when spread eagle angle >= 150)
         ib_score = self.compute_ina_bauer_score(poses, se_angle=se_angle)
-        peak_ib = float(np.max(ib_score))
+        # #962: np.nanmax + isfinite fallback — see peak_se above.
+        peak_ib = float(np.nanmax(ib_score)) if np.isfinite(ib_score).any() else 0.0
+        if not np.isfinite(peak_ib):
+            peak_ib = 0.0
         results.append(
             MetricResult(
                 name="ina_bauer_score",
@@ -529,7 +561,10 @@ class BiomechanicsAnalyzer:
 
         # Spiral indicator (foot Y difference - large = one-foot element)
         spiral_ind = self.compute_spiral_indicator(poses)
-        max_spiral = float(np.max(spiral_ind))
+        # #962: np.nanmax + isfinite fallback — see peak_se above.
+        max_spiral = float(np.nanmax(spiral_ind)) if np.isfinite(spiral_ind).any() else 0.0
+        if not np.isfinite(max_spiral):
+            max_spiral = 0.0
         results.append(
             MetricResult(
                 name="spiral_indicator",
@@ -570,19 +605,66 @@ class BiomechanicsAnalyzer:
         angles = np.arctan2(shoulder_vector[:, 1], shoulder_vector[:, 0])
         unwrapped = np.unwrap(angles)
         angular_velocity = np.abs(np.gradient(unwrapped) * fps) * (180.0 / np.pi)
+        # #912: NaN shoulder on a spin frame (occlusion during fast rotation)
+        # -> shoulder_vector NaN -> arctan2(nan, x) = NaN -> np.unwrap(NaN) = NaN
+        # -> np.gradient(NaN) = NaN -> angular_velocity carries NaN frames.
+        # Bare np.max(angular_velocity[spin_mask]) propagates NaN -> spin_peak_velocity
+        # = NaN, and the leaf compute_total_rotation(unwrapped, fps) does
+        # abs(unwrapped[-1] - unwrapped[0]) = NaN on NaN endpoints -> total_rotation_deg
+        # / rotation_count = NaN. Guard the inline unwrapped series at the trust
+        # boundary (the leaf helper stays unguarded by design — #913 guards
+        # upstream in compute_total_rotation_from_poses; _analyze_spin builds its
+        # own unwrapped inline so the guard belongs here). Return the 0.0 sentinel
+        # (neutral "no data") matching the degenerate-phases guards, instead of NaN.
+        # Identity on all-finite input. ponytail: all-NaN shoulders yield 0.0
+        # (biased finite, not NaN); upgrade to inf sentinel if a degenerate-spin
+        # signal is needed.
+        if not np.all(np.isfinite(unwrapped)):
+            unwrapped = np.where(np.isfinite(unwrapped), unwrapped, 0.0)
+        # #1328 MT: NaN shoulder -> angular_velocity NaN frames. The existing
+        # #912 guard sanitizes `unwrapped` (downstream of compute_total_rotation)
+        # and `peak_velocity` uses np.nanmax. But `mean_velocity` (line 665
+        # below) is a bare np.mean(angular_velocity) — numpy mean is NOT
+        # NaN-aware, so a single NaN frame propagates to mean_velocity=NaN,
+        # which `classify_spin` silently degrades to ("unknown", 0.0) via
+        # its isfinite guard. Sanitize the inline angular_velocity series at
+        # the same trust boundary as `unwrapped` so BOTH downstream
+        # aggregations (np.nanmax for peak, np.mean for mean) see a clean
+        # series. Identity on all-finite input. ponytail: all-NaN shoulders
+        # yield 0.0 (biased finite, not NaN); upgrade to inf sentinel if a
+        # degenerate-spin signal is needed.
+        if not np.all(np.isfinite(angular_velocity)):
+            angular_velocity = np.where(np.isfinite(angular_velocity), angular_velocity, 0.0)
 
         # Hip Y position for spin detection
         hip_y = (poses[:, H36Key.LHIP][:, 1] + poses[:, H36Key.RHIP][:, 1]) / 2.0
 
         # Detect spin
-        is_spinning, duration_s, hip_y_range = detect_spin(
+        is_spin, duration_s, hip_y_range, spin_mask = detect_spin(
             angular_velocity_series=angular_velocity,
             hip_y_series=hip_y,
             fps=fps,
         )
 
-        # Spin peak velocity (maximum angular velocity during spin)
-        peak_velocity = float(np.max(angular_velocity)) if len(angular_velocity) > 0 else 0.0
+        # Spin peak velocity (maximum angular velocity DURING the spin).
+        # #858: np.max over the whole sequence let a transient shoulder-vector
+        # jump OUTSIDE the spin (entry arm swing, exit flail, tracking glitch)
+        # — a gradient spike unrelated to the spin — become the reported peak.
+        # Restrict to the detected spin frames; 0.0 when no spin is detected.
+        if is_spin and np.any(spin_mask):
+            # #912: np.nanmax (NOT np.max) so a NaN frame in angular_velocity
+            # (occluded LSHOULDER/RSHOULDER that slips past the unwrapped guard
+            # above, or a NaN injected by detect_spin's hip path) does not
+            # poison the peak into NaN. nanmax skips NaN frames; if every
+            # masked frame is NaN there is no data — 0.0 instead of NaN, which
+            # breaks JSON serialization and the GOE composite. Mirrors #962
+            # (_analyze_step) nanmax+isfinite and #903 (compute_rotation_speed).
+            # Identity on all-finite input.
+            peak_velocity = float(np.nanmax(angular_velocity[spin_mask]))
+            if not np.isfinite(peak_velocity):
+                peak_velocity = 0.0
+        else:
+            peak_velocity = 0.0
         results.append(
             MetricResult(
                 name="spin_peak_velocity",
@@ -596,7 +678,7 @@ class BiomechanicsAnalyzer:
         # Classify spin type
         mean_velocity = float(np.mean(angular_velocity)) if len(angular_velocity) > 0 else 0.0
         _spin_type_name, spin_type_confidence = classify_spin(
-            duration_s=duration_s if is_spinning else 0.0,
+            duration_s=duration_s if is_spin else 0.0,
             hip_y_range=hip_y_range,
             angular_velocity_mean=mean_velocity,
         )
@@ -748,7 +830,14 @@ class BiomechanicsAnalyzer:
         landing_y = hip_y_series[phases.landing]
 
         # Get minimum hip Y (peak height)
-        peak_y = np.min(hip_y_series[phases.takeoff : phases.landing])
+        # #899: np.nanmin (NOT np.min) so a NaN hip Y on a flight frame
+        # (occluded hip) does not poison the min into NaN. Deprecated code
+        # still runs and feeds reports until removed; the deprecation does
+        # not excuse a NaN-leak.
+        flight_y = hip_y_series[phases.takeoff : phases.landing]
+        peak_y = np.nanmin(flight_y)
+        if not np.isfinite(landing_y) or not np.isfinite(peak_y):
+            return 0.0
 
         return float(landing_y - peak_y)
 
@@ -792,13 +881,26 @@ class BiomechanicsAnalyzer:
         # Get CoM at takeoff (baseline)
         takeoff_com = com_trajectory[phases.takeoff]
 
-        # Find minimum CoM during flight (maximum height)
-        # Y is inverted in normalized coords, so min Y = max height
+        # Find minimum CoM during flight (maximum height).
+        # Y is inverted in normalized coords, so min Y = max height.
+        # #879: np.nanmin (NOT np.min) so a NaN CoM frame (fully-occluded
+        # flight frame) does not poison the min into nan. The NaN-aware CoM
+        # (#871) keeps CoM finite when a few keypoints are occluded, but a
+        # fully-occluded flight frame still yields NaN. nanmin skips NaN
+        # frames; if every flight frame is NaN there is no data -- return 0.0
+        # (neutral "no height") instead of nan, which leaks into max_height
+        # value and breaks JSON serialization (RFC 8259), the recommender, and
+        # frontend display.
         flight_com = com_trajectory[phases.takeoff : phases.landing + 1]
-        peak_com = np.min(flight_com)
+        peak_com = float(np.nanmin(flight_com))
+        if not np.isfinite(peak_com):
+            return 0.0
 
         # Height = takeoff CoM - peak CoM (both inverted, so difference is positive)
-        return float(takeoff_com - peak_com)
+        height = float(takeoff_com - peak_com)
+        if not np.isfinite(height):
+            return 0.0
+        return height
 
     def compute_landing_quality(self, poses: NormalizedPose, phases: ElementPhase) -> float:
         """Compute landing knee angle.
@@ -825,7 +927,11 @@ class BiomechanicsAnalyzer:
         right_foot = poses[landing_frame, H36Key.RFOOT]
         right_angle = angle_3pt(right_hip, right_knee, right_foot)
 
-        return min(left_angle, right_angle)
+        # #863: angle_3pt returns NaN for an occluded (NaN) knee. Python min()
+        # is asymmetric on NaN (min(nan, val) = nan, #454) and would propagate
+        # NaN even when the other leg is valid. np.nanmin ignores NaN and takes
+        # the valid leg's angle; both NaN → nanmin warns + returns NaN.
+        return float(np.nanmin([left_angle, right_angle]))
 
     def compute_landing_knee_stability(self, poses: NormalizedPose, phases: ElementPhase) -> float:
         """Compute post-landing knee stability score.
@@ -840,7 +946,7 @@ class BiomechanicsAnalyzer:
 
         Returns:
             Stability score in [0.0, 1.0] where 1.0 = perfectly stable.
-            Formula: max(0.0, 1.0 - avg_std / 15.0)
+            Formula: np.clip(1.0 - avg_std / 15.0, 0.0, 1.0)
             Returns 1.0 if no post-landing data available.
         """
         # Check if we have post-landing data
@@ -849,24 +955,40 @@ class BiomechanicsAnalyzer:
 
         # Extract post-landing frames (landing+1 to end)
         post_landing_start = phases.landing + 1
-        post_landing_poses = poses[post_landing_start : phases.end + 1]
+        # #556: cap at len(poses) — same pattern as compute_landing_smoothness
+        # at :959. Without the cap, phases.end + 1 can be >= len(poses),
+        # returning an empty array → np.mean / np.std over empty returns NaN
+        # silently with a RuntimeWarning. Score becomes NaN → propagates to
+        # overall score and UI.
+        post_landing_end = min(phases.end + 1, len(poses))
+        post_landing_poses = poses[post_landing_start:post_landing_end]
 
-        # Compute knee angle series for left and right
+        # Compute knee angle series for left and right.
+        # #868: compute_knee_angle_series emits NaN for occluded frames (NaN
+        # guard in the Python wrapper — the @njit core cannot guard under
+        # fastmath), so std must be NaN-safe.
         left_knee_angles = self.compute_knee_angle_series(post_landing_poses, side="left")
         right_knee_angles = self.compute_knee_angle_series(post_landing_poses, side="right")
 
-        # Calculate standard deviation of knee angles
-        left_std = float(np.std(left_knee_angles))
-        right_std = float(np.std(right_knee_angles))
+        # Calculate standard deviation of knee angles (NaN-safe: skip occluded
+        # frames). np.std propagates NaN over the whole array → avg_std NaN →
+        # max(0.0, nan)=0.0 (#454 arg-order) falsely graded occlusion as worst.
+        left_std = float(np.nanstd(left_knee_angles))
+        right_std = float(np.nanstd(right_knee_angles))
 
-        # Average standard deviation
-        avg_std = (left_std + right_std) / 2.0
+        # Average standard deviation — only over sides with finite data.
+        stds = [s for s in (left_std, right_std) if np.isfinite(s)]
+        if not stds:
+            return 1.0
+        avg_std = sum(stds) / len(stds)
 
-        # Convert to stability score: lower std = higher stability
-        # 15 degrees is a reasonable threshold for "unstable"
-        stability = max(0.0, 1.0 - avg_std / 15.0)
+        # Convert to stability score: lower std = higher stability.
+        # 15 degrees is a reasonable threshold for "unstable".
+        # #868: np.clip (NaN-safe after the finite guard) instead of Python
+        # max(0.0, ...) which is arg-order NaN-unsafe (#454).
+        stability = float(np.clip(1.0 - avg_std / 15.0, 0.0, 1.0))
 
-        return float(stability)
+        return stability
 
     def compute_landing_trunk_recovery(self, poses: NormalizedPose, phases: ElementPhase) -> float:
         """Compute post-landing trunk recovery score.
@@ -880,7 +1002,7 @@ class BiomechanicsAnalyzer:
 
         Returns:
             Recovery score in [0.0, 1.0] where 1.0 = perfectly upright.
-            Formula: max(0.0, 1.0 - avg_lean / 30.0)
+            Formula: np.clip(1.0 - avg_lean / 30.0, 0.0, 1.0)
             Returns 1.0 if no post-landing data available.
         """
         # Check if we have post-landing data
@@ -889,17 +1011,37 @@ class BiomechanicsAnalyzer:
 
         # Extract post-landing frames (landing+1 to end)
         post_landing_start = phases.landing + 1
-        post_landing_poses = poses[post_landing_start : phases.end + 1]
+        # #556: cap at len(poses) — same pattern as compute_landing_smoothness
+        # at :959. Without the cap, phases.end + 1 can be >= len(poses),
+        # returning an empty array → np.mean / np.std over empty returns NaN
+        # silently with a RuntimeWarning. Score becomes NaN → propagates to
+        # overall score and UI.
+        post_landing_end = min(phases.end + 1, len(poses))
+        post_landing_poses = poses[post_landing_start:post_landing_end]
 
         # Compute trunk lean for post-landing frames
         trunk_lean = self.compute_trunk_lean(post_landing_poses)
 
-        # Calculate average absolute lean during post-landing
-        avg_lean = float(np.mean(np.abs(trunk_lean)))
+        # Calculate average absolute lean during post-landing — NaN-safe.
+        # #865: a NaN shoulder keypoint (occlusion — normal on landing when the
+        # skater turns away) propagates through mid_shoulder → spine_vector →
+        # arctan2 into trunk_lean. The plain mean of abs(trunk_lean) over a NaN
+        # frame = nan, then 1.0 - nan/30.0 = nan and Python max(0.0, nan) = 0.0
+        # (#454 arg-order NaN-unsafe) — an occluded shoulder reads as the WORST
+        # recovery (0.0), a false "poor recovery" diagnosis when the truth is
+        # "no data for that frame". Skip occluded frames via np.nanmean; if
+        # every frame is occluded, return 1.0 ("no data → no penalty", not 0.0).
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", RuntimeWarning)
+            avg_lean = float(np.nanmean(np.abs(trunk_lean)))
+        if not np.isfinite(avg_lean):
+            return 1.0
 
-        # Convert to recovery score: lower lean = higher recovery
-        # 30 degrees is a reasonable threshold for "poor recovery"
-        recovery = max(0.0, 1.0 - avg_lean / 30.0)
+        # Convert to recovery score: lower lean = higher recovery.
+        # 30 degrees is a reasonable threshold for "poor recovery".
+        # #865: np.clip (NaN-safe after the finite guard) instead of Python
+        # max(0.0, ...) which is arg-order NaN-unsafe (#454).
+        recovery = float(np.clip(1.0 - avg_lean / 30.0, 0.0, 1.0))
 
         return float(recovery)
 
@@ -929,7 +1071,12 @@ class BiomechanicsAnalyzer:
         com_trajectory = calculate_com_trajectory(poses)
         # In normalized coords Y increases downward.
         # Backward difference: negate so downward = negative velocity.
+        # #880: guard NaN leak — calculate_com_trajectory is NaN-aware (#871)
+        # but a fully occluded frame can still produce a non-finite CoM; the
+        # landing velocity must never leak NaN into AnalysisReport / JSON.
         velocity = -(com_trajectory[phases.landing] - com_trajectory[phases.landing - 1]) * fps
+        if not np.isfinite(velocity):
+            return 0.0
         return float(velocity)
 
     def compute_landing_smoothness(
@@ -955,6 +1102,12 @@ class BiomechanicsAnalyzer:
         if phases.end <= phases.landing + 1:
             return 1.0
 
+        # #1114: NaN/inf fps guard — `int(0.5 * NaN)` raises ValueError.
+        # Corrupt video metadata (no frame rate) must not crash the
+        # smoothness score; the window-size step is the first fps use.
+        if not math.isfinite(fps) or fps <= 0:
+            return 1.0
+
         post_landing_start = phases.landing + 1
         post_landing_end = min(phases.end + 1, len(poses))
         window_frames = int(0.5 * fps)
@@ -972,10 +1125,20 @@ class BiomechanicsAnalyzer:
         if len(velocities) == 0:
             return 1.0
 
-        std_velocity = float(np.std(velocities))
+        # #870: NaN-safe std. The NaN-aware CoM (#871) keeps the CoM finite when
+        # a few keypoints are occluded, but a fully-occluded post-landing frame
+        # still yields NaN velocities. np.std propagates NaN (whole window NaN),
+        # then Python max(0.0, nan)=0.0 (arg-order #454) falsely grades a smooth
+        # landing as the worst. nanstd ignores NaN frames; if every frame is
+        # NaN there is no data — return neutral 1.0 (matches the no-data early
+        # returns above) instead of 0.0.
+        finite = velocities[np.isfinite(velocities)]
+        if len(finite) == 0:
+            return 1.0
+        std_velocity = float(np.std(finite))
         # 0.2 norm/s std threshold for "unstable"
-        smoothness = max(0.0, 1.0 - std_velocity / 0.2)
-        return float(smoothness)
+        smoothness = float(np.clip(1.0 - std_velocity / 0.2, 0.0, 1.0))
+        return smoothness
 
     def compute_hard_landing(
         self,
@@ -1005,10 +1168,18 @@ class BiomechanicsAnalyzer:
         # In normalized coords Y increases downward, so positive vy = downward motion
         vy_y = (com_trajectory[phases.landing] - com_trajectory[phases.landing - 1]) * fps
 
+        # #871: NaN guard — if both landing frames are entirely occluded the
+        # NaN-aware CoM still yields NaN; return neutral 1.0 (soft default,
+        # matching the no-data early returns above) rather than the arg-order
+        # trap min(1.0, nan)=1.0 → max(0.0,1.0)=1.0 which silently masked hard
+        # impacts. np.isfinite keeps the all-valid path identical.
+        if not np.isfinite(vy_y):
+            return 1.0
+
         # Threshold: 2.0 norm/s downward = hard landing
         # 0.0 = soft
-        score = max(0.0, min(1.0, 1.0 - vy_y / 2.0))
-        return float(score)
+        score = float(np.clip(1.0 - vy_y / 2.0, 0.0, 1.0))
+        return score
 
     def compute_toe_assist_proxy(
         self,
@@ -1050,13 +1221,25 @@ class BiomechanicsAnalyzer:
         if len(ay) == 0:
             return 1.0
 
-        # Peak deceleration (most negative = hardest impact)
-        peak_decel = np.min(ay)
+        # Peak deceleration (most negative = hardest impact). #877: np.nanmin
+        # (NOT np.min) so a NaN acceleration frame (fully-occluded CoM, no
+        # keypoint visible) does not poison the min. The NaN-aware CoM (#871)
+        # keeps CoM finite when a few keypoints are occluded, but a fully-
+        # occluded landing frame still yields NaN vy_y -> NaN ay.
+        peak_decel = float(np.nanmin(ay))
+        if not np.isfinite(peak_decel):
+            # No finite acceleration data — cannot assess. Return neutral
+            # (clean-edge proxy), not 0.0 (toe assist) and not 1.0-via-NaN.
+            return 1.0
 
         # Threshold: -5.0 norm/s^2 = toe assist territory
         # 0.0 = gentle deceleration
-        score = max(0.0, min(1.0, 1.0 + peak_decel / 5.0))
-        return float(score)
+        # #877: np.clip (NaN-safe after the finite guard) instead of Python
+        # max(0.0, min(1.0, ...)) which is arg-order NaN-unsafe (#454:
+        # min(1.0, nan) = 1.0, then max(0.0, 1.0) = 1.0 — a hard toe-assist
+        # impact with one occluded keypoint read as a perfectly clean edge).
+        score = float(np.clip(1.0 + peak_decel / 5.0, 0.0, 1.0))
+        return score
 
     def compute_approach_torso_lean(self, poses: NormalizedPose, phases: ElementPhase) -> float:
         """Compute average torso lean during the approach phase.
@@ -1077,7 +1260,12 @@ class BiomechanicsAnalyzer:
             return 0.0
 
         trunk_lean = self.compute_trunk_lean(approach_poses)
-        return float(np.mean(trunk_lean))
+        # Guard against NaN propagation from corrupted keypoints in the
+        # approach window: np.mean(NaN-series) silently returns NaN. See #1271.
+        finite_lean = trunk_lean[np.isfinite(trunk_lean)]
+        if finite_lean.size == 0:
+            return 0.0
+        return float(np.mean(finite_lean))
 
     def compute_approach_direction_change(
         self,
@@ -1105,8 +1293,27 @@ class BiomechanicsAnalyzer:
 
         com = calculate_com_trajectory_2d(approach_poses)
         vx = np.gradient(com[:, 0]) * fps
-        angles = np.degrees(np.arctan2(vx, np.ones_like(vx)))
-        return float(np.sum(np.abs(np.diff(angles))))
+        vy = np.gradient(com[:, 1]) * fps
+        # #851: use the full 2D heading arctan2(vy, vx). The previous form
+        # passed a constant 1.0 as the second arctan2 arg, collapsing the
+        # heading to arctan(vx) and ignoring the vertical CoM velocity —
+        # curved / vertical approaches read as 0°.
+        angles = np.degrees(np.arctan2(vy, vx))
+        # #878: NaN-safe direction change. A NaN keypoint in the approach phase
+        # used to leak nan through the CoM -> gradient -> arctan2 -> diff into
+        # the sum, so compute_approach_direction_change returned nan. The
+        # NaN-aware CoM (#871/#878 contract) keeps the CoM finite when a few
+        # keypoints are occluded, but a fully-occluded frame still yields NaN
+        # angles. np.nansum skips NaN diffs; if every frame is NaN there is no
+        # data — return 0.0 (neutral "no direction change") instead of nan,
+        # which would inflate the GOE approach_score via min(1.0, nan)=1.0
+        # (#454).
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", RuntimeWarning)
+            total = float(np.nansum(np.abs(np.diff(angles))))
+        if not np.isfinite(total):
+            return 0.0
+        return total
 
     def compute_arm_position(self, poses: NormalizedPose) -> float:
         """Compute arm position score.
@@ -1118,10 +1325,27 @@ class BiomechanicsAnalyzer:
             Score [0, 1] where 1 = arms close to body (good for jumps).
         """
         # Calculate average wrist-to-shoulder distance
+        # #902: NaN wrist/shoulder (occluded — common during rotation when arms
+        # cross the body) made np.mean→NaN, then the `max(0, 1 - nan)` clamp
+        # floored NaN to 0.0 — a SILENT BEST score that rewards occlusion and
+        # inflates the GOE proxy. np.nanmean skips occluded frames; if no frame
+        # is finite, return NaN (a flag the recommender/GOE must treat as
+        # "unknown", not "excellent") instead of the false-good 0.0.
         left_dist = np.linalg.norm(poses[:, H36Key.LWRIST] - poses[:, H36Key.LSHOULDER], axis=1)
         right_dist = np.linalg.norm(poses[:, H36Key.RWRIST] - poses[:, H36Key.RSHOULDER], axis=1)
 
-        avg_dist = float(np.mean(left_dist + right_dist) / 2)
+        # #1274: catch the "all-NaN" empty-slice RuntimeWarning from np.nanmean
+        # (numpy emits one when every frame is NaN — expected for full
+        # occlusion, not a bug). We test all-finite explicitly below.
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", RuntimeWarning)
+            avg_dist = float(np.nanmean(left_dist + right_dist) / 2)
+        if not np.isfinite(avg_dist):
+            # #1274: all-NaN (full occlusion) -> neutral 0.5 so the
+            # recommender/GOE has a finite "unknown" midpoint to consume
+            # (no NaN-leak, no false-bad 0.0 from the `max(0, 1 - NaN)`
+            # clamp-floor trap, #454).
+            return 0.5
 
         return float(max(0, 1 - avg_dist))
 
@@ -1155,6 +1379,25 @@ class BiomechanicsAnalyzer:
         else:
             hip_idx, knee_idx, foot_idx = int(H36Key.RHIP), int(H36Key.RKNEE), int(H36Key.RFOOT)
 
+        # #868: NaN guard in the Python wrapper, not the @njit core. Under
+        # fastmath the jitted angle_3pt_rad raises ZeroDivisionError (nan/nan)
+        # on a NaN knee instead of returning NaN, crashing analyze() and
+        # killing every session metric. A guard inside @njit(fastmath) does
+        # not help (fastmath reorders / ignores the finite check). Mask NaN
+        # frames to a finite placeholder, run the jitted core, then restore
+        # NaN on the occluded frames so callers can skip them (np.nanstd).
+        triplet = poses[:, [hip_idx, knee_idx, foot_idx], :]  # (N, 3, 2)
+        finite_frames = np.all(np.isfinite(triplet), axis=(1, 2))
+        if not finite_frames.all():
+            safe_poses = poses.copy()
+            triplet_safe = np.nan_to_num(triplet, nan=0.0)
+            safe_poses[:, hip_idx, :] = triplet_safe[:, 0, :]
+            safe_poses[:, knee_idx, :] = triplet_safe[:, 1, :]
+            safe_poses[:, foot_idx, :] = triplet_safe[:, 2, :]
+            angles = _compute_knee_angle_series_numba(safe_poses, hip_idx, knee_idx, foot_idx)
+            angles = angles.astype(np.float32, copy=True)
+            angles[~finite_frames] = np.nan
+            return angles
         return _compute_knee_angle_series_numba(poses, hip_idx, knee_idx, foot_idx)
 
     def compute_edge_indicator(
@@ -1187,6 +1430,12 @@ class BiomechanicsAnalyzer:
         else:
             hip = poses[:, H36Key.RHIP]
             shoulder = poses[:, H36Key.RSHOULDER]
+
+        # #977: NaN hip/shoulder (occluded joint) -> NaN spine_vector ->
+        # arctan2(NaN)=NaN -> clip(NaN)=NaN -> np.std(NaN)=NaN leaks NaN into
+        # edge_change_smoothness. nan_to_num is identity on finite joints.
+        hip = np.nan_to_num(hip, nan=0.0)
+        shoulder = np.nan_to_num(shoulder, nan=0.0)
 
         # Vector from hip to shoulder: (N, 2)
         spine_vector = shoulder - hip
@@ -1227,6 +1476,19 @@ class BiomechanicsAnalyzer:
         shoulder_vector = right_shoulder - left_shoulder
         angles = np.arctan2(shoulder_vector[:, 1], shoulder_vector[:, 0])
         unwrapped = np.unwrap(angles)
+        # #909: NaN shoulder on a flight frame (occluded during fast rotation —
+        # arms cross the body) -> shoulder_vector NaN -> arctan2(nan, x) = NaN
+        # -> np.unwrap(NaN) = NaN -> abs(unwrapped[-1] - unwrapped[0]) = NaN
+        # leaked into total_rotation_deg / rotation_count / under_rotation_deg
+        # and the GOE proxy. rotation_count is the PRIMARY jump identifier
+        # (1=single, 2=double, 3=triple) — a NaN hole there makes the
+        # recommender unable to name the jump. Return the 0.0 sentinel (neutral
+        # "no rotation") matching the degenerate-phases guard above, instead of
+        # NaN. Identity on all-finite input. ponytail: all-NaN flight yields 0.0
+        # (biased finite, not NaN); upgrade to inf sentinel if a
+        # degenerate-flight signal is needed.
+        if not np.all(np.isfinite(unwrapped)):
+            return 0.0, 0.0
 
         return compute_total_rotation(unwrapped, fps)
 
@@ -1256,9 +1518,25 @@ class BiomechanicsAnalyzer:
         l_sho = poses_3d[flight_indices, H36Key.LSHOULDER]
         r_sho = poses_3d[flight_indices, H36Key.RSHOULDER]
 
-        # Shoulder length guard: skip frames where shoulder axis is near-zero
+        # Shoulder length guard: skip frames where shoulder axis is near-zero.
+        # #915: NaN shoulder (occlusion) -> shoulder_length NaN. np.median of a
+        # NaN-containing array is NaN (NOT np.nanmedian), `NaN < 1e-6` = False
+        # (NaN comparison) skips the degenerate guard, `NaN > 0.05*NaN` =
+        # all-False empties valid_idx -> false-BAD (0.0, 0.0) sentinel. The 3D
+        # yaw cross-check then OVERWRITES a valid 2D rotation_count with 0.0 in
+        # _analyze_jump (line 392-397): `abs(rotation_count - 0.0) > 0.5` ->
+        # rotation_count = 0.0. A triple with one occluded shoulder reads as
+        # "0 rotations". Use np.nanmedian so a few NaN shoulder frames don't
+        # poison the median; only all-NaN shoulder yields NaN. isfinite guard
+        # returns a NaN sentinel (NOT 0.0) -> consumer's
+        # `abs(rotation_count - nan) > 0.5` is False -> 2D rotation_count
+        # preserved. A finite near-zero median (empty/degenerate frame) still
+        # returns 0.0 (existing behavior). Mirrors #966 classify_jump
+        # isfinite guard.
         shoulder_length = np.linalg.norm(r_sho - l_sho, axis=1)
-        median_length = np.median(shoulder_length)
+        median_length = np.nanmedian(shoulder_length)
+        if not np.isfinite(median_length):
+            return float("nan"), float("nan"), np.zeros(len(flight_indices) - 1, dtype=bool)
         if median_length < 1e-6:
             return 0.0, 0.0, np.zeros(len(flight_indices) - 1, dtype=bool)
         valid = shoulder_length > 0.05 * median_length
@@ -1266,11 +1544,11 @@ class BiomechanicsAnalyzer:
         # Yaw from 3D: Z-depth avoids 2D collapse
         yaw = np.arctan2(r_sho[:, 2] - l_sho[:, 2], r_sho[:, 0] - l_sho[:, 0])
 
-        # Interpolate invalid frames from neighbors
+        # Interpolate invalid (incl. NaN-shoulder) frames from neighbors
         if not np.all(valid):
             valid_idx = np.where(valid)[0]
             if len(valid_idx) < 2:
-                return 0.0, 0.0, np.zeros(len(flight_indices) - 1, dtype=bool)
+                return float("nan"), float("nan"), np.zeros(len(flight_indices) - 1, dtype=bool)
             yaw[~valid] = np.interp(np.where(~valid)[0], valid_idx, yaw[valid])
 
         # Manual delta with wrap-around
@@ -1282,7 +1560,12 @@ class BiomechanicsAnalyzer:
         # is a tracking artifact, not real rotation. Cap to the ceiling preserving
         # sign — zeroing (old behavior) destroyed the rotation count of real
         # triple/quadruple jumps (~2160-2400 deg/s). 720 deg/s was far too low. #426
-        max_delta = np.radians(2400.0 / fps)
+        # #958: corrupt video reports fps=0 (cv2.CAP_PROP_FPS sentinel). Guard
+        # the ceiling division — inf ceiling → np.clip no-op for finite deltas
+        # → rotation count from raw deltas, NOT a ZeroDivisionError crash. The
+        # clamp is meant to cap degenerate dt (tracking artifact); at fps<=0
+        # "no clamp" is the correct degradation. Mirrors #499 fps=0 family.
+        max_delta = np.radians(2400.0 / fps) if fps > 0 else np.inf
         clamped = np.abs(delta) > max_delta
         delta = np.clip(delta, -max_delta, max_delta)
 
@@ -1302,8 +1585,14 @@ class BiomechanicsAnalyzer:
             Per-frame angle series in degrees [0, 180].
             Near 0° = legs parallel (normal skating), near 180° = spread eagle.
         """
-        l_leg = poses[:, H36Key.LKNEE] - poses[:, H36Key.LHIP]  # 5 - 4
-        r_leg = poses[:, H36Key.RKNEE] - poses[:, H36Key.RHIP]  # 2 - 1
+        # #976: NaN joint (occluded hip/knee) -> NaN leg -> NaN cos ->
+        # np.arccos(NaN)=NaN silently leaks into the angle series. +1e-8 does
+        # NOT mask NaN, np.clip(NaN) is no-op. Guard the leg-vector joint
+        # inputs at the trust boundary (NaN -> 0.0 sentinel), mirroring #978
+        # (compute_goe_score nan_to_num) and #868 (compute_knee_angle_series
+        # finite-frame mask). nan_to_num is identity on finite joints.
+        l_leg = np.nan_to_num(poses[:, H36Key.LKNEE] - poses[:, H36Key.LHIP], nan=0.0)  # 5 - 4
+        r_leg = np.nan_to_num(poses[:, H36Key.RKNEE] - poses[:, H36Key.RHIP], nan=0.0)  # 2 - 1
 
         dot_prod = np.sum(l_leg * r_leg, axis=-1)
         norms = np.linalg.norm(l_leg, axis=-1) * np.linalg.norm(r_leg, axis=-1) + 1e-8
@@ -1321,7 +1610,13 @@ class BiomechanicsAnalyzer:
         Returns:
             Per-frame |LFOOT_y - RFOOT_y| difference. Large = spiral candidate.
         """
-        return np.abs(poses[:, H36Key.LFOOT, 1] - poses[:, H36Key.RFOOT, 1])
+        # #976: NaN foot joint (occluded LFOOT/RFOOT) -> np.abs(NaN - finite) =
+        # NaN silently leaks into the indicator series. Guard the foot joint
+        # inputs at the trust boundary (NaN -> 0.0 sentinel), mirroring #978.
+        # nan_to_num is identity on finite joints.
+        l_foot_y = np.nan_to_num(poses[:, H36Key.LFOOT, 1], nan=0.0)
+        r_foot_y = np.nan_to_num(poses[:, H36Key.RFOOT, 1], nan=0.0)
+        return np.abs(l_foot_y - r_foot_y)
 
     def compute_ina_bauer_score(
         self, poses: np.ndarray, se_angle: np.ndarray | None = None
@@ -1341,11 +1636,20 @@ class BiomechanicsAnalyzer:
         if se_angle is None:
             se_angle = self.compute_spread_eagle_angle(poses)
 
+        # #976: NaN joint (occluded thorax/hip/knee/foot, or a caller-supplied
+        # NaN se_angle) -> NaN leg_angle_norm / NaN trunk_norm -> arccos(NaN) =
+        # NaN torso_lean / NaN knee_diff -> NaN composite (any NaN -> NaN sum).
+        # Guard each component at the trust boundary (NaN -> 0.0 sentinel),
+        # mirroring #978 (compute_goe_score nan_to_num). nan_to_num is identity
+        # on finite inputs, so the all-finite case is unchanged.
         # Leg angle: 150 deg -> 0, 180 deg -> 1
+        se_angle = np.nan_to_num(se_angle, nan=0.0)
         leg_angle_norm = np.clip((se_angle - 150.0) / 30.0, 0, 1)
 
         # Torso lean: angle between hip_center->thorax and vertical (0, -1)
-        trunk = poses[:, H36Key.THORAX] - poses[:, H36Key.HIP_CENTER]  # 8 - 0
+        trunk = np.nan_to_num(
+            poses[:, H36Key.THORAX] - poses[:, H36Key.HIP_CENTER], nan=0.0
+        )  # 8 - 0
         trunk_norm = trunk / (np.linalg.norm(trunk, axis=-1, keepdims=True) + 1e-8)
         torso_lean = np.degrees(np.arccos(np.clip(-trunk_norm[:, 1], -1, 1)))
         torso_lean_norm = np.clip(torso_lean / 45.0, 0, 1)
@@ -1363,7 +1667,11 @@ class BiomechanicsAnalyzer:
                 for f in range(len(poses))
             ]
         )
-        knee_diff_norm = np.clip(np.abs(l_knee - r_knee) / 40.0, 0, 1)
+        knee_diff_norm = np.clip(
+            np.abs(np.nan_to_num(l_knee, nan=0.0) - np.nan_to_num(r_knee, nan=0.0)) / 40.0,
+            0,
+            1,
+        )
 
         return 0.5 * leg_angle_norm + 0.3 * torso_lean_norm + 0.2 * knee_diff_norm
 
@@ -1373,6 +1681,11 @@ class BiomechanicsAnalyzer:
         a = poses[frame, j1]
         b = poses[frame, j2]
         c = poses[frame, j3]
+        # #1262: NaN keypoint → NaN cos_val → np.clip(NaN, -1, 1) = NaN silently
+        # propagates through arccos/degrees. Return NaN explicitly so callers
+        # can skip via np.nanmean / nanstd instead of leaking silent NaN.
+        if not (np.isfinite(a).all() and np.isfinite(b).all() and np.isfinite(c).all()):
+            return float("nan")
         ba = a - b
         bc = c - b
         cos_val = np.dot(ba, bc) / (np.linalg.norm(ba) * np.linalg.norm(bc) + 1e-8)
@@ -1410,7 +1723,18 @@ class BiomechanicsAnalyzer:
         # Peak in flight phase
         if phases.takeoff < phases.landing and phases.landing < len(velocity):
             flight_velocity = velocity[phases.takeoff : phases.landing]
-            return float(np.max(np.abs(flight_velocity)))
+            # #903: np.nanmax (NOT np.max) so a NaN shoulder on a flight frame
+            # (occluded during fast rotation — arms cross the body) does not
+            # poison the peak into NaN. arctan2(nan, x) = NaN -> gradient NaN
+            # -> np.max(np.abs(NaN)) = NaN leaked into rotation_speed / GOE.
+            # nanmax skips NaN frames; if every flight frame is NaN there is
+            # no data — 0.0 (neutral "no rotation") instead of NaN, which
+            # breaks JSON serialization and the GOE composite. Identity on
+            # all-finite input.
+            peak = float(np.nanmax(np.abs(flight_velocity)))
+            if not np.isfinite(peak):
+                return 0.0
+            return peak
 
         return 0.0
 
@@ -1437,24 +1761,60 @@ class BiomechanicsAnalyzer:
             (H36Key.LKNEE, H36Key.RKNEE),
         ]
 
+        # #852: mirror across the per-frame BODY MIDLINE, not the world x=0
+        # axis. The midline is the sagittal axis — the mean x of the central
+        # structural joints (hip, spine, thorax, neck) — which is independent
+        # of the L/R pair being compared. A rigid sideways shift / tilt moves
+        # the whole body, so the midline tracks it and a symmetric pose still
+        # scores 1.0; real anatomical asymmetry (L ≠ mirrored-R about the
+        # midline) survives. The old form (mirrored = -x about x=0) only
+        # matched the midline when the skater sat exactly on x=0, so a
+        # symmetric-but-tilted body read as asymmetric.
+        central_joints = np.stack(
+            [
+                element_poses[:, H36Key.HIP_CENTER],
+                element_poses[:, H36Key.SPINE],
+                element_poses[:, H36Key.THORAX],
+                element_poses[:, H36Key.NECK],
+            ],
+            axis=1,
+        )
+        midline_x = central_joints[:, :, 0].mean(axis=1)  # (N,)
+
         asymmetries: list[float] = []
 
         for left_idx, right_idx in joint_pairs:
-            # Mirror left side and compare to right
             left_joints = element_poses[:, left_idx]
             right_joints = element_poses[:, right_idx]
 
-            # Mirror left across Y-axis: (x, y) -> (-x, y)
+            # Mirror left across the per-frame midline: x -> 2*midline_x - x.
             mirrored_left = left_joints.copy()
-            mirrored_left[:, 0] = -left_joints[:, 0]
+            mirrored_left[:, 0] = 2 * midline_x - left_joints[:, 0]
 
-            # Calculate average distance
+            # Calculate average distance.
+            # #869: NaN-safe per pair — np.mean propagates NaN, so one occluded
+            # joint poisons the pair and then the aggregate; np.nanmean skips
+            # NaN frames. all-NaN pair → NaN, filtered from the aggregate below.
+            # Suppress the "Mean of empty slice" warning for the all-NaN case.
             distances = np.linalg.norm(mirrored_left - right_joints, axis=1)
-            asymmetries.append(float(np.mean(distances)))
+            # #869: nanmean of an all-NaN slice emits a "Mean of empty slice"
+            # RuntimeWarning (not an errstate category) — silence it; the NaN
+            # is filtered from the aggregate below.
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore", RuntimeWarning)
+                asymmetries.append(float(np.nanmean(distances)))
 
-        # Symmetry = 1 - average asymmetry
-        avg_asymmetry = float(np.mean(asymmetries))
-        return float(max(0, 1 - avg_asymmetry))
+        # Symmetry = 1 - average asymmetry.
+        # #869: NaN-safe aggregate + clamp. np.nanmean skips NaN pairs; if every
+        # pair is NaN there is no data — return neutral 1.0 (perfect symmetry
+        # default, matches "no data" rather than falsely scoring worst). The
+        # old Python `max(0, 1 - nan)` was arg-order NaN-unsafe (#454): max(0,
+        # nan)=0 graded a symmetric body with one occluded joint as worst.
+        valid = [a for a in asymmetries if np.isfinite(a)]
+        if not valid:
+            return 1.0
+        avg_asymmetry = float(np.mean(valid))
+        return float(np.clip(1.0 - avg_asymmetry, 0.0, 1.0))
 
     def compute_relative_jump_height(
         self,
@@ -1510,13 +1870,26 @@ class BiomechanicsAnalyzer:
         # Get CoM at takeoff
         takeoff_com = com_trajectory[phases.takeoff]
 
-        # Find minimum CoM during flight (maximum height)
-        # Y is inverted in normalized coords, so min Y = max height
+        # Find minimum CoM during flight (maximum height).
+        # Y is inverted in normalized coords, so min Y = max height.
+        # #875: np.nanmin (NOT np.min) so a NaN CoM frame (fully-occluded flight
+        # frame — calculate_com_trajectory is NaN-aware (#871) and masks a few
+        # occluded keypoints, but a fully-occluded frame still yields NaN) does
+        # not poison the min into nan. Mirrors the sibling compute_max_height
+        # guard (#879, line 832). nanmin skips NaN frames; if every flight frame
+        # is NaN there is no data -- return 0.0 (neutral "no height") instead of
+        # nan, which leaks into the GOE height_score via min(1.0, nan)=1.0
+        # (#454 arg-order trap) and inflates the GOE by ~+0.20 (height weight
+        # 0.20) -- occlusion rewarded as the BEST jump. Identity on all-finite.
         flight_com = com_trajectory[phases.takeoff : phases.landing + 1]
-        peak_com = np.min(flight_com)
+        peak_com = float(np.nanmin(flight_com))
+        if not np.isfinite(peak_com):
+            return 0.0
 
         # CoM displacement = takeoff - peak (both inverted, so difference is positive)
         com_displacement = float(takeoff_com - peak_com)
+        if not np.isfinite(com_displacement):
+            return 0.0
 
         # Return normalized height
         return com_displacement / avg_spine
@@ -1540,24 +1913,61 @@ class BiomechanicsAnalyzer:
         Returns: GOE proxy score in [0.0, 10.0]
         """
         rel_height = self.compute_relative_jump_height(poses, phases)
-        height_score = min(1.0, rel_height / 1.0)
+        # #875: np.nan_to_num before the Python min — min(1.0, nan) = 1.0
+        # (#454 arg-order trap) would inflate the GOE height_score to BEST on a
+        # NaN rel_height. compute_relative_jump_height now returns finite 0.0 on
+        # no-data (#875 guard), but guard anyway in case a caller passes a NaN
+        # path. NaN -> neutral 0.0 (worst height), not best 1.0. Mirrors the
+        # approach_score guard below (#878).
+        height_score = float(np.nan_to_num(rel_height / 1.0, nan=0.0))
+        height_score = min(1.0, height_score)
 
         rot_speed = self.compute_rotation_speed(poses, phases, fps)
-        rot_score = min(1.0, rot_speed / 720.0)
+        # #978: np.nan_to_num before the Python min — min(1.0, nan) = 1.0
+        # (#454 arg-order trap) would inflate the GOE rot_score to PERFECT on a
+        # NaN rotation_speed (occluded shoulder during fast rotation).
+        # Mirrors the height_score (#875) and approach_score (#878) guards.
+        # NaN -> neutral 0.0 (worst rotation), not best 1.0.
+        rot_score = float(np.nan_to_num(rot_speed / 720.0, nan=0.0))
+        rot_score = min(1.0, rot_score)
 
         landing_smooth = self.compute_landing_smoothness(poses, phases, fps)
         landing_stab = self.compute_landing_knee_stability(poses, phases)
         hard_landing = self.compute_hard_landing(poses, phases, fps)
         toe_assist = self.compute_toe_assist_proxy(poses, phases, fps)
-        landing_score = (landing_smooth + landing_stab + hard_landing + toe_assist) / 4.0
+        # #978: np.nan_to_num on each landing sub-metric before the average —
+        # a NaN landing sub-metric (NaN + finite) / 4 = NaN leaks into the GOE
+        # composite (NaN-leak, breaks JSON). NaN -> 0.0 (worst), mirroring the
+        # cap-site guards on height_score / rot_score / approach_score.
+        landing_score = (
+            float(np.nan_to_num(landing_smooth, nan=0.0))
+            + float(np.nan_to_num(landing_stab, nan=0.0))
+            + float(np.nan_to_num(hard_landing, nan=0.0))
+            + float(np.nan_to_num(toe_assist, nan=0.0))
+        ) / 4.0
 
         airtime = self.compute_airtime(phases, fps)
-        airtime_score = min(1.0, airtime / 1.0)
+        # #978: np.nan_to_num before the Python min — min(1.0, nan) = 1.0
+        # (#454 arg-order trap) would inflate the GOE airtime_score to PERFECT
+        # on a NaN airtime. Mirrors the height_score (#875) guard.
+        airtime_score = float(np.nan_to_num(airtime / 1.0, nan=0.0))
+        airtime_score = min(1.0, airtime_score)
 
-        trunk_recovery = self.compute_landing_trunk_recovery(poses, phases)
+        # #978: np.nan_to_num on trunk_recovery — a NaN trunk_recovery
+        # (occluded shoulder on landing) propagates `nan * 0.15 = nan` into the
+        # GOE composite (NaN-leak). NaN -> 0.0 (worst recovery), mirroring the
+        # cap-site guards on the other sub-scores.
+        trunk_recovery = float(
+            np.nan_to_num(self.compute_landing_trunk_recovery(poses, phases), nan=0.0)
+        )
 
         approach_change = self.compute_approach_direction_change(poses, phases, fps)
-        approach_score = min(1.0, approach_change / 90.0)
+        # #878: guard NaN before the Python min — min(1.0, nan) = 1.0 (arg-order
+        # NaN-unsafe, #454) and would inflate the GOE approach_score to BEST on
+        # occlusion. compute_approach_direction_change now returns finite 0.0 on
+        # no-data, but guard anyway in case a caller passes a NaN path.
+        approach_score = float(np.nan_to_num(approach_change / 90.0, nan=0.0))
+        approach_score = min(1.0, approach_score)
 
         goe = (
             height_score * 0.20

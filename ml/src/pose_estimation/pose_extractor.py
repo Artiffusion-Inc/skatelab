@@ -12,6 +12,7 @@ Key advantages:
 
 import importlib.util
 import logging
+import math
 from collections.abc import Callable
 from pathlib import Path
 from types import TracebackType
@@ -704,8 +705,21 @@ class PoseExtractor:
         placements: list[tuple[int, int, int, int, int, int, float, int]] = []
         for person in persons:
             kps = person["best_kps"]
-            valid = kps[kps[:, 2] > 0.1]
+            valid_mask = (kps[:, 2] > 0.1) & np.isfinite(kps[:, 0]) & np.isfinite(kps[:, 1])
+            valid = kps[valid_mask]
             if len(valid) < 3:
+                continue
+            # Guard against NaN in `valid` coords or NaN frame dims before
+            # the int() conversions — stdlib int(NaN) raises ValueError
+            # and aborts the per-person label draw. The input valid_mask
+            # (#1093) filters most NaN, but this is defense-in-depth at the
+            # int() conversion site (#1206).
+            if not (
+                np.all(np.isfinite(valid[:, 0]))
+                and np.all(np.isfinite(valid[:, 1]))
+                and math.isfinite(frame_w)
+                and math.isfinite(frame_h)
+            ):
                 continue
             bx1 = int(np.min(valid[:, 0]) * frame_w)
             by1 = int(np.min(valid[:, 1]) * frame_h)
@@ -899,8 +913,8 @@ class PoseExtractor:
                             "first_frame": frame_idx,
                         }
                     person_data[tid]["hits"] += 1
-                    avg_conf = float(np.mean(h36m_poses[p, :, 2]))
-                    if avg_conf > person_data[tid]["best_conf"]:
+                    avg_conf = float(np.nanmean(h36m_poses[p, :, 2]))
+                    if math.isfinite(avg_conf) and avg_conf > person_data[tid]["best_conf"]:
                         person_data[tid]["best_conf"] = avg_conf
                         person_data[tid]["best_kps"] = h36m_poses[p].copy()
                         person_data[tid]["best_frame"] = frame_idx

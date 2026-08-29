@@ -13,6 +13,7 @@ Usage:
 from __future__ import annotations
 
 import logging
+import math
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -138,6 +139,12 @@ class BatchPoseExtractor:
         if detection is None:
             return [], []
 
+        # Skip corrupt detection with non-finite bbox fields — stdlib
+        # int(NaN) at lines 148-151 would crash the whole batch (#1199).
+        # Sibling guard for h/w resize at line 209 (#1160).
+        if not all(math.isfinite(getattr(detection, a)) for a in ("x1", "y1", "x2", "y2")):
+            return [], []
+
         # Expand by 20% padding (10% on each side)
         bw = detection.x2 - detection.x1
         bh = detection.y2 - detection.y1
@@ -202,10 +209,18 @@ class BatchPoseExtractor:
                     break
 
                 h, w = frame.shape[:2]
+                # Skip corrupt frames with non-finite dims — stdlib int(NaN)
+                # would crash cv2.resize (line 208) and _detect_and_crop
+                # (line 150). Pre-allocated NaN pose stays (#1160).
+                if not (math.isfinite(h) and math.isfinite(w)):
+                    frame_idx += 1
+                    pbar.update(1)
+                    continue
                 # Resize large frames for detection
                 if max(h, w) > 1920:
                     scale = 1920 / max(h, w)
                     frame = cv2.resize(frame, (int(w * scale), int(h * scale)))
+                    h, w = frame.shape[:2]  # ponytail: re-read after resize (#1036)
 
                 crops, bboxes = self._detect_and_crop(frame)
 

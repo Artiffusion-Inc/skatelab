@@ -4,6 +4,8 @@ This module generates specific, actionable recommendations in Russian
 based on biomechanics metrics analysis.
 """
 
+import math
+
 from ..types import GOEGrade, MetricResult, RecommendationRule
 from .rules import jump_rules, three_turn_rules
 
@@ -36,11 +38,41 @@ class Recommender:
         """
         recommendations: list[tuple[int, str]] = []
 
+        # #559: validate element_type against registered rules. A typo
+        # in element_type (e.g. "waltz" instead of "waltz_jump") used
+        # to silently return [] — indistinguishable from "no problems
+        # detected". The end user would see an empty recommendations
+        # list and assume the element was perfect. Raise ValueError
+        # with a clear message listing the registered types.
+        if element_type not in self._rules:
+            raise ValueError(
+                f"Unknown element_type: {element_type!r}. Registered: {sorted(self._rules.keys())}"
+            )
+
         # Get rules for element type
-        element_rules = self._rules.get(element_type, [])
+        element_rules = self._rules[element_type]
 
         # Check each metric against rules
         for metric in metrics:
+            # #557: skip non-finite metric values. _is_bad(NaN, range) returns
+            # True (NaN comparisons fail), the rule would fire, and
+            # template.format(value=NaN) renders 'nan' silently in Russian
+            # text on 3.11/3.12 or raises ValueError on 3.13+. We can't
+            # tell if the metric is good or bad with NaN, so no advice is
+            # actionable — skip the metric entirely.
+            if not math.isfinite(metric.value):
+                continue
+
+            # #856: a sentinel reference_range of (0, 0) means "no ideal range
+            # defined for this element" (the element_def does not bond this
+            # metric to an ideal_metrics range — e.g. toe_loop/flip use
+            # relative_jump_height, so max_height keeps (0, 0)). _is_bad(value,
+            # (0, 0)) is True for any nonzero value, so the shared rule would
+            # force-fire on every real jump and spam a recommendation for a
+            # normal metric. Skip: with no range there is no actionable advice.
+            if metric.reference_range == (0, 0):
+                continue
+
             for rule in element_rules:
                 if rule.metric_name != metric.name:
                     continue
@@ -140,9 +172,19 @@ class Recommender:
             reference_range: (min_good, max_good) range.
 
         Returns:
-            Severity key: "too_low", "too_high", or "default".
+            Severity key: "too_low", "too_high", "default", or "no_data".
         """
         min_good, max_good = reference_range
+
+        # #1226: NaN-safe. NaN comparisons return False, so a NaN `value`
+        # would otherwise fall through both branches and silently return
+        # "default" — the same severity as a healthy in-range value, which
+        # is the opposite signal ("data missing" rendered as "data fine").
+        # The `Recommender.recommend` entry guard is the primary defense
+        # (#584); this guard is defense-in-depth for direct callers of
+        # `_determine_severity` (refactors, tests, debug prints).
+        if not math.isfinite(value):
+            return "no_data"
 
         if value < min_good:
             return "too_low"

@@ -7,6 +7,7 @@ Provides functions for:
 - Color blending and interpolation
 """
 
+import math
 from typing import Final
 
 import numpy as np
@@ -61,6 +62,11 @@ def get_depth_color(
     if color_map is None:
         color_map = DEPTH_COLORS
 
+    # NaN/Inf: gray "unknown" so missing data is visually distinct from
+    # real "max" color (which min/max clamp would silently produce).
+    if not math.isfinite(depth):
+        return (128, 128, 128)
+
     # Clamp depth to range
     depth_clamped = max(depth_min, min(depth_max, depth))
 
@@ -106,6 +112,11 @@ def get_depth_colors_vectorized(
     original_shape = depths.shape
     depths_flat = depths.ravel()
 
+    # NaN/Inf: gray "unknown" (mirrors scalar get_depth_color, #1241).
+    # Without this, np.clip(NaN, 0, 1) = NaN, NaN.astype(int) = np.int64.min
+    # → negative index, RuntimeWarning, garbage RGB.
+    finite_mask = np.isfinite(depths_flat)
+
     # Normalize to [0, 1]
     if depth_max > depth_min:
         t = (depths_flat - depth_min) / (depth_max - depth_min)
@@ -117,6 +128,8 @@ def get_depth_colors_vectorized(
     # Map to color gradient
     num_colors = len(DEPTH_COLORS)
     indices = t * (num_colors - 1)
+    # Replace non-finite with 0 to avoid NaN.astype(int) → np.int64.min (out-of-range)
+    indices = np.where(finite_mask, indices, 0.0)
     idx_low = indices.astype(int)
     idx_high = np.minimum(idx_low + 1, num_colors - 1)
     local_t = indices - idx_low
@@ -128,6 +141,9 @@ def get_depth_colors_vectorized(
         c1 = np.array(DEPTH_COLORS[idx_low[i]])
         c2 = np.array(DEPTH_COLORS[idx_high[i]])
         colors[i] = (c1 * (1 - local_t[i]) + c2 * local_t[i]).astype(np.int32)
+
+    # Non-finite depths → gray "unknown" sentinel
+    colors[~finite_mask] = np.array([128, 128, 128], dtype=np.int32)
 
     return colors.reshape((*original_shape, 3))
 
@@ -164,6 +180,12 @@ def get_heatmap_color(
         >>> get_heatmap_color(0.5, 0.0, 1.0, "jet")
         (0, 255, 255)  # Cyan (midpoint)
     """
+    # Non-finite: return gray "unknown" so missing data is visually distinct
+    # from real "max" color (which min/max clamp would silently produce)
+    # and the colormap sample doesn't abort the whole render.
+    if not (math.isfinite(value) and math.isfinite(vmin) and math.isfinite(vmax)):
+        return (128, 128, 128)
+
     # Normalize to [0, 1]
     t = (value - vmin) / (vmax - vmin) if vmax > vmin else 0.5
     t = max(0.0, min(1.0, t))
@@ -302,6 +324,9 @@ def interpolate_color(c1: Color, c2: Color, t: float) -> Color:
         >>> interpolate_color((255, 0, 0), (0, 0, 255), 0.5)
         (128, 0, 128)  # Purple (midpoint of red and blue)
     """
+    # NaN/Inf t: gray "unknown" (don't pick c1 or c2 arbitrarily)
+    if not math.isfinite(t):
+        return (128, 128, 128)
     t = max(0.0, min(1.0, t))
     r = int(c1[2] * (1 - t) + c2[2] * t)
     g = int(c1[1] * (1 - t) + c2[1] * t)
@@ -335,6 +360,12 @@ def blend_colors(
     if len(colors) != len(weights):
         raise ValueError("colors and weights must have same length")
 
+    # NaN/Inf weight guard: any non-finite weight makes the blend undefined.
+    # Return gray "unknown" (consistent with fade_color NaN handling, #624)
+    # rather than crashing on int(NaN) or producing NaN pixels downstream.
+    if not all(math.isfinite(w) for w in weights):
+        return (128, 128, 128)
+
     total_weight = sum(weights)
     if total_weight == 0:
         return (0, 0, 0)
@@ -360,6 +391,9 @@ def fade_color(color: Color, alpha: float) -> Color:
         >>> fade_color((255, 0, 0), 0.5)
         (128, 0, 0)  # Dimmed red
     """
+    # NaN/Inf alpha: gray "unknown" (don't silently pick original or black)
+    if not math.isfinite(alpha):
+        return (128, 128, 128)
     alpha = max(0.0, min(1.0, alpha))
     return (int(color[0] * alpha), int(color[1] * alpha), int(color[2] * alpha))
 

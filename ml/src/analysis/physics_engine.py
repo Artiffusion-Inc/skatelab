@@ -12,6 +12,7 @@ References:
 - AthletePose3D: Monocular 3D pose for sports
 """
 
+import math
 from dataclasses import dataclass
 from typing import Any
 
@@ -119,44 +120,54 @@ class PhysicsEngine:
         n_frames = poses_3d.shape[0]
         com_trajectory = np.zeros((n_frames, 3), dtype=np.float32)
 
+        # #884: NaN-aware CoM — an occluded keypoint must NOT poison the CoM and
+        # leak NaN into fit_jump_trajectory height. Mask each segment's
+        # contribution to 0 when NaN (its mass is simply absent for that frame).
+        # All-valid case is byte-identical: np.where(isfinite, term, 0) == term
+        # when finite. Segment masses sum to body_mass, so dividing by
+        # body_mass is unchanged on the all-valid path.
+        def _w(name: str, seg: np.ndarray) -> np.ndarray:
+            term = self.segment_masses[name] * seg
+            return np.where(np.isfinite(seg), term, 0.0)
+
         # Head: direct keypoint
-        com_trajectory += self.segment_masses["head"] * head
+        com_trajectory += _w("head", head)
 
         # Torso: weighted average of spine and thorax
         torso_pos = (spine + thorax) / 2
-        com_trajectory += self.segment_masses["torso"] * torso_pos
+        com_trajectory += _w("torso", torso_pos)
 
         # Upper arm: shoulder to elbow midpoint
         l_upper_arm = (l_shoulder + l_elbow) / 2
         r_upper_arm = (r_shoulder + r_elbow) / 2
-        com_trajectory += self.segment_masses["left_upper_arm"] * l_upper_arm
-        com_trajectory += self.segment_masses["right_upper_arm"] * r_upper_arm
+        com_trajectory += _w("left_upper_arm", l_upper_arm)
+        com_trajectory += _w("right_upper_arm", r_upper_arm)
 
         # Forearm: elbow to wrist midpoint
         l_forearm = (l_elbow + l_wrist) / 2
         r_forearm = (r_elbow + r_wrist) / 2
-        com_trajectory += self.segment_masses["left_forearm"] * l_forearm
-        com_trajectory += self.segment_masses["right_forearm"] * r_forearm
+        com_trajectory += _w("left_forearm", l_forearm)
+        com_trajectory += _w("right_forearm", r_forearm)
 
         # Hands: wrist position
-        com_trajectory += self.segment_masses["left_hand"] * l_wrist
-        com_trajectory += self.segment_masses["right_hand"] * r_wrist
+        com_trajectory += _w("left_hand", l_wrist)
+        com_trajectory += _w("right_hand", r_wrist)
 
         # Thigh: hip to knee midpoint
         l_thigh = (l_hip + l_knee) / 2
         r_thigh = (r_hip + r_knee) / 2
-        com_trajectory += self.segment_masses["left_thigh"] * l_thigh
-        com_trajectory += self.segment_masses["right_thigh"] * r_thigh
+        com_trajectory += _w("left_thigh", l_thigh)
+        com_trajectory += _w("right_thigh", r_thigh)
 
         # Shin: knee to ankle midpoint
         l_shin = (l_knee + l_foot) / 2
         r_shin = (r_knee + r_foot) / 2
-        com_trajectory += self.segment_masses["left_shin"] * l_shin
-        com_trajectory += self.segment_masses["right_shin"] * r_shin
+        com_trajectory += _w("left_shin", l_shin)
+        com_trajectory += _w("right_shin", r_shin)
 
         # Feet: ankle position
-        com_trajectory += self.segment_masses["left_foot"] * l_foot
-        com_trajectory += self.segment_masses["right_foot"] * r_foot
+        com_trajectory += _w("left_foot", l_foot)
+        com_trajectory += _w("right_foot", r_foot)
 
         # Normalize by total mass
         com_trajectory /= self.body_mass
@@ -168,7 +179,7 @@ class PhysicsEngine:
         poses_3d: np.ndarray,
         axis: str = "vertical",
     ) -> np.ndarray:
-        """Calculate Moment of Inertia about vertical axis.
+        """Calculate Moment of Inertia about a rotation axis.
 
         I = sum(m_i * r_i^2)
 
@@ -183,86 +194,8 @@ class PhysicsEngine:
         Returns:
             inertia: (N,) array of moment of inertia values (kg·m²)
         """
-        from ..pose_estimation import H36Key
-
-        # Calculate CoM for each frame (reference point)
         com_trajectory = self.calculate_center_of_mass(poses_3d)
-
-        # Extract all keypoints as (N, 3) arrays
-        head = poses_3d[:, H36Key.HEAD]
-        spine = poses_3d[:, H36Key.SPINE]
-        thorax = poses_3d[:, H36Key.THORAX]
-        l_shoulder = poses_3d[:, H36Key.LSHOULDER]
-        l_elbow = poses_3d[:, H36Key.LELBOW]
-        l_wrist = poses_3d[:, H36Key.LWRIST]
-        r_shoulder = poses_3d[:, H36Key.RSHOULDER]
-        r_elbow = poses_3d[:, H36Key.RELBOW]
-        r_wrist = poses_3d[:, H36Key.RWRIST]
-        l_hip = poses_3d[:, H36Key.LHIP]
-        l_knee = poses_3d[:, H36Key.LKNEE]
-        l_foot = poses_3d[:, H36Key.LFOOT]
-        r_hip = poses_3d[:, H36Key.RHIP]
-        r_knee = poses_3d[:, H36Key.RKNEE]
-        r_foot = poses_3d[:, H36Key.RFOOT]
-
-        # Initialize inertia array
-        n_frames = poses_3d.shape[0]
-        inertia = np.zeros(n_frames, dtype=np.float32)
-
-        # Helper function to compute squared distances
-        def add_segment_inertia(segments: list[tuple[np.ndarray, float]]) -> None:
-            """Add inertia contribution from segments.
-
-            Args:
-                segments: List of (position, mass) tuples
-            """
-            for pos, mass in segments:
-                # Distance from CoM: ||pos - com||
-                r = np.linalg.norm(pos - com_trajectory, axis=1)
-                inertia[:] += mass * r**2
-
-        # Head
-        add_segment_inertia([(head, self.segment_masses["head"])])
-
-        # Torso: weighted average of spine and thorax
-        torso_pos = (spine + thorax) / 2
-        add_segment_inertia([(torso_pos, self.segment_masses["torso"])])
-
-        # Arm segments
-        l_upper_arm = (l_shoulder + l_elbow) / 2
-        r_upper_arm = (r_shoulder + r_elbow) / 2
-        l_forearm = (l_elbow + l_wrist) / 2
-        r_forearm = (r_elbow + r_wrist) / 2
-
-        add_segment_inertia(
-            [
-                (l_upper_arm, self.segment_masses["left_upper_arm"]),
-                (r_upper_arm, self.segment_masses["right_upper_arm"]),
-                (l_forearm, self.segment_masses["left_forearm"]),
-                (r_forearm, self.segment_masses["right_forearm"]),
-                (l_wrist, self.segment_masses["left_hand"]),
-                (r_wrist, self.segment_masses["right_hand"]),
-            ]
-        )
-
-        # Leg segments
-        l_thigh = (l_hip + l_knee) / 2
-        r_thigh = (r_hip + r_knee) / 2
-        l_shin = (l_knee + l_foot) / 2
-        r_shin = (r_knee + r_foot) / 2
-
-        add_segment_inertia(
-            [
-                (l_thigh, self.segment_masses["left_thigh"]),
-                (r_thigh, self.segment_masses["right_thigh"]),
-                (l_shin, self.segment_masses["left_shin"]),
-                (r_shin, self.segment_masses["right_shin"]),
-                (l_foot, self.segment_masses["left_foot"]),
-                (r_foot, self.segment_masses["right_foot"]),
-            ]
-        )
-
-        return inertia
+        return self._calculate_moment_of_inertia_with_com(poses_3d, com_trajectory, axis)
 
     def calculate_angular_momentum(
         self,
@@ -287,6 +220,7 @@ class PhysicsEngine:
         self,
         poses_3d: np.ndarray,
         com_trajectory: np.ndarray,
+        axis: str = "vertical",
     ) -> np.ndarray:
         """Calculate MoI using pre-computed CoM (avoids recomputation).
 
@@ -296,6 +230,7 @@ class PhysicsEngine:
         Args:
             poses_3d: (N, 17, 3) array of poses
             com_trajectory: (N, 3) pre-computed CoM trajectory
+            axis: Rotation axis ("vertical", "sagittal", "frontal")
 
         Returns:
             inertia: (N,) array of moment of inertia values (kg·m²)
@@ -323,6 +258,24 @@ class PhysicsEngine:
         n_frames = poses_3d.shape[0]
         inertia = np.zeros(n_frames, dtype=np.float32)
 
+        # #854: rᵢ is the PERPENDICULAR distance from the rotation axis, not
+        # the full 3D distance from CoM. Project the offset onto the plane
+        # perpendicular to the axis (drop the component along the axis):
+        #   vertical  → drop Y (rotation about the vertical axis)
+        #   sagittal  → drop X
+        #   frontal   → drop Z
+        # The old full-norm computed inertia about a POINT, not an axis: mass
+        # lying on the axis (head/feet above CoM) contributed m·dy² that should
+        # be 0 → angular momentum inflated, all three axes collapsed.
+        if axis == "vertical":
+            drop = 1  # Y
+        elif axis == "sagittal":
+            drop = 0  # X
+        elif axis == "frontal":
+            drop = 2  # Z
+        else:
+            raise ValueError(f"Unknown axis: {axis!r} (vertical|sagittal|frontal)")
+
         # Helper function to compute squared distances
         def add_segment_inertia(segments: list[tuple[np.ndarray, float]]) -> None:
             """Add inertia contribution from segments.
@@ -331,9 +284,17 @@ class PhysicsEngine:
                 segments: List of (position, mass) tuples
             """
             for pos, mass in segments:
-                # Distance from CoM: ||pos - com||
-                r = np.linalg.norm(pos - com_trajectory, axis=1)
-                inertia[:] += mass * r**2
+                offset = pos - com_trajectory
+                offset = np.delete(offset, drop, axis=-1)
+                r = np.linalg.norm(offset, axis=1)
+                # #980: NaN-aware contribution — an occluded keypoint makes `r`
+                # NaN for that frame; `NaN + finite = NaN` in-place would poison
+                # per-frame inertia and leak into angular momentum / avg_inertia
+                # in report JSON. Mask each segment's contribution to 0 when `r`
+                # is non-finite (its mass is simply absent for that frame). Same
+                # contract as the CoM `_w` mask (#884). All-valid case is
+                # byte-identical: np.where(isfinite, term, 0) == term when finite.
+                inertia[:] += np.where(np.isfinite(r), mass * r**2, 0.0)
 
         # Head
         add_segment_inertia([(head, self.segment_masses["head"])])
@@ -411,84 +372,13 @@ class PhysicsEngine:
                 "takeoff_velocity": 0.0,
                 "fit_quality": 0.0,
             }
-        # Extract flight phase (vertical component = Y axis)
-        flight_com = com_trajectory[takeoff_idx : landing_idx + 1, 1]  # Y coordinate
-        n_frames = len(flight_com)
-        t = np.arange(n_frames) / fps  # #423: was hardcoded / 30.0
-
-        # Parabolic fit: h(t) = at² + bt + c
-        def parabola(t: Any, a: float, b: float, c: float) -> Any:
-            return a * t**2 + b * t + c
-
-        try:
-            params, _ = curve_fit(parabola, t, flight_com)
-            a, b, c = params
-
-            # Calculate derived values
-            # g = -2a (acceleration due to gravity)
-            # v₀ = b (initial velocity)
-            # h₀ = c (initial height)
-
-            # Peak height occurs at t* = -b/(2a)
-            t_peak = -b / (2 * a)
-            h_peak = parabola(t_peak, a, b, c)
-            h_takeoff = parabola(0, a, b, c)
-            jump_height = h_peak - h_takeoff
-
-            # Flight time
-            flight_time = t[-1] - t[0]
-
-            # R² for fit quality
-            residuals = flight_com - parabola(t, a, b, c)
-            ss_res = np.sum(residuals**2)
-            ss_tot = np.sum((flight_com - np.mean(flight_com)) ** 2)
-            r_squared = 1 - (ss_res / ss_tot) if ss_tot > 0 else 0
-
-            return {
-                "height": abs(jump_height),  # meters
-                "flight_time": flight_time,  # seconds
-                "takeoff_velocity": b,  # m/s
-                "fit_quality": r_squared,
-            }
-
-        except Exception:
-            # Fallback: simple height difference
-            return {
-                "height": np.max(flight_com) - np.min(flight_com),
-                "flight_time": n_frames / fps,  # #423: was / 30.0
-                "takeoff_velocity": 0.0,
-                "fit_quality": 0.0,
-            }
-
-    def fit_jump_trajectory(
-        self,
-        poses_3d: np.ndarray,
-        takeoff_idx: int,
-        landing_idx: int,
-        fps: float = 30.0,
-    ) -> dict:
-        """Fit parabolic trajectory to CoM during flight.
-
-        During flight, CoM follows: h(t) = h₀ + v₀t - ½gt²
-
-        Args:
-            poses_3d: (N, 17, 3) array of poses
-            takeoff_idx: Frame index of takeoff
-            landing_idx: Frame index of landing
-            fps: Video framerate (was hardcoded 30; #423)
-
-        Returns:
-            dict with:
-                - height: Max jump height (meters)
-                - flight_time: Time in air (seconds)
-                - takeoff_velocity: Vertical velocity at takeoff (m/s)
-                - fit_quality: R² of parabolic fit
-        """
-        # Get CoM trajectory
-        com_trajectory = self.calculate_center_of_mass(poses_3d)
-
-        # Guard reversed/degenerate phases. #428
-        if takeoff_idx > landing_idx:
+        # #937: corrupt video reports fps=0 (cv2.CAP_PROP_FPS sentinel).
+        # #1062: NaN fps also slips past `fps <= 0` (`NaN <= 0` is False) and
+        # propagates: `t = arange/fps` → all-NaN, the NaN-blind `ss_tot > 0`
+        # clause → silent fit_quality=0.0, and the `except`-fallback
+        # `n_frames / fps` → NaN flight_time. `math.isfinite` rejects NaN/Inf;
+        # `fps > 0` rejects 0/neg. Mirrors the 2D sibling (#1064 / PR #1131).
+        if not (math.isfinite(fps) and fps > 0):
             return {
                 "height": 0.0,
                 "flight_time": 0.0,
@@ -526,7 +416,14 @@ class PhysicsEngine:
             residuals = flight_com - parabola(t, a, b, c)
             ss_res = np.sum(residuals**2)
             ss_tot = np.sum((flight_com - np.mean(flight_com)) ** 2)
-            r_squared = 1 - (ss_res / ss_tot) if ss_tot > 0 else 0
+            # #1269: NaN-blind `ss_tot > 0` silently returned r²=0.0 when
+            # flight CoM had any NaN (NaN > 0 is False, so the ternary fell
+            # through). math.isfinite rejects NaN/Inf — return NaN to signal
+            # "unknown" instead of a believable-but-wrong 0.0.
+            if math.isfinite(ss_tot) and ss_tot > 0:
+                r_squared = 1 - (ss_res / ss_tot)
+            else:
+                r_squared = float("nan")
 
             return {
                 "height": abs(jump_height),  # meters
@@ -536,12 +433,137 @@ class PhysicsEngine:
             }
 
         except Exception:
-            # Fallback: simple height difference
+            # Fallback: simple height difference. #884: NaN-safe — a fully
+            # occluded flight frame must not leak NaN into height.
+            finite_com = flight_com[np.isfinite(flight_com)]
+            fallback_height = (
+                float(np.max(finite_com) - np.min(finite_com)) if finite_com.size > 0 else 0.0
+            )
+            if not np.isfinite(fallback_height):
+                fallback_height = 0.0
             return {
-                "height": np.max(flight_com) - np.min(flight_com),
+                "height": fallback_height,
                 "flight_time": n_frames / fps,  # #423: was / 30.0
                 "takeoff_velocity": 0.0,
+                # #1269: NaN-blind fit_quality=0.0 hid corrupt flight
+                # (curve_fit raises on NaN, so we land here). Return NaN to
+                # signal "unknown" instead of a believable-but-wrong 0.0.
+                "fit_quality": float("nan"),
+            }
+
+    def fit_jump_trajectory(
+        self,
+        poses_3d: np.ndarray,
+        takeoff_idx: int,
+        landing_idx: int,
+        fps: float = 30.0,
+    ) -> dict:
+        """Fit parabolic trajectory to CoM during flight.
+
+        During flight, CoM follows: h(t) = h₀ + v₀t - ½gt²
+
+        Args:
+            poses_3d: (N, 17, 3) array of poses
+            takeoff_idx: Frame index of takeoff
+            landing_idx: Frame index of landing
+            fps: Video framerate (was hardcoded 30; #423)
+
+        Returns:
+            dict with:
+                - height: Max jump height (meters)
+                - flight_time: Time in air (seconds)
+                - takeoff_velocity: Vertical velocity at takeoff (m/s)
+                - fit_quality: R² of parabolic fit
+        """
+        # Get CoM trajectory
+        com_trajectory = self.calculate_center_of_mass(poses_3d)
+
+        # Guard reversed/degenerate phases. #428
+        if takeoff_idx > landing_idx:
+            return {
+                "height": 0.0,
+                "flight_time": 0.0,
+                "takeoff_velocity": 0.0,
                 "fit_quality": 0.0,
+            }
+        # #937: corrupt video reports fps=0 (cv2.CAP_PROP_FPS sentinel).
+        # #1062: NaN fps also slips past `fps <= 0` (`NaN <= 0` is False) and
+        # propagates: `t = arange/fps` → all-NaN, the NaN-blind `ss_tot > 0`
+        # clause → silent fit_quality=0.0, and the `except`-fallback
+        # `n_frames / fps` → NaN flight_time. `math.isfinite` rejects NaN/Inf;
+        # `fps > 0` rejects 0/neg. Mirrors the 2D sibling (#1064 / PR #1131)
+        # and the private sibling `_fit_jump_trajectory_with_com` above.
+        if not (math.isfinite(fps) and fps > 0):
+            return {
+                "height": 0.0,
+                "flight_time": 0.0,
+                "takeoff_velocity": 0.0,
+                "fit_quality": 0.0,
+            }
+        # Extract flight phase (vertical component = Y axis)
+        flight_com = com_trajectory[takeoff_idx : landing_idx + 1, 1]  # Y coordinate
+        n_frames = len(flight_com)
+        t = np.arange(n_frames) / fps  # #423: was hardcoded / 30.0
+
+        # Parabolic fit: h(t) = at² + bt + c
+        def parabola(t: Any, a: float, b: float, c: float) -> Any:
+            return a * t**2 + b * t + c
+
+        try:
+            params, _ = curve_fit(parabola, t, flight_com)
+            a, b, c = params
+
+            # Calculate derived values
+            # g = -2a (acceleration due to gravity)
+            # v₀ = b (initial velocity)
+            # h₀ = c (initial height)
+
+            # Peak height occurs at t* = -b/(2a)
+            t_peak = -b / (2 * a)
+            h_peak = parabola(t_peak, a, b, c)
+            h_takeoff = parabola(0, a, b, c)
+            jump_height = h_peak - h_takeoff
+
+            # Flight time
+            flight_time = t[-1] - t[0]
+
+            # R² for fit quality
+            residuals = flight_com - parabola(t, a, b, c)
+            ss_res = np.sum(residuals**2)
+            ss_tot = np.sum((flight_com - np.mean(flight_com)) ** 2)
+            # #1269: NaN-blind `ss_tot > 0` silently returned r²=0.0 when
+            # flight CoM had any NaN (NaN > 0 is False, so the ternary fell
+            # through). math.isfinite rejects NaN/Inf — return NaN to signal
+            # "unknown" instead of a believable-but-wrong 0.0.
+            if math.isfinite(ss_tot) and ss_tot > 0:
+                r_squared = 1 - (ss_res / ss_tot)
+            else:
+                r_squared = float("nan")
+
+            return {
+                "height": abs(jump_height),  # meters
+                "flight_time": flight_time,  # seconds
+                "takeoff_velocity": b,  # m/s
+                "fit_quality": r_squared,
+            }
+
+        except Exception:
+            # Fallback: simple height difference. #884: NaN-safe — a fully
+            # occluded flight frame must not leak NaN into height.
+            finite_com = flight_com[np.isfinite(flight_com)]
+            fallback_height = (
+                float(np.max(finite_com) - np.min(finite_com)) if finite_com.size > 0 else 0.0
+            )
+            if not np.isfinite(fallback_height):
+                fallback_height = 0.0
+            return {
+                "height": fallback_height,
+                "flight_time": n_frames / fps,  # #423: was / 30.0
+                "takeoff_velocity": 0.0,
+                # #1269: NaN-blind fit_quality=0.0 hid corrupt flight
+                # (curve_fit raises on NaN, so we land here). Return NaN to
+                # signal "unknown" instead of a believable-but-wrong 0.0.
+                "fit_quality": float("nan"),
             }
 
     def analyze(
@@ -625,6 +647,20 @@ class PhysicsEngine:
         fit_quality: float | None = None
 
         if takeoff_idx is not None and landing_idx is not None:
+            # #939: corrupt video reports fps=0 (cv2.CAP_PROP_FPS sentinel).
+            # #1064: NaN fps also propagates to flight_time, takeoff_velocity,
+            # and silently coerces fit_quality to 0.0 (NaN-blind `ss_tot > 0`).
+            # `math.isfinite` rejects NaN/Inf; `fps > 0` rejects 0/neg.
+            # Guard before any /fps — skip jump-physics, fields stay None
+            # (graceful "unknown"). Mirrors #937 (3D sibling) guard-before-/fps.
+            if not (math.isfinite(fps) and fps > 0):
+                return {
+                    "jump_height": None,
+                    "flight_time": None,
+                    "takeoff_velocity": None,
+                    "fit_quality": None,
+                    "avg_inertia": None,  # requires 3D
+                }
             # #519: landing_idx is an INCLUSIVE frame index (the slice below
             # uses landing_idx+1). flight_frames must be the COUNT
             # (landing - takeoff + 1), not the exclusive span, so flight_time
@@ -635,12 +671,28 @@ class PhysicsEngine:
 
             flight_com_y = com[takeoff_idx : landing_idx + 1, 1]
 
-            jump_height = float(np.max(flight_com_y) - np.min(flight_com_y))
+            # #855: jump height is the CoM elevation ABOVE takeoff, not the
+            # full peak-to-trough range over the window. In Y-down image coords
+            # the peak is the MINIMUM y. The old form (max - min) took the
+            # landing frame as the max when a knee-bend dropped the CoM below
+            # takeoff, so a deeper landing reported a TALLER jump for the same
+            # physical jump — landing absorption was conflated with jump height.
+            # takeoff_y - peak_y is invariant to landing depth.
+            # #883: NaN-safe peak — np.min propagates NaN if a flight frame is
+            # fully occluded. Use a finite mask so jump_height never leaks NaN.
+            finite_com_y = flight_com_y[np.isfinite(flight_com_y)]
+            if finite_com_y.size == 0 or not np.isfinite(com[takeoff_idx, 1]):
+                jump_height = 0.0
+            else:
+                jump_height = float(com[takeoff_idx, 1] - np.min(finite_com_y))
 
             if takeoff_idx > 0:
                 dt = 1.0 / fps
                 takeoff_velocity_y = float((com[takeoff_idx, 1] - com[takeoff_idx - 1, 1]) / dt)
-                takeoff_velocity = abs(takeoff_velocity_y)
+                # #883: guard NaN leak on the backward diff.
+                takeoff_velocity = (
+                    abs(takeoff_velocity_y) if np.isfinite(takeoff_velocity_y) else 0.0
+                )
 
             try:
                 t_flight = np.arange(flight_frames) / fps
@@ -648,7 +700,14 @@ class PhysicsEngine:
                 y_pred = np.polyval(coeffs, t_flight)
                 ss_res = np.sum((flight_com_y - y_pred) ** 2)
                 ss_tot = np.sum((flight_com_y - np.mean(flight_com_y)) ** 2)
-                fit_quality = float(1 - ss_res / ss_tot) if ss_tot > 0 else 0.0
+                # #1269: NaN-blind `ss_tot > 0` silently returned fit_quality
+                # 0.0 when flight CoM had any NaN. math.isfinite rejects
+                # NaN/Inf — return NaN to signal "unknown" instead of a
+                # believable-but-wrong 0.0. Mirrors the 3D siblings above.
+                if math.isfinite(ss_tot) and ss_tot > 0:
+                    fit_quality = float(1 - ss_res / ss_tot)
+                else:
+                    fit_quality = float("nan")
             except (np.linalg.LinAlgError, ValueError):
                 fit_quality = 0.0
 

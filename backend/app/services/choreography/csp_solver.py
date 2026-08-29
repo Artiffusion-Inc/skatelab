@@ -6,6 +6,7 @@ optimizing for maximum TES with back-half bonus.
 
 from __future__ import annotations
 
+import math
 import random
 from itertools import combinations
 
@@ -27,9 +28,14 @@ def _base_jump(code: str) -> str:
     return code.lstrip("0123456789")
 
 
-def _layout_fingerprint(elements: list[dict]) -> frozenset[str]:
-    """Fingerprint layout by element codes (order-independent)."""
-    return frozenset(e["code"] for e in elements)
+def _layout_fingerprint(elements: list[dict]) -> tuple[str, ...]:
+    """#666: Fingerprint layout by element codes (order-dependent).
+
+    Previously frozenset lost element order — Zayak-violating layout
+    [3A, 3T] got the same fingerprint as Zayak-compliant [3T, 3A],
+    causing dedup to silently drop the better layout.
+    """
+    return tuple(e["code"] for e in elements)
 
 
 def _score_layout(
@@ -96,6 +102,11 @@ def _generate_candidates(
     spins = inventory.get("spins", [])
     combos = inventory.get("combinations", [])
 
+    # #665: empty inventory → silent [] return. Fail fast instead.
+    total_elements = len(jumps) + len(spins) + len(combos)
+    if total_elements == 0:
+        raise ValueError("Cannot generate layout: inventory is empty")
+
     # Separate single jumps from combos; exclude 1Eu from singles (half-jump only for combos)
     single_jumps = [j for j in jumps if j != "1Eu"]
     combo_passes: list[list[str]] = []
@@ -112,7 +123,7 @@ def _generate_candidates(
     max_passes = 7 if segment == "free_skate" else min(7, len(single_jumps) + len(combo_passes))
 
     # best[fp] = (tes, layout) — keep highest TES per unique element set
-    best_by_fp: dict[frozenset[str], tuple[float, dict]] = {}
+    best_by_fp: dict[tuple[str, ...], tuple[float, dict]] = {}
 
     for _ in range(500):
         # Shuffle options for variety
@@ -198,15 +209,23 @@ def _generate_candidates(
 
         jump_pass_count = sum(1 for e in elements if "jump_pass_index" in e)
         if segment == "free_skate" and jump_pass_count >= 3:
-            back_half = set(range(jump_pass_count - 3, jump_pass_count))
+            # #846: back-half bonus indices must be POSITIONAL (matching
+            # calculate_tes's enumerate(elements) index space), not logical
+            # jump-pass ordinals. A combo continuation occupies a positional
+            # slot, shifting later jump passes above their logical ordinal —
+            # ``range(jpc-3, jpc)`` would then bonus the wrong elements.
+            # Mirrors the fallback path in _generate_back_half_variants.
+            jump_pass_indices = [i for i, e in enumerate(elements) if "jump_pass_index" in e]
+            back_half = set(jump_pass_indices[-3:])
         else:
             back_half = set()
 
         tes = _score_layout(elements, back_half)
 
-        # Dedup by fingerprint — keep highest TES per unique element set
+        # #667: NaN TES poisons fingerprint — real tes never beats NaN.
+        # Replace NaN entries with any finite value; prefer higher finite TES.
         fp = _layout_fingerprint(elements)
-        if fp not in best_by_fp or tes > best_by_fp[fp][0]:
+        if fp not in best_by_fp or not math.isfinite(best_by_fp[fp][0]) or tes > best_by_fp[fp][0]:
             best_by_fp[fp] = (
                 tes,
                 {
@@ -247,9 +266,20 @@ def _generate_positions(n: int) -> list[dict]:
 
     Uses a simple Poisson-disk-like approach: jittered grid to avoid clustering.
     Elements are spread across the full rink surface with padding from edges.
+
+    #845: do NOT reseed the global RNG here — solve_layout already seeds when
+    ``seed is not None`` (Python OS-seeds on first use otherwise). A bare
+    no-arg reseed wipes the seeded state, making positions non-reproducible
+    across identical-seed calls.
+
+    #1214: guard against non-finite/negative n — int(NaN) and int(inf) raise
+    ValueError, which would abort the entire CSP solver. Treat any unusable n
+    as zero (no positions).
     """
-    random.seed()  # ensure different layout each call
     positions: list[dict] = []
+
+    if not (math.isfinite(n) and n >= 0):
+        return positions
 
     # Grid-based jittered sampling for even distribution
     cols = max(1, int(n**0.5 * 1.5))
@@ -282,9 +312,19 @@ def solve_layout(
     if seed is not None:
         random.seed(seed)
 
-    candidates = _generate_candidates(inventory, segment)
+    # #639: reject explicit empty/short music. duration=0 collapses every
+    # element timestamp to 0.0 (min(t, -5) → 0 clamp). duration<5s also fails
+    # because the #465 rescue `min(., duration-5)` goes negative. Floor at 5s.
+    # Missing key still falls through to 180s default (back-compat with
+    # callers/tests that pass an empty dict).
+    if "duration" in music_features:
+        duration = music_features["duration"]
+        if not duration or duration < 5.0:
+            raise ValueError(f"Music duration too short for layout: {duration}s (need >= 5s)")
+    else:
+        duration = 180.0
 
-    duration = music_features.get("duration", 180.0)
+    candidates = _generate_candidates(inventory, segment)
     peaks = music_features.get("peaks", [])
 
     for layout in candidates:

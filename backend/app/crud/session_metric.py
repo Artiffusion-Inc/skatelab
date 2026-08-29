@@ -119,6 +119,17 @@ async def get_current_best_batch(
 
 async def bulk_create(db: AsyncSession, metrics: list[dict]) -> None:
     """Insert multiple session metrics in one flush."""
+    # #493: re-process guard. A second save for the same session_id
+    # would hit the (session_id, metric_name) UNIQUE constraint.
+    # Delete existing rows for these session_ids first — the caller
+    # (session_saver.save_analysis_results) is a re-process path, not
+    # a partial-update path. Mirror the #459/#485 (skill_progress,
+    # user_level) pattern: delete-existing-before-insert.
+    session_ids = {m["session_id"] for m in metrics if "session_id" in m}
+    if session_ids:
+        from sqlalchemy import delete
+
+        await db.execute(delete(SessionMetric).where(SessionMetric.session_id.in_(session_ids)))
     for m in metrics:
         db.add(SessionMetric(**m))
     await db.flush()

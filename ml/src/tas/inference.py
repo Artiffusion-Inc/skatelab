@@ -1,5 +1,6 @@
 """End-to-end TAS inference: poses → ONNX BiGRU(+Refiner) coarse → segments → ONNX/CNN fine."""
 
+import math
 from pathlib import Path
 from typing import cast
 
@@ -78,14 +79,23 @@ class TASElementSegmenter:
         poses: np.ndarray,
         fps: float,
     ) -> list[dict]:
-        """Extract contiguous segments with per-type minimum duration filter."""
+        """Extract contiguous segments with per-type minimum duration filter.
+
+        #1094: NaN labels (degenerate model confidence, NaN pose features
+        feeding the BiGRU, padding frames) used to crash `int(labels[i])`
+        with ValueError. Guard every cast with `math.isfinite` — NaN/inf
+        labels are skipped, treating them as a 1-frame "not yet
+        classified" gap inside the current segment.
+        """
         segments: list[dict] = []
         if len(labels) == 0:
             return segments
 
-        current = int(labels[0])
         start = 0
+        current = 0 if not math.isfinite(labels[0]) else int(labels[0])
         for i in range(1, len(labels)):
+            if not math.isfinite(labels[i]):
+                continue  # NaN/inf frame — gap inside the current segment
             if int(labels[i]) != current:
                 if current != 0:
                     seg = self._try_add_segment(current, start, i, poses, fps)
@@ -112,20 +122,34 @@ class TASElementSegmenter:
     ) -> dict | None:
         """Add segment if it passes per-type minimum duration check."""
         element_type = self.id2label[label]
-        duration = (end - start) / fps
+        # #950: corrupt video reports fps=0 (cv2.CAP_PROP_FPS sentinel).
+        # Guard before /fps — duration 0.0 → min-duration filter drops the
+        # segment (no meaningful duration without a framerate). Mirrors the
+        # #505 rule-based sibling (element_segmenter.py:458).
+        duration = (end - start) / fps if fps > 0 else 0.0
         min_dur = MIN_DURATION.get(element_type, self.min_segment_duration)
         if duration < min_dur:
             return None
 
         seg_poses = poses[start:end]
-        confidence = 1.0
+        # #814: without a classifier there is no model-backed confidence —
+        # the previous `confidence = 1.0` default misrepresented coarse-only
+        # segments as maximally confident. Use a neutral 0.5 so downstream
+        # filters / rankings can distinguish "no model" from "model is sure".
+        # #813: `element_type` stays coarse (Jump/Spin/Step/None); the
+        # classifier's fine label (e.g. "3Flip") goes to a separate
+        # `fine_label` field so the return shape is stable across both paths
+        # and `element_type == "Jump"` switches downstream keep working.
+        confidence = 0.5
+        fine_label: str | None = None
 
         if self.classifier is not None and label in (1, 2, 3):
             features = extract_segment_features(seg_poses, fps)
-            element_type, confidence = self.classifier.predict(features)
+            fine_label, confidence = self.classifier.predict(features)
 
         return {
             "element_type": element_type,
+            "fine_label": fine_label,
             "start": start,
             "end": end - 1,
             "confidence": confidence,

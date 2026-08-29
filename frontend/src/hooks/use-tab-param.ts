@@ -9,10 +9,22 @@ type Tab = (typeof VALID_TABS)[number]
 
 export function useTabParam(defaultTab: Tab = "overview") {
   const searchParams = useSearchParams()
-  const [localTab, setLocalTab] = useState<Tab>(defaultTab)
+  // #529: initialize localTab from the URL on first render so deep links
+  // still work (?tab=details on first load). After mount, the URL is
+  // informational only — the source of truth is localTab (which setTab
+  // updates). window.history.replaceState does NOT notify useSearchParams
+  // (only Next's router does), so reading urlTab after mount gives a
+  // frozen stale snapshot that overrides the just-clicked localTab.
+  const [localTab, setLocalTab] = useState<Tab>(() => {
+    const urlTab = searchParams.get("tab") as Tab | null
+    return urlTab && VALID_TABS.includes(urlTab) ? urlTab : defaultTab
+  })
 
-  const urlTab = searchParams.get("tab") as Tab | null
-  const activeTab = urlTab && VALID_TABS.includes(urlTab) ? urlTab : localTab
+  // activeTab = localTab. The URL ?tab= is the initial value; the user's
+  // subsequent clicks update localTab and the URL is kept in sync for
+  // shareable links, but the URL is never read again as a source of
+  // truth (it would race with setTab → ui desync).
+  const activeTab = localTab
 
   const setTab = useCallback((tab: Tab) => {
     setLocalTab(tab)

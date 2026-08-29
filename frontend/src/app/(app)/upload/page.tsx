@@ -118,8 +118,14 @@ export default function UploadPage() {
               compressed: `${(result.compressedSize / 1e6).toFixed(1)} MB`,
             }),
           )
-        } catch {
-          // Timeout or error — skip compression, upload original
+        } catch (err) {
+          // #530: user clicked Cancel — abort() rejects with "Compression
+          // aborted". Do NOT fall through to upload the uncompressed
+          // original; bail out of handleUpload entirely.
+          if (err instanceof Error && err.message === "Compression aborted") {
+            return
+          }
+          // Timeout or genuine error — skip compression, upload original
           toast.info(t("compressionSkip"))
         }
       }

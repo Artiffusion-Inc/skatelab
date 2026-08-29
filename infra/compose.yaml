@@ -1,4 +1,15 @@
-name: infra
+# Infra services — deployed via Dokploy (NOT docker compose up).
+#
+# This file is the source-of-truth compose for the `infra-dk` Dokploy stack
+# (composeId wev0EWTdnUoAbH-Rl0y4i, appName infra-dk-mebbbv). Secrets come from
+# /opt/infra/.env (${VAR} placeholders); Dokploy inlines env at deploy time.
+#
+# Volumes are external (name=infra_*, pre-created) — data survives redeployes.
+# Network aliases infra-valkey-1 / infra-postgres-1 keep backward compat with
+# the skatelab-dk stack env (which still references container-name DNS).
+#
+# Update flow: edit here → compose.update (full file) → compose.deploy via
+# Dokploy API. See infra/CLAUDE.md "Deploy".
 
 services:
   # ── Core: Valkey + Postgres ──────────────────────────────────────
@@ -6,7 +17,7 @@ services:
     image: docker.io/valkey/valkey:alpine
     restart: unless-stopped
     ports:
-      - "127.0.0.1:${VALKEY_HOST_PORT:-6379}:6379"
+      - "127.0.0.1:6379:6379"
     healthcheck:
       test: ["CMD", "valkey-cli", "ping"]
       interval: 5s
@@ -16,7 +27,9 @@ services:
     volumes:
       - valkey-data:/data
     networks:
-      - infra
+      infra:
+        aliases:
+          - infra-valkey-1
 
   postgres:
     image: docker.io/library/postgres:17-alpine
@@ -36,26 +49,9 @@ services:
     volumes:
       - postgres-data:/var/lib/postgresql/data
     networks:
-      - infra
-
-  # ── Caddy (reverse proxy, owns :80/:443) ────────────────────────
-  caddy:
-    image: ghcr.io/caddybuilds/caddy-cloudflare:latest
-    restart: unless-stopped
-    ports:
-      - "80:80"
-      - "443:443"
-      - "443:443/udp"
-    environment:
-      DOMAIN: ${DOMAIN:-skatelab.ru}
-      CLOUDFLARE_API_TOKEN: ${CLOUDFLARE_API_TOKEN}
-    volumes:
-      - ./services/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
-      - caddy-data:/data
-      - caddy-config:/config
-    networks:
-      - infra
-      - dev
+      infra:
+        aliases:
+          - infra-postgres-1
 
   # ── RustFS (S3-compatible) ─────────────────────────────────────
   rustfs:
@@ -72,7 +68,7 @@ services:
     networks:
       - infra
 
-  # ── 9router (AI gateway / proxy) — Artiffusion fork with configurable timeouts ──
+  # ── 9router (AI gateway / proxy) ────────────────────────────────
   9router:
     image: ghcr.io/artiffusion-inc/9router:latest
     restart: unless-stopped
@@ -85,7 +81,7 @@ services:
       STREAM_STALL_TIMEOUT_MS: "180000"
       STREAM_STALL_TIMEOUT_REASONING_MS: "600000"
     volumes:
-      - ./services/9router/data:/app/data
+      - /opt/infra/services/9router/data:/app/data
     networks:
       - infra
 
@@ -106,21 +102,6 @@ services:
       options:
         max-file: "5"
         max-size: "50m"
-    networks:
-      - infra
-
-  # ── CamoFox Browser (anti-detection browser for AI agents) ──────
-  camofox:
-    image: ghcr.io/jo-inc/camofox-browser:latest
-    restart: unless-stopped
-    environment:
-      CAMOFOX_ACCESS_KEY: ${CAMOFOX_ACCESS_KEY:-}
-      CAMOFOX_CRASH_REPORT_ENABLED: "false"
-      MAX_SESSIONS: "10"
-      MAX_TABS_PER_SESSION: "5"
-      MAX_OLD_SPACE_SIZE: "256"
-    volumes:
-      - camofox-data:/root/.camofox
     networks:
       - infra
 
@@ -173,8 +154,7 @@ services:
     ports:
       - "127.0.0.1:1883:1883"
     volumes:
-      - ./services/mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
-      - mosquitto-data:/mosquitto/data
+      - /opt/infra/services/mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
       - mosquitto-data:/mosquitto/data
       - mosquitto-log:/mosquitto/log
     networks:
@@ -201,6 +181,21 @@ services:
     volumes:
       - baikal-config:/var/www/baikal/config
       - baikal-data:/var/www/baikal/Specific
+    networks:
+      - infra
+
+  # ── Camofox (browser automation) ───────────────────────────────
+  camofox:
+    image: ghcr.io/jo-inc/camofox-browser:latest
+    restart: unless-stopped
+    environment:
+      CAMOFOX_ACCESS_KEY: ${CAMOFOX_ACCESS_KEY}
+      CAMOFOX_CRASH_REPORT_ENABLED: "false"
+      MAX_OLD_SPACE_SIZE: "256"
+      MAX_SESSIONS: "10"
+      MAX_TABS_PER_SESSION: "5"
+    volumes:
+      - camofox-data:/root/.camofox
     networks:
       - infra
 
@@ -236,7 +231,7 @@ services:
       LLM_MODEL_NAME: ${MIROFISH_LLM_MODEL_NAME:-ollama/deepseek-v4-flash}
       LLM_BOOST_API_KEY: ${MIROFISH_LLM_BOOST_API_KEY}
       LLM_BOOST_BASE_URL: http://9router:20128/v1
-      LLM_BOOST_MODEL_NAME: ${MIROFISH_LLM_BOOST_MODEL_NAME:-deepseek-v4-flash}
+      LLM_BOOST_MODEL_NAME: ${MIROFISH_LLM_BOOST_MODEL_NAME:-ollama/qwen3-coder-next}
       ZEP_API_KEY: ${ZEP_API_KEY:-disabled}
       ZEP_BACKEND: graphiti
       GRAPHITI_EMBEDDING_MODEL: jina/jina-embeddings-v3
@@ -257,26 +252,49 @@ services:
 
 volumes:
   valkey-data:
+    name: infra_valkey-data
+    external: true
   postgres-data:
-  caddy-data:
-  caddy-config:
+    name: infra_postgres-data
+    external: true
   rustfs-data:
+    name: infra_rustfs-data
+    external: true
   mosquitto-data:
+    name: infra_mosquitto-data
+    external: true
   mosquitto-log:
+    name: infra_mosquitto-log
+    external: true
   ntfy-data:
+    name: infra_ntfy-data
+    external: true
   searxng-data:
+    name: infra_searxng-data
+    external: true
   qbittorrent-config:
+    name: infra_qbittorrent-config
+    external: true
   qbittorrent-downloads:
+    name: infra_qbittorrent-downloads
+    external: true
   baikal-config:
+    name: infra_baikal-config
+    external: true
   baikal-data:
-  openviking-data:
-  neo4j-data:
+    name: infra_baikal-data
+    external: true
   camofox-data:
+    name: infra_camofox-data
+    external: true
+  openviking-data:
+    name: infra_openviking-data
+    external: true
+  neo4j-data:
+    name: infra_neo4j-data
+    external: true
 
 networks:
   infra:
     name: infra_app_network
-    external: true
-  dev:
-    name: dev_default
     external: true

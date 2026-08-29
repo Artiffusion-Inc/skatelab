@@ -81,8 +81,16 @@ class PoseTracker:
         self.min_hits = min_hits
         self.next_id = 0
         self.tracks: list[Track] = []
-        self.fps = fps
-        self.dt = 1.0 / fps
+        # #952: a corrupted video can report fps=0 (cv2.CAP_PROP_FPS=0 when
+        # the container lacks a framerate tag). Pre-fix (#610) raised
+        # ValueError, which killed the worker job at the FIRST pipeline stage
+        # rather than degrading. The Sports2D sibling is inherently fps=0-safe
+        # (dt=1, frame-based); mirror that: fall back to dt=1.0 (one sample per
+        # step, frame-index time) so the Kalman matrices stay finite and the
+        # job runs. A degenerate dt=inf would break downstream predictions, so
+        # never compute 1.0/fps when fps<=0.
+        self.fps = fps if fps > 0 else 0.0
+        self.dt = 1.0 / fps if fps > 0 else 1.0
 
         # Kalman filter parameters (shared, read-only during predict/update)
         self.F, self.H, self.Q, self.R, self.P0 = self._init_kalman_params()
@@ -176,7 +184,13 @@ class PoseTracker:
         # Innovation covariance
         S = H @ P @ H.T + R
         # Kalman gain
-        K = P @ H.T @ np.linalg.inv(S)
+        # #611: prefer np.linalg.pinv (Moore-Penrose pseudoinverse) over
+        # np.linalg.inv (raises LinAlgError on singular S). When S is
+        # singular (e.g. R all-zeros, all measurements identical, or
+        # degenerate P), pinv gives a graceful-degradation K. The
+        # result is a valid K matrix; the tracker keeps the prior
+        # state (effectively a no-op update) instead of crashing.
+        K = P @ H.T @ np.linalg.pinv(S)
         # Updated state
         x_upd = x + K @ y
         # Updated covariance (Joseph form for numerical stability)

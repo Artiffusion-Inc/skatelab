@@ -84,6 +84,7 @@ class UserResponse(BaseModel):
     onboarding_role: str | None
     is_active: bool
     is_verified: bool
+    is_staff: bool = False
     created_at: str
     updated_at: str
 
@@ -91,7 +92,10 @@ class UserResponse(BaseModel):
 
     @field_validator("created_at", "updated_at", mode="before")
     @classmethod
-    def validate_datetime(cls, v: Any) -> str:
+    def validate_datetime(cls, v: Any) -> str | None:
+        # #674: None guard — NULL timestamp must not become "None" string.
+        if v is None:
+            return None
         if isinstance(v, datetime):
             return v.isoformat()
         return str(v)
@@ -103,12 +107,36 @@ class UpdateProfileRequest(BaseModel):
     height_cm: int | None = Field(default=None, ge=50, le=250)
     weight_kg: float | None = Field(default=None, ge=20, le=300)
 
+    @field_validator("display_name", mode="before")
+    @classmethod
+    def strip_html(cls, v: str | None) -> str | None:
+        # #752: reject display_name containing HTML tags (stored XSS prevention)
+        if v is not None and ("<" in v or ">" in v):
+            raise ValueError("display_name must not contain HTML tags")
+        return v
+
 
 class UpdateSettingsRequest(BaseModel):
-    language: str | None = Field(default=None, max_length=10)
+    language: str | None = Field(default=None, pattern=r"^(ru|en)$")
     timezone: str | None = Field(default=None, max_length=50)
     theme: str | None = Field(default=None, pattern=r"^(light|dark|system)$")
     angular_unit: str | None = Field(default=None, pattern=r"^(deg_per_sec|rpm)$")
+
+    @field_validator("timezone", mode="before")
+    @classmethod
+    def validate_timezone(cls, v: str | None) -> str | None:
+        # #746: validate timezone against IANA database
+        if v is None:
+            return v
+        from zoneinfo import ZoneInfoNotFoundError
+
+        try:
+            from zoneinfo import ZoneInfo
+
+            ZoneInfo(v)
+        except ZoneInfoNotFoundError:
+            raise ValueError(f"Invalid IANA timezone: {v}") from None
+        return v
 
 
 class UpdateOnboardingRoleRequest(BaseModel):
@@ -286,7 +314,8 @@ class TaskStatusResponse(BaseModel):
     status: str
     progress: float
     message: str
-    result: ProcessResponse | None = None
+    # #757: result can be either ProcessResponse (for /process) or DetectResultResponse (for /detect)
+    result: ProcessResponse | DetectResultResponse | None = None
     error: str | None = None
 
 
@@ -415,7 +444,7 @@ class SessionResponse(BaseModel):
     status: str
     error_message: str | None
     phases: PhasesData | None  # Typed phase markers
-    recommendations: list[str] | None
+    recommendations: list[str] | None  # #678: filtered by validator below
     overall_score: float | None
     process_task_id: str | None
     imu_left_key: str | None = None
@@ -430,6 +459,14 @@ class SessionResponse(BaseModel):
     goe_grade: GOEResponse | None = None
 
     model_config = {"from_attributes": True}
+
+    @field_validator("recommendations", mode="before")
+    @classmethod
+    def _filter_empty_strings(cls, v: Any) -> list[str] | None:
+        # #678: drop empty strings from recommendations list.
+        if v is None:
+            return None
+        return [r for r in v if r]
 
     @field_validator("created_at", "processed_at", mode="before")
     @classmethod
@@ -481,7 +518,7 @@ class TrendResponse(BaseModel):
     metric_name: str
     element_type: str
     data_points: list[TrendDataPoint]
-    trend: str  # improving | stable | declining
+    trend: str = Field(pattern=r"^(improving|stable|declining)$")  # #677
     current_pr: float | None
     reference_range: dict[str, float] | None
 
@@ -581,7 +618,7 @@ class GenerateRequest(BaseModel):
 
 class LayoutElement(BaseModel):
     code: str
-    goe: int = 0
+    goe: float = 0  # #717: was int, CSP solver returns fractional GOE
     timestamp: float = 0.0
     position: dict | None = None
     is_back_half: bool = False
@@ -591,8 +628,19 @@ class LayoutElement(BaseModel):
 
 class Layout(BaseModel):
     elements: list[LayoutElement]
-    total_tes: float
+    total_tes: float = Field(
+        ge=0
+    )  # #679: reject NaN/negative; inf also rejected by validator below
     back_half_indices: list[int]
+
+    @field_validator("total_tes", mode="before")
+    @classmethod
+    def _reject_nonfinite_tes(cls, v: Any) -> float:
+        import math
+
+        if isinstance(v, float) and not math.isfinite(v):
+            raise ValueError("total_tes must be finite, not inf or NaN")
+        return v
 
 
 class GenerateResponse(BaseModel):
@@ -670,7 +718,7 @@ class SaveProgramRequest(BaseModel):
 
 
 class ExportRequest(BaseModel):
-    format: str = Field(pattern=r"^(svg|pdf|json)$")
+    format: str = Field(pattern=r"^(svg|json)$")  # #714: removed pdf — was returning SVG, not PDF
 
 
 class ElementDefResponse(BaseModel):
@@ -723,7 +771,9 @@ class SubScoreSchema(BaseModel):
 
 
 class MultiDimensionalScoreSchema(BaseModel):
-    subscores: list[SubScoreSchema]
+    subscores: list[SubScoreSchema] = Field(
+        min_length=1
+    )  # #675: empty subscores silent empty result
     overall: float = Field(ge=0, le=10)
     data_quality: str = "good"
     skeleton_reliability: str = "reliable"
@@ -738,6 +788,16 @@ class PhaseExtendedSchema(BaseModel):
     confidence: float = Field(ge=0, le=1)
     detection_method: str
 
+    @field_validator("start_time", "end_time", mode="before")
+    @classmethod
+    def _reject_infinity(cls, v: Any) -> float:
+        # #676: inf passes ge=0 (inf >= 0 is True). Reject non-finite values.
+        import math
+
+        if isinstance(v, float) and not math.isfinite(v):
+            raise ValueError("must be finite, not inf or NaN")
+        return v
+
 
 class PhaseDetectionResultSchema(BaseModel):
     phases: list[PhaseExtendedSchema]
@@ -750,8 +810,7 @@ class SessionScoreResponse(BaseModel):
     id: str
     session_id: str
     subscores: list[SubScoreSchema]
-    overall: float
-    data_quality: str
+    overall: float = Field(ge=0, le=10)  # #673: constrain overall to 0-10
     skeleton_reliability: str
     created_at: str
     updated_at: str

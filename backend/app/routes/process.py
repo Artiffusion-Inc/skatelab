@@ -10,7 +10,7 @@ from collections.abc import Sequence  # noqa: TC003
 from typing import Any, ClassVar
 
 from litestar import Controller, Request, get, post
-from litestar.exceptions import NotAuthorizedException
+from litestar.exceptions import ClientException, NotAuthorizedException
 from litestar.response import ServerSentEvent
 
 from app.auth.deps import CurrentUser, DbDep
@@ -24,7 +24,9 @@ from app.schemas import (
 )
 from app.task_manager import (
     TASK_EVENTS_PREFIX,
+    TaskStatus,
     create_task_state,
+    delete_task_state,
     get_task_state,
     get_valkey,
     set_cancel_signal,
@@ -33,6 +35,10 @@ from app.task_manager import (
 logger = logging.getLogger(__name__)
 
 SSE_STREAM_TIMEOUT = 60  # seconds
+# #699: pubsub poll interval. Short enough that the loop returns control to
+# the event loop (so ASGI/Litestar can observe an http.disconnect and tear the
+# stream down) but long enough to avoid a busy-loop on an idle channel.
+SSE_POLL_TIMEOUT = 1.0  # seconds
 
 
 class ProcessController(Controller):
@@ -53,7 +59,10 @@ class ProcessController(Controller):
         if data.session_id is not None:
             await assert_session_owned(db, data.session_id, user)
 
-        task_id = f"proc_{uuid.uuid4().hex[:12]}"
+        # #698: full uuid4 hex (128 bits). The old 12-char truncation (48 bits)
+        # hit birthday-paradox collisions at ~10M tasks (~16%), clobbering two
+        # tasks' Valkey state — one user's cancel signal could kill another's.
+        task_id = f"proc_{uuid.uuid4().hex}"
 
         await create_task_state(task_id, video_key=data.video_key, user_id=str(user.id))
 
@@ -66,19 +75,34 @@ class ProcessController(Controller):
             "inpainting": data.inpainting,
         }
 
-        await request.app.state.arq_pool.enqueue_job(
-            "process_video_task",
-            task_id=task_id,
-            video_key=data.video_key,
-            person_click={"x": data.person_click.x, "y": data.person_click.y},
-            frame_skip=data.frame_skip,
-            tracking=data.tracking,
-            ml_flags=ml_flags,
-            session_id=data.session_id,
-            user_id=str(user.id),
-            lang=user.language,
-            _queue_name="skatelab:queue:heavy",
-        )
+        # #700: rollback task state if enqueue_job raised (Valkey full, queue
+        # missing, serialization error). Without this the hash stays "pending"
+        # for the TTL — the client polls a task that will never run and the
+        # per-user rate limit still counts the orphan.
+        try:
+            await request.app.state.arq_pool.enqueue_job(
+                "process_video_task",
+                task_id=task_id,
+                video_key=data.video_key,
+                person_click={"x": data.person_click.x, "y": data.person_click.y},
+                frame_skip=data.frame_skip,
+                tracking=data.tracking,
+                ml_flags=ml_flags,
+                session_id=data.session_id,
+                user_id=str(user.id),
+                lang=user.language,
+                _queue_name="skatelab:queue:heavy",
+            )
+        except Exception:
+            logger.exception("Failed to enqueue process_video_task for %s", task_id)
+            try:
+                await delete_task_state(task_id)
+            except Exception:
+                logger.warning("Failed to roll back task state for %s", task_id)
+            raise ClientException(
+                status_code=503,
+                detail="Failed to enqueue task",
+            ) from None
 
         return QueueProcessResponse(task_id=task_id)
 
@@ -87,14 +111,26 @@ class ProcessController(Controller):
         """Poll task status."""
         state = await assert_task_owned(task_id, user)
 
-        result = None
-        if state.get("result"):
-            result = ProcessResponse(**state["result"])
+        # #697: defensive read — legacy workers / partial Valkey writes may
+        # omit keys. state["progress"]/state["status"] raised KeyError on a
+        # task written by an older worker version, crashing the poll with 500.
+        result: Any = None
+        raw_result = state.get("result")
+        if raw_result:
+            # Worker version drift or corrupt JSON can mismatch ProcessResponse
+            # (extra/missing fields, wrong types). Don't let a schema error
+            # take down the status poll — return the raw dict so the client
+            # still sees status/progress and can decide what to do.
+            try:
+                result = ProcessResponse(**raw_result)
+            except Exception:
+                logger.warning("Failed to parse result for task %s", task_id, exc_info=True)
+                result = raw_result
 
         return TaskStatusResponse(
             task_id=task_id,
-            status=state["status"],
-            progress=state["progress"],
+            status=state.get("status", "unknown"),
+            progress=state.get("progress", 0),
             message=state.get("message", ""),
             result=result,  # type: ignore[reportArgumentType]
             error=state.get("error"),
@@ -104,11 +140,26 @@ class ProcessController(Controller):
     async def cancel_queued_process(self, task_id: str, user: CurrentUser) -> dict:
         """Cancel a queued or running task via Valkey signal."""
         await assert_task_owned(task_id, user)
+        # #701: check current status before setting the cancel signal. The
+        # worker clears the signal on terminal transition, so setting it on an
+        # already-completed/failed/cancelled task is a no-op that misreports
+        # success — the client thinks cancel worked but the worker did nothing.
+        # A cancel arriving after the task completed is a race; report it
+        # honestly instead of pretending the cancel took effect.
+        state = await get_task_state(task_id)
+        if state and state.get("status") in (
+            TaskStatus.COMPLETED,
+            TaskStatus.FAILED,
+            TaskStatus.CANCELLED,
+        ):
+            return {"status": "already_terminal", "task_id": task_id}
         await set_cancel_signal(task_id)
         return {"status": "cancel_requested", "task_id": task_id}
 
     @get("/{task_id:str}/stream")
-    async def stream_process_status(self, task_id: str, user: CurrentUser) -> ServerSentEvent:
+    async def stream_process_status(
+        self, request: Request, task_id: str, user: CurrentUser
+    ) -> ServerSentEvent:
         """SSE endpoint for real-time task progress streaming."""
 
         async def event_generator():
@@ -130,16 +181,36 @@ class ProcessController(Controller):
                 else:
                     yield {"data": json.dumps({"status": "unknown"})}
 
+                # #699: poll pubsub instead of `pubsub.listen()`. listen() blocks
+                # on a Valkey read, holding the generator away from the event
+                # loop — so a client disconnect went undetected for up to 60s
+                # and pubsub connections accumulated under mobile flakiness.
+                # A short-timeout get_message() + sleep returns control to the
+                # loop each tick, letting Litestar/ASGI observe http.disconnect
+                # and tear the stream down promptly.
                 async with asyncio.timeout(SSE_STREAM_TIMEOUT):
-                    async for message in pubsub.listen():
-                        if message["type"] == "message":
-                            yield {"data": message["data"].decode()}
-                            try:
-                                data = json.loads(message["data"])
-                                if data.get("status") in ("completed", "failed", "cancelled"):
-                                    break
-                            except (json.JSONDecodeError, TypeError):
-                                pass
+                    while True:
+                        if not request.is_connected:
+                            break
+                        message = await pubsub.get_message(
+                            ignore_subscribe_messages=True,
+                            timeout=SSE_POLL_TIMEOUT,
+                        )
+                        if message is None:
+                            continue
+                        if message["type"] != "message":
+                            continue
+                        raw_data = message["data"]
+                        text_data = (
+                            raw_data.decode() if isinstance(raw_data, bytes) else str(raw_data)
+                        )
+                        yield {"data": text_data}
+                        try:
+                            data = json.loads(text_data)
+                            if data.get("status") in ("completed", "failed", "cancelled"):
+                                break
+                        except (json.JSONDecodeError, TypeError):
+                            pass
             except TimeoutError:
                 # No messages for 60s — poll final state and yield timeout event
                 logger.warning("SSE stream timeout for task %s", task_id)

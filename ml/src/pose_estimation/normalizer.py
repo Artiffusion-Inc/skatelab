@@ -69,7 +69,11 @@ class PoseNormalizer:
             spine_vector = thorax - hip_center
             spine_length = np.linalg.norm(spine_vector)
 
-            scale = 1.0 if spine_length < 1e-6 else self._target_spine_length / spine_length
+            scale = (
+                1.0
+                if not np.isfinite(spine_length) or spine_length < 1e-6
+                else self._target_spine_length / spine_length
+            )
 
             # 3. Project to 2D (x, y) - drop z coordinate
             normalized[frame_idx] = centered[:, :2] * scale
@@ -110,7 +114,11 @@ class PoseNormalizer:
             spine_vector = thorax - hip_center
             spine_length = np.linalg.norm(spine_vector)
 
-            scale = 1.0 if spine_length < 1e-6 else self._target_spine_length / spine_length
+            scale = (
+                1.0
+                if not np.isfinite(spine_length) or spine_length < 1e-6
+                else self._target_spine_length / spine_length
+            )
 
             # 3. Preserve Z — no [:, :2] projection
             normalized[frame_idx] = centered * scale
@@ -130,7 +138,22 @@ class PoseNormalizer:
         thorax = poses[:, H36Key.THORAX]
 
         spine_lengths = np.linalg.norm(thorax - hip_center, axis=1)
-        return float(np.mean(spine_lengths))
+        # #993: NaN THORAX / HIP_CENTER on a single occluded frame →
+        # np.linalg.norm(NaN)=NaN → np.mean(spine_lengths)=NaN (numpy
+        # propagates NaN through mean, no exception — only RuntimeWarning the
+        # caller cannot catch as a contract). The public method then returns a
+        # NaN spine length for the WHOLE sequence, and spine_length is the
+        # scale reference for `normalize` (line 113 scale = target /
+        # spine_length). nanmean ignores the NaN frame, computing the average
+        # over finite frames — one occluded frame no longer poisons the
+        # aggregate. All-finite case is byte-identical (nanmean == mean when
+        # no NaN). If EVERY frame is NaN there is no spine to measure → 0.0
+        # sentinel (finite, not NaN), matching `normalize`'s spine_length<1e-6
+        # → scale=1.0 fallthrough.
+        finite = np.isfinite(spine_lengths)
+        if not finite.any():
+            return 0.0
+        return float(np.nanmean(spine_lengths))
 
     def is_valid_frame(
         self,

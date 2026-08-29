@@ -104,8 +104,20 @@ class VerticalAxisLayer(Layer):
         if pose is None:
             return frame
 
-        # Bail out if any required joint contains NaN
-        required_keys = (H36Key.LHIP, H36Key.RHIP, H36Key.LSHOULDER, H36Key.RSHOULDER)
+        # Bail out if any required joint contains NaN. #891: H36Key.HEAD is
+        # required too — `_draw_head_alignment` reads head_pt and calls
+        # int(head_pt[0]) (line 308); a NaN HEAD (head off-frame during
+        # rotations — common in skating) crashed int(nan) (pixel) or drew a
+        # garbage indicator from the masked (0,0) origin (normalized). HEAD
+        # was the only required joint for the head-alignment indicator NOT in
+        # this guard — add it so both paths skip on a NaN head.
+        required_keys = (
+            H36Key.LHIP,
+            H36Key.RHIP,
+            H36Key.LSHOULDER,
+            H36Key.RSHOULDER,
+            H36Key.HEAD,
+        )
         if any(np.isnan(pose[k]).any() for k in required_keys):
             return frame
 
@@ -192,6 +204,12 @@ class VerticalAxisLayer(Layer):
         """Draw a dashed line between two points."""
         x1, y1 = pt1
         x2, y2 = pt2
+        # NaN guard (#1156): dist < 1 doesn't catch NaN (NaN < 1 is False),
+        # so NaN coords would propagate to dx/dy and crash int(NaN).
+        if not (
+            math.isfinite(x1) and math.isfinite(x2) and math.isfinite(y1) and math.isfinite(y2)
+        ):
+            return
         dist = math.hypot(x2 - x1, y2 - y1)
         if dist < 1:
             return
@@ -290,6 +308,23 @@ class VerticalAxisLayer(Layer):
         hip = mid_hip[:2]
         shoulder = mid_shoulder[:2]
         head_pt = head[:2]
+
+        # #1090: guard against NaN inputs — `int(nan)` raises ValueError
+        # (crash), and the `min(1.0, t)` clamp on NaN `t` silently max-rewards
+        # to 1.0 (projection lands at the shoulder). Defense-in-depth: even
+        # if `render`'s `required_keys` guard is bypassed (direct call,
+        # future refactor), the function is safe.
+        if not (
+            math.isfinite(hip[0])
+            and math.isfinite(hip[1])
+            and math.isfinite(shoulder[0])
+            and math.isfinite(shoulder[1])
+            and math.isfinite(head_pt[0])
+            and math.isfinite(head_pt[1])
+            and math.isfinite(spine_vector[0])
+            and math.isfinite(spine_vector[1])
+        ):
+            return
 
         spine_len_sq = float(np.dot(spine_vector, spine_vector))
         if spine_len_sq < 1.0:

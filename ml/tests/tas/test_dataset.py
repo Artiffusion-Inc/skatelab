@@ -89,8 +89,8 @@ def test_normalize_poses():
     poses = np.random.randn(10, 17, 2).astype(np.float32)
     normalized = normalize_poses(poses)
     assert normalized.shape == (10, 17, 2)
-    # Mid-hip should be at origin
-    mid = normalized[:, 11:13, :].mean(axis=1)
+    # H3.6M hip root: midpoint of RHIP(1) and LHIP(4) should be at origin
+    mid = normalized[:, [1, 4], :].mean(axis=1)
     np.testing.assert_allclose(mid, 0, atol=1e-5)
 
 

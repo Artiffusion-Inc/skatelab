@@ -10,6 +10,9 @@ from typing import TYPE_CHECKING
 
 logger = logging.getLogger(__name__)
 
+# #803: separators that let element_type escape store_dir via path traversal.
+_TRAVERSAL_MARKERS = ("/", "\\")
+
 if TYPE_CHECKING:
     from .reference_builder import ReferenceBuilder  # type: ignore[import-untyped]
     from .types import ReferenceData  # type: ignore[import-untyped]
@@ -37,6 +40,26 @@ class ReferenceStore:
         self._store_dir = store_dir
         self._builder: ReferenceBuilder | None = None
 
+    def _element_dir(self, element_type: str) -> Path:
+        """#803: store_dir / element_type with path-traversal rejection.
+
+        element_type was passed verbatim from caller/upload metadata, so a
+        value like ``../../etc/passwd`` escaped store_dir — save_reference
+        mkdir(parents=True) created dirs OUTSIDE the store, and get globbed
+        the escaped dir for arbitrary .npz reads. Reject any separator
+        (string check is cheap and catches the obvious cases), then resolve
+        and is_relative_to as defence-in-depth (catches symlink / ".." escape
+        the string check misses). Returns the un-resolved joined path so the
+        existing contract (paths relative to store_dir) holds.
+        """
+        if any(m in element_type for m in _TRAVERSAL_MARKERS) or element_type in (".", ".."):
+            raise ValueError(f"invalid element_type: {element_type!r}")
+        store_root = self._store_dir.resolve()
+        resolved = (self._store_dir / element_type).resolve()
+        if not resolved.is_relative_to(store_root):
+            raise ValueError(f"element_type escapes store_dir: {element_type!r}")
+        return self._store_dir / element_type
+
     def set_builder(self, builder: "ReferenceBuilder") -> None:  # type: ignore[valid-type]
         """Set reference builder for loading .npz files.
 
@@ -60,7 +83,7 @@ class ReferenceStore:
         if self._builder is None:
             raise RuntimeError("ReferenceBuilder not set. Use set_builder() first.")
 
-        element_dir = self._store_dir / ref.element_type
+        element_dir = self._element_dir(ref.element_type)
         return self._builder.save_reference(ref, element_dir)
 
     def get(self, element_type: str) -> list["ReferenceData"]:  # type: ignore[valid-type]
@@ -78,20 +101,42 @@ class ReferenceStore:
         if self._builder is None:
             raise RuntimeError("ReferenceBuilder not set. Use set_builder() first.")
 
-        element_dir = self._store_dir / element_type
+        element_dir = self._element_dir(element_type)
 
         if not element_dir.exists():
             return []
 
         references: list[ReferenceData] = []  # type: ignore[valid-type]
+        skipped: list[Path] = []
 
-        for npz_file in element_dir.glob("*.npz"):
+        # #804: sorted() so glob order is lexicographic, not filesystem readdir
+        # order (inode order). get_best_match returns references[0] — the FIRST
+        # glob result — so an unsorted glob makes the "best" reference (and the
+        # DTW alignment / GOE proxy score downstream) filesystem-dependent and
+        # non-reproducible across runs. Deterministic best-match is a
+        # prerequisite for reproducible scores.
+        for npz_file in sorted(element_dir.glob("*.npz")):
             try:
                 ref = self._builder.load_reference(npz_file)
                 references.append(ref)
             except Exception as e:  # noqa: BLE001
-                # Skip invalid files
+                # Skip invalid files, but track them so an all-corrupt element
+                # dir does not look like "element type not found" (#805).
                 logger.warning("Failed to load %s: %s", npz_file, e)
+                skipped.append(npz_file)
+
+        # #805: every .npz in the dir failed to load — surface the corruption
+        # to the caller instead of returning [] (indistinguishable from a
+        # missing element type). A truncated download / partial write / schema
+        # drift was hiding behind a warning log nobody reads; the caller (DTW
+        # alignment via get_best_match) saw "no references" and skipped
+        # silently. Partial corruption (some valid, some bad) still returns
+        # the valid ones — only the all-corrupt case raises.
+        if not references and skipped:
+            raise RuntimeError(
+                f"All {len(skipped)} reference(s) corrupt in {element_dir} "
+                f"(loaded 0, skipped {len(skipped)})"
+            )
 
         return references
 

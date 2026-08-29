@@ -5,6 +5,7 @@ import { toast } from "sonner"
 import { useAuth } from "@/components/auth-provider"
 import { Button } from "@/components/ui/button"
 import { useTranslations } from "@/i18n"
+import { setLocale } from "@/i18n/actions"
 import { updateSettings } from "@/lib/auth"
 import { useRouter } from "next/navigation"
 
@@ -24,6 +25,13 @@ export function SettingsForm() {
     setSaving(true)
     try {
       await updateSettings({ language, timezone, theme: theme as "light" | "dark" | "system" })
+      // #486: after DB PATCH, write the NEXT_LOCALE cookie via setLocale
+      // and re-render the SSR tree via router.refresh(). Without these
+      // side effects, the UI stays in the old language even after the DB
+      // preference is updated — the user clicks "Save" and nothing visible
+      // happens.
+      await setLocale(language)
+      router.refresh()
       toast.success(t("saved"))
     } catch {
       toast.error(t("saveError"))

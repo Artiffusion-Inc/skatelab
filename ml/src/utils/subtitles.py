@@ -7,6 +7,7 @@ This module parses VTT subtitles to extract:
 - Instructions and tips
 """
 
+import math
 import re
 from dataclasses import dataclass
 from pathlib import Path
@@ -102,9 +103,15 @@ class SubtitleParser:
         current_text = ""
 
         for line in content.split("\n"):
-            # Parse timestamp: 00:00:25.849 --> 00:00:30.580
+            # #565: VTT spec allows both HH:MM:SS.mmm AND MM:SS.mmm. The
+            # previous regex (\d{2}:\d{2}:\d{2}\.\d{3}) only matched the
+            # long form, silently dropping MM:SS.mmm captions (YouTube
+            # auto-captions, most video editors for videos < 1 hour).
+            # The new pattern: \d{1,2} hour, optional :MM, then :SS.mmm.
+            # \d{1,2} accepts both 1-digit (H:MM:SS) and 2-digit (HH:MM:SS)
+            # forms for robustness.
             timestamp_match = re.match(
-                r"(\d{2}:\d{2}:\d{2}\.\d{3})\s*-->\s*(\d{2}:\d{2}:\d{2}\.\d{3})", line
+                r"(\d{1,2}(?::\d{2})?\.\d{3})\s*-->\s*(\d{1,2}(?::\d{2})?\.\d{3})", line
             )
 
             if timestamp_match:
@@ -137,17 +144,25 @@ class SubtitleParser:
     def _parse_time(self, time_str: str) -> float:
         """Parse VTT timestamp to seconds.
 
-        Args:
-            time_str: Time string like "00:00:25.849".
+        Supports both formats (VTT spec allows either):
+        - HH:MM:SS.mmm (3-part split) → hours * 3600 + minutes * 60 + seconds
+        - MM:SS.mmm (2-part split)    → minutes * 60 + seconds
 
-        Returns:
-            Time in seconds as float.
+        #566: previously only 3-part was supported; MM:SS.mmm raised
+        ValueError on int("25.849"). YouTube auto-captions and most
+        video editors emit MM:SS.mmm for videos < 1 hour.
         """
         parts = time_str.split(":")
-        hours = int(parts[0])
-        minutes = int(parts[1])
-        seconds = float(parts[2])
-        return hours * 3600 + minutes * 60 + seconds
+        if len(parts) == 2:  # MM:SS.mmm
+            minutes = int(parts[0])
+            seconds = float(parts[1])
+            return minutes * 60 + seconds
+        if len(parts) == 3:  # HH:MM:SS.mmm
+            hours = int(parts[0])
+            minutes = int(parts[1])
+            seconds = float(parts[2])
+            return hours * 3600 + minutes * 60 + seconds
+        raise ValueError(f"Invalid VTT timestamp: {time_str!r}")
 
     def _parse_caption(self, start: float, end: float, text: str) -> list[ElementEvent]:
         """Extract element events from a single caption.
@@ -197,6 +212,15 @@ class SubtitleParser:
                     count = 2
                 elif "тройн" in text_lower:
                     count = 3
+                # #494: add a default branch for "одиночн" (single). The
+                # first 3 patterns (одиночн/двойн/тройн) have no capture
+                # group, so `match.group(1)` raises IndexError on the
+                # "одиночн" branch (where neither двойн nor тройн matches).
+                # Add an explicit "одиночн" branch BEFORE the match.group(1)
+                # fallback so the "single" case is handled symmetrically
+                # with двойн/тройн.
+                elif "одиночн" in text_lower:
+                    count = 1
                 elif match.group(1):
                     count = int(match.group(1))
                 break
@@ -274,6 +298,18 @@ class SubtitleParser:
 
         for event in events:
             if event.name == "unknown":
+                continue
+
+            # #1084: guard NaN/inf timing before the int() cast — `int(NaN)`
+            # raises `ValueError: cannot convert float NaN to integer` and
+            # aborts the entire phase pipeline. Corrupted VTT, malformed
+            # time strings, or upstream arithmetic on undefined values can
+            # produce NaN here; the consumer (recommender) cannot bound
+            # any element if we crash. Skip the bad event, keep the rest.
+            if not (
+                math.isfinite(event.start_time)
+                and (event.end_time is None or math.isfinite(event.end_time))
+            ):
                 continue
 
             start_frame = int(event.start_time * fps)

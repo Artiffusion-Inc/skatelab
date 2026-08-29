@@ -18,12 +18,12 @@ Env Prefixes:
 
 from functools import lru_cache
 from pathlib import Path
-from typing import Any, Literal
+from typing import Annotated, Any, Literal
 from urllib.parse import urlparse
 
-from pydantic import Field, SecretStr
+from pydantic import Field, SecretStr, field_validator
 from pydantic_settings import BaseSettings as _BaseSettings
-from pydantic_settings import SettingsConfigDict
+from pydantic_settings import NoDecode, SettingsConfigDict
 
 # Look for .env in project root (one level up from backend/)
 _PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
@@ -176,6 +176,25 @@ class PostHogConfig(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="POSTHOG_")
 
 
+class StaffConfig(BaseSettings):
+    """Staff allowlist for internal docs access.
+
+    MVP: email allowlist. Upgrade path = User.is_staff column + migration (Phase 2).
+    """
+
+    emails: Annotated[list[str], NoDecode] = Field(default_factory=list)
+
+    @field_validator("emails", mode="before")
+    @classmethod
+    def _split_emails(cls, v: Any) -> Any:
+        # STAFF_EMAILS="a@x.ru, b@x.ru" -> ["a@x.ru", "b@x.ru"]
+        if isinstance(v, str):
+            return [e.strip() for e in v.split(",") if e.strip()]
+        return v
+
+    model_config = SettingsConfigDict(env_prefix="STAFF_")
+
+
 class AppConfig(BaseSettings):
     """General application settings."""
 
@@ -187,10 +206,20 @@ class AppConfig(BaseSettings):
     worker_retry_delays: list[int] = [30, 120]
     log_level: str = "INFO"
     omp_num_threads: int = 2
-    task_ttl_seconds: int = 86400
+    task_ttl_seconds: int = 86400  # #642: must be > 0, validator below
+
+    @field_validator("task_ttl_seconds")
+    @classmethod
+    def _ttl_positive(cls, v: int) -> int:
+        if v <= 0:
+            raise ValueError(f"task_ttl_seconds must be > 0, got {v}")
+        return v
+
     skip_auth: bool = False
     cookie_secure: bool = False
     cookie_samesite: Literal["lax", "strict", "none"] = "lax"
+    # #689: None for dev (localhost), ".skatelab.ru" for prod
+    cookie_domain: str | None = None
 
     model_config = SettingsConfigDict(env_prefix="APP_")
 
@@ -212,6 +241,7 @@ class Settings(BaseSettings):
     resend: ResendConfig = Field(default_factory=ResendConfig)
     sentry: SentryConfig = Field(default_factory=SentryConfig)
     posthog: PostHogConfig = Field(default_factory=PostHogConfig)
+    staff: StaffConfig = Field(default_factory=StaffConfig)
     app: AppConfig = Field(default_factory=AppConfig)
 
     model_config = SettingsConfigDict(

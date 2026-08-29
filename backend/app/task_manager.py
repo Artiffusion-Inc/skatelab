@@ -170,6 +170,8 @@ async def store_error(
         f"{TASK_KEY_PREFIX}{task_id}",
         mapping={
             "status": TaskStatus.FAILED,
+            "progress": "0.0",
+            "message": "Failed",
             "completed_at": now,
             "error": error_message,
         },
@@ -183,6 +185,7 @@ async def mark_cancelled(task_id: str) -> None:
         f"{TASK_KEY_PREFIX}{task_id}",
         mapping={
             "status": TaskStatus.CANCELLED,
+            "progress": "0.0",
             "completed_at": now,
             "message": "Cancelled",
         },
@@ -195,7 +198,15 @@ async def get_task_state(task_id: str) -> dict[str, Any] | None:
     if not data:
         return None
     result = data.get("result")
-    data["result"] = json.loads(result) if result else None
+    if result:
+        # #643: corrupt JSON in Valkey must not crash the endpoint.
+        try:
+            data["result"] = json.loads(result)
+        except json.JSONDecodeError:
+            logger.warning("task_manager.corrupt_result task_id=%s", task_id)
+            data["result"] = {"raw": result, "error": "corrupt_json"}
+    else:
+        data["result"] = None
     data["progress"] = float(data.get("progress", "0"))
     return data
 
@@ -209,6 +220,20 @@ async def set_cancel_signal(task_id: str) -> None:
     valkey = get_valkey()
     ttl = get_settings().app.task_ttl_seconds
     await valkey.setex(f"{TASK_CANCEL_PREFIX}{task_id}", ttl, "1")
+
+
+async def delete_task_state(task_id: str) -> None:
+    """Remove a task's state hash and cancel signal.
+
+    Used to roll back `create_task_state` when the downstream `enqueue_job`
+    fails (#700) — otherwise the orphaned hash stays "pending" for the TTL and
+    the client polls a task that will never run.
+    """
+    valkey = get_valkey()
+    await valkey.delete(
+        f"{TASK_KEY_PREFIX}{task_id}",
+        f"{TASK_CANCEL_PREFIX}{task_id}",
+    )
 
 
 async def publish_task_event(

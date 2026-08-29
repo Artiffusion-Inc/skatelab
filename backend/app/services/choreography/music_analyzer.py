@@ -8,6 +8,7 @@ NOT from the backend directly. The backend only stores/retrieves cached results.
 from __future__ import annotations
 
 import logging
+import math
 from concurrent.futures import ThreadPoolExecutor
 from typing import Any
 
@@ -39,6 +40,9 @@ def _run_analysis(audio_path: str) -> dict:
 
     def _compute_energy_peaks(y: Any, sr: Any) -> tuple[list[float], dict[str, Any]]:
         """Compute RMS energy curve and detect peaks."""
+        if not math.isfinite(sr):
+            logger.warning("Skipping energy peaks: non-finite sr=%r", sr)
+            return [], {"timestamps": [], "values": []}
         hop_length = int(sr * 0.5)
         rms = librosa.feature.rms(y=y, frame_length=hop_length * 2, hop_length=hop_length)[0]
         timestamps = [float(i * 0.5) for i in range(len(rms))]

@@ -6,6 +6,7 @@ Each GOE step = +/-10% of base value (ISU standard).
 
 from __future__ import annotations
 
+import math
 from pathlib import Path  # noqa: TC003
 
 from app.config import settings
@@ -25,7 +26,14 @@ def calculate_element_score(base_value: float, goe: int) -> float:
 
     This replaces the old calculate_goe_total() which used incorrect
     "GOE factors" (0.5/0.7/1.0) that are actually PCS factors.
+
+    #638: NaN GOE must be rejected at the entry. `min(5, NaN)` returns 5
+    (Python's min ignores NaN in comparison), so pre-fix the function
+    silently produced base_value * 1.5 (+50%) for any NaN input —
+    massive TES inflation if the solver ever produces a non-finite GOE.
     """
+    if not math.isfinite(goe):
+        return 0.0
     clamped = max(-5, min(5, goe))
     return base_value * (1 + clamped * 0.10)
 

@@ -6,6 +6,7 @@ for coaches: declining trends, stagnation, instability, PRs.
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass
 
 
@@ -18,18 +19,33 @@ class Finding:
     detail: str
 
 
+# #633: single source of truth for the R² threshold used by both /trend
+# (backend/app/routes/metrics.py) and check_declining_trend below. Matches
+# backend/CLAUDE.md:150 — was 0.3 in /trend, 0.5 in /diagnostics (drift).
+R_SQUARED_TREND_THRESHOLD = 0.3
+
+
 def linear_regression(values: list[float]) -> tuple[float, float]:
-    """Return (slope, r_squared) for a simple linear regression."""
-    n = len(values)
+    """Return (slope, r_squared) for a simple linear regression.
+
+    #634: filter NaN/inf from `values` at the entry. Without this, one NaN
+    poisons the mean → ss_yy → ss_xy → slope (all NaN) and r² falls back
+    to 0.0 (NaN > 0 is False, takes the else branch). Downstream consumers
+    then classify the series as 'stable' for any R² < threshold, silently
+    hiding real regressions in data with even one missing-frame session.
+    """
+    # Drop NaN/inf so they don't poison the mean and sum-of-squares.
+    finite = [v for v in values if math.isfinite(v)]
+    n = len(finite)
     if n < 2:
         return 0.0, 0.0
     x = list(range(n))
     x_mean = sum(x) / n
-    y_mean = sum(values) / n
+    y_mean = sum(finite) / n
 
     ss_xx = sum((xi - x_mean) ** 2 for xi in x)
-    ss_xy = sum((xi - x_mean) * (yi - y_mean) for xi, yi in zip(x, values, strict=False))
-    ss_yy = sum((yi - y_mean) ** 2 for yi in values)
+    ss_xy = sum((xi - x_mean) * (yi - y_mean) for xi, yi in zip(x, finite, strict=False))
+    ss_yy = sum((yi - y_mean) ** 2 for yi in finite)
 
     if ss_xx == 0:
         return 0.0, 0.0
@@ -71,12 +87,12 @@ def check_declining_trend(
     metric_label: str,
     direction: str = "higher",
 ) -> Finding | None:
-    """Warning when linear regression shows decline with R² > 0.5."""
+    """Warning when linear regression shows decline with R² above threshold."""
     if len(values) < 5:
         return None
     slope, r_squared = linear_regression(values)
     is_decline = (slope < 0) if direction == "higher" else (slope > 0)
-    if is_decline and r_squared > 0.5:
+    if is_decline and math.isfinite(r_squared) and r_squared > R_SQUARED_TREND_THRESHOLD:
         return Finding(
             severity="warning",
             element=element,
@@ -95,20 +111,22 @@ def check_stagnation(
     metric_label: str,
 ) -> Finding | None:
     """Info when standard deviation < 5% of mean."""
-    if len(values) < 5:
+    # #692: filter NaN/inf before computing mean
+    finite = [v for v in values if math.isfinite(v)]
+    if len(finite) < 5:
         return None
-    mean = sum(values) / len(values)
+    mean = sum(finite) / len(finite)
     if mean == 0:
         return None
-    variance = sum((v - mean) ** 2 for v in values) / len(values)
+    variance = sum((v - mean) ** 2 for v in finite) / len(finite)
     std = variance**0.5
     cv = std / abs(mean)
-    if cv < 0.05:
+    if math.isfinite(cv) and cv < 0.05:
         return Finding(
             severity="info",
             element=element,
             metric=metric,
-            message=f"{metric_label}: нет улучшений за {len(values)} сессий",
+            message=f"{metric_label}: нет улучшений за {len(finite)} сессий",
             detail=f"Среднее: {mean:.3f}, CV: {cv:.1%}",
         )
     return None
@@ -125,6 +143,9 @@ def check_new_pr(
 ) -> Finding | None:
     """Info when the most recent session is a PR."""
     if not is_latest_pr:
+        return None
+    # #693: NaN latest_value renders as "NaN" in UI — skip it
+    if not math.isfinite(latest_value):
         return None
     prev_str = f"{prev_best:.3f}" if prev_best is not None else "—"
     return Finding(
@@ -144,15 +165,20 @@ def check_high_variability(
     metric_label: str,
 ) -> Finding | None:
     """Warning when coefficient of variation > 20%."""
-    if len(values) < 5:
+    # #692: filter NaN/inf before computing mean
+    finite = [v for v in values if math.isfinite(v)]
+    if len(finite) < 5:
         return None
-    mean = sum(values) / len(values)
+    mean = sum(finite) / len(finite)
     if mean == 0:
         return None
-    variance = sum((v - mean) ** 2 for v in values) / len(values)
+    variance = sum((v - mean) ** 2 for v in finite) / len(finite)
     std = variance**0.5
     cv = std / abs(mean)
-    if cv > 0.20:
+    # #1229: NaN-comparison hazard — `NaN > 0.20 == False` silently
+    # skips the warning. Guard with isfinite so a corrupt cv is observable
+    # (skipped explicitly via the short-circuit), never silent.
+    if math.isfinite(cv) and cv > 0.20:
         return Finding(
             severity="warning",
             element=element,

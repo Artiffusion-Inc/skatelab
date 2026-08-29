@@ -7,6 +7,8 @@ Provides functions for:
 - Spatial axis transformations
 """
 
+import math
+
 import numpy as np
 from numpy.typing import NDArray
 
@@ -76,6 +78,16 @@ def normalized_to_pixel(
     else:
         # Single position
         x, y = pos_normalized
+        # #996: NaN coordinate (occluded keypoint → NaN pose → NaN position
+        # tuple) → np.clip(NaN)=NaN → int(NaN) ValueError crash. The
+        # vectorized branch above NaN-masks to 0 (line 69-74); mirror that
+        # guard here so the scalar (tuple) path does not crash on the SAME
+        # input the ndarray path handles gracefully. isfinite guard → 0.0;
+        # finite x/y pass through unchanged (finite path byte-identical).
+        if not np.isfinite(x):
+            x = 0.0
+        if not np.isfinite(y):
+            y = 0.0
         x_px = int(np.clip(x * width, 0, width - 1))
         y_px = int(np.clip(y * height, 0, height - 1))
         return (x_px, y_px)
@@ -100,18 +112,28 @@ def pixel_to_normalized(
         >>> pixel_to_normalized((960, 540), 1920, 1080)
         (0.5, 0.5)  # Center of frame
     """
+    # #1065: NaN-blind `width > 0` / `height > 0` guards silently coerced
+    # NaN/zero/negative width/height to 0.5 (frame center) — INDISTINGUISHABLE
+    # from a legitimate width=0, and a NaN width corrupts every consumer
+    # (skeleton / HUD / comparison / 3D export / axis endpoints / bounding box)
+    # with no error. isfinite guard raises at the trust boundary so the
+    # upstream bug surfaces.
+    if not (math.isfinite(width) and width > 0):
+        raise ValueError(f"width must be finite and > 0, got {width}")
+    if not (math.isfinite(height) and height > 0):
+        raise ValueError(f"height must be finite and > 0, got {height}")
     if isinstance(pos_pixel, np.ndarray):
         # Vectorized conversion for arrays
         result = pos_pixel.copy().astype(np.float32)
         if result.shape[-1] >= 2:
-            result[..., 0] = result[..., 0] / width if width > 0 else 0.5
-            result[..., 1] = result[..., 1] / height if height > 0 else 0.5
+            result[..., 0] = result[..., 0] / width
+            result[..., 1] = result[..., 1] / height
         return result
     else:
         # Single position
         x, y = pos_pixel
-        x_norm = x / width if width > 0 else 0.5
-        y_norm = y / height if height > 0 else 0.5
+        x_norm = x / width
+        y_norm = y / height
         return (x_norm, y_norm)
 
 
@@ -192,11 +214,23 @@ def project_3d_to_2d(
         # Single position
         x, y, z = pos_3d
 
+        # #1077: NaN x/y/z silently off-screen (max(0.1, NaN)=0.1 -> 10*FL
+        # blowup) or crash (int(NaN*scale) -> ValueError). z = camera_distance
+        # is INDISTINGUISHABLE from NaN (max(0.1, 0)=0.1 -> same off-screen).
+        # Guard at the trust boundary mirroring the PR #1065 / #1070 pattern
+        # used for `pixel_to_normalized` and `clip_to_frame` in this file —
+        # raise with a clear message naming the bad input, not Python's
+        # generic int-cast message.
+        if not (math.isfinite(x) and math.isfinite(y) and math.isfinite(z)):
+            raise ValueError(f"pos_3d must be finite, got ({x}, {y}, {z})")
+
         # Perspective projection
         depth = camera_distance - z
-
-        # Avoid division by zero
-        depth = max(0.1, depth)
+        if depth <= 0:
+            raise ValueError(
+                f"z must be < camera_distance (joint in front of camera), "
+                f"got z={z}, camera_distance={camera_distance}"
+            )
 
         scale = focal_length / depth
         x_2d = width // 2 + int(x * scale)
@@ -343,6 +377,14 @@ def clip_to_frame(
         (10, 1070)  # Clipped to frame with margin
     """
     x, y = position
+    # #1070: NaN x/y silently coerces to a frame corner via Python's
+    # NaN-arg-order in min/max (min(w-m, NaN) returns w-m, max(m, w-m)
+    # is w-m → right/bottom edge), INDISTINGUISHABLE from a legitimate
+    # out-of-frame point. Guard at the trust boundary so upstream bugs
+    # surface instead of corrupting skeleton / HUD / 3D export with a
+    # phantom joint at the corner.
+    if not (math.isfinite(x) and math.isfinite(y)):
+        raise ValueError(f"x and y must be finite, got ({x}, {y})")
     x_clipped = max(margin, min(width - margin, x))
     y_clipped = max(margin, min(height - margin, y))
     return (x_clipped, y_clipped)
@@ -372,6 +414,13 @@ def calculate_bounding_box(
     """
     if len(points) == 0:
         return (padding, padding, width - padding, height - padding)
+
+    # #1201: np.min is NaN-propagating (unlike Python builtin min), so
+    # int(np.min(NaN)) crashes. Guard every x/y at the trust boundary
+    # so upstream bugs (gap-filler miss, 3D lift failure, undetected
+    # joint) surface here instead of as int(NaN) far downstream.
+    if not np.all(np.isfinite(points)):
+        raise ValueError("points must be finite, got NaN or inf values")
 
     x_coords = points[:, 0]
     y_coords = points[:, 1]

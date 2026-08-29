@@ -74,6 +74,16 @@ class ONNXPoseExtractor:
         n_frames = len(poses_2d)
         w = self.temporal_window
 
+        # #483: early-return for empty input. Without this, _infer_window
+        # calls np.concatenate([poses_2d, np.tile(poses_2d[-1:], (w,1,1))])
+        # which fails on empty poses_2d (np.tile of empty is empty, sizes
+        # 0 vs w don't match along the concat axis). The fix is at the
+        # boundary: return an empty (0, 17, 3) array. Downstream callers
+        # (pose_preparation, pipeline) already handle the empty-output
+        # case — see the empty-frame tolerance they document.
+        if n_frames == 0:
+            return np.zeros((0, 17, 3), dtype=np.float32)
+
         if n_frames <= w:
             return self._infer_window(poses_2d)[:n_frames]
 
@@ -108,8 +118,15 @@ class ONNXPoseExtractor:
             window_weights = np.ones(frame_count, dtype=np.float32)
             ramp_len = min(frame_count, w // 4)
             if ramp_len > 0:
-                window_weights[:ramp_len] = np.linspace(0.5, 1.0, ramp_len)
-                window_weights[-ramp_len:] = np.linspace(1.0, 0.5, ramp_len)
+                # #1047: build a symmetric triangle via np.minimum of the up
+                # and down ramps. The previous two sequential slice writes
+                # overlapped on `frame_count <= 2*ramp_len` (every short
+                # last window of a sliding-window pass) and the second
+                # write silently overwrote the first, reversing the ramp
+                # so the peak ended up at idx 0 instead of the center.
+                up = np.linspace(0.5, 1.0, frame_count)
+                down = np.linspace(1.0, 0.5, frame_count)
+                window_weights = np.minimum(up, down).astype(np.float32)
             results[start:end] += out[:frame_count] * window_weights[:, np.newaxis, np.newaxis]
             weights[start:end] += window_weights
 
@@ -129,6 +146,12 @@ class ONNXPoseExtractor:
         """
         w = self.temporal_window
         batch_size = len(windows)
+
+        # Empty input → empty output (skip ONNX call, avoid pad/conf concat crash)
+        if batch_size == 0:
+            return []
+        if any(len(win) == 0 for win in windows):
+            return [np.zeros((0, 17, 3), dtype=np.float32) for _ in windows]
 
         # Pad all windows to temporal_window size
         padded_windows = []
@@ -185,6 +208,10 @@ class ONNXPoseExtractor:
         """Run inference on a single window (pad if needed). (N, 17, 2) → (N, 17, 3)."""
         n = len(poses_2d)
         w = self.temporal_window
+
+        # Empty input → empty output (skip ONNX call, avoid pad/conf concat crash)
+        if n == 0:
+            return np.zeros((0, 17, 3), dtype=np.float32)
 
         # Pad to window size if needed
         if n < w:

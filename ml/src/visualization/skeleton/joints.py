@@ -6,6 +6,7 @@ Provides functions for:
 - Skeleton line colors
 """
 
+import math
 from typing import Any, Final
 
 from src.types import H36Key
@@ -142,6 +143,10 @@ def get_joint_radius(
         >>> get_joint_radius(0.8)
         4  # Full radius (confidence above threshold)
     """
+    # NaN/Inf: treat as invalid (no draw). Avoids int(NaN) ValueError
+    # and stops NaN from silently propagating through max/min clamps.
+    if not math.isfinite(confidence):
+        return 0
     if confidence < threshold:
         return 0  # Don't draw low-confidence joints
 
@@ -173,8 +178,25 @@ def get_joint_radius_3d(
         >>> get_joint_radius_3d(1.0)
         4  # Medium depth, medium radius
     """
+    # #1068: NaN/Inf depth_min or depth_max silently propagates through
+    # `depth_max > depth_min` (NaN > x is False for any x), so the else
+    # branch picks t=0.5 — INDISTINGUISHABLE from a degenerate (equal
+    # bounds) call. Upstream 3D-pose / depth-stats failures would then
+    # render the entire skeleton at uniform mid-depth with no visible
+    # error. Guard at the trust boundary so the bug surfaces.
+    if not (math.isfinite(depth_min) and math.isfinite(depth_max) and depth_max > depth_min):
+        raise ValueError(
+            f"depth_min and depth_max must be finite and depth_max > depth_min, "
+            f"got depth_min={depth_min}, depth_max={depth_max}"
+        )
+
+    # NaN/Inf: collapse to mid-range (scale=0.75, near min radius) so
+    # missing depth doesn't crash and doesn't silently pick "max" color.
+    if not math.isfinite(depth):
+        depth = (depth_min + depth_max) / 2
+
     # Normalize depth to [0, 1]
-    t = (depth - depth_min) / (depth_max - depth_min) if depth_max > depth_min else 0.5
+    t = (depth - depth_min) / (depth_max - depth_min)
     t = max(0.0, min(1.0, t))
 
     # Scale radius: closer = larger
@@ -274,6 +296,9 @@ def get_confidence_radius(
         >>> get_confidence_radius(0.7)
         5  # Slightly smaller than base_radius
     """
+    # NaN/Inf: same invalid-joint treatment as get_joint_radius.
+    if not math.isfinite(confidence):
+        return 0
     radius = int(base_radius * confidence)
     return max(min_radius, min(max_radius, radius))
 
@@ -329,8 +354,28 @@ def get_bone_thickness_3d(
         >>> get_bone_thickness_3d(1.5)
         1  # Thinner for far bones
     """
+    # #1068: NaN/Inf depth_min or depth_max silently propagates through
+    # `depth_max > depth_min` (NaN > x is False for any x), so the else
+    # branch picks t=0.5 — INDISTINGUISHABLE from a degenerate (equal
+    # bounds) call. Upstream 3D-pose / depth-stats failures would then
+    # render the entire skeleton at uniform mid-depth with no visible
+    # error. Guard at the trust boundary so the bug surfaces.
+    if not (math.isfinite(depth_min) and math.isfinite(depth_max) and depth_max > depth_min):
+        raise ValueError(
+            f"depth_min and depth_max must be finite and depth_max > depth_min, "
+            f"got depth_min={depth_min}, depth_max={depth_max}"
+        )
+
+    # #1161: NaN/Inf base_thickness crashes int(NaN) and aborts the
+    # 3D skeleton render. Fall back to min thickness (1) so the
+    # broken-config bone is just thin instead of taking down the
+    # whole draw. Sibling of #1068 (depth bounds) and #1102
+    # (coach_panel is_visible_at).
+    if not math.isfinite(base_thickness):
+        return 1
+
     # Normalize depth to [0, 1]
-    t = (depth - depth_min) / (depth_max - depth_min) if depth_max > depth_min else 0.5
+    t = (depth - depth_min) / (depth_max - depth_min)
     t = max(0.0, min(1.0, t))
 
     # Scale thickness: closer = thicker

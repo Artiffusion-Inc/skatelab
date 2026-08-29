@@ -162,7 +162,9 @@ class TestReferenceBuilderSaveReference:
         output_dir = tmp_path / "refs"
         result = builder.save_reference(ref, output_dir)
 
-        assert result == output_dir / "waltz_jump_test.mp4.npz"
+        # #802: .stem strips the source extension — was .name → double ext
+        # "waltz_jump_test.mp4.npz".
+        assert result == output_dir / "waltz_jump_test.npz"
         assert result.exists()
 
         data = np.load(result)
@@ -180,6 +182,43 @@ class TestReferenceBuilderSaveReference:
         assert int(data["meta_height"]) == 1080
         assert int(data["meta_num_frames"]) == 300
         assert str(data["meta_path"]) == "test.mp4"
+
+    def test_save_reference_strips_source_extension_no_double_ext(
+        self, tmp_path: Path, mock_pose_extractor, mock_normalizer
+    ):
+        """#802: source_path.name kept ".mp4" → "waltz_jump_expert.mp4.npz"
+        (double extension). stem strips it. Also: refs differing only by
+        source extension (expert.mp4 vs expert.mov) must map to one filename.
+        """
+        builder = ReferenceBuilder(mock_pose_extractor, mock_normalizer)
+        poses = np.linspace(0, 1, 170).reshape(5, 17, 2).astype(np.float32)
+        phases = ElementPhase(name="waltz_jump", start=0, takeoff=2, peak=3, landing=4, end=5)
+        meta = VideoMeta(path=Path("expert.mp4"), width=1920, height=1080, fps=30.0, num_frames=300)
+
+        ref_mp4 = ReferenceData(
+            element_type="waltz_jump",
+            name="expert",
+            poses=poses,
+            phases=phases,
+            fps=30.0,
+            meta=meta,
+            source="expert.mp4",
+        )
+        ref_mov = ReferenceData(
+            element_type="waltz_jump",
+            name="expert",
+            poses=poses,
+            phases=phases,
+            fps=30.0,
+            meta=meta,
+            source="expert.mov",
+        )
+
+        out_mp4 = builder.save_reference(ref_mp4, tmp_path)
+        out_mov = builder.save_reference(ref_mov, tmp_path / "mov")
+        assert out_mp4.name == "waltz_jump_expert.npz", out_mp4.name
+        assert out_mov.name == "waltz_jump_expert.npz", out_mov.name
+        assert ".mp4" not in out_mp4.name and ".mov" not in out_mov.name
 
     def test_save_reference_without_meta(
         self, tmp_path: Path, mock_pose_extractor, mock_normalizer
@@ -357,3 +396,37 @@ class TestReferenceBuilderLoadReference:
         result = builder.load_reference(npz_path)
         # 'fps' key is not written by save_reference; falls back to meta.fps
         assert result.fps == 25.0
+
+    def test_load_reference_name_is_basename_not_full_path(
+        self, tmp_path: Path, mock_pose_extractor, mock_normalizer
+    ):
+        """#800: build_from_video set name=video_path.name (basename), but
+        load set name=str(data["source"]) (full path) — round-trip changed
+        name from "expert.mp4" to "/data/refs/expert.mp4". load must use the
+        basename so it matches build. source stays the full path string.
+        """
+        builder = ReferenceBuilder(mock_pose_extractor, mock_normalizer)
+        poses = np.linspace(0, 1, 170).reshape(5, 17, 2).astype(np.float32)
+        npz_path = tmp_path / "ref.npz"
+        np.savez_compressed(
+            npz_path,
+            element_type="waltz_jump",
+            poses=poses,
+            meta_fps=30.0,
+            meta_width=1920,
+            meta_height=1080,
+            meta_num_frames=300,
+            meta_path="/videos/expert.mp4",
+            phases_name="waltz_jump",
+            phases_start=0,
+            phases_takeoff=2,
+            phases_peak=3,
+            phases_landing=4,
+            phases_end=5,
+            source="/data/refs/expert.mp4",
+        )
+
+        result = builder.load_reference(npz_path)
+        assert result.name == "expert.mp4", result.name
+        # source keeps the full path
+        assert result.source == "/data/refs/expert.mp4"

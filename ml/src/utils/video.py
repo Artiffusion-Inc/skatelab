@@ -1,5 +1,6 @@
 """Video processing utilities using OpenCV."""
 
+import math
 from collections.abc import Iterator
 from pathlib import Path
 
@@ -44,10 +45,61 @@ def get_video_meta(path: Path) -> VideoMeta:
     cap = open_video(path)
 
     try:
-        width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-        height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+        # #1041: corrupt video (truncated mp4, broken moov atom, damaged
+        # timescale) can return NaN from CAP_PROP_FRAME_* — unguarded
+        # int(NaN) raises the stdlib `ValueError("cannot convert float
+        # NaN to integer")` deep in the pipeline, with no hint that the
+        # cause is corrupt metadata. Read each prop once, check
+        # np.isfinite, then int — raise a typed RuntimeError naming the
+        # corrupt field at the trust boundary. Sibling of the existing
+        # `width <= 0 or height <= 0` rejection below — same
+        # philosophy, different sentinel.
+        width_raw = cap.get(cv2.CAP_PROP_FRAME_WIDTH)
+        if not np.isfinite(width_raw):
+            raise RuntimeError(
+                f"Corrupt video metadata: non-finite CAP_PROP_FRAME_WIDTH={width_raw!r} for path={path}"
+            )
+        height_raw = cap.get(cv2.CAP_PROP_FRAME_HEIGHT)
+        if not np.isfinite(height_raw):
+            raise RuntimeError(
+                f"Corrupt video metadata: non-finite CAP_PROP_FRAME_HEIGHT={height_raw!r} for path={path}"
+            )
+        num_frames_raw = cap.get(cv2.CAP_PROP_FRAME_COUNT)
+        if not np.isfinite(num_frames_raw):
+            raise RuntimeError(
+                f"Corrupt video metadata: non-finite CAP_PROP_FRAME_COUNT={num_frames_raw!r} for path={path}"
+            )
+
+        width = int(width_raw)
+        height = int(height_raw)
         fps = cap.get(cv2.CAP_PROP_FPS)
-        num_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+        num_frames = int(num_frames_raw)
+
+        # #982: corrupt/truncated mp4 (ftyp box present, moov atom damaged
+        # / missing) opens (isOpened()=True) but reports CAP_PROP_FRAME_WIDTH
+        # / HEIGHT = 0 — cv2's corrupt-video sentinel for "no frame dims
+        # parseable". Leaking VideoMeta(width=0) crashes downstream callers
+        # that divide by meta.width (ComparisonRenderer.process resize:
+        # `int(... / meta.width)` ZeroDivisionError, far from the I/O
+        # source). Reject at the trust boundary with a typed "corrupt video"
+        # RuntimeError — no sane default dimension exists (0x0 frames are
+        # undecodable, unlike #961's fps where 30.0 is a valid nominal).
+        # Sibling of #961 (fps=0 normalize) — width/height=0 must REJECT.
+        if width <= 0 or height <= 0:
+            raise RuntimeError(f"Corrupt video (width={width}, height={height}): {path}")
+
+        # #961: corrupt/damaged video reports CAP_PROP_FPS=0.0 (OpenCV
+        # sentinel for "unknown framerate"); some builds return None for a
+        # missing metadata atom; damaged containers can return NaN. `float()`
+        # of any of these leaks a degenerate fps into VideoMeta — the
+        # upstream root cause of the #499 fps=0 family (11+ downstream
+        # per-site guards exist because this producer leaks). Normalize at
+        # the trust boundary to a sane default (30.0), matching
+        # VideoMeta.duration_sec's "fps=0 is degenerate" philosophy. The
+        # video is NOT rejected — frames still extract; analysis runs at a
+        # nominal framerate. Per-site guards become defense-in-depth.
+        if fps <= 0 or not np.isfinite(fps):
+            fps = 30.0
 
         return VideoMeta(
             path=path,
@@ -117,6 +169,24 @@ def select_person_crop(
         Cropped frame (crop_height, crop_width, 3).
     """
     h, w = frame.shape[:2]
+
+    # #1163: corrupt/broken bbox coords (x1/y1/x2/y2 NaN from upstream
+    # detector) or NaN padding propagate through bbox.width/height/center_*
+    # into the four int() calls below — int(float('nan')) raises the
+    # stdlib ValueError("cannot convert float NaN to integer") with no
+    # hint the cause is non-finite input. Guard at the trust boundary:
+    # return the input frame unchanged (graceful no-op) on any non-finite
+    # value, matching the `crop_w <= 0` fallback at line 188. Sibling
+    # of #1041 (CAP_PROP_FRAME_* NaN guard in get_video_meta) — same
+    # philosophy, different site.
+    if (
+        not math.isfinite(bbox.width)
+        or not math.isfinite(bbox.height)
+        or not math.isfinite(bbox.center_x)
+        or not math.isfinite(bbox.center_y)
+        or not math.isfinite(padding)
+    ):
+        return frame
 
     # Calculate crop dimensions with padding
     crop_w = int(bbox.width * (1 + 2 * padding))

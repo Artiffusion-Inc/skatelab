@@ -27,7 +27,7 @@ class TestComputeSubscores:
         return {
             "airtime": 0.5,
             "relative_jump_height": 0.4,
-            "approach_consistency": 5.0,
+            "approach_direction_change": 5.0,
             "rotation_speed": 450,
             "total_rotation_deg": 720,
             "under_rotation_deg": 30,
@@ -80,7 +80,7 @@ class TestLandingAbsorptionHardLandingScale:
     _BASE: ClassVar[dict] = {
         "airtime": 0.5,
         "relative_jump_height": 0.4,
-        "approach_consistency": 5.0,
+        "approach_direction_change": 5.0,
         "rotation_speed": 450,
         "total_rotation_deg": 720,
         "under_rotation_deg": 30,

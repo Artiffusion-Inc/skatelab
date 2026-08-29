@@ -83,9 +83,30 @@ class Sports2DTracker:
 
     @staticmethod
     def _centroid(keypoints: np.ndarray) -> np.ndarray:
-        """(17,2) -> (2,) centroid [cx, cy]."""
+        """(17,2) -> (2,) centroid [cx, cy].
+
+        #969: returns the finite (0.0, 0.0) sentinel when ALL keypoints are
+        NaN — detected BEFORE ``np.nanmean`` so no ``Mean of empty slice``
+        warning fires (was per-person per-frame log spam). The finite
+        sentinel keeps the Kalman state finite so the track can re-associate
+        on a later finite frame; a NaN centroid would poison the Kalman
+        state forever (silent permanent phantom — ``nan_to_num`` masks the
+        NaN-distance to 1e10 but never fixes the state).
+        """
+        # #969: guard all-NaN BEFORE nanmean — np.nanmean on an all-NaN
+        # slice emits 'Mean of empty slice' RuntimeWarning (log spam per
+        # person per frame) and returns NaN. Return the finite (0.0, 0.0)
+        # sentinel so the Kalman state stays finite and the track can
+        # re-associate on a later finite frame (a NaN state would be
+        # masked to 1e10 by nan_to_num on the distance matrix and never
+        # re-associate — silent permanent phantom). The early return
+        # avoids the warning path entirely.
+        if np.all(np.isnan(keypoints)):
+            return np.array([0.0, 0.0])
         cx = float(np.nanmean(keypoints[:, 0]))
         cy = float(np.nanmean(keypoints[:, 1]))
+        if not (np.isfinite(cx) and np.isfinite(cy)):
+            return np.array([0.0, 0.0])
         return np.array([cx, cy])
 
     def _kalman_predict(self, state: np.ndarray, cov: np.ndarray):
@@ -247,6 +268,30 @@ class Sports2DTracker:
                 dists = np.sqrt(np.nansum(d**2, axis=3))
                 lost_matrix = np.nanmean(dists, axis=2)
                 lost_matrix = np.nan_to_num(lost_matrix, nan=1e10, posinf=1e10)
+                # #491: mask all-NaN-person pairings to inf. Pre-fix
+                # np.nansum on an all-NaN slice returns 0.0 (empty-slice
+                # artifact), not NaN — so an all-NaN person matched the
+                # lost track at distance 0.0 (perfect match) and stole
+                # that track's id. The fix mirrors the main matrix's
+                # NaN guard: a fully-NaN person is untrustworthy, push
+                # their cost to inf so they're never assigned a lost id.
+                # Main matrix (line 170) guards `np.nan_to_num` on a
+                # centroid distance — equivalent pattern.
+                all_nan_lost = np.isnan(lost_kps).all(axis=(1, 2))
+                all_nan_unassoc = np.isnan(unassoc_kps).all(axis=(1, 2))
+                # #491: mask all-NaN pairings to a large finite cost
+                # (>max_dist 1e10 threshold but <inf to keep assignment
+                # feasible). Pre-fix np.nansum on an all-NaN slice
+                # returns 0.0 (empty-slice artifact), not NaN — so an
+                # all-NaN person matched the lost track at distance
+                # 0.0 and stole that track's id. An all-NaN keypoint set
+                # is untrustworthy — push their cost above the assignment
+                # threshold so they're never assigned a lost id. Use
+                # 1e15 (well above any sane max_dist) to keep the cost
+                # matrix finite for the Hungarian algorithm.
+                if all_nan_lost.any() or all_nan_unassoc.any():
+                    mask = all_nan_lost[:, np.newaxis] | all_nan_unassoc[np.newaxis, :]
+                    lost_matrix[mask] = 1e15
 
                 lost_ids_idx, unassoc_ids_idx = linear_sum_assignment(lost_matrix)
 

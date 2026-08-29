@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import math
 import uuid
 from collections.abc import Sequence  # noqa: TC003
+from pathlib import PurePosixPath
 from typing import ClassVar
 
 from litestar import Controller, post
@@ -20,10 +22,39 @@ from app.storage import get_s3_client
 CHUNK_SIZE = 5 * 1024 * 1024  # 5MB
 
 
+def sanitize_file_name(name: str) -> str:
+    """Strip path separators / `..` segments from an upload file_name.
+
+    #682: file_name is a user-controlled path parameter used verbatim in the
+    S3 key (`uploads/{user_id}/{uuid}/{file_name}`). Without sanitization a
+    caller can inject `..` or `/` segments — S3 stores the literal key and
+    downstream path-resolving tools may escape the user prefix. Take the
+    basename only and collapse to a single safe segment.
+    """
+    # PurePosixPath(...).name takes the final component, dropping any leading
+    # `/` paths; normalize backslashes so nt-style separators don't sneak
+    # through. Reject bare `.`/`..`/empty that `.name` leaves intact.
+    base = PurePosixPath(name.replace("\\", "/")).name
+    if base in {".", "..", ""}:
+        raise ClientException(
+            status_code=HTTP_400_BAD_REQUEST,
+            detail="Invalid file_name",
+        )
+    return base
+
+
+class UploadPart(BaseModel):
+    # #683: typed model — missing/non-int part_number or missing etag is
+    # rejected at the schema layer (400) instead of KeyError/ValueError → 500
+    # mid-handler. int coerces stringified numbers from loose clients.
+    part_number: int
+    etag: str
+
+
 class CompleteUploadRequest(BaseModel):
     upload_id: str
     key: str
-    parts: list[dict]
+    parts: list[UploadPart]
 
 
 class UploadsController(Controller):
@@ -36,7 +67,7 @@ class UploadsController(Controller):
         verified_user: VerifiedUser,
         file_name: str = Parameter(min_length=1),
         content_type: str = Parameter(default="video/mp4"),
-        total_size: int = Parameter(gt=0),
+        total_size: int = Parameter(gt=0, le=10 * 1024 * 1024 * 1024),  # #681: max 10 GB
     ) -> dict:
         """Initialize a multipart upload. Returns upload_id and pre-signed part URLs."""
         await check_rate_limit(
@@ -45,7 +76,8 @@ class UploadsController(Controller):
 
         s3 = get_s3_client()
         bucket = get_settings().s3.bucket
-        key = f"uploads/{verified_user.id}/{uuid.uuid4()}/{file_name}"
+        safe_name = sanitize_file_name(file_name)
+        key = f"uploads/{verified_user.id}/{uuid.uuid4()}/{safe_name}"
 
         upload_id = s3.create_multipart_upload(
             Bucket=bucket,
@@ -102,16 +134,40 @@ class UploadsController(Controller):
         s3 = get_s3_client()
         bucket = get_settings().s3.bucket
 
-        multipart_parts = [
-            {"PartNumber": p["part_number"], "ETag": p["etag"]}
-            for p in sorted(data.parts, key=lambda x: int(x["part_number"]))
-        ]
-
-        if not multipart_parts:
+        if not data.parts:
             raise ClientException(
                 status_code=HTTP_400_BAD_REQUEST,
                 detail="No parts provided",
             )
+
+        # #684: validate part numbers form a contiguous 1..N set with no gaps
+        # or duplicates. S3 silently completes a multipart upload with missing
+        # parts → unplayable video that retries can't fix (multipart state
+        # corrupted) and a storage leak. Reject before the S3 call.
+        part_numbers = [p.part_number for p in data.parts]
+        # #1215: defense-in-depth against non-finite part_number. Pydantic's
+        # `int` type already rejects NaN/inf at the schema layer, but a
+        # future schema change (or a non-Pydantic entry point) could let a
+        # non-finite value reach the sort key — that 500s the handler and
+        # leaves the S3 multipart upload dangling. Reject explicitly so the
+        # client gets a 400 with a clear message.
+        for pn in part_numbers:
+            if not math.isfinite(pn):
+                raise ClientException(
+                    status_code=HTTP_400_BAD_REQUEST,
+                    detail="Part numbers must be finite integers",
+                )
+        expected = set(range(1, len(part_numbers) + 1))
+        if set(part_numbers) != expected:
+            raise ClientException(
+                status_code=HTTP_400_BAD_REQUEST,
+                detail="Part numbers must be contiguous 1..N with no gaps or duplicates",
+            )
+
+        multipart_parts = [
+            {"PartNumber": p.part_number, "ETag": p.etag}
+            for p in sorted(data.parts, key=lambda x: x.part_number)
+        ]
 
         s3.complete_multipart_upload(
             Bucket=bucket,
@@ -136,7 +192,8 @@ class UploadsController(Controller):
 
         s3 = get_s3_client()
         bucket = get_settings().s3.bucket
-        key = f"uploads/{verified_user.id}/{uuid.uuid4()}/{file_name}"
+        safe_name = sanitize_file_name(file_name)
+        key = f"uploads/{verified_user.id}/{uuid.uuid4()}/{safe_name}"
 
         url = s3.generate_presigned_url(
             ClientMethod="put_object",

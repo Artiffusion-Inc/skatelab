@@ -1,0 +1,13 @@
+# Raw Traefik dynamic config fallback for SSE streaming.
+# Used ONLY if Dokploy UI doesn't expose flushInterval / forwardingTimeouts.
+# Mount into Traefik container: -v <this-file>:/etc/traefik/raw-overrides.yml
+# Add to Traefik static config: --providers.file.filename=/etc/traefik/raw-overrides.yml
+http:
+  middlewares:
+    sse-headers:
+      headers:
+        customResponseHeaders:
+          X-Accel-Buffering: "no"
+    sse-transport:
+      forwardingTimeouts:
+        flushInterval: -1

@@ -15,6 +15,7 @@ Based on research from:
 - Exa/Gemini spatial reference research (2026-03-28)
 """
 
+import math
 from dataclasses import dataclass
 from typing import Literal
 
@@ -189,9 +190,18 @@ class SpatialReferenceDetector:
         if not all_angles:
             return CameraPose(roll=0.0, pitch=0.0, yaw=0.0, confidence=0.0)
 
+        # Filter non-finite angles so np.mean cannot propagate NaN to
+        # CameraPose.roll. The abs(angle) < 10 check at line 186 normally
+        # blocks NaN (abs(NaN) = NaN, NaN < 10 is False), but an upstream
+        # chain could produce NaN-positive values, or a sibling caller
+        # could construct all_angles from a different detector.
+        finite_angles = [a for a in all_angles if math.isfinite(a)]
+        if not finite_angles:
+            return CameraPose(roll=0.0, pitch=0.0, yaw=0.0, confidence=0.0)
+
         # Use mean instead of median to detect actual tilt
         # Median gives 0 for symmetric distributions
-        roll = float(np.mean(all_angles))
+        roll = float(np.mean(finite_angles))
 
         # Confidence based on number of horizontal lines found
         confidence = min(len(all_angles) / 3.0, 1.0)
@@ -226,13 +236,17 @@ class SpatialReferenceDetector:
         Returns:
             Compensated poses with same shape as input
         """
-        if camera_pose.confidence < 0.1:
-            # Low confidence, skip compensation
+        # ponytail: NaN confidence bypasses `c < 0.1` (NaN < 0.1 == False) and
+        # NaN roll poisons R_2d -> NaN poses. Two isfinite guards at the trust
+        # boundary, mirroring draw_axes (#970). NaN fails closed -> skip/zero.
+        if not np.isfinite(camera_pose.confidence) or camera_pose.confidence < 0.1:
+            # Low / unknown confidence, skip compensation
             return poses
 
         # For 2D poses, we only compensate for roll (rotation around Z axis)
         # This is equivalent to rotating in the image plane
-        roll_rad = np.deg2rad(camera_pose.roll)
+        roll = camera_pose.roll if np.isfinite(camera_pose.roll) else 0.0
+        roll_rad = np.deg2rad(roll)
         cos_roll = np.cos(-roll_rad)  # Negative for compensation
         sin_roll = np.sin(-roll_rad)
 
@@ -283,6 +297,33 @@ class SpatialReferenceDetector:
         """
         frame = frame.copy()
 
+        # ponytail: NaN origin/length → int(origin + axis*length) crash at 330-334.
+        # One guard covers all three int() casts in the axis loop below.
+        if not (np.isfinite(origin[0]) and np.isfinite(origin[1]) and np.isfinite(length)):
+            return frame
+
+        # ponytail: NaN/inf IMU roll → int(NaN) crash + "Roll: nan°" text leak.
+        # One isfinite guard feeds both the int() cast and the info text.
+        if not np.isfinite(camera_pose.roll):
+            camera_pose = CameraPose(
+                roll=0.0,
+                pitch=0.0 if not np.isfinite(camera_pose.pitch) else camera_pose.pitch,
+                yaw=0.0 if not np.isfinite(camera_pose.yaw) else camera_pose.yaw,
+                confidence=0.0
+                if not np.isfinite(camera_pose.confidence)
+                else camera_pose.confidence,
+                source=camera_pose.source,
+            )
+            _roll_text = "—"
+            _pitch_text = "—"
+            _conf_text = "—"
+        else:
+            _roll_text = f"{camera_pose.roll:.1f}°"
+            _pitch_text = f"{camera_pose.pitch:.1f}°" if np.isfinite(camera_pose.pitch) else "—"
+            _conf_text = (
+                f"{camera_pose.confidence:.2f}" if np.isfinite(camera_pose.confidence) else "—"
+            )
+
         # Rotation matrix from camera pose
         R = camera_pose.as_rotation_matrix()
 
@@ -323,10 +364,10 @@ class SpatialReferenceDetector:
 
         # Draw pose info text
         info_text = [
-            f"Roll: {camera_pose.roll:.1f}°",
-            f"Pitch: {camera_pose.pitch:.1f}°",
+            f"Roll: {_roll_text}",
+            f"Pitch: {_pitch_text}",
             f"Source: {camera_pose.source}",
-            f"Conf: {camera_pose.confidence:.2f}",
+            f"Conf: {_conf_text}",
         ]
 
         y_offset = origin[1] + length + 20

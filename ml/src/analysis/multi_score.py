@@ -2,11 +2,26 @@
 
 from __future__ import annotations
 
+import math
+
 from .types import MultiDimensionalScore, SubScore
 
 
 def _normalize(value: float, min_val: float = 0.0, max_val: float = 1.0) -> float:
-    """Clamp and normalize to [0, 1]."""
+    """Clamp and normalize to [0, 1].
+
+    #850 / #924: a non-finite metric (NaN or inf) must be treated as a missing
+    metric (neutral 0.0), not perfect. Bare ``max(0.0, min(1.0, NaN))`` clips
+    to 1.0 because NaN comparisons are always False (the non-NaN operand wins),
+    and ``min(1.0, inf) = 1.0`` — both inflate broken/failed-metric sessions to
+    a perfect 10.0. ``math.isnan`` alone misses inf (#850 incomplete), so guard
+    with ``math.isfinite`` (catches NaN AND inf) before the clamp, mirroring
+    #978 ``compute_goe_score`` (`np.isfinite` / `np.nan_to_num`).
+    """
+    # ponytail: isfinite over isnan — covers NaN AND inf in one guard, no
+    # separate branch; mirror of #978's np.isfinite cap-site pattern.
+    if not math.isfinite(value):
+        return 0.0
     return max(0.0, min(1.0, (value - min_val) / (max_val - min_val)))
 
 
@@ -23,14 +38,22 @@ def compute_subscores(metrics: dict[str, float]) -> MultiDimensionalScore:
     takeoff = _normalize(
         metrics.get("airtime", 0) / 0.7 * 0.4
         + metrics.get("relative_jump_height", 0) / 1.0 * 0.4
-        + (1 - abs(metrics.get("approach_consistency", 0)) / 90) * 0.2
+        # #500: align with ML emit key. metrics.py:348 emits
+        # `approach_direction_change` (the angle in degrees), not
+        # `approach_consistency`. The old name was a typo in the
+        # consumer; the metrics dict never contained it, so the term
+        # was always (1 - abs(0)/90) * 0.2 = 0.2 — a constant bonus
+        # for every jump regardless of approach variability. Now
+        # takeoff_power responds to approach direction.
+        + (1 - abs(metrics.get("approach_direction_change", 0)) / 90) * 0.2
     )
 
     # rotation_axis — combines rotation speed, total rotation, and under-rotation
     rotation = _normalize(
         min(metrics.get("rotation_speed", 0) / 720, 1.0) * 0.4
         + min(metrics.get("total_rotation_deg", 0) / 1620, 1.0) * 0.3
-        + (1 - metrics.get("under_rotation_deg", 0) / 90) * 0.3
+        # #555: under_rotation_deg is negative on over-rotation (e.g. measured 1100deg vs target 1080deg). Sign-sensitive formula (1 - x/90) REWARDS over-rotation (1 - -20/90 = 1.222 -> 0.367 > nominal 0.3). abs() — both under/over-rotation penalised equally (judges deduct for both).
+        + (1 - abs(metrics.get("under_rotation_deg", 0)) / 90) * 0.3
     )
 
     # arm_coordination: arm position + symmetry

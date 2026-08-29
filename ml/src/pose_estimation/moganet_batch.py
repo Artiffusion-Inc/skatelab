@@ -12,6 +12,7 @@ MogaNet-B specifics:
 from __future__ import annotations
 
 import logging
+import math
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -58,6 +59,12 @@ def preprocess_crops(
     for i, crop in enumerate(crops):
         crop_h, crop_w = crop.shape[:2]
 
+        if not math.isfinite(crop_w) or not math.isfinite(crop_h) or crop_w <= 0 or crop_h <= 0:
+            raise ValueError(
+                f"preprocess_crops: crop[{i}] has degenerate shape "
+                f"(h={crop_h}, w={crop_w}); both must be finite and > 0"
+            )
+
         # Aspect-ratio-preserving scale
         scale = min(input_w / crop_w, input_h / crop_h)
         new_w = int(crop_w * scale)
@@ -102,6 +109,13 @@ def decode_heatmaps(
 
     # Flatten and argmax
     flat = heatmaps.reshape(batch_size, num_joints, -1)
+    # NaN guard: np.argmax treats NaN as smallest value, returning the
+    # first NaN's index. If upstream numerics propagate NaN into the
+    # heatmap, argmax silently locks onto the wrong position. nan_to_num
+    # with nan=-inf below shifts NaN to "least possible" so the real
+    # finite maximum wins.
+    if not np.isfinite(flat).all():
+        flat = np.nan_to_num(flat, nan=-np.inf, posinf=-np.inf, neginf=-np.inf)
     flat_max = flat.max(axis=2)
     flat_idx = flat.argmax(axis=2)
 
@@ -143,6 +157,12 @@ def rescale_keypoints(
     for i in range(batch_size):
         crop_h, crop_w = crops[i].shape[:2]
         x1, y1, _x2, _y2 = bboxes[i]
+
+        if not math.isfinite(crop_w) or not math.isfinite(crop_h) or crop_w <= 0 or crop_h <= 0:
+            raise ValueError(
+                f"rescale_keypoints: crops[{i}] has degenerate shape "
+                f"(h={crop_h}, w={crop_w}); both must be finite and > 0"
+            )
 
         # Undo letterbox: must match exact forward computation in preprocess_crops
         scale = min(input_w / crop_w, input_h / crop_h)

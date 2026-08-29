@@ -11,6 +11,7 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import logging
+import math
 import os
 from datetime import UTC, datetime
 from pathlib import Path
@@ -145,8 +146,12 @@ def _compute_frame_metrics(poses: np.ndarray) -> dict:
         # Dot product
         dot = np.sum(vec1 * vec2, axis=1)
 
-        # Cosine with clipping
+        # Cosine with clipping. Guard non-finite cos (NaN keypoints silently
+        # propagate through np.clip(NaN, -1, 1) = NaN) and zero-norm inputs
+        # (b==a or c==b), which would otherwise produce 0→90° instead of NaN.
         cos = np.clip(dot / (norm1 * norm2 + 1e-8), -1, 1)
+        valid_cos = np.isfinite(cos) & (norm1 > 0) & (norm2 > 0)
+        cos = np.where(valid_cos, cos, np.nan)
 
         # Convert to degrees
         angles = np.degrees(np.arccos(cos))
@@ -464,9 +469,15 @@ async def process_video_task(
 
                         # Save timeline segments (same transaction as metrics)
                         if vast_result.segments:
-                            seg_confidence = float(
-                                np.mean([s["confidence"] for s in vast_result.segments])
-                            )
+                            # #1257: filter NaN/inf so a single corrupt
+                            # Vast.ai segment confidence doesn't poison the
+                            # mean and store NaN in segmentation_confidence.
+                            finite_confs = [
+                                s["confidence"]
+                                for s in vast_result.segments
+                                if s["confidence"] is not None and math.isfinite(s["confidence"])
+                            ]
+                            seg_confidence = float(np.mean(finite_confs)) if finite_confs else 0.0
                             await batch_insert_elements(
                                 db,
                                 session_id,

@@ -82,18 +82,37 @@ async def test_update_user(db_session):
 
 
 async def test_update_user_ignores_none(db_session):
+    from app.crud.session import UNSET
+
     user = await create(
         db_session,
         email="test@example.com",
         hashed_password="hash123",
         display_name="Original",
     )
+    # #547: passing UNSET skips the field; passing None sets it to NULL.
     updated = await update(
         db_session,
         user,
-        display_name=None,
+        display_name=UNSET,
         bio="New bio",
     )
-    # display_name should remain unchanged because None was passed
+    # display_name should remain unchanged because UNSET was passed
     assert updated.display_name == "Original"
     assert updated.bio == "New bio"
+
+
+async def test_update_user_can_null_field(db_session):
+    from app.crud.session import UNSET
+
+    user = await create(
+        db_session,
+        email="null@example.com",
+        hashed_password="hash123",
+        display_name="Original",
+        bio="Original bio",
+    )
+    # #547: explicit None now sets the field to NULL.
+    updated = await update(db_session, user, display_name=None, bio=None)
+    assert updated.display_name is None
+    assert updated.bio is None

@@ -4,6 +4,7 @@ Pre-computes analysis results and renders a broadcast-style overlay
 showing element name, key metrics, and recommendations in Russian.
 """
 
+import math
 from dataclasses import dataclass
 
 import cv2
@@ -71,6 +72,11 @@ class CoachOverlayData:
             True if frame is within [landing, landing + duration*fps).
         """
         if frame_idx < self.landing_frame:
+            return False
+        # ponytail: #1102 NaN display_duration or fps → int(NaN) crashes the
+        # entire HUD render for this frame. Guard at the trust boundary; hide
+        # overlay (return False) so the user still sees the rest of the HUD.
+        if not (math.isfinite(self.display_duration) and math.isfinite(self.fps)):
             return False
         end_frame = self.landing_frame + int(self.display_duration * self.fps)
         return frame_idx < end_frame
@@ -145,6 +151,12 @@ def _format_metric(metric: MetricResult) -> tuple[str, str, bool]:
         Tuple of Russian name, formatted string value, and goodness flag.
     """
     name_ru = METRIC_NAMES_RU.get(metric.name, metric.name)
+
+    # ponytail: #963 NaN/inf here leaks "nan"/"inf" into the Russian HUD
+    # overlay via f-string format spec (no exception, silent text leak).
+    # Guard once at the trust boundary \u2014 placeholder "\u2014" for non-finite.
+    if not math.isfinite(metric.value):
+        return (name_ru, "\u2014", metric.is_good)
 
     if metric.unit == "s":
         value_str = f"{metric.value:.2f}\u0441"

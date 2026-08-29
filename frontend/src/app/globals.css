@@ -3,6 +3,13 @@
 @import "shadcn/tailwind.css";
 @import "./tokens.css";
 
+/* ponytail: Fumadocs Tailwind v4 wiring.
+   `@fumadocs/tailwind` ships a JS plugin (no CSS export) — wire via @plugin
+   directive + fumadocs-ui base.css (FD animations only, no theme clash).
+   Pattern mirrored from fumadocs-ui/css/preset.css. */
+@plugin "@fumadocs/tailwind/typography";
+@import "fumadocs-ui/css/lib/base.css";
+
 @custom-variant dark (&:is(.dark *));
 
 @theme {

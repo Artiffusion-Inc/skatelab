@@ -3,6 +3,8 @@
 Shows elapsed time as mm:ss.ms overlay on the video frame.
 """
 
+import math
+
 from src.visualization.config import COLOR_WHITE, LayerConfig
 from src.visualization.core.text import put_text
 from src.visualization.layers.base import Frame, Layer, LayerContext
@@ -22,7 +24,7 @@ class TimerLayer(Layer):
 
     def render(self, frame: Frame, context: LayerContext) -> Frame:
         fps = context.fps
-        if fps <= 0:
+        if not math.isfinite(fps) or fps <= 0:
             return frame
 
         elapsed = context.frame_idx / fps

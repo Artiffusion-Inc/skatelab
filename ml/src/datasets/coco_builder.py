@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import math
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -112,10 +113,25 @@ def merge_coco_foot_keypoints(
         else:
             vis[17 + i] = 0.0
 
-    # Face duplicates (indices 23-25): copy from existing, low visibility
+    # Face duplicates (indices 23-25): copy coords from an existing
+    # eye/nose keypoint so HALPE26 has a value in the slot, but mark them
+    # UNLABELED. #806: the previous `0.3` was a non-standard COCO visibility
+    # (COCO spec is 0=unlabeled, 2=labeled) — mmpose treats v>0 as labeled,
+    # so v=0.3 supervised the face keypoint with a COPIED eye/nose coord
+    # (model learns face = eye/nose position). Dupes are not real keypoints;
+    # v=0.0 (unlabeled) keeps the coord for shape but drops supervision.
     for dup_idx, src_idx in _FACE_DUPE_SOURCE.items():
+        # #1069: NaN/inf source keypoint must raise — the local
+        # `pts[src_idx]` is zero-initialized by the `isnan` branch
+        # above, so the silent copy of `pts[dup_idx] = [0, 0]`
+        # would be INDISTINGUISHABLE from a dupe whose source is
+        # genuinely missing. Surface corrupted upstream data
+        # instead of silently zeroing.
+        src_xy = coco_2d[src_idx]
+        if not (math.isfinite(src_xy[0]) and math.isfinite(src_xy[1])):
+            raise ValueError(f"face dupe src coco_2d[{src_idx}] must be finite, got {src_xy}")
         pts[dup_idx] = pts[src_idx]
-        vis[dup_idx] = 0.3 if vis[src_idx] > 0 else 0.0
+        vis[dup_idx] = 0.0
 
     return pts, vis
 

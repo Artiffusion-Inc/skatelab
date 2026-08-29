@@ -330,7 +330,7 @@
     "parsingZip": "Unpacking archive...",
     "dropHint": "Drop ZIP or video",
     "dropOrClick": "or click to select file",
-    "maxSize": "up to 50 MB",
+    "maxSize": "up to 500 MB (auto-compressed)",
     "videoFound": "Video: found",
     "imuInfo": "IMU: {sensorCount} sensor(s)",
     "manifestOk": "Manifest: ✓",
@@ -717,5 +717,14 @@
   "errorState": {
     "title": "Something went wrong",
     "retry": "Try again"
+  },
+  "docs": {
+    "search": "Search",
+    "openApp": "Open app",
+    "translationMissing": "Translation missing, Russian version shown"
+  },
+  "blog": {
+    "title": "SkateLab Blog",
+    "backToList": "All posts"
   }
 }

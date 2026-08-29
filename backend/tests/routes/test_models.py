@@ -18,7 +18,7 @@ def fake_models_dir(tmp_path):
     (tmp_path / "depth_anything_v2_small.onnx").write_bytes(b"\x00" * (5 * 1024 * 1024))  # 5MB
     (tmp_path / "neuflowv2_mixed.onnx").write_bytes(
         b"\x00" * (12 * 1024 * 1024 + 500_000)
-    )  # ~12.5MB -> rounds to 12.5
+    )  # ~12.5MB
 
     # Create subdirectory for segment model
     sam2_dir = tmp_path / "sam2"
@@ -30,10 +30,10 @@ def fake_models_dir(tmp_path):
 
 
 @pytest.mark.asyncio
-async def test_list_models_returns_six_entries(client, fake_models_dir: Path):
-    """GET /models returns exactly 6 model entries."""
-    with patch("app.routes.models._MODELS_DIR", fake_models_dir):
-        response = await client.get("/v1/models")
+async def test_list_models_returns_six_entries(client, auth_headers, fake_models_dir: Path):
+    """GET /models returns exactly 6 model entries (auth required)."""
+    with patch("app.routes.models._get_models_dir", return_value=fake_models_dir):
+        response = await client.get("/v1/models", headers=auth_headers)
 
     assert response.status_code == 200
     data = response.json()
@@ -41,10 +41,10 @@ async def test_list_models_returns_six_entries(client, fake_models_dir: Path):
 
 
 @pytest.mark.asyncio
-async def test_list_models_available_flags(client, fake_models_dir: Path):
+async def test_list_models_available_flags(client, auth_headers, fake_models_dir: Path):
     """GET /models correctly reports available=True/False based on file existence."""
-    with patch("app.routes.models._MODELS_DIR", fake_models_dir):
-        response = await client.get("/v1/models")
+    with patch("app.routes.models._get_models_dir", return_value=fake_models_dir):
+        response = await client.get("/v1/models", headers=auth_headers)
 
     data = response.json()
     by_id = {m["id"]: m for m in data}
@@ -61,50 +61,37 @@ async def test_list_models_available_flags(client, fake_models_dir: Path):
 
 
 @pytest.mark.asyncio
-async def test_list_models_size_mb_when_available(client, fake_models_dir: Path):
-    """GET /models returns size_mb for available models, None for missing ones."""
-    with patch("app.routes.models._MODELS_DIR", fake_models_dir):
-        response = await client.get("/v1/models")
-
-    data = response.json()
-    by_id = {m["id"]: m for m in data}
-
-    # Available models have size_mb set
-    assert by_id["lift_3d"]["size_mb"] == 5.0
-    assert by_id["optical_flow"]["size_mb"] == 12.5
-    assert by_id["segment"]["size_mb"] == 45.0
-
-    # Missing models have size_mb=None
-    assert by_id["foot_track"]["size_mb"] is None
-    assert by_id["matting"]["size_mb"] is None
-    assert by_id["inpainting"]["size_mb"] is None
-
-
-@pytest.mark.asyncio
-async def test_list_models_all_missing(client, tmp_path: Path):
+async def test_list_models_all_missing(client, auth_headers, tmp_path: Path):
     """GET /models with no files returns all available=False."""
     empty_dir = tmp_path / "empty_models"
     empty_dir.mkdir()
 
-    with patch("app.routes.models._MODELS_DIR", empty_dir):
-        response = await client.get("/v1/models")
+    with patch("app.routes.models._get_models_dir", return_value=empty_dir):
+        response = await client.get("/v1/models", headers=auth_headers)
 
     data = response.json()
     assert len(data) == 6
     for model in data:
         assert model["available"] is False
-        assert model["size_mb"] is None
 
 
 @pytest.mark.asyncio
-async def test_list_models_response_schema(client, fake_models_dir: Path):
-    """GET /models response matches ModelStatus schema (id, available, size_mb)."""
-    with patch("app.routes.models._MODELS_DIR", fake_models_dir):
-        response = await client.get("/v1/models")
+async def test_list_models_response_schema(client, auth_headers, fake_models_dir: Path):
+    """GET /models response matches ModelStatus schema (id, available)."""
+    with patch("app.routes.models._get_models_dir", return_value=fake_models_dir):
+        response = await client.get("/v1/models", headers=auth_headers)
 
     data = response.json()
     for model in data:
         assert "id" in model
         assert "available" in model
-        assert "size_mb" in model
+        # #778: size_mb no longer in response
+        assert "size_mb" not in model
         assert isinstance(model["available"], bool)
+
+
+@pytest.mark.asyncio
+async def test_list_models_requires_auth(client):
+    """#775: GET /models requires authentication (removed from JWT exclude)."""
+    response = await client.get("/v1/models")
+    assert response.status_code == 401

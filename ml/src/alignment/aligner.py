@@ -87,6 +87,15 @@ class MotionAligner:
         Returns:
             DTW distance (normalized).
         """
+        # #612: mirror the #478 motion_dtw fix. Empty or single-frame
+        # inputs crash the reshape (`cannot reshape array of size 0`)
+        # and the normalization divide (`ZeroDivisionError` when both
+        # are empty). Return inf so downstream code can handle the
+        # degenerate case as "no match" rather than crashing the
+        # whole pipeline. DTW on <2 frames is undefined.
+        if len(user) < 2 or len(reference) < 2:
+            return float("inf")
+
         if joints is None:
             joints = list(range(user.shape[1]))
 
@@ -121,6 +130,11 @@ class MotionAligner:
         Returns:
             DTW distance (normalized).
         """
+        # #612: mirror the #478 motion_dtw fix. Empty or single-frame
+        # inputs crash the 3D reshape. Return inf.
+        if len(user) < 2 or len(reference) < 2:
+            return float("inf")
+
         if joints is None:
             joints = list(range(user.shape[1]))
 
@@ -223,6 +237,18 @@ class MotionAligner:
         elif self._window_type == "itakura":
             window_args = {"window_type": "itakura"}
 
+        # #896: NaN keypoint (occluded joint) in the flattened cost matrix
+        # poisons the DTW accumulator -> no finite warping path -> the `dtw`
+        # library raises ValueError("No warping path found ..."), crashing
+        # compute_distance / align / compute_distance_3d (none of which wrap
+        # the call). Sanitize to a finite cost matrix so the aligner degrades
+        # gracefully (finite NaN-masked distance) instead of crashing. Identity
+        # on all-finite input. ponytail: all-NaN segment becomes 0-cost
+        # (biased finite, not inf); upgrade to inf sentinel if a degenerate-
+        # segment signal is needed. Mirrors the MotionDTWAligner #888 guard.
+        x = np.nan_to_num(x, nan=0.0, posinf=0.0, neginf=0.0)
+        y = np.nan_to_num(y, nan=0.0, posinf=0.0, neginf=0.0)
+
         # Compute DTW
         return dtw(
             x,
@@ -259,6 +285,14 @@ class MotionAligner:
         for i, ref_idx in enumerate(np.unique(index2)):
             # Find all user frames mapped to this reference frame
             user_indices = index1[index2 == ref_idx]
+
+            # #1097: filter NaN index1 entries — `int(NaN) = ValueError`
+            # and `user_indices.astype(int)` of NaN truncates to a huge
+            # negative int → `IndexError`. NaN reaches the path from a NaN
+            # keypoint in the cost matrix (#1090). Mirrors the motion_dtw.py
+            # #1097 guard. If all are NaN, fall back to nearest (same as the
+            # empty-mapping branch).
+            user_indices = user_indices[np.isfinite(user_indices)]
 
             if len(user_indices) == 0:
                 # No mapping, use nearest

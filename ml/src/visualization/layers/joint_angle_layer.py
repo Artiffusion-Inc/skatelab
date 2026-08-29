@@ -201,6 +201,25 @@ class JointAngleLayer(Layer):
                 if not (np.isnan(a3).any() or np.isnan(v3).any() or np.isnan(c3).any()):
                     angle = angle_3pt(a3, v3, c3)
 
+            # #894: NaN joint point (partial occlusion — free foot off-frame
+            # during spins) must graceful-skip the spec, NOT crash (pixel path)
+            # and NOT draw a garbage arc (normalized path). The 3D path guards
+            # NaN (line 201); the 2D path did not. Two failure modes:
+            #  - pixel: pa/pv/pc stay NaN -> angle_3pt NaN (#863 wrapper returns
+            #    NaN, line-219 guard catches) — no crash now, but
+            #  - normalized: normalized_to_pixel array-branch masks NaN -> (0,0)
+            #    BEFORE this point, so a post-conversion np.isnan check is False
+            #    and angle_3pt((0,0),...) returns a finite GARBAGE angle (~140°)
+            #    that passes line-219 -> a garbage arc + ticks + label drawn at
+            #    the wrong location. Check the RAW pose (pre-conversion) so both
+            #    paths skip on NaN. Mirrors the line-201 3D guard.
+            if (
+                np.isnan(pose[spec.point_a]).any()
+                or np.isnan(pose[spec.vertex]).any()
+                or np.isnan(pose[spec.point_c]).any()
+            ):
+                continue
+
             # Get 2D positions (pixel coords)
             if context.normalized:
                 pa = np.array(normalized_to_pixel(pose[spec.point_a], w, h), dtype=np.float64)
@@ -278,6 +297,12 @@ class JointAngleLayer(Layer):
         vc = c_3d - v_3d
         va_len = np.linalg.norm(va)
         vc_len = np.linalg.norm(vc)
+        # #1263: NaN inputs (corrupt 3D keypoint) make va_len/vc_len NaN;
+        # `NaN < 1e-6` is False, so the guard below would let NaN flow
+        # through `np.clip(np.dot(e1, vc_hat), -1.0, 1.0) = NaN` and
+        # `arccos(NaN) = NaN` silently. Catch NaN at the source.
+        if not (math.isfinite(va_len) and math.isfinite(vc_len)):
+            return None
         if va_len < 1e-6 or vc_len < 1e-6:
             return None
 
@@ -286,13 +311,19 @@ class JointAngleLayer(Layer):
         vc_hat = vc / vc_len
         normal = np.cross(e1, vc_hat)
         normal_len = np.linalg.norm(normal)
-        if normal_len < 1e-6:
+        # Same NaN guard for the cross-product length.
+        if not math.isfinite(normal_len) or normal_len < 1e-6:
             return None  # collinear in 3D
         normal /= normal_len
         e2 = np.cross(normal, e1)
 
         # True 3D angle and arc direction
         cos_angle = np.clip(np.dot(e1, vc_hat), -1.0, 1.0)
+        # Defensive: if upstream NaN slipped past the length guards
+        # (e.g. e1/vc_hat components are +/-inf), arccos(NaN/inf) would
+        # silently produce NaN. Bail to None.
+        if not math.isfinite(cos_angle):
+            return None
         sweep = np.arccos(cos_angle)
         if np.dot(np.cross(va, vc), normal) < 0:
             sweep = 2 * np.pi - sweep
@@ -346,6 +377,12 @@ class JointAngleLayer(Layer):
     ) -> None:
         """Draw an angle arc at vertex between point_a and point_c."""
         vx, vy = vertex
+        # #1244: NaN vertex (corrupt joint / missing data) would crash
+        # int(NaN) on the cv2.ellipse center. Skip the arc — caller
+        # already filters pose NaN for the spec, this is the second
+        # line of defense for any direct caller.
+        if not (math.isfinite(vx) and math.isfinite(vy)):
+            return
         # OpenCV y-down → negate for standard math angle
         angle_a = math.degrees(math.atan2(-(point_a[1] - vy), point_a[0] - vx))
         angle_c = math.degrees(math.atan2(-(point_c[1] - vy), point_c[0] - vx))

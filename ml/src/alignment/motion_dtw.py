@@ -167,7 +167,17 @@ class MotionDTWAligner:
         aligned_user = self._warp_with_path(user, full_warp_path, len(reference))
 
         # Compute total distance
-        total_distance = sum(p.distance for p in phase_alignments) / max(len(phase_alignments), 1)
+        # #613: empty phase_alignments → return inf instead of 0.0. A 0.0
+        # distance is a silent "perfect match" that inflates the score
+        # for degenerate input (e.g. very short clip, malformed
+        # reference). Mirror the #478 fix used in compute_distance /
+        # compute_distance_3d for empty/single-frame input.
+        if len(phase_alignments) == 0:
+            total_distance = float("inf")
+        else:
+            total_distance = sum(p.distance for p in phase_alignments) / max(
+                len(phase_alignments), 1
+            )
 
         return MotionDTWResult(
             total_distance=total_distance,
@@ -335,6 +345,18 @@ class MotionDTWAligner:
         elif self._window_type == "itakura":
             window_args = {"window_type": "itakura"}
 
+        # #888: NaN keypoint (occluded joint) in the flattened cost matrix
+        # poisons the DTW accumulator → no finite warping path → the `dtw`
+        # library raises ValueError("No warping path found ..."), crashing the
+        # whole process_video arq job (pipeline.py calls compute_distance /
+        # compute_distance_3d unwrapped). Sanitize to a finite cost matrix so
+        # the aligner degrades gracefully (finite NaN-masked distance) instead
+        # of crashing. Identity on all-finite input — all-valid case unchanged.
+        # ponytail: all-NaN segment becomes 0-cost (biased finite, not inf);
+        # upgrade to inf sentinel if a degenerate-segment signal is needed.
+        x = np.nan_to_num(x, nan=0.0, posinf=0.0, neginf=0.0)
+        y = np.nan_to_num(y, nan=0.0, posinf=0.0, neginf=0.0)
+
         return dtw(
             x,
             y,
@@ -397,6 +419,14 @@ class MotionDTWAligner:
         for ref_idx in range(target_length):
             # Find all user frames mapped to this reference frame
             user_indices = warp_path[:, 0][warp_path[:, 1] == ref_idx]
+
+            # #1097: filter NaN warp_path entries — `int(NaN) = ValueError`
+            # and `user_indices.astype(int)` of NaN truncates to a huge
+            # negative int → `IndexError`. NaN reaches the path from a NaN
+            # keypoint in the cost matrix (#1090). Mirrors the aligner.py
+            # #1097 guard. If all are NaN, fall back to nearest-neighbor
+            # (same as the empty-mapping branch).
+            user_indices = user_indices[np.isfinite(user_indices)]
 
             if len(user_indices) == 0:
                 # No mapping, use nearest neighbor

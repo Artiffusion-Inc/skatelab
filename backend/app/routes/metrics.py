@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 from collections import defaultdict
 from collections.abc import Sequence  # noqa: TC003
 from datetime import UTC, datetime, timedelta
@@ -27,6 +28,7 @@ from app.schemas import (
 )
 from app.services.choreography.elements_db import ELEMENTS
 from app.services.diagnostics import (
+    R_SQUARED_TREND_THRESHOLD,
     check_consistently_below_range,
     check_declining_trend,
     check_high_variability,
@@ -111,7 +113,9 @@ class MetricsController(Controller):
             )
 
         # Calculate date filter
-        now = datetime.now(UTC)
+        # #694: use naive cutoff so comparison works with both tz-aware and
+        # tz-naive DB columns (SQLite TIMESTAMP WITHOUT TIME ZONE)
+        now = datetime.now(UTC).replace(tzinfo=None)
         period_map = {"7d": 7, "30d": 30, "90d": 90, "all": None}
         days = period_map.get(period)
         date_filter = Session.created_at >= (now - timedelta(days=days)) if days else True
@@ -149,12 +153,25 @@ class MetricsController(Controller):
             from app.services.diagnostics import linear_regression
 
             slope, r_sq = linear_regression(values)
-            improving = (slope > 0) if mdef.direction == "higher" else (slope < 0)
-            declining = (slope < 0) if mdef.direction == "higher" else (slope > 0)
-            if improving and r_sq > 0.3:
-                trend = "improving"
-            elif declining and r_sq > 0.3:
-                trend = "declining"
+            # #1249: guard non-finite slope/r² before classification. NaN and
+            # ±inf comparisons in IEEE 754 are always False (or, for inf,
+            # falsely True), so without this guard NaN silently falls through
+            # to "stable" and inf is misreported as a real trend. linear_regression
+            # already filters NaN/inf from the input series (#634), so this
+            # is a defense-in-depth check for any future regression in the
+            # underlying function or for callers passing non-finite directly.
+            if not (math.isfinite(slope) and math.isfinite(r_sq)):
+                trend = "unknown"
+            else:
+                improving = (slope > 0) if mdef.direction == "higher" else (slope < 0)
+                declining = (slope < 0) if mdef.direction == "higher" else (slope > 0)
+                # #633: use the constant from diagnostics module — /trend and
+                # /diagnostics must share a single R² threshold to avoid
+                # inconsistent UX (one says "improving", the other silent).
+                if improving and r_sq > R_SQUARED_TREND_THRESHOLD:
+                    trend = "improving"
+                elif declining and r_sq > R_SQUARED_TREND_THRESHOLD:
+                    trend = "declining"
 
         # Current PR
         pr_val = None
@@ -207,6 +224,11 @@ class MetricsController(Controller):
                 Session.status == "done",
                 SessionMetric.is_pr,
             )
+            # #632: order newest-first so the seen-set dedup keeps the most
+            # recent PR per (element_type, metric_name). Without this the
+            # route returns the first-encountered row in DB-insertion order
+            # (the oldest PR), silently dropping newer PRs.
+            .order_by(Session.created_at.desc())
         )
         if element_type:
             query = query.where(Session.element_type == element_type)

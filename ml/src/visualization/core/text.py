@@ -6,6 +6,8 @@ Provides functions for:
 - Measuring text size for layout
 """
 
+import math
+
 import cv2
 import numpy as np
 from numpy.typing import NDArray
@@ -60,7 +62,13 @@ def draw_text_outlined(
     """
     x, y = position
     black = (0, 0, 0)
-    _pos = (int(x), int(y))
+    # Guard against NaN/Inf (corrupt text position, missing HUD anchor, partial
+    # layer state). NaN/Inf -> int() raises ValueError, aborting the whole
+    # text render. Fall back to (0, 0) so the frame is still produced.
+    if not (math.isfinite(x) and math.isfinite(y)):
+        _pos = (0, 0)
+    else:
+        _pos = (int(x), int(y))
 
     # Black outline (thicker)
     cv2.putText(
@@ -283,6 +291,10 @@ def render_cyrillic_text(
         overlay_draw = ImageDraw.Draw(overlay)
 
         bg_rgb = (background[2], background[1], background[0])
+        # Guard against NaN/Inf (corrupt theme config) before int() conversion.
+        # NaN * 255 = NaN; int(NaN) raises ValueError. Fall back to fully opaque.
+        if not math.isfinite(background_alpha):
+            background_alpha = 1.0
         alpha_int = int(background_alpha * 255)
         overlay_draw.rectangle(bg_bbox, fill=(*bg_rgb, alpha_int))
 

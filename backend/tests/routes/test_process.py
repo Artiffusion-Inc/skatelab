@@ -246,6 +246,8 @@ async def test_cancel_process(client, auth_headers, authed_user):
     }
     with (
         patch("app.auth.ownership.get_task_state", new_callable=AsyncMock, return_value=fake_state),
+        # #701: cancel now fetches state to short-circuit terminal tasks.
+        patch("app.routes.process.get_task_state", new_callable=AsyncMock, return_value=fake_state),
         patch("app.routes.process.set_cancel_signal", new_callable=AsyncMock),
     ):
         response = await client.post("/v1/process/proc_running/cancel", headers=auth_headers)
@@ -254,3 +256,29 @@ async def test_cancel_process(client, auth_headers, authed_user):
     data = response.json()
     assert data["status"] == "cancel_requested"
     assert data["task_id"] == "proc_running"
+
+
+async def test_cancel_process_already_terminal(client, auth_headers, authed_user):
+    """#701: cancelling an already-terminal task reports already_terminal, no signal set."""
+    fake_state = {
+        "task_id": "proc_done",
+        "status": "completed",
+        "progress": 1.0,
+        "message": "Done",
+        "result": None,
+        "error": "",
+        "user_id": str(authed_user.id),
+    }
+    cancel_mock = AsyncMock()
+    with (
+        patch("app.auth.ownership.get_task_state", new_callable=AsyncMock, return_value=fake_state),
+        patch("app.routes.process.get_task_state", new_callable=AsyncMock, return_value=fake_state),
+        patch("app.routes.process.set_cancel_signal", new=cancel_mock),
+    ):
+        response = await client.post("/v1/process/proc_done/cancel", headers=auth_headers)
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["status"] == "already_terminal"
+    assert data["task_id"] == "proc_done"
+    cancel_mock.assert_not_awaited()

@@ -102,6 +102,16 @@ class TrailLayer(Layer):
         # guard (velocity_layer.py:117) — #479.
         if context.pose_3d is not None and not np.all(np.isnan(context.pose_3d)):
             pos = context.pose_3d[self.joint]
+            # #892: the `not np.all(np.isnan(pose_3d))` guard catches only an
+            # all-NaN pose; partial occlusion (this tracked joint NaN, rest
+            # valid — common for free foot off-frame during spins) passed it
+            # and appended a NaN vertex. `_draw_trail_3d` then drew a garbage
+            # segment to the masked (0,0) origin (normalized) or crashed on
+            # int(nan) (pixel). Skip the occluded joint's vertex this frame —
+            # the trail simply does not extend on occluded frames. Mirrors
+            # the 2D-path guard below.
+            if np.isnan(pos).any():
+                return frame
             self._trail_3d.append(tuple(pos))
             if len(self._trail_3d) > self.length:
                 self._trail_3d.pop(0)
@@ -111,6 +121,14 @@ class TrailLayer(Layer):
 
         elif context.pose_2d is not None and not np.all(np.isnan(context.pose_2d)):
             pos = context.pose_2d[self.joint]
+            # #892: per-joint NaN guard — see the 3D-path comment above. The
+            # all-NaN pose guard misses partial occlusion; the tracked joint
+            # alone may be NaN. Skip the vertex (do not append, do not draw)
+            # so the trail degrades (no new vertex this frame) instead of
+            # crashing (pixel: int(nan)) or drawing a garbage origin segment
+            # (normalized: normalized_to_pixel masks NaN -> (0,0)).
+            if np.isnan(pos).any():
+                return frame
             self._trail_2d.append(tuple(pos))
             if len(self._trail_2d) > self.length:
                 self._trail_2d.pop(0)

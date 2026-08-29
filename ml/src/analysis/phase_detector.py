@@ -4,6 +4,8 @@ This module detects key phases like takeoff, peak height, and landing
 from pose sequences using biomechanical cues.
 """
 
+import math
+
 import numpy as np
 from scipy.signal import find_peaks
 
@@ -32,6 +34,13 @@ def count_rotations(angles: np.ndarray) -> int:
         return 0
     unwrapped = np.unwrap(angles)
     total_radians = float(np.abs(unwrapped[-1] - unwrapped[0]))
+    # #983: NaN shoulder (occluded LSHOULDER/RSHOULDER on a flight frame)
+    # → np.arctan2(NaN) → np.unwrap(NaN) → total_radians=NaN. int(np.ceil(
+    # NaN)) raises ValueError, aborting jump-level classification on one
+    # occluded shoulder. Guard before the int() — NaN → 0 rotations
+    # (unknown count, NOT crash), mirroring the len(angles)<2 → 0 guard.
+    if not np.isfinite(total_radians):
+        return 0
     # #514: rotation LEVEL = full completed turns. A half-turn overshoot is an
     # over-rotation of the LOWER level, not a completed next level: 3.5 turns =
     # an over-rotated triple (3), NOT a quad (4). But a slight UNDER-rotation
@@ -197,8 +206,11 @@ class PhaseDetector:
             search_end = min(len(poses), first_landing + 1)
 
             com_y_search = com_y[search_start:search_end]
-            if len(com_y_search) > 0:
-                peak_offset = np.argmin(com_y_search)
+            # np.argmin treats NaN as smallest, returning the first NaN
+            # position when the slice mixes finite and NaN values — silent
+            # wrong-index bug. Use np.nanargmin to skip NaN.
+            if len(com_y_search) > 0 and np.isfinite(com_y_search).any():
+                peak_offset = int(np.nanargmin(com_y_search))
                 peak_idx = search_start + peak_offset
             else:
                 peak_idx = len(poses) // 2
@@ -208,7 +220,17 @@ class PhaseDetector:
             if len(peaks) == 0:
                 peak_idx = len(poses) // 2
             else:
-                peak_idx = peaks[np.argmax(-properties["prominences"])]
+                # #1324: `properties["prominences"]` from scipy.find_peaks may
+                # contain NaN (com_y NaN propagation). `np.argmax` of a NaN-
+                # mixed array returns the first-NaN index, so peak points to
+                # a wrong frame silently. Use `np.nanargmax` to skip NaN and
+                # fall back to the mid-frame default if ALL prominences are
+                # NaN (nanargmax raises ValueError on all-NaN slices).
+                prominences = properties["prominences"]
+                if np.isfinite(prominences).any():
+                    peak_idx = int(peaks[np.nanargmax(-prominences)])
+                else:
+                    peak_idx = len(poses) // 2
 
         # Set takeoff and landing indices
         if len(takeoff_candidates) > 0:
@@ -231,10 +253,21 @@ class PhaseDetector:
         # `inf < 0.3` is False, so the plausibility gate accepts an impossible
         # infinite-airtime segment. Treat fps<=0 as a degenerate 0.0 airtime
         # (fails the < 0.3 gate → rejected). #499/#501-class sibling.
-        airtime = (landing_idx - takeoff_idx) / fps if fps > 0 else 0.0
+        # #520: inclusive-end frame index count, not span. takeoff_idx /
+        # landing_idx are INCLUSIVE concrete frame indices (per
+        # _scan_to_baseline docstring + physics_engine.py:631 `+ 1`
+        # slice convention). 9 inclusive flight frames = (28 - 20 + 1) / 30
+        # = 0.300 s, which passes the 0.3 gate. Pre-fix span (28 - 20) / 30
+        # = 0.267 s fails the gate → valid jump rejected.
+        # #1223: NaN landing_idx / takeoff_idx yields NaN airtime; `NaN < 0.3`
+        # is False in Python IEEE 754, so the gate silently accepts an
+        # impossible NaN segment. Wrap the gate in `math.isfinite(airtime)`
+        # so NaN airtime is treated as a false positive (same path as
+        # short-airtime rejection).
+        airtime = (landing_idx - takeoff_idx + 1) / fps if fps > 0 else 0.0
 
         # Minimum airtime validation (0.3 seconds)
-        if airtime < 0.3:
+        if not math.isfinite(airtime) or airtime < 0.3:
             # Airtime too short, likely false positive
             return PhaseDetectionResult(
                 phases=ElementPhase(
@@ -259,13 +292,20 @@ class PhaseDetector:
         start_idx = max(0, takeoff_idx - 10)
         end_idx = min(len(poses) - 1, landing_idx + 10)
 
+        # #1240: NaN idx guard. CoM/peak detection can produce NaN
+        # indices when keypoints are occluded or tracking is partial;
+        # `int(NaN)` raises ValueError and aborts the entire analysis
+        # chain (no ElementPhase → metrics skip → alignment skip → broken
+        # session). Coerce NaN/inf to 0 with `math.isfinite` so the
+        # phase result is still produced (with confidence=0.0 for the
+        # upstream isfinite guards on vy_std/prominence).
         phases = ElementPhase(
             name="jump",
-            start=int(start_idx),
-            takeoff=int(takeoff_idx),
-            peak=int(peak_idx),
-            landing=int(landing_idx),
-            end=int(end_idx),
+            start=int(start_idx) if math.isfinite(start_idx) else 0,
+            takeoff=int(takeoff_idx) if math.isfinite(takeoff_idx) else 0,
+            peak=int(peak_idx) if math.isfinite(peak_idx) else 0,
+            landing=int(landing_idx) if math.isfinite(landing_idx) else 0,
+            end=int(end_idx) if math.isfinite(end_idx) else 0,
         )
 
         # Confidence based on multiple factors
@@ -284,7 +324,14 @@ class PhaseDetector:
         # and min(1.0, NaN) returns 1.0 in Python -> NaN-weighted terms inflate to
         # full weight -> ~0.5 confidence on a video with no jump at all. Sibling
         # parabolic path guards with a 1e-6 threshold; this velocity path did not. #425
-        if vy_std < 1e-6:
+        # #1088: the `vy_std < 1e-6` threshold does NOT catch NaN (NaN < 1e-6 is
+        # False in Python). A NaN keypoint outside the flight window (e.g. RKNEE[0]
+        # = NaN) → com_y masked-but-degraded → parabolic segment detection fails →
+        # com_improved fallback with `peak_idx = len//2` → prominence over a wider
+        # window exceeds 0.05 → `min(1.0, prominence/0.05) = 1.0` → confidence =
+        # 0.5, HIGHER than the all-valid baseline (false BEST on corrupted
+        # input). Use math.isfinite (NOT math.isnan) to also catch inf.
+        if not math.isfinite(vy_std) or vy_std < 1e-6:
             velocity_confidence = 0.0
         else:
             velocity_confidence = (
@@ -293,13 +340,29 @@ class PhaseDetector:
             )
 
         # Combine factors
-        confidence = min(
-            1.0,
-            (
+        # #562: explicit NaN guard. prominence is NaN if flight_com had
+        # NaN (gap-filled keypoint during flight phase). Python's
+        # builtin min(1.0, NaN) returns 1.0, silently inflating
+        # confidence for a phase with missing data. If prominence is
+        # NaN, the phase detection is unreliable — return 0.0 confidence
+        # instead. Same root cause as #561 confidence.py:51.
+        # #1088: broaden the guard from isnan to isfinite (catches inf too)
+        # and apply the same guard to the sum-of-terms BEFORE the outer
+        # min(1.0, ...) clamp — once min(1.0, NaN) has run, you get 1.0
+        # which is finite, so the guard must be on the input to the clamp,
+        # not the output (sibling to #1025 three_turn fix).
+
+        if not math.isfinite(prominence):
+            confidence = 0.0
+        else:
+            conf_sum = (
                 min(1.0, prominence / 0.05) * 0.5  # Peak prominence (max 0.05)
                 + velocity_confidence
-            ),
-        )
+            )
+            if not math.isfinite(conf_sum):
+                confidence = 0.0
+            else:
+                confidence = min(1.0, conf_sum)
 
         rotations = _compute_flight_rotations(poses, int(phases.takeoff), int(phases.landing))
         return PhaseDetectionResult(
@@ -335,6 +398,15 @@ class PhaseDetector:
             PhaseDetectionResult with jump phase boundaries.
         """
         from scipy.ndimage import median_filter as _median_filter
+
+        # #1061: NaN/neg fps guard at the trust boundary. The downstream
+        # `if fps > 0 else 0.0` airtime clamp is NaN-blind (NaN > 0 is False)
+        # and silently coerces NaN fps to airtime=0.0, indistinguishable from
+        # a legitimate fps=0 broken-header video. Reject non-finite or
+        # non-positive fps with a typed error naming the bad value, mirroring
+        # the #1043/#1044/#1063/#1066 fps guard pattern.
+        if not (math.isfinite(fps) and fps > 0):
+            raise ValueError(f"fps must be finite and > 0, got {fps!r}")
 
         N = len(poses)
         if N < 12:
@@ -425,10 +497,18 @@ class PhaseDetector:
             b_coeff = coeffs[1]
 
             # Compute R²
+            # #1267: guard against NaN in y_local (CoM segment). Without this,
+            # np.polyfit returns NaN coeffs -> ss_res=NaN, ss_tot=NaN ->
+            # `NaN > 1e-10` is False -> the else branch silently yields 0.0,
+            # indistinguishable from a real "0 fit" answer. Skip this segment
+            # (continue) when y_local is not finite so the parabola is rejected
+            # for the right reason (corrupt input), not silently mis-classified.
+            if not np.isfinite(y_local).all():
+                continue
             y_pred = np.polyval(coeffs, t_local)
             ss_res = float(np.sum((y_local - y_pred) ** 2))
             ss_tot = float(np.sum((y_local - np.mean(y_local)) ** 2))
-            r_squared = 1.0 - (ss_res / ss_tot) if ss_tot > 1e-10 else 0.0
+            r_squared = 1.0 - (ss_res / ss_tot) if math.isfinite(ss_tot) and ss_tot > 1e-10 else 0.0
 
             # Peak of parabola
             parabola_peak_t = -b_coeff / (2.0 * a_coeff) if abs(a_coeff) > 1e-12 else -1.0
@@ -456,12 +536,29 @@ class PhaseDetector:
                 # `inf < 0.3` is False, so the plausibility gate accepts an impossible
                 # infinite-airtime segment. Treat fps<=0 as a degenerate 0.0 airtime
                 # (fails the < 0.3 gate → rejected). #499/#501-class sibling.
-                airtime = (landing_idx - takeoff_idx) / fps if fps > 0 else 0.0
-                if airtime < 0.3:
+                # #520: inclusive-end frame index count, not span. takeoff_idx /
+                # landing_idx are INCLUSIVE concrete frame indices (per
+                # _scan_to_baseline docstring + physics_engine.py:631 `+ 1`
+                # slice convention). 9 inclusive flight frames = (28 - 20 + 1) / 30
+                # = 0.300 s, which passes the 0.3 gate. Pre-fix span (28 - 20) / 30
+                # = 0.267 s fails the gate → valid jump rejected.
+                # #1223: same NaN-airtime guard as the com_improved gate
+                # (NaN landing/takeoff idx → NaN airtime → silently accepted).
+                airtime = (landing_idx - takeoff_idx + 1) / fps if fps > 0 else 0.0
+                if not math.isfinite(airtime) or airtime < 0.3:
                     continue
 
                 # Score = R² × excursion magnitude
                 seg_excursion = float(baseline[peak_frame] - com_smooth[peak_frame])
+                # #1301: skip NaN/inf seg_excursion. score = r_squared * NaN
+                # is NaN, and `NaN > best_score` (best_score starts at -1.0)
+                # is always False (NaN-cmp rule) — the candidate is silently
+                # rejected, best_score stays at -1.0, and the function falls
+                # through to the com_improved fallback. Downstream metrics
+                # then compute on the wrong segments and emit a wrong
+                # biomechanical report. Skip the corrupt candidate explicitly.
+                if not math.isfinite(seg_excursion):
+                    continue
                 score = r_squared * seg_excursion
 
                 if score > best_score:
@@ -570,8 +667,21 @@ class PhaseDetector:
                 confidence=0.0,
             )
 
-        # Use most prominent change point as turn center
-        turn_center = change_points[np.argmax(np.abs(edge_derivative[change_points]))]
+        # Use most prominent change point as turn center.
+        # #1307: NaN in edge_derivative (occluded hip, missing keypoint, corrupt
+        # CoM trajectory) makes `np.argmax` return the first-NaN index silently
+        # — a finite wrong index that shifts phase boundaries and the `peak`
+        # field. Sibling to #978/#924/#1007 (count_rotations / hip_y_min_idx
+        # NaN guards, same file). Use isfinite filter before argmax so a
+        # NaN-bearing change_point is skipped and the real max abs derivative
+        # wins. Falls back to the legacy `change_points[0]` for all-NaN input
+        # (preserves prior behavior for that edge case).
+        abs_slice = np.abs(edge_derivative[change_points])
+        finite_mask = np.isfinite(abs_slice)
+        if finite_mask.any():
+            turn_center = int(change_points[finite_mask][np.argmax(abs_slice[finite_mask])])
+        else:
+            turn_center = int(change_points[0])
 
         # Set boundaries around turn
         start_idx = max(0, turn_center - 15)
@@ -586,8 +696,18 @@ class PhaseDetector:
             end=end_idx,
         )
 
-        # Confidence based on edge change magnitude
-        max_change = float(np.max(np.abs(edge_derivative)))
+        # Confidence based on edge change magnitude.
+        # #1007: a NaN joint (occluded LHIP/LSHOULDER on ANY frame — even a
+        # flat-baseline frame OUTSIDE the turn) propagates through
+        # compute_edge_indicator -> np.gradient -> np.max(np.abs(...)) = NaN.
+        # Python's `min(1.0, NaN) = 1.0` (first-arg-wins, #454) then inflates
+        # confidence to the 1.0 ceiling — a false BEST on a corrupted signal.
+        # Guard max_change with np.nan_to_num before the cap so a NaN-bearing
+        # edge_derivative yields 0.0 confidence (signal corruption), not 1.0.
+        # Sibling to #978/#924 (count_rotations NaN guard, same file).
+        max_change = float(np.nanmax(np.abs(edge_derivative)))
+        if not np.isfinite(max_change):
+            max_change = 0.0
         confidence = min(1.0, max_change / 0.5)
 
         return PhaseDetectionResult(phases=phases, confidence=float(confidence))
@@ -620,6 +740,16 @@ class PhaseDetector:
 
         # Use 3-sigma rule for threshold
         accel_std = float(np.std(accel_y[search_start:search_end]))
+        # #1278: NaN-skip on accel_std. np.std propagates NaN when accel_y
+        # is NaN-tainted (hip occluded during tuck / sit spin / loose top),
+        # and `arr[i] > NaN` is always False (NaN-comparison rule), so the
+        # loop below never enters — silent fallback. Use math.isfinite
+        # (NOT math.isnan) to also catch inf. Skip the threshold loop when
+        # the std is not finite, falling through to the derivative
+        # fallback below.
+        if not math.isfinite(accel_std):
+            derivative = np.gradient(com_y)
+            return self._find_takeoff_derivative(derivative, peak_idx)
         threshold = accel_std * 3.0
 
         # Find first significant positive acceleration before peak
@@ -627,7 +757,14 @@ class PhaseDetector:
             if accel_y[i] > threshold:
                 # Verify it's the start of sustained acceleration
                 window = min(3, search_end - i)
-                if np.all(accel_y[i : i + window] > 0):
+                # #564: NaN-skip. accel_y from np.gradient(np.gradient(com_y))
+                # is NaN-poisoned when com_y has gap-filled NaN values.
+                # NaN > 0 is False, so the pre-fix all-positive check fails
+                # and the takeoff frame is never detected at the right
+                # position. Filter to finite values before the check.
+                slice_view = accel_y[i : i + window]
+                finite_slice = slice_view[np.isfinite(slice_view)]
+                if finite_slice.size > 0 and np.all(finite_slice > 0):
                     return i
 
         # Fallback: use derivative-based method
@@ -664,6 +801,13 @@ class PhaseDetector:
 
         # Use 2-sigma rule for threshold (more sensitive for landing)
         accel_std = float(np.std(accel_y[search_start:search_end]))
+        # #1278: NaN-skip on accel_std (same root cause as takeoff above).
+        # NaN-tainted accel_y → std NaN → threshold NaN → `arr[i] < NaN`
+        # always False → loop never enters. Skip the threshold loop and
+        # fall through to the baseline-return fallback when the std is
+        # not finite.
+        if not math.isfinite(accel_std):
+            return self._find_landing_baseline(com_y, peak_idx, takeoff_idx)
         threshold = -accel_std * 2.0
 
         # Find first significant negative acceleration after peak
@@ -671,7 +815,11 @@ class PhaseDetector:
             if accel_y[i] < threshold:
                 # Verify it's followed by sustained low acceleration
                 window = min(5, search_end - i)
-                if np.mean(accel_y[i : i + window]) < 0:
+                # #564: NaN-skip (same as takeoff fix). np.mean of NaN-tainted
+                # array returns NaN, NaN < 0 is False, so landing is never
+                # detected when accel_y contains NaN. Use nanmean which
+                # ignores NaN entries.
+                if np.nanmean(accel_y[i : i + window]) < 0:
                     return i
 
         # Fallback: use baseline return method

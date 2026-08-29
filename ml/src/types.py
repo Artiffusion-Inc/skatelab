@@ -5,6 +5,7 @@ Types are annotated for mypy strict mode compatibility.
 """
 
 import json
+import math
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
 from enum import Enum, IntEnum
@@ -447,7 +448,24 @@ class VideoMeta:
     @property
     def duration_sec(self) -> float:
         """Video duration in seconds."""
-        return self.num_frames / self.fps if self.fps > 0 else 0.0
+        # #1066: NaN/neg fps must NOT silently coerce to 0.0. The old
+        # `if self.fps > 0 else 0.0` guard is NaN-blind (`NaN > 0` is
+        # False → duration_sec=0.0), so a corrupt-metadata video is
+        # INDISTINGUISHABLE from a legitimate fps=0 broken-header video.
+        # Mirror the trust-boundary pattern from get_video_meta (#1041):
+        # reject non-finite and non-positive inputs explicitly. fps=0
+        # and fps=NaN are both corrupt-metadata signals, not 0-second
+        # videos.
+        if not (math.isfinite(self.fps) and self.fps > 0):
+            raise ValueError(
+                f"VideoMeta.duration_sec: fps must be finite and > 0, got {self.fps!r}"
+            )
+        if not (math.isfinite(float(self.num_frames)) and self.num_frames >= 0):
+            raise ValueError(
+                f"VideoMeta.duration_sec: num_frames must be finite and >= 0, "
+                f"got {self.num_frames!r}"
+            )
+        return self.num_frames / self.fps
 
 
 @dataclass(frozen=True)
@@ -561,11 +579,11 @@ class AnalysisReport:
     element_type: str
     phases: ElementPhase
     metrics: list[MetricResult]
-    dtw_distance: float
     recommendations: list[str]
-    overall_score: float
     goe_grade: GOEGrade | None = None
     physics: dict[str, Any] = field(default_factory=dict)
+    dtw_distance: float | None = None
+    overall_score: float | None = None
     profiling: dict[str, Any] | None = None
 
     def format(self) -> str:
@@ -596,7 +614,9 @@ class AnalysisReport:
             [
                 "",
                 "--- Сходство с референсом ---",
-                f"  DTW-расстояние: {self.dtw_distance:.3f} (0 = идеально)",
+                f"  DTW-расстояние: {self.dtw_distance:.3f} (0 = идеально)"
+                if self.dtw_distance is not None
+                else "  DTW-расстояние: н/д",
                 "",
                 "--- РЕКОМЕНДАЦИИ ---",
             ]
@@ -648,7 +668,9 @@ class AnalysisReport:
         lines.extend(
             [
                 "",
-                f"Общий балл: {self.overall_score:.1f} / 10",
+                f"Общий балл: {self.overall_score:.1f} / 10"
+                if self.overall_score is not None
+                else "Общий балл: н/д",
                 "=" * 60,
             ]
         )
@@ -707,13 +729,38 @@ class ReferenceData:
         """Load reference from .npz file."""
         data = np.load(path)
         phase_name, start, takeoff, peak, landing, end = data["phases"]
+
+        # #1232: trust-boundary guard. int(NaN) raises stdlib
+        # ValueError("cannot convert float NaN to integer") with no
+        # hint of the corrupt field; float(NaN) silently leaks. Check
+        # each phase field for finiteness before casting — same family
+        # as the #1041 get_video_meta fix and the #1230
+        # ReferenceBuilder.load_reference fix. On corrupt .npz, raise
+        # a typed RuntimeError naming the corrupt field.
+
+        def _finite_int(value: Any, field: str) -> int:
+            v = float(value)
+            if not np.isfinite(v):
+                raise RuntimeError(
+                    f"Corrupt reference .npz: non-finite {field}={v!r} for path={path}"
+                )
+            return int(v)
+
+        def _finite_float(value: Any, field: str) -> float:
+            v = float(value)
+            if not np.isfinite(v):
+                raise RuntimeError(
+                    f"Corrupt reference .npz: non-finite {field}={v!r} for path={path}"
+                )
+            return v
+
         phases = ElementPhase(
             name=str(phase_name),
-            start=int(start),
-            takeoff=int(takeoff),
-            peak=int(peak),
-            landing=int(landing),
-            end=int(end),
+            start=_finite_int(start, "start"),
+            takeoff=_finite_int(takeoff, "takeoff"),
+            peak=_finite_int(peak, "peak"),
+            landing=_finite_int(landing, "landing"),
+            end=_finite_int(end, "end"),
         )
         poses_3d = None
         if "poses_3d" in data:
@@ -724,7 +771,7 @@ class ReferenceData:
             poses=data["poses"].astype(np.float32),
             poses_3d=poses_3d,
             phases=phases,
-            fps=float(data["fps"]),
+            fps=_finite_float(data["fps"], "fps"),
         )
 
 
@@ -785,7 +832,10 @@ class SegmentationResult:
         lines.append("")
 
         for i, seg in enumerate(self.segments, 1):
-            duration = seg.duration_frames / self.video_meta.fps
+            # #499: fps=0 guard, mirrors VideoMeta.duration_sec (line 466).
+            # Corrupt video / pre-fps VideoMeta would otherwise
+            # ZeroDivisionError on the user-facing timeline.
+            duration = seg.duration_frames / self.video_meta.fps if self.video_meta.fps > 0 else 0.0
             lines.append(
                 f"  {i}. {seg.element_type:20s} [{seg.start:4d}:{seg.end:4d}] "
                 f"({duration:.2f}s) conf={seg.confidence:.2f}"
@@ -795,6 +845,13 @@ class SegmentationResult:
 
     def export_segments_json(self, output_path: Path) -> None:
         """Export segmentation results as JSON for verification/editing."""
+        # #1066: VideoMeta.duration_sec now raises ValueError on degenerate
+        # fps (NaN/<=0). We can't call the property blindly — guard the
+        # call here, mirroring the segments-loop guard below.
+        try:
+            video_duration_sec = self.video_meta.duration_sec
+        except ValueError:
+            video_duration_sec = 0.0
         data = {
             "video_path": str(self.video_path),
             "method": self.method,
@@ -802,7 +859,7 @@ class SegmentationResult:
             "video_meta": {
                 "fps": self.video_meta.fps,
                 "num_frames": self.video_meta.num_frames,
-                "duration_sec": self.video_meta.duration_sec,
+                "duration_sec": video_duration_sec,
             },
             "segments": [
                 {
@@ -811,7 +868,10 @@ class SegmentationResult:
                     "end": s.end,
                     "confidence": s.confidence,
                     "duration_frames": s.duration_frames,
-                    "duration_sec": s.duration_frames / self.video_meta.fps,
+                    # #499: fps=0 guard, mirrors VideoMeta.duration_sec.
+                    "duration_sec": (
+                        s.duration_frames / self.video_meta.fps if self.video_meta.fps > 0 else 0.0
+                    ),
                 }
                 for s in self.segments
             ],

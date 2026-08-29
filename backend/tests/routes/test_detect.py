@@ -136,12 +136,10 @@ async def test_detect_status_with_error(client, auth_headers, authed_user):
 
 @pytest.mark.asyncio
 async def test_detect_status_with_result_type_mismatch(client, auth_headers, authed_user):
-    """GET /detect/{task_id}/status raises ValidationError when result is DetectResultResponse.
+    """GET /detect/{task_id}/status returns DetectResultResponse in result field.
 
-    TaskStatusResponse.result is typed as ProcessResponse | None, so embedding
-    a DetectResultResponse causes a Pydantic validation error at serialization.
-    This is a known type mismatch in the detect route (see # type: ignore on line 73).
-    In production, ServerErrorMiddleware converts this to 500.
+    #757: TaskStatusResponse.result now accepts both ProcessResponse and
+    DetectResultResponse, so a detect result no longer causes a 500.
     """
 
     fake_result = {
@@ -173,7 +171,10 @@ async def test_detect_status_with_result_type_mismatch(client, auth_headers, aut
     ):
         response = await client.get("/v1/detect/det_abc123/status", headers=auth_headers)
 
-    assert response.status_code == 500
+    # #757: was 500 (type mismatch), now 200 with union type
+    assert response.status_code == 200
+    data = response.json()
+    assert data["result"] is not None
 
 
 # ---------------------------------------------------------------------------

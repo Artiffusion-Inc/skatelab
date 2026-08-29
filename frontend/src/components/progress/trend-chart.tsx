@@ -2,9 +2,16 @@
 
 import { Line, LineChart, ReferenceArea, ResponsiveContainer, XAxis, YAxis } from "recharts"
 import { useTranslations } from "@/i18n"
+import { parseFormatDecimals } from "@/lib/format"
 import type { TrendResponse } from "@/types"
 
-export function TrendChart({ data }: { data: TrendResponse }) {
+// #495: TrendChart now takes an optional `format` prop (the backend
+// Python format-spec, e.g. ".0f"). The component uses parseFormatDecimals
+// to derive the right decimal count for the PR line below the chart.
+// Pre-fix: hardcoded `toFixed(3)` ignored the backend's per-metric
+// format-spec — `.0f` metrics like rotation_speed rendered as
+// "540.000" instead of "540".
+export function TrendChart({ data, format }: { data: TrendResponse; format?: string }) {
   const tc = useTranslations("common")
   const tp = useTranslations("progress")
 
@@ -57,7 +64,12 @@ export function TrendChart({ data }: { data: TrendResponse }) {
             <Line
               type="monotone"
               dataKey="value"
-              stroke="hsl(var(--primary))"
+              // #833: project color system is OKLCH, so --primary resolves to
+              // `oklch(...)`. `hsl(var(--primary))` wrapped an OKLCH token inside
+              // hsl() → `hsl(oklch(...))` is an invalid CSS color and recharts
+              // rendered the trend line with no stroke (transparent). Use the
+              // raw OKLCH token like frame-metrics-chart.tsx does.
+              stroke="oklch(var(--primary))"
               strokeWidth={2}
               dot={{ r: 4 }}
             />
@@ -66,7 +78,7 @@ export function TrendChart({ data }: { data: TrendResponse }) {
       </div>
       {data.current_pr !== null && (
         <p className="text-sm font-medium" style={{ color: "oklch(var(--score-mid))" }}>
-          PR: {data.current_pr.toFixed(3)}
+          PR: {data.current_pr.toFixed(parseFormatDecimals(format))}
         </p>
       )}
     </div>

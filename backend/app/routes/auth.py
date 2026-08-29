@@ -19,6 +19,7 @@ from app.auth.security import (
     create_access_token,
     create_password_reset_token,
     create_refresh_token,
+    create_verification_token,
     hash_password,
     hash_token,
     verify_password,
@@ -37,7 +38,13 @@ from app.crud.password_reset_token import (
     mark_used as mark_password_reset_used,
 )
 from app.crud.refresh_token import create as create_refresh_token_crud
-from app.crud.refresh_token import get_active_by_hash, mark_used, revoke, revoke_family
+from app.crud.refresh_token import (
+    get_active_by_hash,
+    mark_used_atomic,
+    revoke,
+    revoke_all_for_user,
+    revoke_family,
+)
 from app.crud.user import create as create_user
 from app.crud.user import get_by_email
 from app.crud.user import get_by_id as get_user_by_id
@@ -77,6 +84,8 @@ class AuthController(Controller):
 
     def _set_auth_cookies(self, response: Response, access: str, refresh: str) -> Response:
         settings = get_settings()
+        # #689: domain from settings (None for dev, ".skatelab.ru" for prod)
+        domain = settings.app.cookie_domain
         response.cookies.append(
             Cookie(
                 key="access_token",
@@ -86,7 +95,7 @@ class AuthController(Controller):
                 samesite=settings.app.cookie_samesite,
                 max_age=settings.jwt.access_token_expire_minutes * 60,
                 path="/",
-                domain="skatelab.ru",
+                domain=domain,
             )
         )
         response.cookies.append(
@@ -98,7 +107,7 @@ class AuthController(Controller):
                 samesite=settings.app.cookie_samesite,
                 max_age=settings.jwt.refresh_token_expire_days * 86400,
                 path="/",
-                domain="skatelab.ru",
+                domain=domain,
             )
         )
         response.cookies.append(
@@ -110,21 +119,21 @@ class AuthController(Controller):
                 samesite=settings.app.cookie_samesite,
                 max_age=settings.jwt.refresh_token_expire_days * 86400,
                 path="/",
-                domain="skatelab.ru",
+                domain=domain,
             )
         )
         return response
 
     def _clear_auth_cookies(self, response: Response) -> Response:
+        # #689: domain from settings (None for dev, ".skatelab.ru" for prod)
+        domain = get_settings().app.cookie_domain
         response.cookies.append(
-            Cookie(key="access_token", value="", max_age=0, path="/", domain="skatelab.ru")
+            Cookie(key="access_token", value="", max_age=0, path="/", domain=domain)
         )
         response.cookies.append(
-            Cookie(key="refresh_token", value="", max_age=0, path="/", domain="skatelab.ru")
+            Cookie(key="refresh_token", value="", max_age=0, path="/", domain=domain)
         )
-        response.cookies.append(
-            Cookie(key="sb_auth", value="", max_age=0, path="/", domain="skatelab.ru")
-        )
+        response.cookies.append(Cookie(key="sb_auth", value="", max_age=0, path="/", domain=domain))
         return response
 
     async def _issue_token_pair(
@@ -178,7 +187,8 @@ class AuthController(Controller):
             display_name=data.display_name,
         )
         tokens = await self._issue_token_pair(db, user.id, request=request)
-        await log_auth_event(db, "login", user_id=user.id, request=request)
+        # #687: register event, not "login"
+        await log_auth_event(db, "register", user_id=user.id, request=request)
         response = Response(content=tokens.model_dump(), status_code=HTTP_201_CREATED)
         return self._set_auth_cookies(response, tokens.access_token, tokens.refresh_token)
 
@@ -205,6 +215,13 @@ class AuthController(Controller):
             raise ClientException(
                 status_code=403,
                 detail="Email not verified. Check your inbox.",
+            )
+
+        # #685: banned/deactivated users must not authenticate
+        if not user.is_active:
+            raise ClientException(
+                status_code=403,
+                detail="Account disabled",
             )
 
         await log_auth_event(db, "login", user_id=user.id, request=request)
@@ -267,7 +284,12 @@ class AuthController(Controller):
                 detail="Session terminated. Token used from different device.",
             )
 
-        await mark_used(db, existing)
+        # #688: atomic mark — if rowcount=0, another concurrent refresh won
+        if not await mark_used_atomic(db, existing):
+            raise ClientException(
+                status_code=401,
+                detail="Token already used. Please retry with new token.",
+            )
         tokens = await self._issue_token_pair(
             db, existing.user_id, family_id=existing.family_id, request=request
         )
@@ -335,6 +357,8 @@ class AuthController(Controller):
         user.hashed_password = hash_password(data.password)
         db.add(user)
         await mark_password_reset_used(db, existing)
+        # #686: revoke all refresh tokens so other sessions are terminated
+        await revoke_all_for_user(db, user.id)
         await db.flush()
 
         await log_auth_event(db, "password_reset_complete", user_id=user.id, request=request)
@@ -403,7 +427,10 @@ class AuthController(Controller):
         # leaked old verification link cannot be used after a new one is issued (#342).
         await invalidate_unused_verification(db, user.id)
 
-        raw_token = create_password_reset_token()
+        # #551: use a dedicated verification-token generator (not the
+        # password-reset one). Same shape today (secrets.token_hex(32)),
+        # but separate functions let the two diverge later (e.g. prefixes).
+        raw_token = create_verification_token()
         token_hash = hash_token(raw_token)
         await create_verification_token_crud(
             db,
