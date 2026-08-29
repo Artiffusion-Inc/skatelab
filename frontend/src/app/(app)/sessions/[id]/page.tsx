@@ -24,6 +24,8 @@ import { SessionActionMenu } from "@/components/session/session-action-menu"
 import { SessionDownloads } from "@/components/session/session-downloads"
 import { useTabParam } from "@/hooks/use-tab-param"
 import { AnalyzerTab } from "@/components/analysis/analyzer-tab"
+import { CoachCommentForm } from "@/components/coach/coach-comment-form"
+import { useAuth } from "@/components/auth-provider"
 
 const ThreeJSkeletonViewer = lazy(() =>
   import("@/components/analysis/threejs-skeleton-viewer").then(m => ({
@@ -117,6 +119,7 @@ export default function SessionDetailPage() {
   const { id } = useParams<{ id: string }>()
   const router = useRouter()
   const { data: session, isLoading } = useSession(id)
+  const { user } = useAuth()
   const elementLabel = useElementLabel()
   const ts = useTranslations("sessions")
   const tSession = useTranslations("session")
@@ -359,6 +362,10 @@ export default function SessionDetailPage() {
                 </ul>
               </div>
             )}
+
+            {/* Coach feedback is available after the athlete's analysis is complete. */}
+            {(session.status === "completed" || session.status === "done") &&
+              user?.onboarding_role === "coach" && <CoachCommentForm sessionId={session.id} />}
 
             {/* Key metrics — out-of-range + PRs only */}
             {highlightMetrics.length > 0 && (

@@ -561,7 +561,15 @@
     "showAllMetrics": "Show all metrics",
     "tourTabs": "Switch tabs for details",
     "tourActions": "Click for more actions",
-    "tour3d": "Rotate the 3D model with WASD keys"
+    "tour3d": "Rotate the 3D model with WASD keys",
+    "coachCommentTitle": "Coach feedback",
+    "commentLabel": "Coach comment",
+    "commentPlaceholder": "Write a correction or encouragement for the skater...",
+    "commentCharacters": "{count}/2000",
+    "sendComment": "Send comment",
+    "sendingComment": "Sending...",
+    "commentSent": "Comment sent",
+    "commentError": "Could not send the comment. Try again."
   },
   "analysis": {
     "frameMetrics": "Frame Metrics",

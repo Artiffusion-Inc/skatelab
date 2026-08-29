@@ -17,6 +17,10 @@ vi.mock("next/link", () => ({
   default: ({ children, ...props }: { children: React.ReactNode }) => <a {...props}>{children}</a>,
 }))
 
+vi.mock("@/components/auth-provider", () => ({
+  useAuth: () => ({ user: null }),
+}))
+
 vi.mock("@/lib/api/sessions", () => ({
   SESSION_POLLING_STATUSES: new Set(),
   useSession: mocks.useSession,
