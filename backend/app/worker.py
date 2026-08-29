@@ -433,16 +433,26 @@ async def process_video_task(
             except (OSError, ValueError, RuntimeError) as pose_err:
                 logger.warning("Failed to prepare pose data: %s", pose_err)
 
+        # Keep the legacy process-result names required by the web client while
+        # retaining the remote S3 keys and optional sensor diagnostics.
+        imu_stats = vast_result.imu_stats if isinstance(vast_result.imu_stats, dict) else None
+        sensor_fusion = (
+            vast_result.sensor_fusion if isinstance(vast_result.sensor_fusion, dict) else None
+        )
+        result_stats = dict(vast_result.stats)
+        if imu_stats is not None:
+            result_stats["imu_stats"] = imu_stats
+        if sensor_fusion is not None:
+            result_stats["sensor_fusion"] = sensor_fusion
         response_data = {
+            "video_path": video_key,
+            "poses_path": vast_result.poses_key,
+            "csv_path": vast_result.metrics_key,
             "poses_key": vast_result.poses_key or "",
             "metrics_key": vast_result.metrics_key or "",
-            "stats": {
-                **vast_result.stats,
-                "imu_stats": vast_result.imu_stats,
-                "sensor_fusion": vast_result.sensor_fusion,
-            },
-            "imu_stats": vast_result.imu_stats,
-            "sensor_fusion": vast_result.sensor_fusion,
+            "stats": result_stats,
+            "imu_stats": imu_stats,
+            "sensor_fusion": sensor_fusion,
             "status": "Analysis complete!",
         }
         # Track whether the (non-critical) analyzer post-processing failed. When
@@ -621,9 +631,14 @@ async def process_video_task(
                             notification_err,
                         )
                 return {
+                    "video_path": video_key,
+                    "poses_path": vast_result.poses_key,
+                    "csv_path": vast_result.metrics_key,
                     "poses_key": vast_result.poses_key or "",
                     "metrics_key": vast_result.metrics_key or "",
-                    "stats": vast_result.stats,
+                    "stats": result_stats,
+                    "imu_stats": imu_stats,
+                    "sensor_fusion": sensor_fusion,
                     "status": "Analysis failed during save",
                 }
 

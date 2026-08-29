@@ -303,9 +303,11 @@ class ProcessStats(BaseModel):
 
 
 class ProcessResponse(BaseModel):
-    video_path: str | None = None
-    poses_path: str | None = None
-    csv_path: str | None = None
+    # These names are the legacy web-client result contract. Keep the remote
+    # S3-key names below as additive fields for newer clients.
+    video_path: str
+    poses_path: str | None
+    csv_path: str | None
     stats: ProcessStats
     status: str
     poses_key: str | None = None
@@ -909,6 +911,7 @@ class SessionScoreResponse(BaseModel):
     session_id: str
     subscores: list[SubScoreSchema]
     overall: float = Field(ge=0, le=10)  # #673: constrain overall to 0-10
+    data_quality: str = "good"
     skeleton_reliability: str
     created_at: str
     updated_at: str

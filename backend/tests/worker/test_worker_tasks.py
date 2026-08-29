@@ -108,6 +108,101 @@ class TestProcessVideoTask:
         assert result["metrics_key"] == ""
         assert result["stats"] == {"fps": 30}
 
+    @pytest.mark.parametrize(
+        "sensor_fusion",
+        [
+            pytest.param(None, id="video-only"),
+            pytest.param(
+                {
+                    "status": "unavailable",
+                    "provenance": "android_binpb",
+                    "validation": "unvalidated",
+                },
+                id="sensor-unavailable",
+            ),
+            pytest.param(
+                {
+                    "status": "available",
+                    "provenance": "android_binpb",
+                    "validation": "unvalidated",
+                },
+                id="synthetic-unvalidated",
+            ),
+        ],
+    )
+    @pytest.mark.asyncio
+    async def test_terminal_result_matches_frontend_contract(self, mock_valkey, sensor_fusion):
+        """Worker results remain parseable by the current web process schema."""
+        from app.schemas import ProcessResponse, TaskStatusResponse
+        from app.worker import process_video_task
+
+        stats = {
+            "total_frames": 120,
+            "valid_frames": 118,
+            "fps": 30.0,
+            "resolution": "1920x1080",
+        }
+        result_kwargs = {
+            "poses_key": "output/poses.npy",
+            "metrics_key": "output/metrics.json",
+            "stats": stats,
+            "sensor_fusion": sensor_fusion,
+            "imu_stats": {"left": {"samples": 1200}} if sensor_fusion else None,
+        }
+
+        with (
+            patch(
+                "app.vastai.client.process_video_remote_async", new_callable=AsyncMock
+            ) as mock_remote,
+            patch("app.worker.download_file"),
+            patch("numpy.load", return_value=np.zeros((20, 17, 3))),
+        ):
+            mock_remote.return_value = _make_vast_result(**result_kwargs)
+            result = await process_video_task(
+                ctx={},
+                task_id="proc_contract",
+                video_key="input/video.mp4",
+                person_click=None,
+            )
+
+        parsed_result = ProcessResponse.model_validate(result)
+        assert parsed_result.video_path == "input/video.mp4"
+        assert parsed_result.poses_path == "output/poses.npy"
+        assert parsed_result.csv_path == "output/metrics.json"
+        assert parsed_result.stats.sensor_fusion == sensor_fusion
+
+        completed = TaskStatusResponse.model_validate(
+            {
+                "task_id": "proc_contract",
+                "status": "completed",
+                "progress": 1.0,
+                "message": "Done",
+                "result": result,
+                "error": None,
+            }
+        )
+        assert completed.result is not None
+
+    @pytest.mark.asyncio
+    async def test_failed_task_payload_matches_frontend_contract(self, mock_valkey):
+        """A failed terminal payload carries no result and a user-safe error."""
+        from app.schemas import TaskStatusResponse
+
+        failed = TaskStatusResponse.model_validate(
+            {
+                "task_id": "proc_failed",
+                "status": "failed",
+                "progress": 0.0,
+                "message": "Failed",
+                "result": None,
+                "error": "IMU stream could not be decoded",
+            }
+        )
+
+        assert failed.status == "failed"
+        assert failed.result is None
+        assert failed.error == "IMU stream could not be decoded"
+
     @pytest.mark.asyncio
     async def test_cancellation_before_gpu_dispatch(self, mock_valkey):
         """Task returns 'cancelled' when cancelled before GPU dispatch."""
