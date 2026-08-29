@@ -292,7 +292,12 @@ private fun SessionDetailContent(
                     session.metrics.forEach { metric ->
                         val label =
                             state.metricDefs[metric.metricName]?.labelRu
-                                ?: metric.metricName
+                                ?: when (metric.metricName) {
+                                    "sensor_confidence" -> "Надёжность сенсоров"
+                                    "rotation_symmetry" -> "Симметрия вращения"
+                                    "imu_peak_delta" -> "Расхождение пиков IMU"
+                                    else -> metric.metricName
+                                }
                         MetricCard(
                             metric = metric,
                             label = label,

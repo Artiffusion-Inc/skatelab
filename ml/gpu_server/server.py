@@ -322,6 +322,7 @@ async def detect(req: DetectRequest):
                 )
 
                 imu_streams: dict[str, ImuStream] = {}
+                manifest_imu: dict[str, dict[str, object]] = {}
 
                 capture_t0_ns = 0
                 if req.manifest_s3_key:
@@ -329,6 +330,7 @@ async def detect(req: DetectRequest):
                     await _s3_download(s3, req.s3_bucket, req.manifest_s3_key, str(manifest_local))
                     manifest = json.loads(manifest_local.read_text())
                     capture_t0_ns = int(manifest.get("t0_ns", 0) or 0)
+                    manifest_imu = manifest.get("imu", {}) or {}
 
                 for side, key in (("left", req.imu_left_s3_key), ("right", req.imu_right_s3_key)):
                     if not key:
@@ -344,6 +346,11 @@ async def detect(req: DetectRequest):
                         "first_timestamp_ns": stream.timestamps_ns[0] if stream.timestamps_ns else None,
                         "last_timestamp_ns": stream.timestamps_ns[-1] if stream.timestamps_ns else None,
                     }
+                    declared_offset = manifest_imu.get(side, {}).get("start_offset_ms")
+                    if declared_offset is not None and stream.timestamps_ns and capture_t0_ns:
+                        actual_offset = (stream.timestamps_ns[0] - capture_t0_ns) / 1e6
+                        imu_stats[side]["declared_start_offset_ms"] = declared_offset
+                        imu_stats[side]["offset_error_ms"] = round(actual_offset - float(declared_offset), 3)
                     imu_fusion[side] = stream.angular_velocity_summary(capture_t0_ns)
 
                 cfg = DeviceConfig.default()
