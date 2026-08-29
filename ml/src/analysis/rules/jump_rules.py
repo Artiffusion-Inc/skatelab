@@ -63,6 +63,15 @@ _COMMON_JUMP_RULES = [
         },
     ),
     RecommendationRule(
+        metric_name="imu_rate_error",
+        condition=_is_bad,
+        priority=0,
+        templates={
+            "too_high": "Частота IMU отличается от заявленной на {value:.1f}Гц. Проверь конфигурацию сенсора.",
+            "default": "Частота IMU соответствует конфигурации.",
+        },
+    ),
+    RecommendationRule(
         metric_name="airtime",
         condition=_is_bad,
         priority=0,

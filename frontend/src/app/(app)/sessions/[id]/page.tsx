@@ -283,6 +283,7 @@ export default function SessionDetailPage() {
                       imu_peak_delta: "Расхождение пиков IMU",
                       landing_stability: "Стабильность после приземления",
                       imu_offset_error: "Ошибка синхронизации IMU",
+                      imu_rate_error: "Ошибка частоты IMU",
                     } as Record<string, string>)[m.metric_name] ??
                     m.metric_name
                   const unit = def?.unit ?? m.unit ?? ""

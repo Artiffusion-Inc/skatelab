@@ -325,11 +325,13 @@ async def detect(req: DetectRequest):
                 manifest_imu: dict[str, dict[str, object]] = {}
 
                 capture_t0_ns = 0
+                declared_rate_hz = None
                 if req.manifest_s3_key:
                     manifest_local = Path(tmpdir) / "manifest.json"
                     await _s3_download(s3, req.s3_bucket, req.manifest_s3_key, str(manifest_local))
                     manifest = json.loads(manifest_local.read_text())
                     capture_t0_ns = int(manifest.get("t0_ns", 0) or 0)
+                    declared_rate_hz = manifest.get("imu_rate_hz")
                     manifest_imu = manifest.get("imu", {}) or {}
 
                 for side, key in (("left", req.imu_left_s3_key), ("right", req.imu_right_s3_key)):
@@ -346,6 +348,11 @@ async def detect(req: DetectRequest):
                         "first_timestamp_ns": stream.timestamps_ns[0] if stream.timestamps_ns else None,
                         "last_timestamp_ns": stream.timestamps_ns[-1] if stream.timestamps_ns else None,
                     }
+                    if declared_rate_hz and stream.sample_rate_hz:
+                        imu_stats[side]["declared_rate_hz"] = declared_rate_hz
+                        imu_stats[side]["rate_error_hz"] = round(
+                            stream.sample_rate_hz - float(declared_rate_hz), 3
+                        )
                     declared_offset = manifest_imu.get(side, {}).get("start_offset_ms")
                     if declared_offset is not None and stream.timestamps_ns and capture_t0_ns:
                         actual_offset = (stream.timestamps_ns[0] - capture_t0_ns) / 1e6
@@ -658,6 +665,16 @@ async def process(req: ProcessRequest):
                     value = max(offset_errors)
                     metrics.append(
                         MetricResult("imu_offset_error", value, "ms", value <= 40.0, (0.0, 40.0))
+                    )
+                rate_errors = [
+                    abs(float(details["rate_error_hz"]))
+                    for details in imu_stats.values()
+                    if isinstance(details, dict) and details.get("rate_error_hz") is not None
+                ]
+                if rate_errors:
+                    value = max(rate_errors)
+                    metrics.append(
+                        MetricResult("imu_rate_error", value, "Hz", value <= 5.0, (0.0, 5.0))
                     )
                 landing_pair = imu_fusion.get("landing_pair", {})
                 stability_ratio = landing_pair.get("stability_ratio")
