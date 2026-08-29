@@ -13,7 +13,7 @@ cd mobile
 sha256sum androidApp/build/outputs/apk/debug/androidApp-debug.apk
 ```
 
-The required result is `BUILD SUCCESSFUL`, followed by a checksum for the produced debug APK. The current Task 4 checkout reached Kotlin compilation, but the combined test/build command lost its Gradle daemon during `:androidApp:testDebugUnitTest`; rerun the focused command above before distributing an APK.
+The required result is `BUILD SUCCESSFUL`, followed by a checksum for the produced debug APK. Current synthetic checks pass when run with one Gradle worker. If the daemon disappears, rerun the focused command; do not treat an interrupted run as validation.
 
 Release builds use minification and resource shrinking:
 
@@ -22,7 +22,17 @@ Release builds use minification and resource shrinking:
 sha256sum androidApp/build/outputs/apk/release/androidApp-release.apk
 ```
 
-The repository does not define a release signing configuration in `mobile/androidApp/build.gradle.kts`. Treat an unsigned or locally signed release as a build artifact only, never as a distributable pilot APK. Keep signing keys outside the repository.
+Release signing is optional and environment-driven. Set all four variables to produce a signed artifact; otherwise build remains unsigned and is not distributable:
+
+```bash
+export SKATELAB_KEYSTORE_PATH=/secure/path/skatelab-upload.jks
+export SKATELAB_KEYSTORE_PASSWORD='provided-out-of-band'
+export SKATELAB_KEY_ALIAS='skatelab-upload'
+export SKATELAB_KEY_PASSWORD='provided-out-of-band'
+./gradlew :androidApp:assembleRelease --no-daemon --max-workers=1
+```
+
+Keep keystore and values outside repository and CI logs. Never put passwords in Gradle files or command history.
 
 ## 2. API target
 
