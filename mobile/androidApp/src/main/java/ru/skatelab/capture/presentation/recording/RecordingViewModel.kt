@@ -348,7 +348,8 @@ class RecordingViewModel
                         createdAt = System.currentTimeMillis(),
                         isComplete =
                             startInfo.videoFile.exists() &&
-                                (startInfo.imuLeftFile.exists() || startInfo.imuRightFile.exists()),
+                                startInfo.imuLeftFile.exists() &&
+                                startInfo.imuRightFile.exists(),
                     )
 
                 sessionRepository.saveSession(session)

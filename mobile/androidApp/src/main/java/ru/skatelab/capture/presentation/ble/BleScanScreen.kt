@@ -79,11 +79,11 @@ fun BleScanScreen(
             }
         }
 
-        val anyConnected =
-            connectionState[SensorId.LEFT] == ConnectionState.CONNECTED ||
+        val bothConnected =
+            connectionState[SensorId.LEFT] == ConnectionState.CONNECTED &&
                 connectionState[SensorId.RIGHT] == ConnectionState.CONNECTED
 
-        Button(onClick = onProceed, enabled = anyConnected) {
+        Button(onClick = onProceed, enabled = bothConnected) {
             Text(stringResource(R.string.ble_proceed_calibration))
         }
 
