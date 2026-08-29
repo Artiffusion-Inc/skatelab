@@ -11,4 +11,7 @@ interface ImuCollector {
     )
 
     fun stop(): Map<SensorId, Int>
+
+    /** First persisted sample timestamp for the current capture, if any. */
+    fun firstSampleTimestampNs(sensorId: SensorId): Long?
 }

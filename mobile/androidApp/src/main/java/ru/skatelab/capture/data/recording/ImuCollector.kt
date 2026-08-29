@@ -47,6 +47,7 @@ class ImuCollector
         private val writers = ConcurrentHashMap<SensorId, ImuStreamWriter>()
         private val counts = ConcurrentHashMap<SensorId, AtomicInteger>()
         private val lastSampleNs = ConcurrentHashMap<SensorId, Long>()
+        private val firstSampleNs = ConcurrentHashMap<SensorId, Long>()
         private val pendingGaps = ConcurrentHashMap<SensorId, PendingGap>()
         private val warmedUp = ConcurrentHashMap<SensorId, Boolean>()
         private val reconnectSeq = AtomicInteger(0)
@@ -67,6 +68,7 @@ class ImuCollector
                 writers[sensorId] = writer
                 counts[sensorId] = AtomicInteger(0)
                 lastSampleNs[sensorId] = 0L
+                firstSampleNs.remove(sensorId)
                 warmedUp[sensorId] = false
                 appLogger.i(TAG, "Started IMU writer for $sensorId → ${file.absolutePath}")
             }
@@ -156,6 +158,7 @@ class ImuCollector
                 }
                 writer.write(sample)
                 counts[sensorId]?.incrementAndGet()
+                firstSampleNs.putIfAbsent(sensorId, sample.timestampNs)
                 lastSampleNs[sensorId] = sample.timestampNs
             } catch (e: Exception) {
                 appLogger.e(TAG, "Write error for $sensorId: ${e.message}")
@@ -188,6 +191,8 @@ class ImuCollector
             counts.clear()
             return result
         }
+
+        override fun firstSampleTimestampNs(sensorId: SensorId): Long? = firstSampleNs[sensorId]
 
         private data class PendingGap(val lastSampleNs: Long, val seq: Int)
     }

@@ -203,6 +203,8 @@ class CameraViewModel
                 // is available in this camera flow; the filenames and timing anchor are
                 // enough to make the uploaded artifacts addressable and debuggable.
                 val manifestFile = File(outputDir, "manifest.json")
+                val leftFirstNs = imuCollector.firstSampleTimestampNs(SensorId.LEFT)
+                val rightFirstNs = imuCollector.firstSampleTimestampNs(SensorId.RIGHT)
                 manifestFile.writeText(
                     """{
   \"version\": \"2.0\",
@@ -211,8 +213,8 @@ class CameraViewModel
   \"imu_rate_hz\": 100,
   \"video\": {\"filename\": \"${startInfo.videoFile.name}\", \"frames\": \"${startInfo.framesFile.name}\"},
   \"imu\": {
-    \"left\": {\"filename\": \"${startInfo.imuLeftFile.name}\", \"sensor_id\": \"LEFT\"},
-    \"right\": {\"filename\": \"${startInfo.imuRightFile.name}\", \"sensor_id\": \"RIGHT\"}
+    \"left\": {\"filename\": \"${startInfo.imuLeftFile.name}\", \"sensor_id\": \"LEFT\", \"first_timestamp_ns\": ${leftFirstNs ?: 0L}, \"start_offset_ms\": ${if (leftFirstNs != null) (leftFirstNs - startInfo.t0Ns) / 1_000_000 else 0L}},
+    \"right\": {\"filename\": \"${startInfo.imuRightFile.name}\", \"sensor_id\": \"RIGHT\", \"first_timestamp_ns\": ${rightFirstNs ?: 0L}, \"start_offset_ms\": ${if (rightFirstNs != null) (rightFirstNs - startInfo.t0Ns) / 1_000_000 else 0L}}
   }
 }""".trimIndent(),
                 )
