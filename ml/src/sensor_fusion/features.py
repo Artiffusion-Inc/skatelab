@@ -91,3 +91,21 @@ def landing_stability(
         "gyro_mean_rad_s": round(mean, 5),
         "gyro_std_rad_s": round(math.sqrt(variance), 5),
     }
+
+
+def landing_pair_summary(
+    left: dict[str, float | int | None],
+    right: dict[str, float | int | None],
+) -> dict[str, float | None]:
+    """Compare residual rotation after landing between both skates."""
+    left_mean = left.get("gyro_mean_rad_s")
+    right_mean = right.get("gyro_mean_rad_s")
+    if left_mean is None or right_mean is None:
+        return {"mean_delta_rad_s": None, "stability_ratio": None}
+    left_value, right_value = float(left_mean), float(right_mean)
+    larger = max(left_value, right_value)
+    ratio = min(left_value, right_value) / larger if larger > 0 else 1.0
+    return {
+        "mean_delta_rad_s": round(abs(left_value - right_value), 5),
+        "stability_ratio": round(ratio, 5),
+    }

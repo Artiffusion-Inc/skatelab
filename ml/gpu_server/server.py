@@ -316,6 +316,7 @@ async def detect(req: DetectRequest):
                     annotate_video_phase,
                     decode_imu_file,
                     fused_confidence,
+                    landing_pair_summary,
                     landing_stability,
                     summarize_pair,
                 )
@@ -476,7 +477,7 @@ async def process(req: ProcessRequest):
     if not _models_ready:
         return Response(status_code=503, content='{"status": "models_loading"}')
     from src.pose_preparation import prepare_poses
-    from src.types import ElementPhase, PersonClick
+    from src.types import ElementPhase, MetricResult, PersonClick
 
     ACTIVE_REQUESTS.inc()
     start = time.perf_counter()
@@ -608,6 +609,31 @@ async def process(req: ProcessRequest):
                             fps=prepared.meta.fps,
                             landing_frame=phases.landing,
                         )
+                    landing_data = imu_fusion.get("landing_stability", {})
+                    if "left" in landing_data and "right" in landing_data:
+                        imu_fusion["landing_pair"] = landing_pair_summary(
+                            landing_data["left"], landing_data["right"]
+                        )
+
+                pair_data = imu_fusion.get("pair", {})
+                confidence = imu_fusion.get("confidence")
+                if confidence is not None:
+                    value = float(confidence)
+                    metrics.append(
+                        MetricResult("sensor_confidence", value, "ratio", value >= 0.6, (0.6, 1.0))
+                    )
+                peak_delta = pair_data.get("peak_delta_ms")
+                if peak_delta is not None:
+                    value = float(peak_delta)
+                    metrics.append(
+                        MetricResult("imu_peak_delta", value, "ms", value <= 80.0, (0.0, 80.0))
+                    )
+                peak_ratio = pair_data.get("peak_magnitude_ratio")
+                if peak_ratio is not None:
+                    value = float(peak_ratio)
+                    metrics.append(
+                        MetricResult("rotation_symmetry", value, "ratio", value >= 0.75, (0.75, 1.0))
+                    )
                 # --- Upload results to S3 ---
                 poses_key, metrics_key = _make_output_keys(req.video_s3_key)
                 upload_tasks = []

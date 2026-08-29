@@ -2,6 +2,7 @@ from src.sensor_fusion import (
     ImuStream,
     annotate_video_phase,
     fused_confidence,
+    landing_pair_summary,
     landing_stability,
     summarize_pair,
 )
@@ -49,3 +50,11 @@ def test_landing_stability_uses_post_landing_window() -> None:
     result = landing_stability(stream, t0_ns=1_000_000_000, fps=10.0, landing_frame=1)
     assert result["samples"] == 2
     assert result["gyro_mean_rad_s"] == 2.5
+
+
+def test_landing_pair_summary_reports_asymmetry() -> None:
+    result = landing_pair_summary(
+        {"gyro_mean_rad_s": 2.0},
+        {"gyro_mean_rad_s": 4.0},
+    )
+    assert result == {"mean_delta_rad_s": 2.0, "stability_ratio": 0.5}
