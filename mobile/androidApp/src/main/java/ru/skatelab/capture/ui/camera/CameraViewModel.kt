@@ -24,6 +24,7 @@ import ru.skatelab.capture.domain.repository.BleRepository
 import ru.skatelab.capture.domain.repository.BleRepository.ConnectionState
 import ru.skatelab.capture.domain.repository.CameraRepository
 import ru.skatelab.capture.domain.service.Logger
+import ru.skatelab.capture.domain.service.ImuCollector
 import ru.skatelab.capture.domain.usecase.ReadSensorInfoUseCase
 import ru.skatelab.capture.domain.usecase.RecordingStartInfo
 import ru.skatelab.capture.domain.usecase.StartRecordingUseCase
@@ -39,6 +40,7 @@ class CameraViewModel
         private val startRecordingUseCase: StartRecordingUseCase,
         private val stopRecordingUseCase: StopRecordingUseCase,
         private val readSensorInfoUseCase: ReadSensorInfoUseCase,
+        private val imuCollector: ImuCollector,
         private val pendingUploadDao: PendingUploadDao,
         private val appLogger: Logger,
         @ApplicationContext private val appContext: Context,
@@ -159,6 +161,15 @@ class CameraViewModel
             }
 
             viewModelScope.launch {
+                // Start file writers before enabling BLE streaming so the first
+                // notifications belong to this capture and are persisted.
+                imuCollector.start(
+                    viewModelScope,
+                    mapOf(
+                        SensorId.LEFT to imuLeftFile,
+                        SensorId.RIGHT to imuRightFile,
+                    ),
+                )
                 startRecordingUseCase(outputDir, videoFile, framesFile, imuLeftFile, imuRightFile)
                     .onSuccess { startInfo ->
                         currentStartInfo = startInfo
@@ -167,6 +178,7 @@ class CameraViewModel
                         startTimer()
                         appLogger.i(TAG, "Recording started: t0=${startInfo.t0Ns}")
                     }.onFailure {
+                        imuCollector.stop()
                         _error.value = "Recording start failed: ${it.message}"
                         appLogger.e(TAG, "Recording start failed: ${it.message}")
                     }
@@ -182,6 +194,9 @@ class CameraViewModel
                     .onFailure {
                         appLogger.w(TAG, "Stop use case partial failure: ${it.message}")
                     }
+
+                val imuCounts = imuCollector.stop()
+                appLogger.i(TAG, "IMU capture stopped: $imuCounts")
 
                 _isRecording.value = false
 
