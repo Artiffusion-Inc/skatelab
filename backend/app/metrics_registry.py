@@ -25,7 +25,7 @@ class MetricDef:
 
     name: str
     label_ru: str
-    unit: Literal["s", "deg", "score", "norm", "ratio", "deg/s"]
+    unit: Literal["s", "deg", "score", "norm", "ratio", "deg/s", "ms", "Hz"]
     format: str
     direction: Literal["higher", "lower"]
     element_types: tuple[str, ...]
@@ -177,6 +177,30 @@ METRIC_REGISTRY: dict[str, MetricDef] = {
         direction="higher",
         element_types=(*JUMP_ELEMENTS, *SPIN_ELEMENTS),
         ideal_range=(1.0, 4.5),
+    ),
+    "sensor_confidence": MetricDef(
+        name="sensor_confidence", label_ru="Надёжность сенсоров", unit="ratio", format=".2f",
+        direction="higher", element_types=JUMP_ELEMENTS, ideal_range=(0.6, 1.0),
+    ),
+    "rotation_symmetry": MetricDef(
+        name="rotation_symmetry", label_ru="Симметрия вращения", unit="ratio", format=".2f",
+        direction="higher", element_types=JUMP_ELEMENTS, ideal_range=(0.75, 1.0),
+    ),
+    "imu_peak_delta": MetricDef(
+        name="imu_peak_delta", label_ru="Расхождение пиков IMU", unit="ms", format=".0f",
+        direction="lower", element_types=JUMP_ELEMENTS, ideal_range=(0.0, 80.0),
+    ),
+    "landing_stability": MetricDef(
+        name="landing_stability", label_ru="Стабильность после приземления", unit="ratio", format=".2f",
+        direction="higher", element_types=JUMP_ELEMENTS, ideal_range=(0.75, 1.0),
+    ),
+    "imu_offset_error": MetricDef(
+        name="imu_offset_error", label_ru="Ошибка синхронизации IMU", unit="ms", format=".0f",
+        direction="lower", element_types=JUMP_ELEMENTS, ideal_range=(0.0, 40.0),
+    ),
+    "imu_rate_error": MetricDef(
+        name="imu_rate_error", label_ru="Ошибка частоты IMU", unit="Hz", format=".1f",
+        direction="lower", element_types=JUMP_ELEMENTS, ideal_range=(0.0, 5.0),
     ),
     "under_rotation_deg": MetricDef(
         name="under_rotation_deg",
