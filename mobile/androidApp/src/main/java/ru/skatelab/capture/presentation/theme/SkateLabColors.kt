@@ -5,31 +5,31 @@ import androidx.compose.ui.graphics.Color
 
 object SkateLabColors {
     // Brand and Accent (23 base tokens)
-    val primary = Color(0xFF155F73)
-    val primaryDeep = Color(0xFF0E3340)
+    val primary = Color(0xFF6C5CE7)
+    val primaryDeep = Color(0xFF4939B8)
     val primaryForeground = Color(0xFFFFFFFF)
-    val surfaceIceSoft = Color(0xFFC8E6F0)
-    val surfaceTealDeep = Color(0xFF0E3340)
-    val surfaceTealMid = Color(0xFF155F73)
+    val surfaceIceSoft = Color(0xFFEDE9FF)
+    val surfaceTealDeep = Color(0xFF4939B8)
+    val surfaceTealMid = Color(0xFF6C5CE7)
 
     // Surface
-    val canvas = Color(0xFFFFFFFF)
-    val canvasSoft = Color(0xFFF5F7F8)
-    val hairline = Color(0xFFD5DDE0)
-    val hairlineDark = Color(0xFF2A4A52)
+    val canvas = Color(0xFFFAFAFD)
+    val canvasSoft = Color(0xFFF1F0F8)
+    val hairline = Color(0xFFE0DFE9)
+    val hairlineDark = Color(0xFF4A4860)
 
     // Text
-    val ink = Color(0xFF2A2D2E)
-    val inkMute = Color(0xFF6B7275)
-    val inkFaint = Color(0xFF9BA0A3)
-    val onDarkMute = Color(0xFFC5D5DB)
-    val onDarkDim = Color(0xFF8AABB8)
-    val onDarkFaint = Color(0xFF5A7A85)
+    val ink = Color(0xFF172238)
+    val inkMute = Color(0xFF6F7485)
+    val inkFaint = Color(0xFF9A9DAB)
+    val onDarkMute = Color(0xFFD7D3F4)
+    val onDarkDim = Color(0xFFB8B1EB)
+    val onDarkFaint = Color(0xFF8D85D1)
 
     // Semantic
     val destructive = Color(0xFFC0392B)
-    val link = Color(0xFF155F73)
-    val ring = Color(0xFF155F73)
+    val link = Color(0xFF6C5CE7)
+    val ring = Color(0xFF6C5CE7)
     val scoreGood = Color(0xFF27AE60)
     val scoreMid = Color(0xFFF39C12)
     val scoreBad = Color(0xFFE74C3C)
