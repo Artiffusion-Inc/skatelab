@@ -179,8 +179,13 @@ def normalize_poses(
         axis=1
     ).astype(np.float32)
     mid_hip_raw = np.where(
-        (n_finite > 0)[:, np.newaxis],
-        (lhip_f + rhip_f) / np.where(n_finite[:, np.newaxis] > 0, n_finite[:, np.newaxis], 1.0),
+        np.expand_dims(n_finite > 0, axis=1),
+        (lhip_f + rhip_f)
+        / np.where(
+            np.expand_dims(n_finite, axis=1) > 0,
+            np.expand_dims(n_finite, axis=1),
+            1.0,
+        ),
         0.0,
     )
 

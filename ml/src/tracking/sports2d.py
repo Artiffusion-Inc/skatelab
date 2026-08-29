@@ -290,7 +290,7 @@ class Sports2DTracker:
                 # 1e15 (well above any sane max_dist) to keep the cost
                 # matrix finite for the Hungarian algorithm.
                 if all_nan_lost.any() or all_nan_unassoc.any():
-                    mask = all_nan_lost[:, np.newaxis] | all_nan_unassoc[np.newaxis, :]
+                    mask = np.expand_dims(all_nan_lost, 1) | np.expand_dims(all_nan_unassoc, 0)
                     lost_matrix[mask] = 1e15
 
                 lost_ids_idx, unassoc_ids_idx = linear_sum_assignment(lost_matrix)
