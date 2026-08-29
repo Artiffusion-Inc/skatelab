@@ -172,6 +172,8 @@ export default function SessionDetailPage() {
       </div>
     )
 
+  const elementType = session.element_type ?? "unknown"
+
   const tabs = [
     { key: "overview" as const, label: tSession("tabOverview") },
     { key: "details" as const, label: tSession("tabDetails") },
@@ -234,7 +236,7 @@ export default function SessionDetailPage() {
       <div className="mx-auto max-w-2xl px-4 pt-4 lg:max-w-none">
         <div className="relative flex items-start justify-between gap-2">
           <div>
-            <h1 className="text-xl font-semibold">{elementLabel(session.element_type)}</h1>
+            <h1 className="text-xl font-semibold">{elementLabel(elementType)}</h1>
             {visitCount === 1 && !dismissed && (
               <div className="absolute -bottom-8 left-0 whitespace-nowrap rounded-lg bg-foreground px-3 py-1.5 text-xs text-background shadow-lg">
                 {tSession("tourTabs")}
@@ -345,12 +347,10 @@ export default function SessionDetailPage() {
             {session.recommendations && session.recommendations.length > 0 && (
               <div className="rounded-2xl border border-hairline p-3 sm:p-4">
                 <h2 className="mb-2 text-sm font-medium">
-                  {isAxelElement(session.element_type)
-                    ? "Axel recommendation"
-                    : ts("recommendations")}
+                  {isAxelElement(elementType) ? "Axel recommendation" : ts("recommendations")}
                 </h2>
                 <ul className="space-y-1 text-sm text-ink-mute">
-                  {(isAxelElement(session.element_type)
+                  {(isAxelElement(elementType)
                     ? session.recommendations.slice(0, 1)
                     : session.recommendations
                   ).map(r => (
@@ -493,7 +493,7 @@ export default function SessionDetailPage() {
             <SensorProvenance session={session} failed={isFailed} />
 
             {/* Diagnostics */}
-            {session.pose_data && <SessionDiagnostics elementType={session.element_type} />}
+            <SessionDiagnostics elementType={elementType} />
           </div>
         )}
 

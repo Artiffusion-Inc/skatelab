@@ -8,6 +8,8 @@ import { PeriodSelector } from "@/components/progress/period-selector"
 import { TrendChart } from "@/components/progress/trend-chart"
 import { useTranslations } from "@/i18n"
 import { useDiagnostics, useTrend } from "@/lib/api/metrics"
+import { useInfiniteSessions } from "@/lib/api/sessions"
+import { CoachSessionList } from "@/components/coach/coach-session-list"
 import { EmptyState } from "@/components/onboarding"
 import { BarChart3, Activity } from "lucide-react"
 import { usePageStatus } from "@/lib/hooks/use-page-status"
@@ -17,7 +19,7 @@ import { useElementLabel, useElementMap } from "@/hooks/use-metric-registry"
 
 export default function StudentProfilePage() {
   const { id } = useParams<{ id: string }>()
-  const [tab, setTab] = useState<"progress" | "diagnostics">("progress")
+  const [tab, setTab] = useState<"progress" | "diagnostics" | "sessions">("progress")
   const [element, setElement] = useState("3A")
   const [metric, setMetric] = useState("max_height")
   const [period, setPeriod] = useState("30d")
@@ -30,10 +32,12 @@ export default function StudentProfilePage() {
 
   const trendQ = useTrend(id, element, metric, period)
   const diagQ = useDiagnostics(id)
+  const sessionsQ = useInfiniteSessions(id)
   const { data: trend } = trendQ
   const { data: diag } = diagQ
+  const sessions = sessionsQ.data?.pages.flatMap(page => page.sessions) ?? []
 
-  const { isFirstLoad, isError } = usePageStatus([trendQ, diagQ])
+  const { isFirstLoad, isError } = usePageStatus([trendQ, diagQ, sessionsQ])
 
   if (isFirstLoad) return <SkeletonStudent />
   if (isError)
@@ -42,6 +46,7 @@ export default function StudentProfilePage() {
         onRetry={() => {
           trendQ.refetch()
           diagQ.refetch()
+          sessionsQ.refetch()
         }}
       />
     )
@@ -68,6 +73,13 @@ export default function StudentProfilePage() {
           className={`flex-1 rounded-md px-3 py-2 text-sm font-medium ${tab === "diagnostics" ? "bg-background shadow-sm" : ""}`}
         >
           {ts("diagnostics")}
+        </button>
+        <button
+          type="button"
+          onClick={() => setTab("sessions")}
+          className={`flex-1 rounded-md px-3 py-2 text-sm font-medium ${tab === "sessions" ? "bg-background shadow-sm" : ""}`}
+        >
+          {ts("sessions")}
         </button>
       </div>
 
@@ -118,6 +130,15 @@ export default function StudentProfilePage() {
             description={tEmpty("noDiagnosticsDesc")}
           />
         ))}
+
+      {tab === "sessions" && (
+        <CoachSessionList
+          sessions={sessions}
+          hasNextPage={sessionsQ.hasNextPage}
+          isFetchingNextPage={sessionsQ.isFetchingNextPage}
+          onLoadMore={() => sessionsQ.fetchNextPage()}
+        />
+      )}
     </div>
   )
 }

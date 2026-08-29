@@ -67,9 +67,9 @@ export interface PhaseFrame {
 }
 
 export interface PhasesData {
-  takeoff: PhaseFrame
-  peak: PhaseFrame
-  landing: PhaseFrame
+  takeoff: PhaseFrame | null
+  peak: PhaseFrame | null
+  landing: PhaseFrame | null
 }
 
 export interface ElementSegment {
@@ -170,12 +170,14 @@ export interface SessionMetric {
   prev_best: number | null
   reference_value: number | null
   is_in_range: boolean | null
+  unit?: string
 }
 
 export interface Session {
   id: string
   user_id: string
-  element_type: string
+  workspace_id?: string | null
+  element_type: string | null
   video_key?: string | null
   video_url: string | null
   processed_video_key?: string | null
@@ -191,6 +193,11 @@ export interface Session {
   segmentation_status: string
   recommendations: string[] | null
   overall_score: number | null
+  process_task_id?: string | null
+  imu_left_key?: string | null
+  imu_right_key?: string | null
+  manifest_key?: string | null
+  isu_code?: string | null
   created_at: string
   processed_at: string | null
   metrics: SessionMetric[]
@@ -199,6 +206,8 @@ export interface Session {
 export interface SessionListResponse {
   sessions: Session[]
   total: number
+  next_cursor: string | null
+  has_more: boolean
 }
 
 // ---------------------------------------------------------------------------

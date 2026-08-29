@@ -63,7 +63,9 @@ export function SessionCard({ session, selectable, selected, onSelect }: Session
               />
             )}
             <div className="min-w-0">
-              <p className="font-medium truncate">{elementLabel(session.element_type)}</p>
+              <p className="font-medium truncate">
+                {elementLabel(session.element_type ?? "unknown")}
+              </p>
               <p className="text-xs text-muted-foreground flex items-center gap-1">
                 <Clock className="h-3 w-3 shrink-0" />
                 {relativeTime(session.created_at, ts)}

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, type FormEvent } from "react"
 import { toast } from "sonner"
 import { Users } from "lucide-react"
 import { useTranslations } from "@/i18n"
@@ -30,10 +30,12 @@ export default function ConnectionsPage() {
 
   const [email, setEmail] = useState("")
 
-  const handleInvite = async () => {
-    if (!email) return
+  const handleInvite = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    const toUserEmail = email.trim()
+    if (!toUserEmail) return
     try {
-      await invite.mutateAsync({ to_user_email: email, connection_type: "coaching" })
+      await invite.mutateAsync({ to_user_email: toUserEmail, connection_type: "coaching" })
       toast.success(t("invitationSent"))
       setEmail("")
     } catch {
@@ -81,60 +83,71 @@ export default function ConnectionsPage() {
   const conns = connsQuery.data
   const pending = pendingQuery.data
   const activeConns = (conns?.connections ?? []).filter(r => r.status === "active")
-  const hasPending = pending && pending.connections.length > 0
+  const outgoingInvites = (conns?.connections ?? []).filter(r => r.status === "invited")
+  const incomingInvites = pending?.connections ?? []
+  const hasPending = incomingInvites.length > 0
+  const hasOutgoingInvites = outgoingInvites.length > 0
   const hasActive = activeConns.length > 0
-
-  if (!hasPending && !hasActive) {
-    return (
-      <EmptyState
-        icon={<Users className="h-7 w-7 text-primary" />}
-        title={tEmpty("connectionsTitle")}
-        description={tEmpty("connectionsDesc")}
-        primaryAction={{ label: tEmpty("connectionsAction"), href: "#invite" }}
-      />
-    )
-  }
 
   return (
     <div className="mx-auto max-w-2xl space-y-6 sm:max-w-3xl">
       <h1 className="text-lg font-semibold">{tc("title")}</h1>
 
-      <div id="invite" className="space-y-2">
-        <p className="text-sm font-medium">{tc("inviteStudent")}</p>
+      <form id="invite" className="space-y-2" onSubmit={handleInvite}>
+        <label htmlFor="invite-email" className="text-sm font-medium">
+          {tc("inviteEmail")}
+        </label>
         <div className="flex gap-2">
           <input
+            id="invite-email"
             type="email"
+            required
             value={email}
             onChange={e => setEmail(e.target.value)}
             placeholder="email@example.com"
             className="flex-1 rounded-xl border border-hairline bg-background px-3 py-2.5 text-sm"
           />
           <button
-            type="button"
-            onClick={handleInvite}
-            className="whitespace-nowrap rounded-xl bg-primary text-primary-foreground px-4 py-2.5 text-sm"
+            type="submit"
+            disabled={invite.isPending}
+            className="whitespace-nowrap rounded-xl bg-primary px-4 py-2.5 text-sm text-primary-foreground disabled:cursor-not-allowed disabled:opacity-60"
           >
             {tc("invite")}
           </button>
         </div>
-      </div>
+      </form>
 
       {hasPending && (
         <div className="space-y-2">
           <p className="text-sm font-medium">{tc("incomingInvites")}</p>
-          {pending.connections.map((r, i) => (
+          {incomingInvites.map((r, i) => (
             <div
               key={r.id ?? `pending-${i}`}
               className="flex items-center justify-between rounded-xl border border-hairline p-3"
             >
-              <span className="text-sm truncate mr-2">{r.from_user_name || r.from_user_id}</span>
+              <span className="mr-2 truncate text-sm">{r.from_user_name || r.from_user_id}</span>
               <button
                 type="button"
                 onClick={() => handleAccept(r.id)}
-                className="shrink-0 rounded-lg bg-primary px-3 py-1.5 text-xs text-primary-foreground"
+                disabled={acceptConn.isPending}
+                className="shrink-0 rounded-lg bg-primary px-3 py-1.5 text-xs text-primary-foreground disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {tc("accept")}
               </button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {hasOutgoingInvites && (
+        <div className="space-y-2">
+          <p className="text-sm font-medium">{tc("outgoingInvites")}</p>
+          {outgoingInvites.map((r, i) => (
+            <div
+              key={r.id ?? `outgoing-${i}`}
+              className="rounded-xl border border-dashed border-hairline p-3 text-sm text-ink-mute"
+            >
+              {r.to_user_name || r.to_user_id}
             </div>
           ))}
         </div>
@@ -148,17 +161,28 @@ export default function ConnectionsPage() {
               key={r.id ?? `conn-${i}`}
               className="flex items-center justify-between rounded-xl border border-hairline p-3"
             >
-              <span className="text-sm truncate mr-2">{r.to_user_name || r.to_user_id}</span>
+              <span className="mr-2 truncate text-sm">
+                {r.to_user_name || r.from_user_name || r.to_user_id}
+              </span>
               <button
                 type="button"
                 onClick={() => handleEnd(r.id)}
-                className="shrink-0 text-xs text-ink-mute hover:text-destructive"
+                disabled={endConn.isPending}
+                className="shrink-0 text-xs text-ink-mute hover:text-destructive disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {tc("endConnection")}
               </button>
             </div>
           ))}
         </div>
+      )}
+
+      {!hasPending && !hasOutgoingInvites && !hasActive && (
+        <EmptyState
+          icon={<Users className="h-7 w-7 text-primary" />}
+          title={tEmpty("connectionsTitle")}
+          description={tEmpty("connectionsDesc")}
+        />
       )}
     </div>
   )

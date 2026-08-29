@@ -356,10 +356,12 @@
   "connections": {
     "title": "Connections",
     "inviteStudent": "Invite Student",
+    "inviteEmail": "Student email",
     "invite": "Invite",
     "incomingInvites": "Incoming Invitations",
     "accept": "Accept",
     "activeConnections": "Active Connections",
+    "outgoingInvites": "Sent Invitations",
     "endConnection": "End"
   },
   "sessions": {
@@ -477,6 +479,18 @@
     "inviteStudent": "Invite Student",
     "progress": "Progress",
     "diagnostics": "Diagnostics",
+    "sessions": "Sessions",
+    "noSessions": "No sessions",
+    "noSessionsHint": "This student has no uploaded sessions yet.",
+    "filterStatus": "Status",
+    "allSessions": "All sessions",
+    "processing": "Analyzing video...",
+    "completed": "Ready",
+    "failed": "Analysis failed",
+    "unavailable": "Analysis data unavailable",
+    "noMatchingSessions": "No sessions match this status.",
+    "loadMore": "Load more",
+    "loadingSessions": "Loading sessions...",
     "metrics": {
       "max_height": "Jump Height",
       "airtime": "Airtime",

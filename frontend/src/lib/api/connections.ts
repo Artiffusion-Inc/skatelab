@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { z } from "zod"
 import { apiFetch, apiPost } from "@/lib/api-client"
 
-const ConnectionSchema = z.object({
+export const ConnectionSchema = z.object({
   id: z.string(),
   from_user_id: z.string(),
   to_user_id: z.string(),
@@ -15,7 +15,10 @@ const ConnectionSchema = z.object({
   to_user_name: z.string().nullable(),
 })
 
-const ConnectionListSchema = z.object({ connections: z.array(ConnectionSchema) })
+export const ConnectionListSchema = z.object({
+  connections: z.array(ConnectionSchema),
+  total: z.number().default(0),
+})
 
 export function useConnections() {
   return useQuery({
@@ -44,7 +47,11 @@ export function useAcceptConnection() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (connId: string) => apiPost(`/connections/${connId}/accept`, ConnectionSchema, {}),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["connections"] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["connections"] })
+      qc.invalidateQueries({ queryKey: ["sessions"] })
+      qc.invalidateQueries({ queryKey: ["session"] })
+    },
   })
 }
 
@@ -52,6 +59,10 @@ export function useEndConnection() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (connId: string) => apiPost(`/connections/${connId}/end`, ConnectionSchema, {}),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["connections"] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["connections"] })
+      qc.invalidateQueries({ queryKey: ["sessions"] })
+      qc.invalidateQueries({ queryKey: ["session"] })
+    },
   })
 }

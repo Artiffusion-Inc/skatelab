@@ -48,7 +48,9 @@ export function RecentActivity({ userId }: { userId?: string }) {
             className="flex items-center justify-between rounded-lg border border-border px-3 py-2.5 transition-colors hover:bg-accent"
           >
             <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-medium">{elementLabel(s.element_type)}</p>
+              <p className="truncate text-sm font-medium">
+                {elementLabel(s.element_type ?? "unknown")}
+              </p>
               <p className="text-xs text-muted-foreground">{date}</p>
             </div>
             {score && (

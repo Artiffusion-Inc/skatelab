@@ -373,10 +373,12 @@
   "connections": {
     "title": "Связи",
     "inviteStudent": "Пригласить ученика",
+    "inviteEmail": "Email ученика",
     "invite": "Пригласить",
     "incomingInvites": "Входящие приглашения",
     "accept": "Принять",
     "activeConnections": "Активные связи",
+    "outgoingInvites": "Отправленные приглашения",
     "endConnection": "Завершить"
   },
   "sessions": {
@@ -515,6 +517,18 @@
     "inviteStudent": "Пригласить ученика",
     "progress": "Прогресс",
     "diagnostics": "Диагностика",
+    "sessions": "Записи",
+    "noSessions": "Нет записей",
+    "noSessionsHint": "У этого ученика пока нет загруженных сессий.",
+    "filterStatus": "Статус",
+    "allSessions": "Все записи",
+    "processing": "Анализ видео...",
+    "completed": "Готово",
+    "failed": "Ошибка анализа",
+    "unavailable": "Данные анализа недоступны",
+    "noMatchingSessions": "Нет записей с таким статусом.",
+    "loadMore": "Загрузить ещё",
+    "loadingSessions": "Загрузка записей...",
     "metrics": {
       "max_height": "Высота прыжка",
       "airtime": "Время полёта",

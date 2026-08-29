@@ -24,8 +24,8 @@ const SessionScoreSchema = z.object({
   session_id: z.string(),
   subscores: z.array(SubScoreSchema),
   overall: z.number(),
-  data_quality: z.string(),
-  skeleton_reliability: z.string(),
+  data_quality: z.string().default("good"),
+  skeleton_reliability: z.string().default("reliable"),
   created_at: z.string(),
   updated_at: z.string(),
 })

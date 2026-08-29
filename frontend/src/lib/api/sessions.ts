@@ -1,5 +1,6 @@
 // src/frontend/src/lib/api/sessions.ts
 import {
+  useInfiniteQuery,
   useMutation,
   useQuery,
   useQueryClient,
@@ -36,15 +37,20 @@ const FrameMetricsSchema = z.object({
   com_height: z.array(z.number().nullable()),
 })
 
-const PhaseFrameSchema = z.object({
-  frame: z.number(),
-  timestamp: z.number().optional(),
-})
+// The session endpoint stores phase markers as absolute frame numbers. Normalize
+// them at the API boundary so visual components can use one stable shape.
+const PhaseFrameSchema = z.preprocess(
+  value => (typeof value === "number" ? { frame: value } : value),
+  z.object({
+    frame: z.number(),
+    timestamp: z.number().optional(),
+  }),
+)
 
 const PhasesDataSchema = z.object({
-  takeoff: PhaseFrameSchema,
-  peak: PhaseFrameSchema,
-  landing: PhaseFrameSchema,
+  takeoff: PhaseFrameSchema.nullable().optional().default(null),
+  peak: PhaseFrameSchema.nullable().optional().default(null),
+  landing: PhaseFrameSchema.nullable().optional().default(null),
 })
 
 const ElementSegmentSchema = z.object({
@@ -63,35 +69,42 @@ const TimelineDataSchema = z.object({
   segmentation_status: z.string().default("pending"),
 })
 
+const NullableStringSchema = z.string().nullable().optional().default(null)
+
 const SessionSchema = z.object({
   id: z.string(),
   user_id: z.string(),
-  element_type: z.string(),
-  video_key: z.string().nullable().optional(),
-  video_url: z.string().nullable(),
-  processed_video_key: z.string().nullable().optional(),
-  processed_video_url: z.string().nullable(),
-  poses_url: z.string().optional().nullable(), // Deprecated
-  csv_url: z.string().optional().nullable(), // Deprecated
-  pose_data: PoseDataSchema.optional().nullable(), // New
-  frame_metrics: FrameMetricsSchema.optional().nullable(), // New
+  element_type: NullableStringSchema,
+  video_key: NullableStringSchema,
+  video_url: NullableStringSchema,
+  processed_video_key: NullableStringSchema,
+  processed_video_url: NullableStringSchema,
+  poses_url: NullableStringSchema, // Deprecated
+  csv_url: NullableStringSchema, // Deprecated
+  pose_data: PoseDataSchema.nullable().optional().default(null), // New
+  frame_metrics: FrameMetricsSchema.nullable().optional().default(null), // New
   status: z.string(),
-  error_message: z.string().nullable(),
-  phases: PhasesDataSchema.optional().nullable(), // Updated type
-  recommendations: z.array(z.string()).nullable(),
-  overall_score: z.number().nullable(),
-  process_task_id: z.string().nullable().optional(),
-  imu_left_key: z.string().nullable().optional(),
-  imu_right_key: z.string().nullable().optional(),
-  manifest_key: z.string().nullable().optional(),
+  error_message: NullableStringSchema,
+  phases: PhasesDataSchema.nullable().optional().default(null),
+  recommendations: z.array(z.string()).nullable().optional().default(null),
+  overall_score: z.number().nullable().optional().default(null),
+  process_task_id: NullableStringSchema,
+  imu_left_key: NullableStringSchema,
+  imu_right_key: NullableStringSchema,
+  manifest_key: NullableStringSchema,
   created_at: z.string(),
-  processed_at: z.string().nullable(),
-  metrics: z.array(SessionMetricSchema),
-  timeline: TimelineDataSchema.optional().nullable(),
+  processed_at: NullableStringSchema,
+  metrics: z.array(SessionMetricSchema).default([]),
+  timeline: TimelineDataSchema.nullable().optional().default(null),
   segmentation_status: z.string().default("pending"),
 })
 
-const SessionListSchema = z.object({ sessions: z.array(SessionSchema), total: z.number() })
+const SessionListSchema = z.object({
+  sessions: z.array(SessionSchema),
+  total: z.number(),
+  next_cursor: z.string().nullable().default(null),
+  has_more: z.boolean().default(false),
+})
 
 type Session = z.infer<typeof SessionSchema>
 
@@ -109,13 +122,29 @@ export const SESSION_POLLING_STATUSES = new Set([
   "processing",
 ])
 
-export function useSessions(userId?: string, elementType?: string) {
-  const params = new URLSearchParams()
+async function fetchSessionPage(userId?: string, elementType?: string, cursor?: string) {
+  const params = new URLSearchParams({ limit: "20" })
   if (userId) params.set("user_id", userId)
   if (elementType) params.set("element_type", elementType)
+  if (cursor) params.set("cursor", cursor)
+  return apiFetch(`/sessions?${params.toString()}`, SessionListSchema)
+}
+
+export function useSessions(userId?: string, elementType?: string) {
   return useQuery({
     queryKey: ["sessions", userId, elementType],
-    queryFn: () => apiFetch(`/sessions?${params.toString()}`, SessionListSchema),
+    queryFn: () => fetchSessionPage(userId, elementType),
+  })
+}
+
+export function useInfiniteSessions(userId?: string, elementType?: string) {
+  return useInfiniteQuery({
+    queryKey: ["sessions", "infinite", userId, elementType],
+    queryFn: ({ pageParam }) => fetchSessionPage(userId, elementType, pageParam),
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: lastPage =>
+      lastPage.has_more ? (lastPage.next_cursor ?? undefined) : undefined,
+    enabled: !!userId,
   })
 }
 
