@@ -275,7 +275,14 @@ export default function SessionDetailPage() {
                 <h2 className="mb-2 text-sm font-medium">{ts("metrics")}</h2>
                 {highlightMetrics.map(m => {
                   const def = registry?.[m.metric_name]
-                  const label = def?.label_ru ?? m.metric_name
+                  const label =
+                    def?.label_ru ??
+                    ({
+                      sensor_confidence: "Надёжность сенсоров",
+                      rotation_symmetry: "Симметрия вращения",
+                      imu_peak_delta: "Расхождение пиков IMU",
+                    } as Record<string, string>)[m.metric_name] ??
+                    m.metric_name
                   const unit = def?.unit ?? m.unit ?? ""
                   const direction = def?.direction
                   return (
