@@ -294,6 +294,8 @@ class ProcessStats(BaseModel):
     valid_frames: int
     fps: float
     resolution: str
+    imu_stats: dict | None = None
+    sensor_fusion: dict | None = None
 
 
 class ProcessResponse(BaseModel):
