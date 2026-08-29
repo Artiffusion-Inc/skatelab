@@ -1,5 +1,7 @@
 import struct
 
+import pytest
+
 from src.sensor_fusion import decode_imu_file
 
 
@@ -48,3 +50,11 @@ def test_decode_android_delimited_binpb_fixture(tmp_path) -> None:
     assert stream.values[1][5] == 4.0
     assert stream.gaps == 1
     assert stream.sample_rate_hz == 10.0
+
+
+def test_decode_rejects_truncated_delimited_record(tmp_path) -> None:
+    path = tmp_path / "truncated.binpb"
+    path.write_bytes(_varint(10) + b"short")
+
+    with pytest.raises(ValueError, match="truncated IMURecord"):
+        decode_imu_file(path)

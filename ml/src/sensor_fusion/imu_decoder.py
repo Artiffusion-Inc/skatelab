@@ -65,11 +65,17 @@ def _fields(data: bytes):
         if wire == 0:
             value, pos = _varint(data, pos)
         elif wire == 1:
+            if pos + 8 > len(data):
+                raise ValueError("truncated protobuf fixed64 field")
             value, pos = data[pos : pos + 8], pos + 8
         elif wire == 2:
             size, pos = _varint(data, pos)
+            if pos + size > len(data):
+                raise ValueError("truncated protobuf length-delimited field")
             value, pos = data[pos : pos + size], pos + size
         elif wire == 5:
+            if pos + 4 > len(data):
+                raise ValueError("truncated protobuf fixed32 field")
             value, pos = data[pos : pos + 4], pos + 4
         else:
             raise ValueError(f"unsupported protobuf wire type {wire}")
@@ -98,6 +104,8 @@ def decode_imu_file(path: str | Path) -> ImuStream:
     pos = 0
     while pos < len(data):
         size, pos = _varint(data, pos)
+        if pos + size > len(data):
+            raise ValueError("truncated IMURecord payload")
         record = data[pos : pos + size]
         pos += size
         for field, wire, value in _fields(record):
