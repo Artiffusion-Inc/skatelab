@@ -14,8 +14,12 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("path", type=Path, help="Path to left.binpb or right.binpb")
     parser.add_argument("--t0-ns", type=int, default=0, help="Capture anchor from manifest.json")
+    parser.add_argument("--manifest", type=Path, help="Manifest JSON (auto-reads t0_ns)")
     args = parser.parse_args()
 
+    if args.manifest:
+        manifest = json.loads(args.manifest.read_text())
+        args.t0_ns = int(manifest.get("t0_ns", args.t0_ns) or 0)
     stream = decode_imu_file(args.path)
     print(json.dumps({
         "path": str(args.path),
