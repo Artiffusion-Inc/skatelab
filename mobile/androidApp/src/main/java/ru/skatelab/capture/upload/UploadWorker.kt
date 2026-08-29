@@ -49,37 +49,52 @@ class UploadWorker
 
         override suspend fun doWork(): Result {
             val uploadId = inputData.getString(KEY_UPLOAD_ID) ?: return Result.failure()
+            val initialEntity = pendingUploadDao.getById(uploadId) ?: return Result.failure()
 
-            // Atomic lock: only proceed if status is READY (prevents duplicate workers)
+            // A persisted task is authoritative: never queue a second task after restart.
+            if (initialEntity.status == "PROCESSING" && initialEntity.processTaskId != null) {
+                return observeExistingTask(initialEntity)
+            }
+
+            // Atomic lock: only proceed if status is READY (prevents duplicate workers).
             val locked = pendingUploadDao.tryLockForUpload(uploadId)
-            if (locked == 0) return Result.success() // Another worker already processing
+            if (locked == 0) {
+                val currentEntity = pendingUploadDao.getById(uploadId)
+                return if (currentEntity?.status == "PROCESSING" && currentEntity.processTaskId != null) {
+                    observeExistingTask(currentEntity)
+                } else {
+                    Result.success()
+                }
+            }
 
             val entity = pendingUploadDao.getById(uploadId) ?: return Result.failure()
-
-            // Mark as UPLOADING before starting upload
-            pendingUploadDao.updateStatus(entity.id, "UPLOADING")
+            if (entity.processTaskId != null) {
+                return observeExistingTask(entity)
+            }
 
             return try {
-                // Step 1: Upload video via chunked uploader
-                val videoFile = File(entity.videoPath)
-                if (!videoFile.exists()) {
-                    pendingUploadDao.updateStatus(entity.id, "FAILED")
-                    return Result.failure()
-                }
-
+                // Reuse a key persisted before process death instead of uploading again.
                 val videoKey =
-                    chunkedUploader.upload(
-                        file = videoFile,
-                        fileName = videoFile.name,
-                        contentType = "video/mp4",
-                        onProgress = { uploaded, total ->
-                            val percent = (uploaded.toFloat() / total).coerceIn(0f, 1f)
-                            setProgress(workDataOf(KEY_UPLOAD_ID to uploadId, KEY_PROGRESS to percent))
-                        },
-                    )
+                    entity.videoKey ?: run {
+                        val videoFile = File(entity.videoPath)
+                        if (!videoFile.exists()) {
+                            pendingUploadDao.updateStatus(entity.id, "FAILED")
+                            return Result.failure()
+                        }
 
-                // Save video key so ProcessingScreen can pass it to SSE
-                pendingUploadDao.updateVideoKey(entity.id, videoKey)
+                        val uploadedKey =
+                            chunkedUploader.upload(
+                                file = videoFile,
+                                fileName = videoFile.name,
+                                contentType = "video/mp4",
+                                onProgress = { uploaded, total ->
+                                    val percent = (uploaded.toFloat() / total).coerceIn(0f, 1f)
+                                    setProgress(workDataOf(KEY_UPLOAD_ID to uploadId, KEY_PROGRESS to percent))
+                                },
+                            )
+                        pendingUploadDao.updateVideoKey(entity.id, uploadedKey)
+                        uploadedKey
+                    }
 
                 // Step 2: Upload IMU files via presigned PUT (left, right)
                 var imuLeftKey: String? = null
@@ -108,23 +123,29 @@ class UploadWorker
                     }
                 }
 
-                // Step 4: Create session on backend
-                val session =
-                    skateLabClient.sessions.create(
-                        elementType = entity.elementType,
-                        videoKey = videoKey,
-                        imuLeftKey = imuLeftKey,
-                        imuRightKey = imuRightKey,
-                        manifestKey = manifestKey,
-                    )
+                // Reuse a session created before process death, if one was persisted.
+                val sessionId =
+                    entity.sessionId ?: run {
+                        val session =
+                            skateLabClient.sessions.create(
+                                elementType = entity.elementType,
+                                videoKey = videoKey,
+                                imuLeftKey = imuLeftKey,
+                                imuRightKey = imuRightKey,
+                                manifestKey = manifestKey,
+                            )
+                        // Persist before queueing so a retry cannot create another session.
+                        pendingUploadDao.updateStatus(entity.id, "UPLOADING", session.id)
+                        session.id
+                    }
 
                 // Step 5: Enqueue once and persist the task so UI can resume its SSE stream.
                 val task =
                     skateLabClient.process.queue(
                         videoKey = videoKey,
-                        sessionId = session.id,
+                        sessionId = sessionId,
                     )
-                pendingUploadDao.updateProcessingState(entity.id, session.id, task.taskId)
+                pendingUploadDao.updateProcessingState(entity.id, sessionId, task.taskId)
                 Result.success()
             } catch (e: Exception) {
                 // Network/offline errors: surface immediately to the user as FAILED.
@@ -145,6 +166,20 @@ class UploadWorker
                         Result.retry()
                     }
                 }
+            }
+        }
+
+        private suspend fun observeExistingTask(entity: ru.skatelab.capture.data.db.PendingUploadEntity): Result {
+            return try {
+                val status = skateLabClient.process.status(entity.processTaskId!!).status.lowercase()
+                when (status) {
+                    "completed" -> pendingUploadDao.updateStatus(entity.id, "COMPLETED", entity.sessionId)
+                    "failed", "cancelled" -> pendingUploadDao.updateStatus(entity.id, "FAILED", entity.sessionId)
+                }
+                Result.success()
+            } catch (e: Exception) {
+                // Keep PROCESSING intact; retrying observation must not re-enter upload/queue.
+                Result.retry()
             }
         }
 

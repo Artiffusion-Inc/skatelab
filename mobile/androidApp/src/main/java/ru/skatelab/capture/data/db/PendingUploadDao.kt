@@ -14,6 +14,9 @@ interface PendingUploadDao {
     @Query("UPDATE pending_uploads SET status = 'UPLOADING' WHERE id = :id AND status = 'READY'")
     suspend fun tryLockForUpload(id: String): Int
 
+    @Query("UPDATE pending_uploads SET status = 'READY' WHERE status = 'UPLOADING'")
+    suspend fun resetStaleUploads(): Int
+
     @Query("SELECT * FROM pending_uploads WHERE id = :id")
     suspend fun getById(id: String): PendingUploadEntity?
 
@@ -23,7 +26,10 @@ interface PendingUploadDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(entity: PendingUploadEntity)
 
-    @Query("UPDATE pending_uploads SET status = :status, sessionId = :sessionId WHERE id = :id")
+    @Query(
+        "UPDATE pending_uploads SET status = :status, " +
+            "sessionId = COALESCE(:sessionId, sessionId) WHERE id = :id",
+    )
     suspend fun updateStatus(
         id: String,
         status: String,

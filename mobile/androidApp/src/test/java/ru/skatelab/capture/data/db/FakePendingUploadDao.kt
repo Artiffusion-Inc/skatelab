@@ -36,6 +36,12 @@ class FakePendingUploadDao : PendingUploadDao {
         }
     }
 
+    override suspend fun resetStaleUploads(): Int {
+        val stale = entities.values.filter { it.status == "UPLOADING" }
+        stale.forEach { updateEntity(it.copy(status = "READY")) }
+        return stale.size
+    }
+
     override suspend fun getById(id: String): PendingUploadEntity? {
         return entities[id]
     }
