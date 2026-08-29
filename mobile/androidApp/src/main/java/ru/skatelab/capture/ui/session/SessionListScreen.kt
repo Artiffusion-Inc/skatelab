@@ -1,6 +1,5 @@
 package ru.skatelab.capture.ui.session
 
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -11,19 +10,13 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.outlined.SportsScore
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -39,7 +32,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -56,7 +48,6 @@ import ru.skatelab.capture.ui.elements.elementLabel
 import ru.skatelab.capture.ui.metrics.metricLabel
 import ru.skatelab.capture.utils.localizedMessage
 import ru.skatelab.shared.models.SessionResponse
-import ru.skatelab.shared.models.elementTypes
 import ru.skatelab.shared.state.SessionsUiState
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -65,11 +56,14 @@ fun SessionListScreen(
     viewModel: AndroidSessionsViewModel,
     onSessionClick: (String) -> Unit,
     onBack: () -> Unit,
+    onNavigateToCamera: () -> Unit = {},
+    onFilterChange: (String?) -> Unit = {},
 ) {
     val uiState by viewModel.uiState.collectAsState()
     var isRefreshing by remember { mutableStateOf(false) }
     var selectedElementType by remember { mutableStateOf<String?>(null) }
-    val resultsTitle = stringResource(R.string.session_list_results)
+    var showFilterSheet by remember { mutableStateOf(false) }
+    val resultsTitle = stringResource(R.string.analysis_title)
     val navBackLabel = stringResource(R.string.session_list_nav_back)
 
     LaunchedEffect(Unit) {
@@ -141,21 +135,6 @@ fun SessionListScreen(
             }
             is SessionsUiState.Loaded -> {
                 val loaded = uiState as SessionsUiState.Loaded
-                val sessions = loaded.sessions
-                val emptyLabel = stringResource(R.string.session_list_empty)
-
-                // Infinite scroll
-                val listState = rememberLazyListState()
-                LaunchedEffect(listState) {
-                    snapshotFlow { listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index }
-                        .collect { lastVisible ->
-                            val total = sessions.size
-                            if (lastVisible != null && lastVisible >= total - 2) {
-                                viewModel.loadMore()
-                            }
-                        }
-                }
-
                 PullToRefreshBox(
                     isRefreshing = isRefreshing,
                     onRefresh = {
@@ -165,92 +144,26 @@ fun SessionListScreen(
                     state = rememberPullToRefreshState(),
                     modifier = Modifier.padding(padding),
                 ) {
-                    Column(modifier = Modifier.fillMaxSize()) {
-                        // Filter chips
-                        Row(
-                            modifier =
-                                Modifier
-                                    .fillMaxWidth()
-                                    .horizontalScroll(rememberScrollState())
-                                    .padding(horizontal = 16.dp, vertical = 8.dp),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        ) {
-                            FilterChip(
-                                selected = selectedElementType == null,
-                                onClick = {
-                                    selectedElementType = null
-                                    viewModel.loadSessions(elementType = null)
-                                },
-                                label = { Text(stringResource(R.string.filter_all)) },
-                            )
-                            elementTypes.forEach { key ->
-                                FilterChip(
-                                    selected = selectedElementType == key,
-                                    onClick = {
-                                        selectedElementType = key
-                                        viewModel.loadSessions(elementType = key)
-                                    },
-                                    label = { Text(elementLabel(key)) },
-                                )
-                            }
-                        }
-
-                        if (sessions.isEmpty()) {
-                            Column(
-                                modifier = Modifier.fillMaxSize(),
-                                verticalArrangement = Arrangement.Center,
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Outlined.SportsScore,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(64.dp),
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                )
-                                Spacer(modifier = Modifier.height(16.dp))
-                                Text(
-                                    text = stringResource(R.string.empty_sessions_title),
-                                    style = MaterialTheme.typography.titleMedium,
-                                )
-                                Spacer(modifier = Modifier.height(8.dp))
-                                Text(
-                                    text = stringResource(R.string.empty_sessions_body),
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                )
-                            }
-                        } else {
-                            LazyColumn(
-                                state = listState,
-                                modifier = Modifier.fillMaxSize().testTag("sessionListContent"),
-                                verticalArrangement = Arrangement.spacedBy(8.dp),
-                                contentPadding =
-                                    androidx.compose.foundation.layout.PaddingValues(
-                                        start = 16.dp,
-                                        end = 16.dp,
-                                        top = 0.dp,
-                                        bottom = 16.dp,
-                                    ),
-                            ) {
-                                items(sessions, key = { it.id }) { session ->
-                                    SessionCard(
-                                        session = session,
-                                        onClick = { onSessionClick(session.id) },
-                                    )
-                                }
-                                if (loaded.isLoadingMore) {
-                                    item {
-                                        Box(
-                                            modifier = Modifier.fillMaxWidth().padding(16.dp),
-                                            contentAlignment = Alignment.Center,
-                                        ) {
-                                            CircularProgressIndicator(modifier = Modifier.size(32.dp))
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
+                    SessionListContent(
+                        loaded = loaded,
+                        selectedElementType = selectedElementType,
+                        onSessionClick = onSessionClick,
+                        onStartAnalysis = onNavigateToCamera,
+                        onOpenFilters = { showFilterSheet = true },
+                        onLoadMore = viewModel::loadMore,
+                    )
+                }
+                if (showFilterSheet) {
+                    SessionFilterSheet(
+                        selectedElementType = selectedElementType,
+                        onApply = { elementType ->
+                            selectedElementType = elementType
+                            showFilterSheet = false
+                            onFilterChange(elementType)
+                            viewModel.loadSessions(elementType = elementType)
+                        },
+                        onDismiss = { showFilterSheet = false },
+                    )
                 }
             }
         }

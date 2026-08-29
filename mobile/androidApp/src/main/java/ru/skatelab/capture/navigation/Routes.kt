@@ -11,6 +11,10 @@ import kotlinx.serialization.Serializable
 
 @Serializable object ForgotPasswordRoute
 
+@Serializable data class NewPasswordRoute(val token: String)
+
+@Serializable data class VerifyEmailRoute(val token: String = "")
+
 // --- Main app flow ---
 @Serializable object CameraRoute
 

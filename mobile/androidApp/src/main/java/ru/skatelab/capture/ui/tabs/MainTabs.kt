@@ -48,6 +48,7 @@ fun MainTabsScreen(
     onNavigateToMetricTrend: (String, String) -> Unit = { _, _ -> },
     onNavigateToProcessing: (String) -> Unit = {},
     onNavigateToUploadQueue: () -> Unit = {},
+    onNavigateToNotifications: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val tabNavController = rememberNavController()
@@ -90,6 +91,7 @@ fun MainTabsScreen(
             onNavigateToMetricTrend = onNavigateToMetricTrend,
             onNavigateToProcessing = onNavigateToProcessing,
             onNavigateToUploadQueue = onNavigateToUploadQueue,
+            onNavigateToNotifications = onNavigateToNotifications,
             modifier = Modifier.padding(innerPadding),
         )
     }

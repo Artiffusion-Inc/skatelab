@@ -34,6 +34,7 @@ fun MainTabsNavHost(
     onNavigateToMetricTrend: (String, String) -> Unit = { _, _ -> },
     onNavigateToProcessing: (String) -> Unit = {},
     onNavigateToUploadQueue: () -> Unit = {},
+    onNavigateToNotifications: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     NavHost(
@@ -71,6 +72,7 @@ fun MainTabsNavHost(
                 viewModel = viewModel,
                 onSessionClick = onNavigateToSessionDetail,
                 onBack = { navController.popBackStack() },
+                onNavigateToCamera = { navController.navigate(CameraRoute) },
             )
         }
 

@@ -156,6 +156,21 @@
     <string name="auth_forgot_link">Forgot password?</string>
     <string name="auth_forgot_sent">If email exists, reset link sent.</string>
     <string name="auth_back_to_login">Back to login</string>
+    <string name="auth_new_password_title">Set a new password</string>
+    <string name="auth_new_password_subtitle">Choose a strong password for your account.</string>
+    <string name="auth_new_password_label">New password</string>
+    <string name="auth_confirm_password">Confirm password</string>
+    <string name="auth_password_mismatch">Passwords do not match.</string>
+    <string name="auth_new_password_button">Save new password</string>
+    <string name="auth_new_password_success">Your password has been changed.</string>
+    <string name="auth_verify_email_title">Verify your email</string>
+    <string name="auth_verify_email_subtitle">Enter the verification code from your email.</string>
+    <string name="auth_verification_token">Verification code</string>
+    <string name="auth_verify_email_button">Verify email</string>
+    <string name="auth_email_verified">Your email has been verified.</string>
+    <string name="auth_resend_verification_title">Need a new code?</string>
+    <string name="auth_resend_verification_button">Resend verification email</string>
+    <string name="auth_verification_sent">Verification email sent.</string>
     <string name="auth_no_network">No internet connection. Check your network and try again.</string>
     <string name="auth_retry">Retry</string>
 
@@ -356,6 +371,36 @@
     <string name="trend_date_column">Date</string>
     <string name="trend_value_column">Value</string>
     <string name="trend_pr_marker">★ PR</string>
+
+    <!-- Analysis reference UI -->
+    <string name="analysis_title">Analysis</string>
+    <string name="analysis_new_title">New analysis</string>
+    <string name="analysis_new_body">Upload a video or record a new one to start an AI technique analysis</string>
+    <string name="analysis_record_video">Record video</string>
+    <string name="analysis_choose_video">Choose from gallery</string>
+    <string name="analysis_recent">Recent analyses</string>
+    <string name="analysis_filters">Filters</string>
+    <string name="analysis_filter_title">Filters</string>
+    <string name="analysis_filter_element_type">Element type</string>
+    <string name="analysis_filter_attempts">Attempts</string>
+    <string name="analysis_filter_status">Status</string>
+    <string name="analysis_filter_period">Period</string>
+    <string name="analysis_filter_season">Season</string>
+    <string name="analysis_filter_all">All</string>
+    <string name="analysis_filter_jumps">Jumps</string>
+    <string name="analysis_filter_spins">Spins</string>
+    <string name="analysis_filter_steps">Steps</string>
+    <string name="analysis_filter_combinations">Combinations</string>
+    <string name="analysis_status_completed">Completed</string>
+    <string name="analysis_status_processing">Processing</string>
+    <string name="analysis_status_draft">Draft</string>
+    <string name="analysis_period_week">Week</string>
+    <string name="analysis_period_month">Month</string>
+    <string name="analysis_period_season">Season</string>
+    <string name="analysis_filter_reset">Reset</string>
+    <string name="analysis_filter_apply">Show analyses</string>
+    <string name="analysis_filter_close">Close filters</string>
+    <string name="analysis_start">Start analysis</string>
 
     <!-- Session List Filters -->
     <string name="filter_all">All</string>

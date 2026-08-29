@@ -141,6 +141,21 @@
     <string name="auth_register_button">Зарегистрироваться</string>
     <string name="auth_no_account">Нет аккаунта? Зарегистрируйтесь</string>
     <string name="auth_has_account">Уже есть аккаунт? Войдите</string>
+    <string name="auth_new_password_title">Новый пароль</string>
+    <string name="auth_new_password_subtitle">Придумайте надёжный пароль для аккаунта.</string>
+    <string name="auth_new_password_label">Новый пароль</string>
+    <string name="auth_confirm_password">Подтвердите пароль</string>
+    <string name="auth_password_mismatch">Пароли не совпадают.</string>
+    <string name="auth_new_password_button">Сохранить новый пароль</string>
+    <string name="auth_new_password_success">Пароль изменён.</string>
+    <string name="auth_verify_email_title">Подтвердите email</string>
+    <string name="auth_verify_email_subtitle">Введите код подтверждения из письма.</string>
+    <string name="auth_verification_token">Код подтверждения</string>
+    <string name="auth_verify_email_button">Подтвердить email</string>
+    <string name="auth_email_verified">Email подтверждён.</string>
+    <string name="auth_resend_verification_title">Нужен новый код?</string>
+    <string name="auth_resend_verification_button">Отправить письмо ещё раз</string>
+    <string name="auth_verification_sent">Письмо с подтверждением отправлено.</string>
     <string name="auth_no_network">Нет подключения к интернету. Проверьте сеть и повторите.</string>
     <string name="auth_retry">Повторить</string>
 
@@ -329,6 +344,36 @@
 
     <!-- Session List Filters -->
     <string name="filter_all">Все</string>
+
+    <!-- Analysis reference UI -->
+    <string name="analysis_title">Анализ</string>
+    <string name="analysis_new_title">Новый анализ</string>
+    <string name="analysis_new_body">Загрузите видео или снимите новое, чтобы начать анализ техники с помощью ИИ</string>
+    <string name="analysis_record_video">Снять видео</string>
+    <string name="analysis_choose_video">Выбрать из галереи</string>
+    <string name="analysis_recent">Последние анализы</string>
+    <string name="analysis_filters">Фильтры</string>
+    <string name="analysis_filter_title">Фильтры</string>
+    <string name="analysis_filter_element_type">Тип элемента</string>
+    <string name="analysis_filter_attempts">Попытки</string>
+    <string name="analysis_filter_status">Статус</string>
+    <string name="analysis_filter_period">Период</string>
+    <string name="analysis_filter_season">Сезон</string>
+    <string name="analysis_filter_all">Все</string>
+    <string name="analysis_filter_jumps">Прыжки</string>
+    <string name="analysis_filter_spins">Вращения</string>
+    <string name="analysis_filter_steps">Дорожки</string>
+    <string name="analysis_filter_combinations">Сравнения</string>
+    <string name="analysis_status_completed">Обработан</string>
+    <string name="analysis_status_processing">Ожидает ИИ</string>
+    <string name="analysis_status_draft">Черновик</string>
+    <string name="analysis_period_week">Неделя</string>
+    <string name="analysis_period_month">Месяц</string>
+    <string name="analysis_period_season">Сезон</string>
+    <string name="analysis_filter_reset">Сбросить</string>
+    <string name="analysis_filter_apply">Показать анализы</string>
+    <string name="analysis_filter_close">Закрыть фильтры</string>
+    <string name="analysis_start">Начать анализ</string>
 
     <!-- Session List Metric Labels -->
     <string name="metric_airtime_label">Время в воздухе</string>
