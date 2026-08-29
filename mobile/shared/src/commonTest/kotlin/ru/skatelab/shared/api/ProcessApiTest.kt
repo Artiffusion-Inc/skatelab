@@ -11,6 +11,7 @@ import io.ktor.http.HttpStatusCode
 import io.ktor.http.headersOf
 import io.ktor.serialization.kotlinx.json.json
 import kotlinx.serialization.json.Json
+import kotlin.math.roundToInt
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
@@ -33,6 +34,29 @@ class ProcessApiTest {
         val response = api.queue("video-key")
         assertEquals("task-123", response.taskId)
         assertEquals("pending", response.status)
+    }
+
+    @Test
+    fun queue_convertsPixelCoordinatesToBackendIntegers() = kotlinx.coroutines.test.runTest {
+        val engine = MockEngine {
+            respond(
+                """{"task_id":"task-xy","status":"pending"}""",
+                status = HttpStatusCode.OK,
+                headers = headersOf(HttpHeaders.ContentType, ContentType.Application.Json.toString()),
+            )
+        }
+        val client = HttpClient(engine) {
+            install(ContentNegotiation) { json(json) }
+        }
+
+        val encoded = Json.encodeToString(
+            QueueProcessRequest(
+                videoKey = "video-key",
+                personClick = PersonClick(12.6f.roundToInt(), 40.4f.roundToInt()),
+            ),
+        )
+        assertEquals(true, encoded.contains("\"x\":13"))
+        assertEquals(true, encoded.contains("\"y\":40"))
     }
 
     @Test

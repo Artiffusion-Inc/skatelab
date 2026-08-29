@@ -15,6 +15,20 @@ import pytest
 
 
 @pytest.mark.asyncio
+async def test_enqueue_process_without_person_click_allows_auto_detection(client, auth_headers):
+    """UploadWorker may queue before UI person selection; worker auto-detects person."""
+    with patch("app.routes.process.create_task_state", new_callable=AsyncMock):
+        response = await client.post(
+            "/v1/process/queue",
+            json={"video_key": "input/auto.mp4"},
+            headers=auth_headers,
+        )
+
+    assert response.status_code == 200
+    assert client.app.state.arq_pool.enqueue_job.call_args.kwargs["person_click"] is None
+
+
+@pytest.mark.asyncio
 async def test_enqueue_process(client, auth_headers, authed_user):
     """POST /process/queue creates task state and enqueues job with correct params."""
     req_body = {

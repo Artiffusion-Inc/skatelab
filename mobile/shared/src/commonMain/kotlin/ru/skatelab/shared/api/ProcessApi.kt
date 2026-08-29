@@ -7,6 +7,7 @@ import io.ktor.client.statement.*
 import io.ktor.http.*
 import io.ktor.utils.io.*
 import kotlinx.coroutines.flow.Flow
+import kotlin.math.roundToInt
 import kotlinx.coroutines.flow.flow
 import kotlinx.serialization.EncodeDefault
 import kotlinx.serialization.ExperimentalSerializationApi
@@ -36,7 +37,7 @@ class ProcessApi(private val client: HttpClient) : IProcessApi {
                 tracking = tracking,
                 sessionId = sessionId,
                 personClick = if (personClickX != null && personClickY != null)
-                    PersonClick(personClickX, personClickY) else null,
+                    PersonClick(personClickX.roundToInt(), personClickY.roundToInt()) else null,
             ))
         }.expectSuccess().body()
 
@@ -108,7 +109,7 @@ data class QueueProcessRequest(
 )
 
 @Serializable
-data class PersonClick(val x: Float, val y: Float)
+data class PersonClick(val x: Int, val y: Int)
 
 @Serializable
 data class QueueProcessResponse(

@@ -275,7 +275,8 @@ class DetectResultResponse(BaseModel):
 
 class ProcessRequest(BaseModel):
     video_key: str
-    person_click: PersonClick
+    # Optional: processing can auto-detect athlete when no UI click exists.
+    person_click: PersonClick | None = None
     frame_skip: int = 1
     tracking: str = "auto"
     session_id: str | None = None

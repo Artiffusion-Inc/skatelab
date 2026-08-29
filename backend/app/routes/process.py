@@ -84,7 +84,11 @@ class ProcessController(Controller):
                 "process_video_task",
                 task_id=task_id,
                 video_key=data.video_key,
-                person_click={"x": data.person_click.x, "y": data.person_click.y},
+                person_click=(
+                    {"x": data.person_click.x, "y": data.person_click.y}
+                    if data.person_click is not None
+                    else None
+                ),
                 frame_skip=data.frame_skip,
                 tracking=data.tracking,
                 ml_flags=ml_flags,
