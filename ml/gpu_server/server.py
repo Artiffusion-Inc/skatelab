@@ -9,6 +9,7 @@ Output: poses (.npy) + metrics (.json) — no video render.
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 import math
 import os
@@ -233,6 +234,7 @@ class ProcessResponse(BaseModel):
     segments: list[dict] | None = None
     rotations: int | None = None
     imu_stats: dict[str, object] | None = None
+    sensor_fusion: dict[str, object] | None = None
 
 
 def _s3(creds: ProcessRequest | DetectRequest):
@@ -308,7 +310,15 @@ async def detect(req: DetectRequest):
                 await _s3_download(s3, req.s3_bucket, req.video_s3_key, str(video_local))
 
                 imu_stats: dict[str, object] = {}
+                imu_fusion: dict[str, object] = {}
                 from src.sensor_fusion import decode_imu_file
+
+                capture_t0_ns = 0
+                if req.manifest_s3_key:
+                    manifest_local = Path(tmpdir) / "manifest.json"
+                    await _s3_download(s3, req.s3_bucket, req.manifest_s3_key, str(manifest_local))
+                    manifest = json.loads(manifest_local.read_text())
+                    capture_t0_ns = int(manifest.get("t0_ns", 0) or 0)
 
                 for side, key in (("left", req.imu_left_s3_key), ("right", req.imu_right_s3_key)):
                     if not key:
@@ -323,6 +333,7 @@ async def detect(req: DetectRequest):
                         "first_timestamp_ns": stream.timestamps_ns[0] if stream.timestamps_ns else None,
                         "last_timestamp_ns": stream.timestamps_ns[-1] if stream.timestamps_ns else None,
                     }
+                    imu_fusion[side] = stream.angular_velocity_summary(capture_t0_ns)
 
                 cfg = DeviceConfig.default()
                 extractor = PoseExtractor(
@@ -584,8 +595,6 @@ async def process(req: ProcessRequest):
                     )
 
                 # Save metrics + phases + recommendations as JSON
-                import json as _json
-
                 metrics_json = Path(tmpdir) / "metrics.json"
                 metrics_data = {
                     "stats": {
@@ -616,6 +625,7 @@ async def process(req: ProcessRequest):
                     "element_type": req.element_type,
                     "rotations": rotations,
                     "imu_stats": imu_stats or None,
+                    "sensor_fusion": imu_fusion or None,
                 }
                 # #488: NaN/Infinity coerce + allow_nan=False. Pre-fix
                 # `json.dumps(..., allow_nan=True)` (the default) serialized
@@ -638,7 +648,7 @@ async def process(req: ProcessRequest):
                         sanitized_metrics.append({**mm, "value": None})
                 sanitized_payload = {**metrics_data, "metrics": sanitized_metrics}
                 metrics_json.write_text(
-                    _json.dumps(
+                        json.dumps(
                         sanitized_payload,
                         ensure_ascii=False,
                         indent=2,
@@ -662,6 +672,7 @@ async def process(req: ProcessRequest):
                     segments=segments_result,
                     rotations=metrics_data.get("rotations"),
                     imu_stats=metrics_data.get("imu_stats"),
+                    sensor_fusion=metrics_data.get("sensor_fusion"),
                 )
     except Exception:
         INFERENCE_REQUESTS.labels(status="error").inc()

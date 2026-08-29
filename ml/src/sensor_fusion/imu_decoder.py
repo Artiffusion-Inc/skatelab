@@ -24,6 +24,23 @@ class ImuStream:
         elapsed = self.timestamps_ns[-1] - self.timestamps_ns[0]
         return (len(self.timestamps_ns) - 1) * 1e9 / elapsed if elapsed > 0 else 0.0
 
+    def angular_velocity_summary(self, t0_ns: int = 0) -> dict[str, float | int | None]:
+        """Return a robust first feature for alignment with video phases.
+
+        Values are gyro x/y/z in the order written by the Android producer.
+        The peak timestamp is expressed in milliseconds from the capture anchor.
+        """
+        if not self.values:
+            return {"samples": 0, "peak_rad_s": None, "peak_offset_ms": None}
+        magnitudes = [sum(component * component for component in row[3:6]) ** 0.5 for row in self.values]
+        peak_index = max(range(len(magnitudes)), key=magnitudes.__getitem__)
+        peak_ns = self.timestamps_ns[peak_index]
+        return {
+            "samples": len(self.values),
+            "peak_rad_s": round(magnitudes[peak_index], 5),
+            "peak_offset_ms": round((peak_ns - t0_ns) / 1e6, 3) if t0_ns else None,
+        }
+
 
 def _varint(data: bytes, pos: int) -> tuple[int, int]:
     value = 0
