@@ -36,6 +36,7 @@ class SessionsApi(private val client: HttpClient) {
         videoKey: String? = null,
         imuLeftKey: String? = null,
         imuRightKey: String? = null,
+        manifestKey: String? = null,
     ): SessionResponse =
         client.post("sessions") {
             contentType(ContentType.Application.Json)
@@ -44,6 +45,7 @@ class SessionsApi(private val client: HttpClient) {
                 videoKey?.let { put("video_key", it) }
                 imuLeftKey?.let { put("imu_left_key", it) }
                 imuRightKey?.let { put("imu_right_key", it) }
+                manifestKey?.let { put("manifest_key", it) }
             })
         }.expectSuccess().body()
 

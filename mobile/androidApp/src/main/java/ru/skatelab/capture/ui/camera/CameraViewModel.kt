@@ -198,6 +198,24 @@ class CameraViewModel
                 val imuCounts = imuCollector.stop()
                 appLogger.i(TAG, "IMU capture stopped: $imuCounts")
 
+                // Persist a capture manifest before WorkManager can upload the session.
+                // Keep it deliberately schema-light until the full calibration metadata
+                // is available in this camera flow; the filenames and timing anchor are
+                // enough to make the uploaded artifacts addressable and debuggable.
+                val manifestFile = File(outputDir, "manifest.json")
+                manifestFile.writeText(
+                    """{
+  \"version\": \"2.0\",
+  \"t0_ns\": ${startInfo.t0Ns},
+  \"duration_ms\": ${_elapsedMs.value},
+  \"video\": {\"filename\": \"${startInfo.videoFile.name}\", \"frames\": \"${startInfo.framesFile.name}\"},
+  \"imu\": {
+    \"left\": {\"filename\": \"${startInfo.imuLeftFile.name}\", \"sensor_id\": \"LEFT\"},
+    \"right\": {\"filename\": \"${startInfo.imuRightFile.name}\", \"sensor_id\": \"RIGHT\"}
+  }
+}""".trimIndent(),
+                )
+
                 _isRecording.value = false
 
                 val startInfo =

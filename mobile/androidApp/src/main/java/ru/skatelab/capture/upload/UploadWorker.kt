@@ -100,10 +100,11 @@ class UploadWorker
                 }
 
                 // Step 3: Upload manifest via presigned PUT (if present)
+                var manifestKey: String? = null
                 entity.manifestPath?.let { path ->
                     val file = File(path)
                     if (file.exists()) {
-                        uploadPresigned(file, "application/json")
+                        manifestKey = uploadPresigned(file, "application/json")
                     }
                 }
 
@@ -114,6 +115,7 @@ class UploadWorker
                         videoKey = videoKey,
                         imuLeftKey = imuLeftKey,
                         imuRightKey = imuRightKey,
+                        manifestKey = manifestKey,
                     )
 
                 // Step 5: Enqueue once and persist the task so UI can resume its SSE stream.
