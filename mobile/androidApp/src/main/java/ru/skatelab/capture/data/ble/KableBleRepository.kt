@@ -60,6 +60,7 @@ class KableBleRepository
             val SERVICE_UUID: UUID = UUID.fromString(SERVICE_UUID_STR)
             const val SET_RATE_DELAY_MS = 1000L
             const val DEFAULT_RATE = 0x09 // 100Hz
+            private const val DEFAULT_RATE_HZ = 100L
             const val CONNECT_TIMEOUT_MS = 15_000L
         }
 
@@ -409,7 +410,7 @@ class KableBleRepository
                             // WT901 notifications may batch several 100 Hz frames.
                             // Parser arrival time is identical for the batch, so spread
                             // samples over the nominal period before persisting them.
-                            val periodNs = 10_000_000L
+                            val periodNs = 1_000_000_000L / DEFAULT_RATE_HZ
                             samples.mapIndexed { index, sample ->
                                 sample.copy(
                                     timestampNs = arrivalNs - (samples.size - 1 - index) * periodNs,

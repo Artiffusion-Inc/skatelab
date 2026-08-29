@@ -208,6 +208,7 @@ class CameraViewModel
   \"version\": \"2.0\",
   \"t0_ns\": ${startInfo.t0Ns},
   \"duration_ms\": ${_elapsedMs.value},
+  \"imu_rate_hz\": 100,
   \"video\": {\"filename\": \"${startInfo.videoFile.name}\", \"frames\": \"${startInfo.framesFile.name}\"},
   \"imu\": {
     \"left\": {\"filename\": \"${startInfo.imuLeftFile.name}\", \"sensor_id\": \"LEFT\"},
