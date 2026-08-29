@@ -32,11 +32,18 @@ import ru.skatelab.capture.domain.service.Logger
 import ru.skatelab.capture.domain.service.ManifestWriter
 import ru.skatelab.capture.domain.service.SessionExporter
 import ru.skatelab.capture.domain.service.TimeSynchronizer
+import ru.skatelab.shared.api.ConnectionsApi
 import ru.skatelab.shared.api.SkateLabClient
 import ru.skatelab.shared.api.UsersApi
 import ru.skatelab.shared.auth.AuthRepository
 import ru.skatelab.shared.auth.TokenStorage
 import ru.skatelab.shared.auth.createAndroidSettings
+import ru.skatelab.shared.state.ConnectionsViewModel
+import ru.skatelab.shared.state.NewPasswordViewModel
+import ru.skatelab.shared.state.NotificationsViewModel
+import ru.skatelab.shared.state.PasswordRecoveryViewModel
+import ru.skatelab.shared.state.ProcessingViewModel
+import ru.skatelab.shared.state.VerifyEmailViewModel
 
 @Qualifier
 @Retention(AnnotationRetention.BINARY)
@@ -140,8 +147,38 @@ abstract class AppModule {
 
         @Provides
         @Singleton
-        fun provideSharedPasswordRecoveryViewModel(client: SkateLabClient): ru.skatelab.shared.state.PasswordRecoveryViewModel =
-            ru.skatelab.shared.state.PasswordRecoveryViewModel(client.auth)
+        fun provideSharedPasswordRecoveryViewModel(client: SkateLabClient): PasswordRecoveryViewModel =
+            PasswordRecoveryViewModel(client.auth)
+
+        @Provides
+        fun provideSharedNewPasswordViewModel(client: SkateLabClient): NewPasswordViewModel =
+            NewPasswordViewModel(
+                client.auth,
+            )
+
+        @Provides
+        fun provideSharedVerifyEmailViewModel(client: SkateLabClient): VerifyEmailViewModel =
+            VerifyEmailViewModel(
+                client.auth,
+            )
+
+        @Provides
+        fun provideSharedProcessingViewModel(client: SkateLabClient): ProcessingViewModel =
+            ProcessingViewModel(
+                client.process,
+            )
+
+        @Provides
+        fun provideSharedConnectionsViewModel(client: SkateLabClient): ConnectionsViewModel =
+            ConnectionsViewModel(
+                ConnectionsApi(client.httpClient),
+            )
+
+        @Provides
+        fun provideSharedNotificationsViewModel(client: SkateLabClient): NotificationsViewModel =
+            NotificationsViewModel(
+                client.notifications,
+            )
 
         @Provides
         @Singleton

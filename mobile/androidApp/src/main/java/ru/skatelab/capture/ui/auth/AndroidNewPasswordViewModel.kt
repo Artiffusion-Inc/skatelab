@@ -8,7 +8,6 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
-import ru.skatelab.shared.api.SkateLabClient
 import ru.skatelab.shared.state.NewPasswordUiState
 import ru.skatelab.shared.state.NewPasswordViewModel as SharedNewPasswordViewModel
 
@@ -16,10 +15,8 @@ import ru.skatelab.shared.state.NewPasswordViewModel as SharedNewPasswordViewMod
 class AndroidNewPasswordViewModel
     @Inject
     constructor(
-        client: SkateLabClient,
+        private val shared: SharedNewPasswordViewModel,
     ) : ViewModel() {
-        private val shared = SharedNewPasswordViewModel(client.auth)
-
         val uiState: StateFlow<NewPasswordUiState> =
             shared.uiState.stateIn(
                 viewModelScope,

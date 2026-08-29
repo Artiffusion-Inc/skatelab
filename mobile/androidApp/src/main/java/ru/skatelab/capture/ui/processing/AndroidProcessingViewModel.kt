@@ -16,7 +16,6 @@ import kotlinx.coroutines.launch
 import ru.skatelab.capture.data.db.PendingUploadDao
 import ru.skatelab.capture.data.db.PendingUploadEntity
 import ru.skatelab.capture.upload.UploadScheduler
-import ru.skatelab.shared.api.SkateLabClient
 import ru.skatelab.shared.state.ProcessingUiState
 import ru.skatelab.shared.state.ProcessingViewModel
 
@@ -34,12 +33,10 @@ sealed interface UploadPhase {
 class AndroidProcessingViewModel
     @Inject
     constructor(
-        private val client: SkateLabClient,
+        private val shared: ProcessingViewModel,
         private val pendingUploadDao: PendingUploadDao,
         @ApplicationContext private val appContext: Context,
     ) : ViewModel() {
-        private val shared = ProcessingViewModel(client.process)
-
         val processingState: StateFlow<ProcessingUiState> =
             shared.uiState
                 .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), ProcessingUiState.Idle)

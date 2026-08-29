@@ -60,25 +60,49 @@ jobs:
           ./gradlew :androidApp:assembleRelease :androidApp:bundleRelease \
             --no-daemon --max-workers=1
 
-      - name: Verify APK signature
+      - name: Verify and stage release artifacts
         working-directory: mobile
+        env:
+          RELEASE_REF: ${{ github.ref_name }}
+          RELEASE_COMMIT: ${{ github.sha }}
         run: |
           set -euo pipefail
           apk="androidApp/build/outputs/apk/release/androidApp-release.apk"
+          aab="androidApp/build/outputs/bundle/release/androidApp-release.aab"
           test -s "$apk"
-          apksigner="$(find "$ANDROID_HOME/build-tools" -type f -name apksigner | sort -V | tail -n 1)"
-          test -x "$apksigner"
-          "$apksigner" verify --verbose "$apk"
+          test -s "$aab"
 
-      - name: Write checksums
-        working-directory: mobile
-        run: |
-          set -euo pipefail
-          sha256sum \
-            androidApp/build/outputs/apk/release/androidApp-release.apk \
-            androidApp/build/outputs/bundle/release/androidApp-release.aab \
-            > androidApp/build/outputs/release-sha256.txt
-          cat androidApp/build/outputs/release-sha256.txt
+          apksigner="$(find "$ANDROID_HOME/build-tools" -type f -name apksigner | sort -V | tail -n 1)"
+          aapt2="$(find "$ANDROID_HOME/build-tools" -type f -name aapt2 | sort -V | tail -n 1)"
+          test -x "$apksigner"
+          test -x "$aapt2"
+          "$apksigner" verify "$apk" >/dev/null
+          jarsigner -verify "$aab" >/dev/null 2>&1
+          unzip -tq "$apk" >/dev/null
+          unzip -tq "$aab" >/dev/null
+
+          package_id="$("$aapt2" dump badging "$apk" | sed -n "s/^package: name='\\([^']*\\)'.*/\\1/p" | head -n 1)"
+          test "$package_id" = "ru.skatelab.capture"
+
+          output="$RUNNER_TEMP/skatelab-release-artifacts"
+          rm -rf "$output"
+          mkdir -p "$output"
+          cp "$apk" "$output/androidApp-release.apk"
+          cp "$aab" "$output/androidApp-release.aab"
+          (
+            cd "$output"
+            sha256sum androidApp-release.apk androidApp-release.aab > release-sha256.txt
+            sha256sum -c release-sha256.txt >/dev/null
+            {
+              printf 'ref=%s\n' "$RELEASE_REF"
+              printf 'commit=%s\n' "$RELEASE_COMMIT"
+              printf 'package_id=%s\n' "$package_id"
+              printf 'apk_signature=verified\n'
+              printf 'aab_signature=verified\n'
+              printf 'archives=verified\n'
+              sha256sum androidApp-release.apk androidApp-release.aab
+            } > release-verification.txt
+          )
 
       - name: Upload release artifacts
         uses: actions/upload-artifact@v7
@@ -86,10 +110,7 @@ jobs:
           name: skatelab-android-${{ github.ref_name }}
           retention-days: 14
           if-no-files-found: error
-          path: |
-            mobile/androidApp/build/outputs/apk/release/androidApp-release.apk
-            mobile/androidApp/build/outputs/bundle/release/androidApp-release.aab
-            mobile/androidApp/build/outputs/release-sha256.txt
+          path: ${{ runner.temp }}/skatelab-release-artifacts
 
       - name: Remove temporary keystore
         if: always()

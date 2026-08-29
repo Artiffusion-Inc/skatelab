@@ -2,6 +2,8 @@
 
 Status: synthetic pilot runbook. Do not describe a build as hardware-validated until real WT901 sessions have been collected and labelled.
 
+For the signed CI bundle and post-download checks, use [release artifact verification](release-artifact-verification.md). For service checks, use [production smoke](production-smoke.md).
+
 ## 1. Build checks
 
 Run from the repository root:
@@ -22,17 +24,18 @@ Release builds use minification and resource shrinking:
 sha256sum androidApp/build/outputs/apk/release/androidApp-release.apk
 ```
 
-Release signing is optional and environment-driven. Set all four variables to produce a signed artifact; otherwise build remains unsigned and is not distributable:
+Release signing is optional for local builds but required for a distributable pilot artifact. The canonical signed build is the protected `android-release` GitHub environment. Keep the keystore and all four environment values outside the repository and CI logs.
+
+For an authorized local check, provide these variables through a secure environment manager or protected shell session, not as literals in command history:
 
 ```bash
-export SKATELAB_KEYSTORE_PATH=/secure/path/skatelab-upload.jks
-export SKATELAB_KEYSTORE_PASSWORD='provided-out-of-band'
-export SKATELAB_KEY_ALIAS='skatelab-upload'
-export SKATELAB_KEY_PASSWORD='provided-out-of-band'
+for name in SKATELAB_KEYSTORE_PATH SKATELAB_KEYSTORE_PASSWORD SKATELAB_KEY_ALIAS SKATELAB_KEY_PASSWORD; do
+  test -n "${!name:-}"
+done
 ./gradlew :androidApp:assembleRelease --no-daemon --max-workers=1
 ```
 
-Keep keystore and values outside repository and CI logs. Never put passwords in Gradle files or command history.
+Never enable shell tracing or print the environment. A local artifact still needs the checks in [release artifact verification](release-artifact-verification.md) before distribution.
 
 ## 2. API target
 

@@ -2,11 +2,17 @@ package ru.skatelab.capture.presentation.navigation
 
 import android.os.Environment
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.navigation.NavDestination.Companion.hasRoute
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
 import dagger.hilt.EntryPoint
@@ -29,6 +35,8 @@ import ru.skatelab.capture.navigation.SessionsRoute
 import ru.skatelab.capture.navigation.SplashRoute
 import ru.skatelab.capture.navigation.UploadQueueRoute
 import ru.skatelab.capture.navigation.VerifyEmailRoute
+import ru.skatelab.capture.navigation.mapNotificationDeepLink
+import ru.skatelab.capture.navigation.toExistingRoute
 import ru.skatelab.capture.presentation.SessionState
 import ru.skatelab.capture.presentation.ble.BleScanScreen
 import ru.skatelab.capture.presentation.ble.BleScanViewModel
@@ -53,6 +61,7 @@ import ru.skatelab.capture.ui.session.AndroidSessionDetailViewModel
 import ru.skatelab.capture.ui.session.SessionDetailScreen as ResultDetailScreen
 import ru.skatelab.capture.ui.upload.UploadQueueScreen
 import ru.skatelab.capture.ui.upload.UploadQueueViewModel
+import ru.skatelab.shared.state.AuthUiState
 
 @InstallIn(SingletonComponent::class)
 @EntryPoint
@@ -61,10 +70,26 @@ interface SessionStateEntryPoint {
 }
 
 @Composable
-fun AppNavigation() {
+fun AppNavigation(initialDeepLink: String? = null) {
     val navController = rememberNavController()
+    val currentBackStackEntry by navController.currentBackStackEntryAsState()
     val authViewModel: AuthViewModel = hiltViewModel()
     val authState by authViewModel.uiState.collectAsState()
+    var deepLinkHandled by remember(initialDeepLink) { mutableStateOf(false) }
+
+    LaunchedEffect(initialDeepLink, authState, currentBackStackEntry) {
+        if (
+            initialDeepLink != null &&
+            !deepLinkHandled &&
+            authState is AuthUiState.LoggedIn &&
+            currentBackStackEntry?.destination?.hasRoute(CameraRoute::class) == true
+        ) {
+            deepLinkHandled = true
+            navController.navigate(
+                mapNotificationDeepLink(initialDeepLink).toExistingRoute() ?: CameraRoute,
+            )
+        }
+    }
 
     NavHost(
         navController = navController,

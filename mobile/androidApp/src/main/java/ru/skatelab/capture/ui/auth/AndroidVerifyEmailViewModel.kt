@@ -8,7 +8,6 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
-import ru.skatelab.shared.api.SkateLabClient
 import ru.skatelab.shared.state.VerifyEmailUiState
 import ru.skatelab.shared.state.VerifyEmailViewModel as SharedVerifyEmailViewModel
 
@@ -16,10 +15,8 @@ import ru.skatelab.shared.state.VerifyEmailViewModel as SharedVerifyEmailViewMod
 class AndroidVerifyEmailViewModel
     @Inject
     constructor(
-        client: SkateLabClient,
+        private val shared: SharedVerifyEmailViewModel,
     ) : ViewModel() {
-        private val shared = SharedVerifyEmailViewModel(client.auth)
-
         val uiState: StateFlow<VerifyEmailUiState> =
             shared.uiState.stateIn(
                 viewModelScope,

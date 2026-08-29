@@ -44,7 +44,7 @@ class MainActivity : ComponentActivity() {
         setContent {
             AppTheme {
                 PermissionGate {
-                    AppNavigation()
+                    AppNavigation(initialDeepLink = intent?.dataString)
                 }
             }
         }
