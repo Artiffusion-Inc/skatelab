@@ -81,6 +81,10 @@ sub.{$DOMAIN} {
   reverse_proxy vless-sub:8080
 }
 
+cf.{$DOMAIN} {
+  reverse_proxy camofox:9377
+}
+
 api.skatelab.ru {
   tls {
     dns cloudflare {env.CLOUDFLARE_API_TOKEN} {

@@ -38,6 +38,7 @@ Boundaries:
 - Keep changes surgical and MVP-first. No speculative abstractions or unrelated refactors.
 - For bugs, reproduce with a failing test before fixing. Run checks covering changed scope.
 - Commit format: `<type>(<scope>): <description>`; valid values are in `.commit-conventions`.
+- Commit completed work automatically after validation; include all repository changes unless user explicitly asks to exclude specific files.
 
 ## Commands
 

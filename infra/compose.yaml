@@ -72,15 +72,18 @@ services:
     networks:
       - infra
 
-  # ── 9router (AI gateway / proxy) ────────────────────────────────
+  # ── 9router (AI gateway / proxy) — Artiffusion fork with configurable timeouts ──
   9router:
-    image: decolua/9router:latest
+    image: ghcr.io/artiffusion-inc/9router:latest
     restart: unless-stopped
     ports:
       - "20128:20128"
     environment:
       PORT: "20128"
       DATA_DIR: /app/data
+      FETCH_CONNECT_TIMEOUT_MS: "120000"
+      STREAM_STALL_TIMEOUT_MS: "180000"
+      STREAM_STALL_TIMEOUT_REASONING_MS: "600000"
     volumes:
       - ./services/9router/data:/app/data
     networks:
@@ -88,7 +91,7 @@ services:
 
   # ── vless-sub (proxy subscription aggregator) ──────────────────
   vless-sub:
-    image: docker.io/xpos587/vless-sub-server:latest
+    image: ghcr.io/xpos587/vless-sub-server:latest
     restart: unless-stopped
     environment:
       HWID: ${HWID}
@@ -103,6 +106,21 @@ services:
       options:
         max-file: "5"
         max-size: "50m"
+    networks:
+      - infra
+
+  # ── CamoFox Browser (anti-detection browser for AI agents) ──────
+  camofox:
+    image: ghcr.io/jo-inc/camofox-browser:latest
+    restart: unless-stopped
+    environment:
+      CAMOFOX_ACCESS_KEY: ${CAMOFOX_ACCESS_KEY:-}
+      CAMOFOX_CRASH_REPORT_ENABLED: "false"
+      MAX_SESSIONS: "10"
+      MAX_TABS_PER_SESSION: "5"
+      MAX_OLD_SPACE_SIZE: "256"
+    volumes:
+      - camofox-data:/root/.camofox
     networks:
       - infra
 
@@ -199,8 +217,8 @@ services:
 
   # ── MiroFish + Neo4j ───────────────────────────────────────────
   mirofish:
-    image: localhost/mirofish-local:latest
-    pull_policy: never
+    image: ghcr.io/artiffusion-inc/mirofish:latest
+    pull_policy: missing
     restart: unless-stopped
     command: ["sh", "-c", "echo 'import vue from \"@vitejs/plugin-vue\";import{defineConfig}from\"vite\";export default defineConfig({plugins:[vue()],server:{host:\"0.0.0.0\",port:3000,allowedHosts:[\"mf.skatelab.ru\"],proxy:{\"/api\":{target:\"http://localhost:5001\",changeOrigin:true,secure:false}}}})' > frontend/vite.host.mjs && npx concurrently --kill-others -n backend,frontend -c green,cyan \"cd backend && uv run python run.py\" \"cd frontend && npx vite --config vite.host.mjs\""]
     healthcheck:
@@ -215,7 +233,7 @@ services:
       NEO4J_PASSWORD: ${NEO4J_PASSWORD}
       LLM_API_KEY: ${MIROFISH_LLM_API_KEY}
       LLM_BASE_URL: http://9router:20128/v1
-      LLM_MODEL_NAME: groq/llama-3.3-70b-versatile
+      LLM_MODEL_NAME: ${MIROFISH_LLM_MODEL_NAME:-ollama/deepseek-v4-flash}
       LLM_BOOST_API_KEY: ${MIROFISH_LLM_BOOST_API_KEY}
       LLM_BOOST_BASE_URL: http://9router:20128/v1
       LLM_BOOST_MODEL_NAME: ${MIROFISH_LLM_BOOST_MODEL_NAME:-deepseek-v4-flash}
@@ -253,6 +271,7 @@ volumes:
   baikal-data:
   openviking-data:
   neo4j-data:
+  camofox-data:
 
 networks:
   infra:
