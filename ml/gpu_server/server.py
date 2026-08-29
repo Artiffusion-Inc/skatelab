@@ -211,6 +211,9 @@ class ProcessRequest(BaseModel):
     element_type: str | None = None
     isu_code: str | None = None
     lang: str = "ru"
+    imu_left_s3_key: str | None = None
+    imu_right_s3_key: str | None = None
+    manifest_s3_key: str | None = None
     # S3 credentials passed per-request (worker doesn't store them)
     s3_endpoint_url: str = ""
     s3_access_key_id: str = ""

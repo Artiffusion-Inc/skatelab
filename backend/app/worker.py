@@ -329,12 +329,18 @@ async def process_video_task(
         # Fetch element_type and user_id from session if session_id provided
         element_type = None
         isu_code = None
+        imu_left_key = None
+        imu_right_key = None
+        manifest_key = None
         if session_id:
             async with async_session_factory() as db:
                 session = await get_by_id(db, session_id)
                 if session:
                     element_type = session.element_type
                     isu_code = session.isu_code
+                    imu_left_key = session.imu_left_key
+                    imu_right_key = session.imu_right_key
+                    manifest_key = session.manifest_key
                     if user_id is None:
                         user_id = str(session.user_id)
 
@@ -371,6 +377,9 @@ async def process_video_task(
                 element_type=element_type,
                 isu_code=isu_code,
                 lang=lang,
+                imu_left_key=imu_left_key,
+                imu_right_key=imu_right_key,
+                manifest_key=manifest_key,
             )
         # NoReadyWorkerError is retryable in _async_route_request (3 attempts), so
         # reaching here means the endpoint stayed workerless across all retries —
