@@ -55,6 +55,7 @@ def fused_confidence(
     right: dict[str, float | int | str | None],
     pair: dict[str, float | int | None],
     offset_error_ms: float = 0.0,
+    rate_error_hz: float = 0.0,
 ) -> float:
     """Score data quality (not skating quality) on a deterministic 0..1 scale."""
     samples = min(int(left.get("samples", 0) or 0), int(right.get("samples", 0) or 0))
@@ -65,12 +66,14 @@ def fused_confidence(
     timing_score = max(0.0, 1.0 - delta / 250.0)
     phase_score = 1.0 if left.get("video_phase") == "flight" and right.get("video_phase") == "flight" else 0.5
     offset_score = max(0.0, 1.0 - abs(offset_error_ms) / 100.0)
+    rate_score = max(0.0, 1.0 - abs(rate_error_hz) / 10.0)
     return round(
-        0.2 * sample_score
-        + 0.2 * symmetry_score
-        + 0.2 * timing_score
-        + 0.2 * phase_score
-        + 0.2 * offset_score,
+        0.17 * sample_score
+        + 0.17 * symmetry_score
+        + 0.17 * timing_score
+        + 0.17 * phase_score
+        + 0.17 * offset_score
+        + 0.15 * rate_score,
         4,
     )
 

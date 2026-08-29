@@ -617,11 +617,17 @@ async def process(req: ProcessRequest):
                         for details in imu_stats.values()
                         if isinstance(details, dict) and details.get("offset_error_ms") is not None
                     ]
+                    rate_errors = [
+                        abs(float(details["rate_error_hz"]))
+                        for details in imu_stats.values()
+                        if isinstance(details, dict) and details.get("rate_error_hz") is not None
+                    ]
                     imu_fusion["confidence"] = fused_confidence(
                         imu_fusion["left"],
                         imu_fusion["right"],
                         imu_fusion["pair"],
                         max(offset_errors, default=0.0),
+                        max(rate_errors, default=0.0),
                     )
                 if phases is not None:
                     for side, stream in imu_streams.items():
