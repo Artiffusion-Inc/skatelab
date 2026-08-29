@@ -315,6 +315,7 @@ async def detect(req: DetectRequest):
                     ImuStream,
                     annotate_video_phase,
                     decode_imu_file,
+                    fused_confidence,
                     summarize_pair,
                 )
 
@@ -594,6 +595,10 @@ async def process(req: ProcessRequest):
                                 takeoff=phases.takeoff,
                                 landing=phases.landing,
                             )
+                if "left" in imu_fusion and "right" in imu_fusion and "pair" in imu_fusion:
+                    imu_fusion["confidence"] = fused_confidence(
+                        imu_fusion["left"], imu_fusion["right"], imu_fusion["pair"]
+                    )
                 # --- Upload results to S3 ---
                 poses_key, metrics_key = _make_output_keys(req.video_s3_key)
                 upload_tasks = []

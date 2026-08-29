@@ -1,4 +1,4 @@
-from src.sensor_fusion import ImuStream, annotate_video_phase, summarize_pair
+from src.sensor_fusion import ImuStream, annotate_video_phase, fused_confidence, summarize_pair
 
 
 def _stream(timestamps: list[int], gyro: list[float]) -> ImuStream:
@@ -27,3 +27,9 @@ def test_peak_is_mapped_to_flight_frame() -> None:
 
     assert result["peak_frame"] == 30
     assert result["video_phase"] == "flight"
+
+
+def test_fused_confidence_rewards_symmetric_flight_signal() -> None:
+    side = {"samples": 240, "video_phase": "flight"}
+    pair = {"peak_magnitude_ratio": 1.0, "peak_delta_ms": 0.0}
+    assert fused_confidence(side, side, pair) == 1.0

@@ -48,3 +48,19 @@ def annotate_video_phase(
     frame = max(0, round(float(offset_ms) * fps / 1000.0))
     phase = "preparation" if frame < takeoff else "flight" if frame <= landing else "landing"
     return {**side_summary, "peak_frame": frame, "video_phase": phase}
+
+
+def fused_confidence(
+    left: dict[str, float | int | str | None],
+    right: dict[str, float | int | str | None],
+    pair: dict[str, float | int | None],
+) -> float:
+    """Score data quality (not skating quality) on a deterministic 0..1 scale."""
+    samples = min(int(left.get("samples", 0) or 0), int(right.get("samples", 0) or 0))
+    sample_score = min(1.0, samples / 120.0)
+    ratio = float(pair.get("peak_magnitude_ratio") or 0.0)
+    symmetry_score = min(1.0, ratio)
+    delta = float(pair.get("peak_delta_ms") or 1_000.0)
+    timing_score = max(0.0, 1.0 - delta / 250.0)
+    phase_score = 1.0 if left.get("video_phase") == "flight" and right.get("video_phase") == "flight" else 0.5
+    return round(0.25 * sample_score + 0.25 * symmetry_score + 0.25 * timing_score + 0.25 * phase_score, 4)
