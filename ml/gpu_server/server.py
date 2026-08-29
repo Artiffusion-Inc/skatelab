@@ -641,6 +641,16 @@ async def process(req: ProcessRequest):
                     metrics.append(
                         MetricResult("rotation_symmetry", value, "ratio", value >= 0.75, (0.75, 1.0))
                     )
+                offset_errors = [
+                    abs(float(details["offset_error_ms"]))
+                    for details in imu_stats.values()
+                    if isinstance(details, dict) and details.get("offset_error_ms") is not None
+                ]
+                if offset_errors:
+                    value = max(offset_errors)
+                    metrics.append(
+                        MetricResult("imu_offset_error", value, "ms", value <= 40.0, (0.0, 40.0))
+                    )
                 landing_pair = imu_fusion.get("landing_pair", {})
                 stability_ratio = landing_pair.get("stability_ratio")
                 if stability_ratio is not None:

@@ -282,6 +282,7 @@ export default function SessionDetailPage() {
                       rotation_symmetry: "Симметрия вращения",
                       imu_peak_delta: "Расхождение пиков IMU",
                       landing_stability: "Стабильность после приземления",
+                      imu_offset_error: "Ошибка синхронизации IMU",
                     } as Record<string, string>)[m.metric_name] ??
                     m.metric_name
                   const unit = def?.unit ?? m.unit ?? ""

@@ -54,6 +54,15 @@ _COMMON_JUMP_RULES = [
         },
     ),
     RecommendationRule(
+        metric_name="imu_offset_error",
+        condition=_is_bad,
+        priority=0,
+        templates={
+            "too_high": "Ошибка синхронизации IMU составляет {value:.0f}мс. Повтори запись после подключения обоих сенсоров.",
+            "default": "Временная синхронизация IMU стабильна.",
+        },
+    ),
+    RecommendationRule(
         metric_name="airtime",
         condition=_is_bad,
         priority=0,
