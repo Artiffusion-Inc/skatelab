@@ -60,3 +60,19 @@ def test_landing_pair_summary_reports_asymmetry() -> None:
         {"gyro_mean_rad_s": 4.0},
     )
     assert result == {"mean_delta_rad_s": 2.0, "stability_ratio": 0.5}
+
+
+def test_fused_pipeline_smoke() -> None:
+    left = _stream([1_000_000_000, 1_010_000_000, 1_020_000_000], [1.0, 5.0, 2.0])
+    right = _stream([1_000_000_000, 1_010_000_000, 1_020_000_000], [1.0, 4.5, 2.0])
+    left_peak = annotate_video_phase(
+        left.angular_velocity_summary(1_000_000_000), fps=60, takeoff=20, landing=40
+    )
+    right_peak = annotate_video_phase(
+        right.angular_velocity_summary(1_000_000_000), fps=60, takeoff=20, landing=40
+    )
+    pair = summarize_pair(left, right)
+
+    assert left_peak["video_phase"] == "preparation"
+    assert right_peak["peak_frame"] == 1
+    assert fused_confidence(left_peak, right_peak, pair) > 0.5
