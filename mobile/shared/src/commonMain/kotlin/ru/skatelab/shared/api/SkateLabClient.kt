@@ -109,6 +109,9 @@ class SkateLabClient(
     val uploads = UploadsApi(httpClient)
     val process = ProcessApi(httpClient)
     val metrics = MetricsApi(httpClient)
+    val notifications = NotificationsApi(httpClient)
+    val choreography = ChoreographyApi(httpClient)
+    val programs = ProgramsApi(httpClient)
 
     /**
      * Clear the Ktor `Auth` plugin's in-memory bearer-token cache.
