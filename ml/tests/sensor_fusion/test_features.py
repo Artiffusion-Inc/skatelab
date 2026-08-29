@@ -1,4 +1,10 @@
-from src.sensor_fusion import ImuStream, annotate_video_phase, fused_confidence, summarize_pair
+from src.sensor_fusion import (
+    ImuStream,
+    annotate_video_phase,
+    fused_confidence,
+    landing_stability,
+    summarize_pair,
+)
 
 
 def _stream(timestamps: list[int], gyro: list[float]) -> ImuStream:
@@ -33,3 +39,13 @@ def test_fused_confidence_rewards_symmetric_flight_signal() -> None:
     side = {"samples": 240, "video_phase": "flight"}
     pair = {"peak_magnitude_ratio": 1.0, "peak_delta_ms": 0.0}
     assert fused_confidence(side, side, pair) == 1.0
+
+
+def test_landing_stability_uses_post_landing_window() -> None:
+    stream = _stream(
+        [1_000_000_000, 1_100_000_000, 1_200_000_000],
+        [1.0, 2.0, 3.0],
+    )
+    result = landing_stability(stream, t0_ns=1_000_000_000, fps=10.0, landing_frame=1)
+    assert result["samples"] == 2
+    assert result["gyro_mean_rad_s"] == 2.5

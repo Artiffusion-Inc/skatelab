@@ -316,6 +316,7 @@ async def detect(req: DetectRequest):
                     annotate_video_phase,
                     decode_imu_file,
                     fused_confidence,
+                    landing_stability,
                     summarize_pair,
                 )
 
@@ -599,6 +600,14 @@ async def process(req: ProcessRequest):
                     imu_fusion["confidence"] = fused_confidence(
                         imu_fusion["left"], imu_fusion["right"], imu_fusion["pair"]
                     )
+                if phases is not None:
+                    for side, stream in imu_streams.items():
+                        imu_fusion.setdefault("landing_stability", {})[side] = landing_stability(
+                            stream,
+                            t0_ns=capture_t0_ns,
+                            fps=prepared.meta.fps,
+                            landing_frame=phases.landing,
+                        )
                 # --- Upload results to S3 ---
                 poses_key, metrics_key = _make_output_keys(req.video_s3_key)
                 upload_tasks = []
