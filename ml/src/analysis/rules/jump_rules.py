@@ -27,6 +27,33 @@ def _is_bad(value: float, ref_range: tuple[float, float]) -> bool:
 # Common rules shared by all jumps — avoids duplication across element lists
 _COMMON_JUMP_RULES = [
     RecommendationRule(
+        metric_name="sensor_confidence",
+        condition=_is_bad,
+        priority=0,
+        templates={
+            "too_low": "Недостаточная уверенность сенсоров ({value:.2f}). Повтори элемент с обоими плотно закреплёнными датчиками.",
+            "default": "Сенсорный сигнал пригоден для анализа.",
+        },
+    ),
+    RecommendationRule(
+        metric_name="rotation_symmetry",
+        condition=_is_bad,
+        priority=1,
+        templates={
+            "too_low": "Есть асимметрия вращения коньков ({value:.2f}). Проверь положение корпуса и опорной ноги.",
+            "default": "Вращение коньков симметрично.",
+        },
+    ),
+    RecommendationRule(
+        metric_name="imu_peak_delta",
+        condition=_is_bad,
+        priority=1,
+        templates={
+            "too_high": "Пики вращения коньков расходятся на {value:.0f}мс. Проверь синхронность входа в прыжок.",
+            "default": "Пики вращения коньков синхронны.",
+        },
+    ),
+    RecommendationRule(
         metric_name="airtime",
         condition=_is_bad,
         priority=0,

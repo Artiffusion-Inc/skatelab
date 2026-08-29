@@ -533,6 +533,7 @@ async def process(req: ProcessRequest):
                 phases: ElementPhase | None = None
                 recommendations: list = []
                 rotations: int = 0
+                goe_grade = None
 
                 if req.element_type:
                     from src.analysis import element_defs
@@ -553,7 +554,6 @@ async def process(req: ProcessRequest):
                         metrics = analyzer.analyze(prepared.poses_norm, phases, prepared.meta.fps)
 
                         # ISU GOE grading
-                        goe_grade = None
                         if req.isu_code:
                             from src.analysis.goe_grader import GOEGrader
                             from src.utils.isu_loader import load_sov_entry
@@ -633,6 +633,12 @@ async def process(req: ProcessRequest):
                     value = float(peak_ratio)
                     metrics.append(
                         MetricResult("rotation_symmetry", value, "ratio", value >= 0.75, (0.75, 1.0))
+                    )
+                if req.element_type and metrics:
+                    from src.analysis.recommender import Recommender
+
+                    recommendations = Recommender().recommend_with_goe(
+                        metrics, req.element_type, goe_grade, lang=req.lang
                     )
                 # --- Upload results to S3 ---
                 poses_key, metrics_key = _make_output_keys(req.video_s3_key)
