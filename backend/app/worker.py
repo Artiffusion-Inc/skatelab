@@ -601,6 +601,25 @@ async def process_video_task(
                     task_id,
                     {"status": "failed", "progress": 1.0, "message": str(save_err)},
                 )
+                if session_id and user_id:
+                    try:
+                        from app.services.notification_events import (
+                            analysis_failed as notify_analysis_failed,
+                        )
+
+                        async with async_session_factory() as notification_db:
+                            await notify_analysis_failed(
+                                notification_db,
+                                user_id=user_id,
+                                session_id=session_id,
+                            )
+                            await notification_db.commit()
+                    except Exception as notification_err:  # noqa: BLE001
+                        logger.warning(
+                            "Failed to emit analysis failure notification for %s: %s",
+                            session_id,
+                            notification_err,
+                        )
                 return {
                     "poses_key": vast_result.poses_key or "",
                     "metrics_key": vast_result.metrics_key or "",
@@ -612,6 +631,26 @@ async def process_video_task(
         if analyzer_failed:
             response_data["status"] = "Analysis complete with partial results"
         await store_result(task_id, response_data)
+
+        if session_id and user_id:
+            try:
+                from app.services.notification_events import (
+                    analysis_completed as notify_analysis_completed,
+                )
+
+                async with async_session_factory() as notification_db:
+                    await notify_analysis_completed(
+                        notification_db,
+                        user_id=user_id,
+                        session_id=session_id,
+                    )
+                    await notification_db.commit()
+            except Exception as notification_err:  # noqa: BLE001
+                logger.warning(
+                    "Failed to emit analysis completion notification for %s: %s",
+                    session_id,
+                    notification_err,
+                )
 
         from app.analytics_events import analysis_completed
 
@@ -679,12 +718,29 @@ async def process_video_task(
 
                 async with async_session_factory() as db:
                     session_row = await _get_by_id_failed(db, session_id)
+                    notification_user_id = user_id
                     if session_row is not None:
                         session_row.status = "failed"
                         session_row.error_message = str(e)
+                        notification_user_id = notification_user_id or str(session_row.user_id)
                         await db.commit()
-            except (OSError, RuntimeError):
-                logger.warning("Failed to update session status to failed for %s", session_id)
+                    if notification_user_id:
+                        from app.services.notification_events import (
+                            analysis_failed as notify_analysis_failed,
+                        )
+
+                        await notify_analysis_failed(
+                            db,
+                            user_id=notification_user_id,
+                            session_id=session_id,
+                        )
+                        await db.commit()
+            except Exception as notification_err:  # noqa: BLE001
+                logger.warning(
+                    "Failed to update session or emit failure notification for %s: %s",
+                    session_id,
+                    notification_err,
+                )
 
         if retryable:
             raise Retry(defer=ctx.get("job_try", 1) * 10) from e

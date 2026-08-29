@@ -18,6 +18,13 @@ class Notification(TimestampMixin, Base):
     __table_args__ = (
         Index("ix_notifications_user_created", "user_id", "created_at"),
         Index("ix_notifications_user_read_created", "user_id", "is_read", "created_at"),
+        Index(
+            "uq_notifications_user_event_source",
+            "user_id",
+            "event_type",
+            "source_id",
+            unique=True,
+        ),
     )
 
     id: Mapped[str] = mapped_column(
@@ -31,6 +38,8 @@ class Notification(TimestampMixin, Base):
         index=True,
     )
     event_type: Mapped[str] = mapped_column(String(50), nullable=False)
+    # Nullable keeps direct CRUD callers and pre-producer rows backward compatible.
+    source_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
     title: Mapped[str] = mapped_column(String(200), nullable=False)
     body: Mapped[str] = mapped_column(Text, nullable=False)
     deep_link: Mapped[str | None] = mapped_column(String(500), nullable=True)

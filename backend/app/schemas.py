@@ -593,6 +593,7 @@ class NotificationResponse(BaseModel):
     id: str
     user_id: str
     event_type: str
+    source_id: str | None
     title: str
     body: str
     deep_link: str | None

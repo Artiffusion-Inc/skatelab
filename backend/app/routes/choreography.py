@@ -54,6 +54,7 @@ from app.services.choreography.csp_solver import solve_layout
 from app.services.choreography.music_analyzer import extract_features_for_csp
 from app.services.choreography.rink_renderer import render_rink
 from app.services.choreography.rules_engine import validate_layout as validate_layout_engine
+from app.services.notification_events import export_ready
 from app.services.pdf_report import generate_program_pdf
 from app.storage import upload_file
 
@@ -492,6 +493,7 @@ class ChoreographyController(Controller):
                     "estimated_total": program.estimated_total,
                 }
             )
+            await export_ready(db, user_id=verified_user.id, export_id=program_id)
             return Response(
                 content=pdf,
                 media_type="application/pdf",

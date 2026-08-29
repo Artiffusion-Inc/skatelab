@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import ANY, AsyncMock, MagicMock, patch
 
 import pytest
 from app.routes.choreography import ChoreographyController
@@ -44,6 +44,7 @@ async def test_pdf_export_returns_pdf_without_svg_fallback() -> None:
     with (
         patch("app.routes.choreography.get_program_by_id", return_value=program),
         patch("app.routes.choreography.render_rink") as render_rink,
+        patch("app.routes.choreography.export_ready", new_callable=AsyncMock) as notify,
     ):
         response = await _bound("export_program")(
             "program_123", ExportRequest(format="pdf"), _user(), AsyncMock()
@@ -53,6 +54,7 @@ async def test_pdf_export_returns_pdf_without_svg_fallback() -> None:
     assert response.content.startswith(b"%PDF-1.4")
     assert b"Autumn program" in response.content
     render_rink.assert_not_called()
+    notify.assert_awaited_once_with(ANY, user_id="user_123", export_id="program_123")
 
 
 @pytest.mark.asyncio

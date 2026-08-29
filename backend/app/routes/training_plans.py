@@ -17,6 +17,7 @@ from app.crud.training_plan import create as create_plan
 from app.crud.training_plan import get_for_session
 from app.middleware.rate_limit import check_rate_limit
 from app.schemas import GenerateTrainingPlanRequest, SubScoreSchema, TrainingPlanResponse
+from app.services.notification_events import training_plan_generated
 from app.services.training_plan import generate_training_plan
 
 if TYPE_CHECKING:
@@ -93,6 +94,7 @@ class TrainingPlansController(Controller):
             items=items,
             focus_subscore=items[0].label_ru if items else None,
         )
+        await training_plan_generated(db, user_id=user.id, plan_id=plan.id)
         # #791: schema drift on the freshly created row → 502, not 500.
         try:
             return TrainingPlanResponse.model_validate(plan)

@@ -256,6 +256,18 @@ async def test_generate_plan_is_idempotent_per_user_session(
         f"existing plan."
     )
 
+    from app.crud.notifications import count_by_user, get_by_event_source
+
+    assert await count_by_user(db_session, verified_user.id) == 1
+    notification = await get_by_event_source(
+        db_session,
+        user_id=verified_user.id,
+        event_type="training.assigned",
+        source_id=plan_id_1,
+    )
+    assert notification is not None
+    assert notification.payload == {"training_plan_id": plan_id_1}
+
 
 @pytest.mark.asyncio
 async def test_generate_plan_502_on_corrupt_subscore_value(

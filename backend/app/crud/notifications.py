@@ -23,11 +23,13 @@ async def create(
     body: str,
     deep_link: str | None = None,
     payload: dict[str, object] | None = None,
+    source_id: str | None = None,
 ) -> Notification:
     """Create an in-app notification for one user."""
     notification = Notification(
         user_id=user_id,
         event_type=event_type,
+        source_id=source_id,
         title=title,
         body=body,
         deep_link=deep_link,
@@ -37,6 +39,24 @@ async def create(
     await db.flush()
     await db.refresh(notification)
     return notification
+
+
+async def get_by_event_source(
+    db: AsyncSession,
+    *,
+    user_id: str,
+    event_type: str,
+    source_id: str,
+) -> Notification | None:
+    """Find the notification emitted for one recipient and business event."""
+    result = await db.execute(
+        select(Notification).where(
+            Notification.user_id == user_id,
+            Notification.event_type == event_type,
+            Notification.source_id == source_id,
+        )
+    )
+    return result.scalar_one_or_none()
 
 
 async def list_by_user(

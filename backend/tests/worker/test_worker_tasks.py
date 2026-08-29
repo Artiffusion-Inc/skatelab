@@ -269,6 +269,11 @@ class TestProcessVideoTask:
             patch(
                 "app.services.session_saver.save_analysis_results", new_callable=AsyncMock
             ) as mock_save,
+            patch("app.worker.store_result", new_callable=AsyncMock),
+            patch(
+                "app.services.notification_events.analysis_completed",
+                new_callable=AsyncMock,
+            ) as mock_notification,
         ):
             mock_remote.return_value = _make_vast_result(
                 metrics=[{"name": "airtime", "value": 0.5}],
@@ -284,6 +289,7 @@ class TestProcessVideoTask:
             # Mock session record
             mock_session = MagicMock()
             mock_session.element_type = "waltz_jump"
+            mock_session.user_id = "user_123"
             mock_get_session.return_value = mock_session
 
             result = await process_video_task(
@@ -296,6 +302,11 @@ class TestProcessVideoTask:
 
         assert result["status"] == "Analysis complete!"
         mock_save.assert_called_once()
+        mock_notification.assert_awaited_once_with(
+            ANY,
+            user_id="user_123",
+            session_id="session_42",
+        )
         # commit called at least once (once for metrics/segments, again for analyzer scores)
         mock_db.commit.assert_called()
 
@@ -485,6 +496,10 @@ class TestProcessVideoTask:
                 "app.services.session_saver.save_analysis_results",
                 side_effect=RuntimeError("save boom"),
             ),
+            patch(
+                "app.services.notification_events.analysis_failed",
+                new_callable=AsyncMock,
+            ) as mock_notification,
         ):
             mock_remote.return_value = _make_vast_result(
                 metrics=[{"name": "airtime", "value": 0.5}],
@@ -497,6 +512,7 @@ class TestProcessVideoTask:
 
             mock_session = MagicMock()
             mock_session.element_type = "waltz_jump"
+            mock_session.user_id = "user_123"
 
             # get_by_id is imported inside the function, patch at the import site
             with patch("app.crud.session.get_by_id", return_value=mock_session):
@@ -513,6 +529,11 @@ class TestProcessVideoTask:
         # status instead. See #375.
         assert result["status"] != "Analysis complete!"
         assert "fail" in result["status"].lower()
+        mock_notification.assert_awaited_once_with(
+            ANY,
+            user_id="user_123",
+            session_id="session_42",
+        )
 
     @pytest.mark.asyncio
     async def test_publish_error_event_failure(self, mock_valkey):
