@@ -21,20 +21,15 @@ depends_on: str | Sequence[str] | None = None
 def upgrade() -> None:
     op.add_column("refresh_tokens", sa.Column("user_agent_hash", sa.String(64), nullable=True))
 
-    # Batched backfill to avoid row-level lock contention
-    conn = op.get_bind()
-    while True:
-        result = conn.execute(
-            sa.text(
-                "UPDATE refresh_tokens SET user_agent_hash = 'legacy' "
-                "WHERE ctid IN ("
-                "  SELECT ctid FROM refresh_tokens "
-                "  WHERE user_agent_hash IS NULL LIMIT 1000"
-                ")"
-            )
+    # A single idempotent update works in both online and offline Alembic
+    # modes. The previous ctid/rowcount loop crashed while rendering SQL
+    # because offline execution has no result object.
+    op.execute(
+        sa.text(
+            "UPDATE refresh_tokens SET user_agent_hash = 'legacy' "
+            "WHERE user_agent_hash IS NULL"
         )
-        if result.rowcount == 0:
-            break
+    )
 
 
 def downgrade() -> None:

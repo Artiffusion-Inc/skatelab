@@ -9,7 +9,7 @@
 #711: get_elements_registry no auth
 #712: validate_choreography no auth
 #713: update_existing_program drops discipline/segment
-#714: export_program pdf returns svg (contract violation)
+#714: export_program PDF uses a real PDF response
 #715: export_program json drops fields
 #716: generate_layout hardcodes is_back_half=False
 #717: LayoutElement.goe int rejects/truncates fractional GOE
@@ -22,7 +22,6 @@ from pathlib import Path
 
 import pytest
 from app.schemas import ExportRequest, LayoutElement
-from pydantic import ValidationError
 
 ROUTES_PATH = Path(__file__).resolve().parents[2] / "app" / "routes" / "choreography.py"
 SCHEMAS_PATH = Path(__file__).resolve().parents[2] / "app" / "schemas.py"
@@ -76,14 +75,14 @@ def test_is_back_half_uses_e_get():
 
 
 # ---------------------------------------------------------------------------
-# #714: ExportRequest format excludes pdf
+# #714: ExportRequest includes pdf for the mobile export contract
 # ---------------------------------------------------------------------------
 
 
-def test_export_request_rejects_pdf():
-    """#714: ExportRequest should reject pdf format."""
-    with pytest.raises(ValidationError):
-        ExportRequest(format="pdf")
+def test_export_request_accepts_pdf():
+    """#714: ExportRequest accepts PDF for the mobile report flow."""
+    req = ExportRequest(format="pdf")
+    assert req.format == "pdf"
 
 
 def test_export_request_accepts_svg():
