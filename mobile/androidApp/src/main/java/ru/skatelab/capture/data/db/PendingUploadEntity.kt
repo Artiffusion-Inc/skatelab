@@ -16,6 +16,7 @@ data class PendingUploadEntity(
     val uploadId: String? = null,
     val videoKey: String? = null,
     val sessionId: String? = null,
+    val processTaskId: String? = null,
     val retryCount: Int = 0,
     val createdAt: Long = System.currentTimeMillis(),
 )

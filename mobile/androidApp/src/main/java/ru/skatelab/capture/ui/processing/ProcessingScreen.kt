@@ -65,7 +65,7 @@ fun ProcessingScreen(
         if (uploadPhase is UploadPhase.ReadyForProcessing) {
             val ready = uploadPhase as UploadPhase.ReadyForProcessing
             if (processingState is ProcessingUiState.Idle) {
-                viewModel.startSseProcessing(ready.videoKey, ready.sessionId)
+                viewModel.startSseProcessing(ready.videoKey, ready.sessionId, ready.taskId)
             }
         }
     }

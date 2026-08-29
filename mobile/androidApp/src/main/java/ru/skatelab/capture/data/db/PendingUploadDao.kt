@@ -30,6 +30,16 @@ interface PendingUploadDao {
         sessionId: String? = null,
     )
 
+    @Query(
+        "UPDATE pending_uploads SET status = 'PROCESSING', sessionId = :sessionId, " +
+            "processTaskId = :processTaskId WHERE id = :id",
+    )
+    suspend fun updateProcessingState(
+        id: String,
+        sessionId: String,
+        processTaskId: String,
+    )
+
     @Query("UPDATE pending_uploads SET retryCount = retryCount + 1 WHERE id = :id")
     suspend fun incrementRetry(id: String)
 

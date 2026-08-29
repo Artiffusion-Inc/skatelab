@@ -25,7 +25,7 @@ sealed interface UploadPhase {
 
     data class UploadStatus(val entity: PendingUploadEntity) : UploadPhase
 
-    data class ReadyForProcessing(val videoKey: String, val sessionId: String) : UploadPhase
+    data class ReadyForProcessing(val videoKey: String, val sessionId: String, val taskId: String? = null) : UploadPhase
 
     data class UploadFailed(val isNetworkError: Boolean) : UploadPhase
 }
@@ -58,13 +58,13 @@ class AndroidProcessingViewModel
                         "PROCESSING" -> {
                             _uploadPhase.value = UploadPhase.UploadStatus(entity)
                             entity.sessionId?.let { sid ->
-                                _uploadPhase.value = UploadPhase.ReadyForProcessing(entity.videoKey ?: "", sid)
+                                _uploadPhase.value = UploadPhase.ReadyForProcessing(entity.videoKey ?: "", sid, entity.processTaskId)
                             }
                         }
                         "COMPLETED" -> {
                             _uploadPhase.value = UploadPhase.UploadStatus(entity)
                             entity.sessionId?.let { sid ->
-                                _uploadPhase.value = UploadPhase.ReadyForProcessing(entity.videoKey ?: "", sid)
+                                _uploadPhase.value = UploadPhase.ReadyForProcessing(entity.videoKey ?: "", sid, entity.processTaskId)
                             }
                         }
                         "FAILED" -> {
@@ -84,8 +84,15 @@ class AndroidProcessingViewModel
         fun startSseProcessing(
             videoKey: String,
             sessionId: String,
+            taskId: String? = null,
         ) {
-            viewModelScope.launch { shared.startProcessing(videoKey, sessionId) }
+            viewModelScope.launch {
+                if (taskId != null) {
+                    shared.observeTask(taskId)
+                } else {
+                    shared.startProcessing(videoKey, sessionId)
+                }
+            }
         }
 
         fun retry(

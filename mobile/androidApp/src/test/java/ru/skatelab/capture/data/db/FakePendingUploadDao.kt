@@ -58,6 +58,21 @@ class FakePendingUploadDao : PendingUploadDao {
         updateFlows()
     }
 
+    override suspend fun updateProcessingState(
+        id: String,
+        sessionId: String,
+        processTaskId: String,
+    ) {
+        val entity = entities[id] ?: return
+        entities[id] =
+            entity.copy(
+                status = "PROCESSING",
+                sessionId = sessionId,
+                processTaskId = processTaskId,
+            )
+        updateFlows()
+    }
+
     override suspend fun incrementRetry(id: String) {
         val entity = entities[id] ?: return
         entities[id] = entity.copy(retryCount = entity.retryCount + 1)

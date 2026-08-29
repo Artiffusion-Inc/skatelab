@@ -22,6 +22,9 @@ class ProcessingViewModelTest {
         private val streamEvents: List<ProcessEvent> = emptyList(),
         private val cancelException: Exception? = null,
     ) : IProcessApi {
+        var queueCalls = 0
+            private set
+
         override suspend fun queue(
             videoKey: String,
             sessionId: String?,
@@ -30,6 +33,7 @@ class ProcessingViewModelTest {
             frameSkip: Int,
             tracking: String,
         ): QueueProcessResponse {
+            queueCalls++
             if (queueException != null) throw queueException
             return queueResult
         }
@@ -133,5 +137,21 @@ class ProcessingViewModelTest {
         // cancelProcessing without startProcessing — taskId is null, should be no-op
         viewModel.cancelProcessing()
         assertEquals(ProcessingUiState.Idle, viewModel.uiState.value)
+    }
+
+    @Test
+    fun observeTask_doesNotQueueDuplicate() = kotlinx.coroutines.test.runTest {
+        val fakeApi = FakeProcessApi(
+            streamEvents = listOf(
+                ProcessEvent(progress = 1.0f, message = "Done", status = "completed", sessionId = "sess-1"),
+            ),
+        )
+        val viewModel = ProcessingViewModel(fakeApi)
+
+        viewModel.observeTask("task-existing")
+
+        assertEquals(0, fakeApi.queueCalls)
+        val completed = assertIs<ProcessingUiState.Completed>(viewModel.uiState.value)
+        assertEquals("sess-1", completed.sessionId)
     }
 }

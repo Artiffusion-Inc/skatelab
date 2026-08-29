@@ -116,17 +116,13 @@ class UploadWorker
                         imuRightKey = imuRightKey,
                     )
 
-                // Mark PROCESSING with sessionId so ProcessingScreen can start SSE
-                pendingUploadDao.updateStatus(entity.id, "PROCESSING", session.id)
-
-                // Step 5: Enqueue ML processing
-                skateLabClient.process.queue(
-                    videoKey = videoKey,
-                    sessionId = session.id,
-                )
-
-                // Step 6: Mark completed with session ID
-                pendingUploadDao.updateStatus(entity.id, "COMPLETED", session.id)
+                // Step 5: Enqueue once and persist the task so UI can resume its SSE stream.
+                val task =
+                    skateLabClient.process.queue(
+                        videoKey = videoKey,
+                        sessionId = session.id,
+                    )
+                pendingUploadDao.updateProcessingState(entity.id, session.id, task.taskId)
                 Result.success()
             } catch (e: Exception) {
                 // Network/offline errors: surface immediately to the user as FAILED.

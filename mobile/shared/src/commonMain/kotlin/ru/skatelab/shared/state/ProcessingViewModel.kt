@@ -31,6 +31,16 @@ class ProcessingViewModel(private val processApi: IProcessApi) {
         }
     }
 
+    suspend fun observeTask(taskId: String) {
+        currentTaskId = taskId
+        _uiState.value = ProcessingUiState.Progress(0f, "Processing...")
+        try {
+            observeProgress(taskId)
+        } catch (e: Exception) {
+            _uiState.value = ProcessingUiState.Failed(e.toAppError())
+        }
+    }
+
     private suspend fun observeProgress(taskId: String) {
         processApi.stream(taskId).collect { event ->
             when (event.parsedStatus) {
