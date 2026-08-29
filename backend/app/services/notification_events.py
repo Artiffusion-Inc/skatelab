@@ -96,6 +96,26 @@ async def analysis_failed(
     )
 
 
+async def coach_comment_created(
+    db: AsyncSession,
+    *,
+    user_id: str,
+    comment_id: str,
+    session_id: str,
+) -> Notification:
+    """Notify an athlete that a coach left feedback on their session."""
+    return await _emit(
+        db,
+        user_id=user_id,
+        event_type="coach.comment",
+        source_id=comment_id,
+        title="Комментарий тренера",
+        body="Тренер оставил комментарий к вашему анализу",
+        deep_link=f"skatelab://coach-comments/{comment_id}",
+        payload={"comment_id": comment_id, "session_id": session_id},
+    )
+
+
 async def training_plan_generated(
     db: AsyncSession,
     *,

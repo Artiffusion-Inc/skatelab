@@ -6,6 +6,7 @@ from litestar import Router
 
 from app.routes.auth import AuthController
 from app.routes.choreography import ChoreographyController
+from app.routes.comments import CommentsController
 from app.routes.connections import ConnectionsController
 from app.routes.detect import DetectController
 from app.routes.gamification import GamificationController
@@ -34,7 +35,7 @@ notifications = Router(path="/notifications", route_handlers=[NotificationsContr
 process = Router(path="/process", route_handlers=[ProcessController])
 sessions = Router(
     path="/sessions",
-    route_handlers=[SessionsController, ScoresController, PhasesController],
+    route_handlers=[SessionsController, ScoresController, PhasesController, CommentsController],
 )
 training_plans = Router(path="/training-plans", route_handlers=[TrainingPlansController])
 uploads = Router(path="/uploads", route_handlers=[UploadsController])

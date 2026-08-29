@@ -3,6 +3,7 @@
 from app.models.auth_audit_log import AuthAuditLog
 from app.models.base import Base
 from app.models.choreography import ChoreographyProgram, MusicAnalysis
+from app.models.comment import CoachComment
 from app.models.connection import Connection
 from app.models.notifications import Notification
 from app.models.password_reset_token import PasswordResetToken
@@ -21,6 +22,7 @@ __all__ = [
     "AuthAuditLog",
     "Base",
     "ChoreographyProgram",
+    "CoachComment",
     "Connection",
     "MusicAnalysis",
     "Notification",

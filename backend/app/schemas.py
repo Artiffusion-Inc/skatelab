@@ -513,6 +513,42 @@ class SessionListResponse(BaseModel):
 
 
 # ---------------------------------------------------------------------------
+# Coach comments
+# ---------------------------------------------------------------------------
+
+
+class CreateCommentRequest(BaseModel):
+    content: str = Field(min_length=1, max_length=2000)
+
+    @field_validator("content", mode="before")
+    @classmethod
+    def strip_and_require_content(cls, value: Any) -> str:
+        if not isinstance(value, str):
+            raise ValueError("content must be a string")
+        content = value.strip()
+        if not content:
+            raise ValueError("content must not be empty")
+        return content
+
+
+class CommentResponse(BaseModel):
+    id: str
+    session_id: str
+    coach_id: str
+    content: str
+    created_at: str
+
+    model_config = {"from_attributes": True}
+
+    @field_validator("created_at", mode="before")
+    @classmethod
+    def validate_datetime(cls, value: Any) -> str:
+        if isinstance(value, datetime):
+            return value.isoformat()
+        return str(value)
+
+
+# ---------------------------------------------------------------------------
 # Metrics & Progress
 # ---------------------------------------------------------------------------
 
