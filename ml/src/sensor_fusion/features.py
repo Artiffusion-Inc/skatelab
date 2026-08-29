@@ -54,6 +54,7 @@ def fused_confidence(
     left: dict[str, float | int | str | None],
     right: dict[str, float | int | str | None],
     pair: dict[str, float | int | None],
+    offset_error_ms: float = 0.0,
 ) -> float:
     """Score data quality (not skating quality) on a deterministic 0..1 scale."""
     samples = min(int(left.get("samples", 0) or 0), int(right.get("samples", 0) or 0))
@@ -63,7 +64,15 @@ def fused_confidence(
     delta = float(pair.get("peak_delta_ms") or 1_000.0)
     timing_score = max(0.0, 1.0 - delta / 250.0)
     phase_score = 1.0 if left.get("video_phase") == "flight" and right.get("video_phase") == "flight" else 0.5
-    return round(0.25 * sample_score + 0.25 * symmetry_score + 0.25 * timing_score + 0.25 * phase_score, 4)
+    offset_score = max(0.0, 1.0 - abs(offset_error_ms) / 100.0)
+    return round(
+        0.2 * sample_score
+        + 0.2 * symmetry_score
+        + 0.2 * timing_score
+        + 0.2 * phase_score
+        + 0.2 * offset_score,
+        4,
+    )
 
 
 def landing_stability(

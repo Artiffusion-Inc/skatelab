@@ -40,6 +40,7 @@ def test_fused_confidence_rewards_symmetric_flight_signal() -> None:
     side = {"samples": 240, "video_phase": "flight"}
     pair = {"peak_magnitude_ratio": 1.0, "peak_delta_ms": 0.0}
     assert fused_confidence(side, side, pair) == 1.0
+    assert fused_confidence(side, side, pair, offset_error_ms=100.0) == 0.8
 
 
 def test_landing_stability_uses_post_landing_window() -> None:

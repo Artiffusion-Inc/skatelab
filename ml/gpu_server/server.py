@@ -605,8 +605,16 @@ async def process(req: ProcessRequest):
                                 landing=phases.landing,
                             )
                 if "left" in imu_fusion and "right" in imu_fusion and "pair" in imu_fusion:
+                    offset_errors = [
+                        abs(float(details["offset_error_ms"]))
+                        for details in imu_stats.values()
+                        if isinstance(details, dict) and details.get("offset_error_ms") is not None
+                    ]
                     imu_fusion["confidence"] = fused_confidence(
-                        imu_fusion["left"], imu_fusion["right"], imu_fusion["pair"]
+                        imu_fusion["left"],
+                        imu_fusion["right"],
+                        imu_fusion["pair"],
+                        max(offset_errors, default=0.0),
                     )
                 if phases is not None:
                     for side, stream in imu_streams.items():
