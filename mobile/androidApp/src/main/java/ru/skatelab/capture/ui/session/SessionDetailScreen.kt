@@ -296,6 +296,7 @@ private fun SessionDetailContent(
                                     "sensor_confidence" -> "Надёжность сенсоров"
                                     "rotation_symmetry" -> "Симметрия вращения"
                                     "imu_peak_delta" -> "Расхождение пиков IMU"
+                                    "landing_stability" -> "Стабильность после приземления"
                                     else -> metric.metricName
                                 }
                         MetricCard(

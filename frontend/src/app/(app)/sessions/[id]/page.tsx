@@ -281,6 +281,7 @@ export default function SessionDetailPage() {
                       sensor_confidence: "Надёжность сенсоров",
                       rotation_symmetry: "Симметрия вращения",
                       imu_peak_delta: "Расхождение пиков IMU",
+                      landing_stability: "Стабильность после приземления",
                     } as Record<string, string>)[m.metric_name] ??
                     m.metric_name
                   const unit = def?.unit ?? m.unit ?? ""

@@ -641,6 +641,13 @@ async def process(req: ProcessRequest):
                     metrics.append(
                         MetricResult("rotation_symmetry", value, "ratio", value >= 0.75, (0.75, 1.0))
                     )
+                landing_pair = imu_fusion.get("landing_pair", {})
+                stability_ratio = landing_pair.get("stability_ratio")
+                if stability_ratio is not None:
+                    value = float(stability_ratio)
+                    metrics.append(
+                        MetricResult("landing_stability", value, "ratio", value >= 0.75, (0.75, 1.0))
+                    )
                 if req.element_type and metrics:
                     from src.analysis.recommender import Recommender
 
