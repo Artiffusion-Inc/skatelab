@@ -1,0 +1,19 @@
+{
+  "version": "2.0",
+  "provenance": "synthetic",
+  "validation": "unvalidated",
+  "t0_ns": 1000000000,
+  "duration_ms": 1000,
+  "imu": {
+    "left": {
+      "filename": "valid_left.binpb",
+      "sample_rate_hz": 100,
+      "imu_start_delay_ms": 0
+    },
+    "right": {
+      "filename": "valid_right.binpb",
+      "sample_rate_hz": 100,
+      "imu_start_delay_ms": 0
+    }
+  }
+}

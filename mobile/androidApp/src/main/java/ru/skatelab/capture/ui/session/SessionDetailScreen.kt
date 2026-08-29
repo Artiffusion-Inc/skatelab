@@ -62,6 +62,21 @@ import ru.skatelab.capture.ui.skeleton.DynamicSkeletonOverlay
 import ru.skatelab.capture.utils.localizedMessage
 import ru.skatelab.shared.state.SessionDetailState
 
+private val sensorMetricNames =
+    setOf(
+        "sensor_confidence",
+        "rotation_symmetry",
+        "imu_peak_delta",
+        "landing_stability",
+        "imu_offset_error",
+        "imu_rate_error",
+    )
+
+private fun isAxelElement(elementType: String?): Boolean {
+    val normalized = elementType?.lowercase() ?: return false
+    return normalized.contains("axel") || normalized.matches(Regex("[1-4]a"))
+}
+
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun SessionDetailScreen(
@@ -151,6 +166,7 @@ private fun SessionDetailContent(
 ) {
     val session = state.session
     val showSkeleton = state.showSkeleton
+    val skatingMetrics = session.metrics.filterNot { it.metricName in sensorMetricNames }
     val context = LocalContext.current
 
     // ExoPlayer lifecycle
@@ -253,6 +269,9 @@ private fun SessionDetailContent(
                 Spacer(modifier = Modifier.height(16.dp))
             }
 
+            SensorProvenance(session = session)
+            Spacer(modifier = Modifier.height(16.dp))
+
             // -- GOE score --
             session.overallScore?.let { score ->
                 Row(
@@ -276,7 +295,7 @@ private fun SessionDetailContent(
             }
 
             // -- Metric cards grid --
-            if (session.metrics.isNotEmpty()) {
+            if (skatingMetrics.isNotEmpty()) {
                 Text(
                     text = stringResource(R.string.session_ui_metrics_title),
                     style = MaterialTheme.typography.titleMedium,
@@ -289,7 +308,7 @@ private fun SessionDetailContent(
                     verticalArrangement = Arrangement.spacedBy(4.dp),
                     maxItemsInEachRow = 2,
                 ) {
-                    session.metrics.forEach { metric ->
+                    skatingMetrics.forEach { metric ->
                         val label =
                             state.metricDefs[metric.metricName]?.labelRu
                                 ?: when (metric.metricName) {
@@ -323,6 +342,8 @@ private fun SessionDetailContent(
             // -- Recommendations (collapsible) --
             val recommendations = session.recommendations
             if (!recommendations.isNullOrEmpty()) {
+                val displayedRecommendations =
+                    if (isAxelElement(session.elementType)) recommendations.take(1) else recommendations
                 Row(
                     modifier =
                         Modifier
@@ -332,7 +353,12 @@ private fun SessionDetailContent(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Text(
-                        text = stringResource(R.string.session_ui_recommendations_title),
+                        text =
+                            if (isAxelElement(session.elementType)) {
+                                "Axel recommendation"
+                            } else {
+                                stringResource(R.string.session_ui_recommendations_title)
+                            },
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.SemiBold,
                     )
@@ -354,7 +380,7 @@ private fun SessionDetailContent(
                 AnimatedVisibility(visible = recommendationsExpanded) {
                     Column {
                         Spacer(modifier = Modifier.height(8.dp))
-                        recommendations.forEach { rec ->
+                        displayedRecommendations.forEach { rec ->
                             Card(
                                 modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp),
                                 colors =
@@ -378,6 +404,99 @@ private fun SessionDetailContent(
         }
     }
 }
+
+@Composable
+private fun SensorProvenance(session: ru.skatelab.shared.models.SessionResponse) {
+    val diagnostics = session.metrics.filter { it.metricName in sensorMetricNames }
+    val fused = session.status != "failed" && diagnostics.isNotEmpty()
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+    ) {
+        Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text("Sensor provenance", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+            Text(
+                text = if (fused) "Sensor fusion: synthetic/unvalidated" else "Sensor fusion: unavailable",
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.SemiBold,
+            )
+            Text(
+                text =
+                    if (fused) {
+                        "Source: paired LEFT + RIGHT IMU streams."
+                    } else {
+                        "Source: LEFT + RIGHT IMU streams unavailable."
+                    },
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Text(
+                "Validation: unvalidated; hardware validation pending.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            if (session.status == "failed" && session.errorMessage != null) {
+                Text(
+                    "Analysis error: ${session.errorMessage}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error,
+                )
+            }
+            if (diagnostics.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    "Measured diagnostics (not skating scores)",
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                diagnostics.forEach { metric ->
+                    val decimals =
+                        when (metric.metricName) {
+                            "sensor_confidence", "rotation_symmetry", "landing_stability" -> 2
+                            "imu_rate_error" -> 1
+                            else -> 0
+                        }
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                    ) {
+                        Text(
+                            sensorMetricLabel(metric.metricName),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        Text(
+                            "${metric.metricValue.toFixed(decimals)} ${sensorMetricUnit(metric.metricName)}",
+                            style = MaterialTheme.typography.bodySmall,
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+private fun sensorMetricLabel(name: String): String =
+    when (name) {
+        "sensor_confidence" -> "Sensor confidence"
+        "rotation_symmetry" -> "Rotation symmetry"
+        "imu_peak_delta" -> "IMU peak delta"
+        "landing_stability" -> "Landing stability"
+        "imu_offset_error" -> "IMU offset error"
+        "imu_rate_error" -> "IMU rate error"
+        else -> name
+    }
+
+private fun sensorMetricUnit(name: String): String =
+    when (name) {
+        "sensor_confidence", "rotation_symmetry", "landing_stability" -> "ratio"
+        "imu_peak_delta", "imu_offset_error" -> "ms"
+        "imu_rate_error" -> "Hz"
+        else -> ""
+    }
+
+private fun Float.toFixed(decimals: Int): String = "%1$.${decimals}f".format(this)
 
 /** Phase timeline — thin horizontal bar with markers at takeoff/peak/landing frames. */
 @Composable

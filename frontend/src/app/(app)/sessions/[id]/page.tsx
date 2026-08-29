@@ -32,6 +32,86 @@ const ThreeJSkeletonViewer = lazy(() =>
 )
 
 const POLLING_STATUSES = SESSION_POLLING_STATUSES
+const SENSOR_METRIC_NAMES = new Set([
+  "sensor_confidence",
+  "rotation_symmetry",
+  "imu_peak_delta",
+  "landing_stability",
+  "imu_offset_error",
+  "imu_rate_error",
+])
+const SENSOR_METRIC_LABELS: Record<string, string> = {
+  sensor_confidence: "Sensor confidence",
+  rotation_symmetry: "Rotation symmetry",
+  imu_peak_delta: "IMU peak delta",
+  landing_stability: "Landing stability",
+  imu_offset_error: "IMU offset error",
+  imu_rate_error: "IMU rate error",
+}
+
+function isAxelElement(elementType: string): boolean {
+  const normalized = elementType.toLowerCase()
+  return normalized.includes("axel") || /^[1-4]a$/.test(normalized)
+}
+
+type ReportSession = NonNullable<ReturnType<typeof useSession>["data"]>
+
+function SensorProvenance({ session, failed }: { session: ReportSession; failed: boolean }) {
+  const hasLeft = Boolean(session.imu_left_key)
+  const hasRight = Boolean(session.imu_right_key)
+  const hasManifest = Boolean(session.manifest_key)
+  const diagnostics = session.metrics.filter(metric => SENSOR_METRIC_NAMES.has(metric.metric_name))
+  const fused = !failed && hasLeft && hasRight && hasManifest
+
+  return (
+    <section
+      className="rounded-2xl border border-hairline p-3 sm:p-4"
+      aria-label="Sensor provenance"
+    >
+      <h2 className="mb-2 text-sm font-medium">Sensor provenance</h2>
+      <p className="text-sm font-semibold" role="status">
+        {fused ? "Sensor fusion: synthetic/unvalidated" : "Sensor fusion: unavailable"}
+      </p>
+      <p className="mt-1 text-xs text-ink-mute">
+        Source: LEFT IMU {hasLeft ? "attached" : "absent"}; RIGHT IMU{" "}
+        {hasRight ? "attached" : "absent"}; manifest {hasManifest ? "attached" : "absent"}.
+      </p>
+      <p className="mt-1 text-xs text-ink-mute">
+        Validation: unvalidated; hardware validation pending.
+      </p>
+      {failed && session.error_message && (
+        <p className="mt-2 text-xs text-destructive">Analysis error: {session.error_message}</p>
+      )}
+      {diagnostics.length > 0 && (
+        <div className="mt-3 border-t border-hairline pt-3">
+          <h3 className="mb-1 text-xs font-medium">Measured diagnostics (not skating scores)</h3>
+          <dl className="space-y-1">
+            {diagnostics.map(metric => {
+              const decimals =
+                metric.metric_name === "imu_rate_error"
+                  ? 1
+                  : metric.metric_name.includes("confidence") ||
+                      metric.metric_name.includes("symmetry") ||
+                      metric.metric_name.includes("stability")
+                    ? 2
+                    : 0
+              return (
+                <div key={metric.id} className="flex items-center justify-between text-xs">
+                  <dt className="text-ink-mute">
+                    {SENSOR_METRIC_LABELS[metric.metric_name] ?? metric.metric_name}
+                  </dt>
+                  <dd className="font-mono">
+                    {metric.metric_value.toFixed(decimals)} {metric.unit ?? ""}
+                  </dd>
+                </div>
+              )
+            })}
+          </dl>
+        </div>
+      )}
+    </section>
+  )
+}
 
 export default function SessionDetailPage() {
   const { id } = useParams<{ id: string }>()
@@ -63,7 +143,9 @@ export default function SessionDetailPage() {
   // Overview tab: show only out-of-range + PRs
   const highlightMetrics = useMemo(() => {
     if (!session?.metrics) return []
-    return session.metrics.filter(m => m.is_pr || m.is_in_range === false)
+    return session.metrics.filter(
+      m => !SENSOR_METRIC_NAMES.has(m.metric_name) && (m.is_pr || m.is_in_range === false),
+    )
   }, [session?.metrics])
 
   const handleShare = async () => {
@@ -257,12 +339,21 @@ export default function SessionDetailPage() {
               <PhaseTimeline totalFrames={totalFrames} phases={session.phases} />
             )}
 
+            <SensorProvenance session={session} failed={isFailed} />
+
             {/* Recommendations */}
             {session.recommendations && session.recommendations.length > 0 && (
               <div className="rounded-2xl border border-hairline p-3 sm:p-4">
-                <h2 className="mb-2 text-sm font-medium">{ts("recommendations")}</h2>
+                <h2 className="mb-2 text-sm font-medium">
+                  {isAxelElement(session.element_type)
+                    ? "Axel recommendation"
+                    : ts("recommendations")}
+                </h2>
                 <ul className="space-y-1 text-sm text-ink-mute">
-                  {session.recommendations.map(r => (
+                  {(isAxelElement(session.element_type)
+                    ? session.recommendations.slice(0, 1)
+                    : session.recommendations
+                  ).map(r => (
                     <li key={r}>{r}</li>
                   ))}
                 </ul>
@@ -277,14 +368,16 @@ export default function SessionDetailPage() {
                   const def = registry?.[m.metric_name]
                   const label =
                     def?.label_ru ??
-                    ({
-                      sensor_confidence: "Надёжность сенсоров",
-                      rotation_symmetry: "Симметрия вращения",
-                      imu_peak_delta: "Расхождение пиков IMU",
-                      landing_stability: "Стабильность после приземления",
-                      imu_offset_error: "Ошибка синхронизации IMU",
-                      imu_rate_error: "Ошибка частоты IMU",
-                    } as Record<string, string>)[m.metric_name] ??
+                    (
+                      {
+                        sensor_confidence: "Надёжность сенсоров",
+                        rotation_symmetry: "Симметрия вращения",
+                        imu_peak_delta: "Расхождение пиков IMU",
+                        landing_stability: "Стабильность после приземления",
+                        imu_offset_error: "Ошибка синхронизации IMU",
+                        imu_rate_error: "Ошибка частоты IMU",
+                      } as Record<string, string>
+                    )[m.metric_name] ??
                     m.metric_name
                   const unit = def?.unit ?? m.unit ?? ""
                   const direction = def?.direction
@@ -368,31 +461,36 @@ export default function SessionDetailPage() {
             {session.metrics.length > 0 && (
               <div className="rounded-2xl border border-hairline p-3 sm:p-4">
                 <h2 className="mb-2 text-sm font-medium">{ts("metrics")}</h2>
-                {session.metrics.map(m => {
-                  const def = registry?.[m.metric_name]
-                  const label = def?.label_ru ?? m.metric_name
-                  const unit = def?.unit ?? m.unit ?? ""
-                  const direction = def?.direction
-                  return (
-                    <MetricRow
-                      key={m.id}
-                      name={m.metric_name}
-                      label={label}
-                      value={m.metric_value}
-                      unit={unit}
-                      format={def?.format}
-                      direction={direction}
-                      isInRange={m.is_in_range}
-                      isPr={m.is_pr}
-                      prevBest={m.prev_best}
-                      refRange={
-                        m.reference_value ? [m.reference_value, m.reference_value + 1] : null
-                      }
-                    />
-                  )
-                })}
+                {session.metrics
+                  .filter(m => !SENSOR_METRIC_NAMES.has(m.metric_name))
+                  .map(m => {
+                    const def = registry?.[m.metric_name]
+                    const label = def?.label_ru ?? m.metric_name
+                    const unit = def?.unit ?? m.unit ?? ""
+                    const direction = def?.direction
+                    return (
+                      <MetricRow
+                        key={m.id}
+                        name={m.metric_name}
+                        label={label}
+                        value={m.metric_value}
+                        unit={unit}
+                        format={def?.format}
+                        direction={direction}
+                        isInRange={m.is_in_range}
+                        isPr={m.is_pr}
+                        prevBest={m.prev_best}
+                        refRange={
+                          m.reference_value ? [m.reference_value, m.reference_value + 1] : null
+                        }
+                      />
+                    )
+                  })}
               </div>
             )}
+
+            {/* Sensor diagnostics are shown with provenance and never as skating scores. */}
+            <SensorProvenance session={session} failed={isFailed} />
 
             {/* Diagnostics */}
             {session.pose_data && <SessionDiagnostics elementType={session.element_type} />}

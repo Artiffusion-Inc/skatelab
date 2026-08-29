@@ -44,6 +44,37 @@ def test_fused_confidence_rewards_symmetric_flight_signal() -> None:
     assert fused_confidence(side, side, pair, rate_error_hz=10.0) == 0.85
 
 
+def test_fused_confidence_requires_samples_from_both_sensors() -> None:
+    populated = {"samples": 240, "video_phase": "flight"}
+    missing_right = {"samples": 0, "video_phase": "flight"}
+    pair = {"peak_magnitude_ratio": 1.0, "peak_delta_ms": 0.0}
+
+    assert fused_confidence(populated, missing_right, pair) == 0.0
+    assert fused_confidence(populated, populated, {}) == 0.0
+
+
+def test_pair_summary_treats_two_zero_rotation_signals_as_symmetric() -> None:
+    left = _stream([1_000_000_000, 1_010_000_000], [0.0, 0.0])
+    right = _stream([1_000_000_000, 1_010_000_000], [0.0, 0.0])
+
+    assert summarize_pair(left, right) == {
+        "peak_delta_ms": 0.0,
+        "peak_magnitude_ratio": 1.0,
+        "overlap_ms": 10.0,
+    }
+
+
+def test_pair_summary_marks_asymmetric_empty_sensor_unavailable() -> None:
+    populated = _stream([1_000_000_000, 1_010_000_000], [0.0, 2.0])
+    missing = _stream([], [])
+
+    assert summarize_pair(populated, missing) == {
+        "peak_delta_ms": None,
+        "peak_magnitude_ratio": None,
+        "overlap_ms": 0.0,
+    }
+
+
 def test_landing_stability_uses_post_landing_window() -> None:
     stream = _stream(
         [1_000_000_000, 1_100_000_000, 1_200_000_000],

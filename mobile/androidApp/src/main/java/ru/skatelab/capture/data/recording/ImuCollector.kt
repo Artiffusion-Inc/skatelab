@@ -187,8 +187,10 @@ class ImuCollector
             writers.clear()
             pendingGaps.clear()
             warmedUp.clear()
+            lastSampleNs.clear()
             val result = counts.mapValues { it.value.get() }
             counts.clear()
+            firstSampleNs.clear()
             return result
         }
 

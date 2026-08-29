@@ -186,6 +186,17 @@ class CameraViewModel
         }
 
         fun stopRecording(context: Context) {
+            val startInfo =
+                currentStartInfo ?: run {
+                    _error.value = "No recording info"
+                    return
+                }
+            val outputDir =
+                currentOutputDir ?: run {
+                    _error.value = "No output directory"
+                    return
+                }
+
             viewModelScope.launch {
                 stopReconnectWatch()
                 stopTimer()
@@ -195,20 +206,14 @@ class CameraViewModel
                         appLogger.w(TAG, "Stop use case partial failure: ${it.message}")
                     }
 
+                // Read timing metadata before stop clears the active collector state.
+                val leftFirstNs = imuCollector.firstSampleTimestampNs(SensorId.LEFT)
+                val rightFirstNs = imuCollector.firstSampleTimestampNs(SensorId.RIGHT)
                 val imuCounts = imuCollector.stop()
                 appLogger.i(TAG, "IMU capture stopped: $imuCounts")
 
-                val startInfo =
-                    currentStartInfo ?: run {
-                        _error.value = "No recording info"
-                        return@launch
-                    }
-                val outputDir = currentOutputDir ?: return@launch
-
                 // Persist manifest before WorkManager can upload the capture.
                 val manifestFile = File(outputDir, "manifest.json")
-                val leftFirstNs = imuCollector.firstSampleTimestampNs(SensorId.LEFT)
-                val rightFirstNs = imuCollector.firstSampleTimestampNs(SensorId.RIGHT)
                 manifestFile.writeText(
                     """
                     {

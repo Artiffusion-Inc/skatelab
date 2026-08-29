@@ -9,10 +9,13 @@ import kotlinx.coroutines.flow.MutableStateFlow
  */
 class FakePendingUploadDao : PendingUploadDao {
     private val entities = mutableMapOf<String, PendingUploadEntity>()
+    private val entityFlows = mutableMapOf<String, MutableStateFlow<PendingUploadEntity?>>()
     private val allFlow = MutableStateFlow<List<PendingUploadEntity>>(emptyList())
     private val countFlow = MutableStateFlow(0)
 
-    private fun updateFlows() {
+    private fun updateEntity(entity: PendingUploadEntity) {
+        entities[entity.id] = entity
+        entityFlows.getOrPut(entity.id) { MutableStateFlow(null) }.value = entity
         allFlow.value = entities.values.toList()
         countFlow.value = entities.values.count { it.status == "READY" || it.status == "UPLOADING" || it.status == "PROCESSING" }
     }
@@ -26,8 +29,7 @@ class FakePendingUploadDao : PendingUploadDao {
     override suspend fun tryLockForUpload(id: String): Int {
         val entity = entities[id] ?: return 0
         return if (entity.status == "READY") {
-            entities[id] = entity.copy(status = "UPLOADING")
-            updateFlows()
+            updateEntity(entity.copy(status = "UPLOADING"))
             1
         } else {
             0
@@ -39,13 +41,11 @@ class FakePendingUploadDao : PendingUploadDao {
     }
 
     override fun getByIdFlow(id: String): Flow<PendingUploadEntity?> {
-        // Simplified: returns current value, not reactive
-        return MutableStateFlow(entities[id])
+        return entityFlows.getOrPut(id) { MutableStateFlow(entities[id]) }
     }
 
     override suspend fun insert(entity: PendingUploadEntity) {
-        entities[entity.id] = entity
-        updateFlows()
+        updateEntity(entity)
     }
 
     override suspend fun updateStatus(
@@ -54,8 +54,7 @@ class FakePendingUploadDao : PendingUploadDao {
         sessionId: String?,
     ) {
         val entity = entities[id] ?: return
-        entities[id] = entity.copy(status = status, sessionId = sessionId ?: entity.sessionId)
-        updateFlows()
+        updateEntity(entity.copy(status = status, sessionId = sessionId ?: entity.sessionId))
     }
 
     override suspend fun updateProcessingState(
@@ -64,18 +63,18 @@ class FakePendingUploadDao : PendingUploadDao {
         processTaskId: String,
     ) {
         val entity = entities[id] ?: return
-        entities[id] =
+        updateEntity(
             entity.copy(
                 status = "PROCESSING",
                 sessionId = sessionId,
                 processTaskId = processTaskId,
-            )
-        updateFlows()
+            ),
+        )
     }
 
     override suspend fun incrementRetry(id: String) {
         val entity = entities[id] ?: return
-        entities[id] = entity.copy(retryCount = entity.retryCount + 1)
+        updateEntity(entity.copy(retryCount = entity.retryCount + 1))
     }
 
     override fun getAll(): Flow<List<PendingUploadEntity>> {
@@ -88,13 +87,14 @@ class FakePendingUploadDao : PendingUploadDao {
 
     override suspend fun resetForRetry(id: String) {
         val entity = entities[id] ?: return
-        entities[id] = entity.copy(status = "READY", retryCount = 0)
-        updateFlows()
+        updateEntity(entity.copy(status = "READY", retryCount = 0))
     }
 
     override suspend fun delete(id: String) {
         entities.remove(id)
-        updateFlows()
+        entityFlows[id]?.value = null
+        allFlow.value = entities.values.toList()
+        countFlow.value = entities.values.count { it.status == "READY" || it.status == "UPLOADING" || it.status == "PROCESSING" }
     }
 
     override suspend fun updateVideoKey(
@@ -102,7 +102,6 @@ class FakePendingUploadDao : PendingUploadDao {
         videoKey: String,
     ) {
         val entity = entities[id] ?: return
-        entities[id] = entity.copy(videoKey = videoKey)
-        updateFlows()
+        updateEntity(entity.copy(videoKey = videoKey))
     }
 }

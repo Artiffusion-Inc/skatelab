@@ -275,6 +275,89 @@ async def _s3_upload(s3, bucket: str, key: str, path: str) -> None:
     await s3.put_object(Bucket=bucket, Key=key, Body=data)
 
 
+async def _load_imu_inputs(
+    req: ProcessRequest,
+    s3: object,
+    tmpdir: str,
+) -> tuple[dict[str, object], dict[str, object], dict[str, object], int]:
+    """Download and decode the optional Android IMU artifacts.
+
+    Decode errors intentionally propagate so a corrupt stream cannot produce a
+    successful video-only result. A single valid stream is reported as
+    unavailable because multimodal processing requires both sides.
+    """
+    from src.sensor_fusion import decode_imu_file
+
+    imu_stats: dict[str, object] = {}
+    imu_streams: dict[str, object] = {}
+    imu_fusion: dict[str, object] = {}
+    capture_t0_ns = 0
+    declared_rate_hz = None
+    manifest_imu: dict[str, object] = {}
+
+    if req.manifest_s3_key:
+        manifest_local = Path(tmpdir) / "manifest.json"
+        await _s3_download(s3, req.s3_bucket, req.manifest_s3_key, str(manifest_local))
+        manifest = json.loads(manifest_local.read_text())
+        if not isinstance(manifest, dict):
+            raise ValueError("IMU manifest must be a JSON object")
+        capture_t0_ns = int(manifest.get("t0_ns", 0) or 0)
+        declared_rate_hz = manifest.get("imu_rate_hz")
+        raw_manifest_imu = manifest.get("imu", {}) or {}
+        if not isinstance(raw_manifest_imu, dict):
+            raise ValueError("IMU manifest field 'imu' must be an object")
+        manifest_imu = raw_manifest_imu
+
+    for side, key in (("left", req.imu_left_s3_key), ("right", req.imu_right_s3_key)):
+        if not key:
+            continue
+        imu_local = Path(tmpdir) / f"{side}.binpb"
+        await _s3_download(s3, req.s3_bucket, key, str(imu_local))
+        stream = decode_imu_file(imu_local)
+        imu_streams[side] = stream
+        imu_stats[side] = {
+            "samples": len(stream.timestamps_ns),
+            "gaps": stream.gaps,
+            "sample_rate_hz": round(stream.sample_rate_hz, 3),
+            "first_timestamp_ns": stream.timestamps_ns[0] if stream.timestamps_ns else None,
+            "last_timestamp_ns": stream.timestamps_ns[-1] if stream.timestamps_ns else None,
+        }
+        if declared_rate_hz and stream.sample_rate_hz:
+            imu_stats[side]["declared_rate_hz"] = declared_rate_hz
+            imu_stats[side]["rate_error_hz"] = round(
+                stream.sample_rate_hz - float(declared_rate_hz), 3
+            )
+        raw_side_manifest = manifest_imu.get(side, {})
+        side_manifest = raw_side_manifest if isinstance(raw_side_manifest, dict) else {}
+        declared_offset = side_manifest.get("start_offset_ms")
+        if declared_offset is not None and stream.timestamps_ns and capture_t0_ns:
+            actual_offset = (stream.timestamps_ns[0] - capture_t0_ns) / 1e6
+            imu_stats[side]["declared_start_offset_ms"] = declared_offset
+            imu_stats[side]["offset_error_ms"] = round(actual_offset - float(declared_offset), 3)
+        imu_fusion[side] = stream.angular_velocity_summary(capture_t0_ns)
+
+    return imu_stats, imu_streams, imu_fusion, capture_t0_ns
+
+
+def _sensor_fusion_result(
+    imu_streams: dict[str, object],
+    imu_fusion: dict[str, object],
+) -> dict[str, object] | None:
+    """Add explicit status and provenance to decoded sensor diagnostics."""
+    if not imu_streams:
+        return None
+    both_streams_valid = all(
+        side in imu_streams and getattr(imu_streams[side], "timestamps_ns", [])
+        for side in ("left", "right")
+    )
+    return {
+        **imu_fusion,
+        "status": "available" if both_streams_valid else "unavailable",
+        "provenance": "android_binpb",
+        "validation": "unvalidated",
+    }
+
+
 DETECT_DURATION = Histogram(
     "detect_duration_seconds",
     "Time spent detecting persons in a video",
@@ -308,57 +391,6 @@ async def detect(req: DetectRequest):
 
                 logger.info("Downloading video for detection from S3: %s", req.video_s3_key)
                 await _s3_download(s3, req.s3_bucket, req.video_s3_key, str(video_local))
-
-                imu_stats: dict[str, object] = {}
-                imu_fusion: dict[str, object] = {}
-                from src.sensor_fusion import (
-                    ImuStream,
-                    annotate_video_phase,
-                    decode_imu_file,
-                    fused_confidence,
-                    landing_pair_summary,
-                    landing_stability,
-                    summarize_pair,
-                )
-
-                imu_streams: dict[str, ImuStream] = {}
-                manifest_imu: dict[str, dict[str, object]] = {}
-
-                capture_t0_ns = 0
-                declared_rate_hz = None
-                if req.manifest_s3_key:
-                    manifest_local = Path(tmpdir) / "manifest.json"
-                    await _s3_download(s3, req.s3_bucket, req.manifest_s3_key, str(manifest_local))
-                    manifest = json.loads(manifest_local.read_text())
-                    capture_t0_ns = int(manifest.get("t0_ns", 0) or 0)
-                    declared_rate_hz = manifest.get("imu_rate_hz")
-                    manifest_imu = manifest.get("imu", {}) or {}
-
-                for side, key in (("left", req.imu_left_s3_key), ("right", req.imu_right_s3_key)):
-                    if not key:
-                        continue
-                    imu_local = Path(tmpdir) / f"{side}.binpb"
-                    await _s3_download(s3, req.s3_bucket, key, str(imu_local))
-                    stream = decode_imu_file(imu_local)
-                    imu_streams[side] = stream
-                    imu_stats[side] = {
-                        "samples": len(stream.timestamps_ns),
-                        "gaps": stream.gaps,
-                        "sample_rate_hz": round(stream.sample_rate_hz, 3),
-                        "first_timestamp_ns": stream.timestamps_ns[0] if stream.timestamps_ns else None,
-                        "last_timestamp_ns": stream.timestamps_ns[-1] if stream.timestamps_ns else None,
-                    }
-                    if declared_rate_hz and stream.sample_rate_hz:
-                        imu_stats[side]["declared_rate_hz"] = declared_rate_hz
-                        imu_stats[side]["rate_error_hz"] = round(
-                            stream.sample_rate_hz - float(declared_rate_hz), 3
-                        )
-                    declared_offset = manifest_imu.get(side, {}).get("start_offset_ms")
-                    if declared_offset is not None and stream.timestamps_ns and capture_t0_ns:
-                        actual_offset = (stream.timestamps_ns[0] - capture_t0_ns) / 1e6
-                        imu_stats[side]["declared_start_offset_ms"] = declared_offset
-                        imu_stats[side]["offset_error_ms"] = round(actual_offset - float(declared_offset), 3)
-                    imu_fusion[side] = stream.angular_velocity_summary(capture_t0_ns)
 
                 cfg = DeviceConfig.default()
                 extractor = PoseExtractor(
@@ -502,6 +534,17 @@ async def process(req: ProcessRequest):
 
                 logger.info("Downloading video from S3: %s", req.video_s3_key)
                 await _s3_download(s3, req.s3_bucket, req.video_s3_key, str(video_local))
+
+                imu_stats, imu_streams, imu_fusion, capture_t0_ns = await _load_imu_inputs(
+                    req, s3, tmpdir
+                )
+                from src.sensor_fusion import (
+                    annotate_video_phase,
+                    fused_confidence,
+                    landing_pair_summary,
+                    landing_stability,
+                    summarize_pair,
+                )
 
                 click = (
                     PersonClick(x=req.person_click["x"], y=req.person_click["y"])
@@ -660,7 +703,9 @@ async def process(req: ProcessRequest):
                 if peak_ratio is not None:
                     value = float(peak_ratio)
                     metrics.append(
-                        MetricResult("rotation_symmetry", value, "ratio", value >= 0.75, (0.75, 1.0))
+                        MetricResult(
+                            "rotation_symmetry", value, "ratio", value >= 0.75, (0.75, 1.0)
+                        )
                     )
                 offset_errors = [
                     abs(float(details["offset_error_ms"]))
@@ -687,7 +732,9 @@ async def process(req: ProcessRequest):
                 if stability_ratio is not None:
                     value = float(stability_ratio)
                     metrics.append(
-                        MetricResult("landing_stability", value, "ratio", value >= 0.75, (0.75, 1.0))
+                        MetricResult(
+                            "landing_stability", value, "ratio", value >= 0.75, (0.75, 1.0)
+                        )
                     )
                 if req.element_type and metrics:
                     from src.analysis.recommender import Recommender
@@ -695,6 +742,7 @@ async def process(req: ProcessRequest):
                     recommendations = Recommender().recommend_with_goe(
                         metrics, req.element_type, goe_grade, lang=req.lang
                     )
+                sensor_fusion = _sensor_fusion_result(imu_streams, imu_fusion)
                 # --- Upload results to S3 ---
                 poses_key, metrics_key = _make_output_keys(req.video_s3_key)
                 upload_tasks = []
@@ -746,7 +794,7 @@ async def process(req: ProcessRequest):
                     "element_type": req.element_type,
                     "rotations": rotations,
                     "imu_stats": imu_stats or None,
-                    "sensor_fusion": imu_fusion or None,
+                    "sensor_fusion": sensor_fusion,
                 }
                 # #488: NaN/Infinity coerce + allow_nan=False. Pre-fix
                 # `json.dumps(..., allow_nan=True)` (the default) serialized
@@ -769,7 +817,7 @@ async def process(req: ProcessRequest):
                         sanitized_metrics.append({**mm, "value": None})
                 sanitized_payload = {**metrics_data, "metrics": sanitized_metrics}
                 metrics_json.write_text(
-                        json.dumps(
+                    json.dumps(
                         sanitized_payload,
                         ensure_ascii=False,
                         indent=2,

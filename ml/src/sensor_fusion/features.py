@@ -28,10 +28,11 @@ def summarize_pair(left: ImuStream, right: ImuStream) -> dict[str, float | int |
     overlap_end = min(left.timestamps_ns[-1], right.timestamps_ns[-1])
     overlap_ms = max(0, overlap_end - overlap_start) / 1e6
     larger = max(left_peak[1], right_peak[1])
-    ratio = min(left_peak[1], right_peak[1]) / larger if larger > 0 else None
+    # Two present zero-rotation signals are symmetric; missing signals return above.
+    ratio = min(left_peak[1], right_peak[1]) / larger if larger > 0 else 1.0
     return {
         "peak_delta_ms": round(abs(left_peak[0] - right_peak[0]) / 1e6, 3),
-        "peak_magnitude_ratio": round(ratio, 5) if ratio is not None else None,
+        "peak_magnitude_ratio": round(ratio, 5),
         "overlap_ms": round(overlap_ms, 3),
     }
 
@@ -61,6 +62,12 @@ def fused_confidence(
 ) -> float:
     """Score data quality (not skating quality) on a deterministic 0..1 scale."""
     samples = min(int(left.get("samples", 0) or 0), int(right.get("samples", 0) or 0))
+    if (
+        samples == 0
+        or pair.get("peak_delta_ms") is None
+        or pair.get("peak_magnitude_ratio") is None
+    ):
+        return 0.0
     sample_score = min(1.0, samples / 120.0)
     ratio = float(pair.get("peak_magnitude_ratio") or 0.0)
     symmetry_score = min(1.0, ratio)

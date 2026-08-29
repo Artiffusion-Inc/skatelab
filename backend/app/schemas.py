@@ -279,6 +279,9 @@ class ProcessRequest(BaseModel):
     frame_skip: int = 1
     tracking: str = "auto"
     session_id: str | None = None
+    imu_left_key: str | None = Field(default=None, max_length=500)
+    imu_right_key: str | None = Field(default=None, max_length=500)
+    manifest_key: str | None = Field(default=None, max_length=500)
     lift_3d: bool = Field(default=True, validation_alias="depth")
     optical_flow: bool = False
     segment: bool = False
@@ -299,11 +302,15 @@ class ProcessStats(BaseModel):
 
 
 class ProcessResponse(BaseModel):
-    video_path: str
-    poses_path: str | None
-    csv_path: str | None
+    video_path: str | None = None
+    poses_path: str | None = None
+    csv_path: str | None = None
     stats: ProcessStats
     status: str
+    poses_key: str | None = None
+    metrics_key: str | None = None
+    imu_stats: dict | None = None
+    sensor_fusion: dict | None = None
 
 
 class QueueProcessResponse(BaseModel):

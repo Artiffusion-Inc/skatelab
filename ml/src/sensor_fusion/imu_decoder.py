@@ -10,7 +10,10 @@ import itertools
 import struct
 from dataclasses import dataclass
 from pathlib import Path
-from typing import cast
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from collections.abc import Iterator
 
 
 @dataclass(frozen=True)
@@ -52,6 +55,8 @@ def _varint(data: bytes, pos: int) -> tuple[int, int]:
     while pos < len(data):
         byte = data[pos]
         pos += 1
+        if shift == 63 and byte > 1:
+            raise ValueError("protobuf varint is too long")
         value |= (byte & 0x7F) << shift
         if not byte & 0x80:
             return value, pos
@@ -61,11 +66,13 @@ def _varint(data: bytes, pos: int) -> tuple[int, int]:
     raise ValueError("truncated protobuf varint")
 
 
-def _fields(data: bytes):
+def _fields(data: bytes) -> Iterator[tuple[int, int, int | bytes]]:
     pos = 0
     while pos < len(data):
         tag, pos = _varint(data, pos)
         field, wire = tag >> 3, tag & 7
+        if field == 0:
+            raise ValueError("protobuf field number must be positive")
         if wire == 0:
             value, pos = _varint(data, pos)
         elif wire == 1:
@@ -86,18 +93,40 @@ def _fields(data: bytes):
         yield field, wire, value
 
 
-def _sample(data: bytes) -> tuple[int, tuple[float, ...]] | None:
-    fields: dict[int, object] = {}
+def _sample(data: bytes) -> tuple[int, tuple[float, ...]]:
+    fields: dict[int, float | int] = {}
     for field, wire, value in _fields(data):
-        if wire == 5 and isinstance(value, bytes) and len(value) == 4:
-            fields[field] = struct.unpack("<f", value)[0]
-        elif wire == 0:
+        if field == 1:
+            if wire != 0 or not isinstance(value, int):
+                raise ValueError("IMUSample timestamp has the wrong wire type")
             fields[field] = value
-    timestamp = int(cast("int", fields.get(1, 0)))
-    if not timestamp:
-        return None
-    values = tuple(float(cast("float", fields.get(i, 0.0))) for i in range(2, 12))
+        elif 2 <= field <= 11:
+            if wire != 5 or not isinstance(value, bytes) or len(value) != 4:
+                raise ValueError(f"IMUSample field {field} has the wrong wire type")
+            fields[field] = struct.unpack("<f", value)[0]
+    if 1 not in fields:
+        raise ValueError("IMUSample timestamp is missing")
+    timestamp = int(fields[1])
+    values = tuple(float(fields.get(i, 0.0)) for i in range(2, 12))
     return timestamp, values
+
+
+def _record(data: bytes) -> tuple[int, bytes] | None:
+    selected: tuple[int, bytes] | None = None
+    for field, wire, value in _fields(data):
+        if field not in (1, 2):
+            continue
+        if wire != 2 or not isinstance(value, bytes):
+            raise ValueError(f"IMURecord field {field} has the wrong wire type")
+        # Protobuf oneof semantics keep the last member when both are present.
+        selected = field, value
+    return selected
+
+
+def _validate_gap(data: bytes) -> None:
+    for field, wire, _ in _fields(data):
+        if field <= 3 and wire != 0:
+            raise ValueError(f"IMUGap field {field} has the wrong wire type")
 
 
 def decode_imu_file(path: str | Path) -> ImuStream:
@@ -112,17 +141,17 @@ def decode_imu_file(path: str | Path) -> ImuStream:
             raise ValueError("truncated IMURecord payload")
         record = data[pos : pos + size]
         pos += size
-        for field, wire, value in _fields(record):
-            if wire != 2 or not isinstance(value, bytes):
-                continue
-            if field == 1:
-                parsed = _sample(value)
-                if parsed:
-                    timestamp, sample_values = parsed
-                    timestamps.append(timestamp)
-                    values.append(sample_values)
-            elif field == 2:
-                gaps += 1
+        selected = _record(record)
+        if selected is None:
+            raise ValueError("IMURecord must contain a sample or gap")
+        record_type, payload = selected
+        if record_type == 1:
+            timestamp, sample_values = _sample(payload)
+            timestamps.append(timestamp)
+            values.append(sample_values)
+        else:
+            _validate_gap(payload)
+            gaps += 1
     if len(timestamps) != len(values):
         raise ValueError("IMU stream sample/value length mismatch")
     if any(current <= previous for previous, current in itertools.pairwise(timestamps)):

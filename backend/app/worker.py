@@ -441,6 +441,8 @@ async def process_video_task(
                 "imu_stats": vast_result.imu_stats,
                 "sensor_fusion": vast_result.sensor_fusion,
             },
+            "imu_stats": vast_result.imu_stats,
+            "sensor_fusion": vast_result.sensor_fusion,
             "status": "Analysis complete!",
         }
         # Track whether the (non-critical) analyzer post-processing failed. When
