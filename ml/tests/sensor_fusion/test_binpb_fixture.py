@@ -58,3 +58,11 @@ def test_decode_rejects_truncated_delimited_record(tmp_path) -> None:
 
     with pytest.raises(ValueError, match="truncated IMURecord"):
         decode_imu_file(path)
+
+
+def test_decode_rejects_non_monotonic_timestamps(tmp_path) -> None:
+    path = tmp_path / "non_monotonic.binpb"
+    path.write_bytes(_sample(2_000_000_000, 1.0) + _sample(1_000_000_000, 1.0))
+
+    with pytest.raises(ValueError, match="strictly monotonic"):
+        decode_imu_file(path)

@@ -121,4 +121,6 @@ def decode_imu_file(path: str | Path) -> ImuStream:
                 gaps += 1
     if len(timestamps) != len(values):
         raise ValueError("IMU stream sample/value length mismatch")
+    if any(current <= previous for previous, current in zip(timestamps, timestamps[1:])):
+        raise ValueError("IMU timestamps are not strictly monotonic")
     return ImuStream(timestamps, values, gaps)
