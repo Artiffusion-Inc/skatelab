@@ -1,6 +1,5 @@
 """Sensor-fusion primitives used by the GPU worker."""
 
-from .imu_decoder import ImuStream, decode_imu_file
 from .features import (
     annotate_video_phase,
     fused_confidence,
@@ -8,6 +7,7 @@ from .features import (
     landing_stability,
     summarize_pair,
 )
+from .imu_decoder import ImuStream, decode_imu_file
 
 __all__ = [
     "ImuStream",

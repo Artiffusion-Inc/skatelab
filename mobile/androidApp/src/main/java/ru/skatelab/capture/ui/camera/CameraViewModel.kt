@@ -23,8 +23,8 @@ import ru.skatelab.capture.domain.model.SensorInfo
 import ru.skatelab.capture.domain.repository.BleRepository
 import ru.skatelab.capture.domain.repository.BleRepository.ConnectionState
 import ru.skatelab.capture.domain.repository.CameraRepository
-import ru.skatelab.capture.domain.service.Logger
 import ru.skatelab.capture.domain.service.ImuCollector
+import ru.skatelab.capture.domain.service.Logger
 import ru.skatelab.capture.domain.usecase.ReadSensorInfoUseCase
 import ru.skatelab.capture.domain.usecase.RecordingStartInfo
 import ru.skatelab.capture.domain.usecase.StartRecordingUseCase
@@ -198,35 +198,34 @@ class CameraViewModel
                 val imuCounts = imuCollector.stop()
                 appLogger.i(TAG, "IMU capture stopped: $imuCounts")
 
-                // Persist a capture manifest before WorkManager can upload the session.
-                // Keep it deliberately schema-light until the full calibration metadata
-                // is available in this camera flow; the filenames and timing anchor are
-                // enough to make the uploaded artifacts addressable and debuggable.
-                val manifestFile = File(outputDir, "manifest.json")
-                val leftFirstNs = imuCollector.firstSampleTimestampNs(SensorId.LEFT)
-                val rightFirstNs = imuCollector.firstSampleTimestampNs(SensorId.RIGHT)
-                manifestFile.writeText(
-                    """{
-  \"version\": \"2.0\",
-  \"t0_ns\": ${startInfo.t0Ns},
-  \"duration_ms\": ${_elapsedMs.value},
-  \"imu_rate_hz\": 100,
-  \"video\": {\"filename\": \"${startInfo.videoFile.name}\", \"frames\": \"${startInfo.framesFile.name}\"},
-  \"imu\": {
-    \"left\": {\"filename\": \"${startInfo.imuLeftFile.name}\", \"sensor_id\": \"LEFT\", \"first_timestamp_ns\": ${leftFirstNs ?: 0L}, \"start_offset_ms\": ${if (leftFirstNs != null) (leftFirstNs - startInfo.t0Ns) / 1_000_000 else 0L}},
-    \"right\": {\"filename\": \"${startInfo.imuRightFile.name}\", \"sensor_id\": \"RIGHT\", \"first_timestamp_ns\": ${rightFirstNs ?: 0L}, \"start_offset_ms\": ${if (rightFirstNs != null) (rightFirstNs - startInfo.t0Ns) / 1_000_000 else 0L}}
-  }
-}""".trimIndent(),
-                )
-
-                _isRecording.value = false
-
                 val startInfo =
                     currentStartInfo ?: run {
                         _error.value = "No recording info"
                         return@launch
                     }
                 val outputDir = currentOutputDir ?: return@launch
+
+                // Persist manifest before WorkManager can upload the capture.
+                val manifestFile = File(outputDir, "manifest.json")
+                val leftFirstNs = imuCollector.firstSampleTimestampNs(SensorId.LEFT)
+                val rightFirstNs = imuCollector.firstSampleTimestampNs(SensorId.RIGHT)
+                manifestFile.writeText(
+                    """
+                    {
+                      "version": "2.0",
+                      "t0_ns": ${startInfo.t0Ns},
+                      "duration_ms": ${_elapsedMs.value},
+                      "imu_rate_hz": 100,
+                      "video": {"filename": "${startInfo.videoFile.name}", "frames": "${startInfo.framesFile.name}"},
+                      "imu": {
+                        "left": {"filename": "${startInfo.imuLeftFile.name}", "sensor_id": "LEFT", "first_timestamp_ns": ${leftFirstNs ?: 0L}, "start_offset_ms": ${if (leftFirstNs != null) (leftFirstNs - startInfo.t0Ns) / 1_000_000 else 0L}},
+                        "right": {"filename": "${startInfo.imuRightFile.name}", "sensor_id": "RIGHT", "first_timestamp_ns": ${rightFirstNs ?: 0L}, "start_offset_ms": ${if (rightFirstNs != null) (rightFirstNs - startInfo.t0Ns) / 1_000_000 else 0L}}
+                      }
+                    }
+                    """.trimIndent(),
+                )
+
+                _isRecording.value = false
 
                 // Create a PendingUpload in Room for later upload
                 val uploadId = UUID.randomUUID().toString()

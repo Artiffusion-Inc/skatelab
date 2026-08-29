@@ -14,22 +14,29 @@ def _varint(value: int) -> bytes:
     return bytes(out)
 
 
+def _delimited(record: bytes) -> bytes:
+    return _varint(len(record)) + record
+
+
 def _sample(timestamp: int, gyro_z: float) -> bytes:
     body = bytearray()
     body += _varint((1 << 3) | 0) + _varint(timestamp)
     for field in range(2, 12):
         value = gyro_z if field == 7 else 0.0
         body += _varint((field << 3) | 5) + struct.pack("<f", value)
-    return _varint((1 << 3) | 2) + _varint(len(body)) + body
+    return _delimited(_varint((1 << 3) | 2) + _varint(len(body)) + body)
 
 
 def _gap(last: int, first: int, sequence: int) -> bytes:
     body = (
-        _varint((1 << 3) | 0) + _varint(last)
-        + _varint((2 << 3) | 0) + _varint(first)
-        + _varint((3 << 3) | 0) + _varint(sequence)
+        _varint((1 << 3) | 0)
+        + _varint(last)
+        + _varint((2 << 3) | 0)
+        + _varint(first)
+        + _varint((3 << 3) | 0)
+        + _varint(sequence)
     )
-    return _varint((2 << 3) | 2) + _varint(len(body)) + body
+    return _delimited(_varint((2 << 3) | 2) + _varint(len(body)) + body)
 
 
 def test_decode_android_delimited_binpb_fixture(tmp_path) -> None:

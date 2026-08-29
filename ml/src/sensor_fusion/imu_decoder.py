@@ -6,9 +6,11 @@ classes. The field numbers mirror ``mobile/proto/imu.proto``.
 
 from __future__ import annotations
 
+import itertools
 import struct
 from dataclasses import dataclass
 from pathlib import Path
+from typing import cast
 
 
 @dataclass(frozen=True)
@@ -32,7 +34,9 @@ class ImuStream:
         """
         if not self.values:
             return {"samples": 0, "peak_rad_s": None, "peak_offset_ms": None}
-        magnitudes = [sum(component * component for component in row[3:6]) ** 0.5 for row in self.values]
+        magnitudes = [
+            sum(component * component for component in row[3:6]) ** 0.5 for row in self.values
+        ]
         peak_index = max(range(len(magnitudes)), key=magnitudes.__getitem__)
         peak_ns = self.timestamps_ns[peak_index]
         return {
@@ -89,10 +93,10 @@ def _sample(data: bytes) -> tuple[int, tuple[float, ...]] | None:
             fields[field] = struct.unpack("<f", value)[0]
         elif wire == 0:
             fields[field] = value
-    timestamp = int(fields.get(1, 0))
+    timestamp = int(cast("int", fields.get(1, 0)))
     if not timestamp:
         return None
-    values = tuple(float(fields.get(i, 0.0)) for i in range(2, 12))
+    values = tuple(float(cast("float", fields.get(i, 0.0))) for i in range(2, 12))
     return timestamp, values
 
 
@@ -121,6 +125,6 @@ def decode_imu_file(path: str | Path) -> ImuStream:
                 gaps += 1
     if len(timestamps) != len(values):
         raise ValueError("IMU stream sample/value length mismatch")
-    if any(current <= previous for previous, current in zip(timestamps, timestamps[1:])):
+    if any(current <= previous for previous, current in itertools.pairwise(timestamps)):
         raise ValueError("IMU timestamps are not strictly monotonic")
     return ImuStream(timestamps, values, gaps)

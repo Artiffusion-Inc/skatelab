@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 import math
+from typing import TYPE_CHECKING
 
-from .imu_decoder import ImuStream
+if TYPE_CHECKING:
+    from .imu_decoder import ImuStream
 
 
 def _peak(stream: ImuStream) -> tuple[int, float] | None:
@@ -62,17 +64,20 @@ def fused_confidence(
     sample_score = min(1.0, samples / 120.0)
     ratio = float(pair.get("peak_magnitude_ratio") or 0.0)
     symmetry_score = min(1.0, ratio)
-    delta = float(pair.get("peak_delta_ms") or 1_000.0)
+    raw_delta = pair.get("peak_delta_ms")
+    delta = 1_000.0 if raw_delta is None else float(raw_delta)
     timing_score = max(0.0, 1.0 - delta / 250.0)
-    phase_score = 1.0 if left.get("video_phase") == "flight" and right.get("video_phase") == "flight" else 0.5
+    phase_score = (
+        1.0 if left.get("video_phase") == "flight" and right.get("video_phase") == "flight" else 0.5
+    )
     offset_score = max(0.0, 1.0 - abs(offset_error_ms) / 100.0)
     rate_score = max(0.0, 1.0 - abs(rate_error_hz) / 10.0)
     return round(
-        0.17 * sample_score
-        + 0.17 * symmetry_score
-        + 0.17 * timing_score
+        0.16 * sample_score
+        + 0.16 * symmetry_score
+        + 0.16 * timing_score
         + 0.17 * phase_score
-        + 0.17 * offset_score
+        + 0.20 * offset_score
         + 0.15 * rate_score,
         4,
     )
@@ -91,7 +96,7 @@ def landing_stability(
     landing_ns = t0_ns + int(landing_frame / fps * 1e9)
     window = [
         math.sqrt(sum(v * v for v in row[3:6]))
-        for timestamp, row in zip(stream.timestamps_ns, stream.values)
+        for timestamp, row in zip(stream.timestamps_ns, stream.values, strict=True)
         if landing_ns <= timestamp <= landing_ns + 150_000_000
     ]
     if not window:
