@@ -199,7 +199,7 @@ User authorized full cleanup. Migration now single-stack (Dokploy only).
 ## Follow-up for USER (cannot do via API)
 
 1. **GitHub secrets** (required for deploy.yml to work):
-   - `DOKPLOY_API_KEY` = `hBrvLmPcTmcjZLcmNGLNGjWllppvxdNELIWoMisdZVkBIzmnTduaBCHqeAjaFyxr` (or rotate first in Dokploy UI → new key)
+   - `DOKPLOY_API_KEY` must be provided through Dokploy/CI secrets only; rotate any key previously exposed in this document.
    - `DOKPLOY_COMPOSE_ID` = `Yshf8i7x20Xzg7Qol4EAb`
 2. **Push worktree branch** `worktree-dokploy-migration` + open PR to `master` (use `finishing-a-development-branch` skill).
 3. **After 1-week observation**: Phase 5.5 secrets rotation (`shred -u`), root password change, remove plaintext secrets from this doc.
