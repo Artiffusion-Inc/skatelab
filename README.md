@@ -40,6 +40,24 @@ Video → RTMPose (rtmlib, CUDA) → HALPE26 (26kp) → H3.6M (17kp)
   → Phase Detection → Biomechanics Metrics → DTW → Recommender → Russian Report
 ```
 
+### Multimodal capture (MVP)
+
+The Android capture flow records camera frames plus LEFT/RIGHT WT901 IMU streams
+as delimited protobuf (`.binpb`) files. A manifest stores the capture anchor,
+per-sensor first timestamps, and configured sample rate. The GPU worker decodes
+both streams and exposes deterministic diagnostics: peak timing, rotation
+symmetry, landing stability, timestamp/rate error, and sensor confidence.
+
+Local smoke check:
+
+```bash
+cd ml
+python scripts/inspect_imu.py /path/to/left.binpb --manifest /path/to/manifest.json
+```
+
+These are measurement-quality signals, not a validated skating score. Thresholds
+must be calibrated against coach-labelled attempts before making performance claims.
+
 | Component | Technology |
 |-----------|-----------|
 | **2D Pose** | RTMPose via rtmlib (HALPE26, 26kp, CUDA) |
