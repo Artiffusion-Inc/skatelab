@@ -72,7 +72,8 @@ describe("#829 useProcessStream unknown/timeout terminal payloads", () => {
     const { result, unmount } = renderHook(() => useProcessStream("task-unknown"))
 
     await waitFor(() => expect(instances.length).toBeGreaterThanOrEqual(1))
-    const es = instances[0]!
+    const es = instances[0]
+    if (!es) throw new Error("EventSource was not created")
     es.fireOpen()
     expect(es.closed).toBe(false)
 
@@ -97,7 +98,8 @@ describe("#829 useProcessStream unknown/timeout terminal payloads", () => {
     const { result, unmount } = renderHook(() => useProcessStream("task-timeout"))
 
     await waitFor(() => expect(instances.length).toBeGreaterThanOrEqual(1))
-    const es = instances[0]!
+    const es = instances[0]
+    if (!es) throw new Error("EventSource was not created")
     es.fireOpen()
 
     act(() => {

@@ -67,7 +67,8 @@ describe("useProcessStream SSE onerror no-reconnect (RED repro)", () => {
 
     // EventSource constructed on mount.
     await waitFor(() => expect(instances.length).toBeGreaterThanOrEqual(1))
-    const es = instances[0]!
+    const es = instances[0]
+    if (!es) throw new Error("EventSource was not created")
     es.fireOpen()
     expect(es.closed).toBe(false)
 
@@ -105,7 +106,8 @@ describe("useProcessStream SSE onmessage malformed JSON (RED repro)", () => {
     const { unmount } = renderHook(() => useProcessStream("task-2"))
 
     await waitFor(() => expect(instances.length).toBeGreaterThanOrEqual(1))
-    const es = instances[0]!
+    const es = instances[0]
+    if (!es) throw new Error("EventSource was not created")
     es.fireOpen()
 
     // Bug B: onmessage does `const data = JSON.parse(e.data)` with no try/catch.
