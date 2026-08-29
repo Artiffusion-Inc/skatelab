@@ -141,7 +141,12 @@
 
     <!-- Auth -->
     <string name="auth_login_title">Log in to your account</string>
-    <string name="auth_register_title">Create Account</string>
+    <string name="auth_login_heading">Log in</string>
+    <string name="auth_brand_subtitle">AI coach for figure skating</string>
+    <string name="auth_back">Back</string>
+    <string name="auth_register_top_title">Registration</string>
+    <string name="auth_register_title">Create an account</string>
+    <string name="auth_register_heading">Create an account</string>
     <string name="auth_register_subtitle">Sign up to get started</string>
     <string name="auth_email">Email</string>
     <string name="auth_password">Password</string>
@@ -150,16 +155,18 @@
     <string name="auth_register_button">Register</string>
     <string name="auth_no_account">Don\'t have an account? Register</string>
     <string name="auth_has_account">Already have an account? Log in</string>
-    <string name="auth_forgot_title">Forgot password</string>
-    <string name="auth_forgot_subtitle">Enter email and we will send reset link.</string>
-    <string name="auth_forgot_button">Send reset link</string>
+    <string name="auth_forgot_top_title">Password recovery</string>
+    <string name="auth_forgot_title">Forgot your password?</string>
+    <string name="auth_forgot_subtitle">Enter the email you used to register. We will send a recovery link.</string>
+    <string name="auth_forgot_button">Send recovery link</string>
     <string name="auth_forgot_link">Forgot password?</string>
-    <string name="auth_forgot_sent">If email exists, reset link sent.</string>
+    <string name="auth_forgot_sent">If the address is registered, we have sent a recovery link.</string>
     <string name="auth_back_to_login">Back to login</string>
     <string name="auth_new_password_title">Set a new password</string>
     <string name="auth_new_password_subtitle">Choose a strong password for your account.</string>
     <string name="auth_new_password_label">New password</string>
     <string name="auth_confirm_password">Confirm password</string>
+    <string name="auth_password_hint">At least 8 characters</string>
     <string name="auth_password_mismatch">Passwords do not match.</string>
     <string name="auth_new_password_button">Save new password</string>
     <string name="auth_new_password_success">Your password has been changed.</string>
