@@ -87,7 +87,7 @@ class AuthApiTest {
     fun resetPasswordRequestSerialization() {
         val req = ResetPasswordRequest(token = "tok-reset", newPassword = "newPass123")
         val json = Json.encodeToString(req)
-        assertTrue(json.contains("new_password"))
+        assertTrue(json.contains("\"password\""))
         assertTrue(json.contains("newPass123"))
     }
 }

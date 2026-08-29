@@ -85,7 +85,7 @@ data class ForgotPasswordRequest(
 @Serializable
 data class ResetPasswordRequest(
     val token: String,
-    @SerialName("new_password") val newPassword: String,
+    @SerialName("password") val newPassword: String,
 )
 
 class AuthApi(

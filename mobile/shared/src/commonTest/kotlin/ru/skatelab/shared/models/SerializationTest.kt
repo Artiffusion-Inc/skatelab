@@ -206,6 +206,68 @@ class SerializationTest {
     // --- #355: backend may send element_type: null for sessions created during auto-detect.
     // The SessionResponse must deserialize without throwing and surface null. ---
     @Test
+    fun sessionResponse_deserializesBackendFields() {
+        val payload = """{
+            "id":"s1",
+            "user_id":"u1",
+            "workspace_id":"w1",
+            "element_type":"3A",
+            "video_key":"videos/u1/s1.mp4",
+            "video_url":"https://example.test/s1.mp4",
+            "processed_video_key":"processed/u1/s1.mp4",
+            "processed_video_url":"https://example.test/processed.mp4",
+            "poses_url":"https://example.test/poses.json",
+            "csv_url":"https://example.test/metrics.csv",
+            "imu_left_key":"imu/u1/left.csv",
+            "imu_right_key":"imu/u1/right.csv",
+            "manifest_key":"manifests/u1/s1.json",
+            "isu_code":"3A",
+            "status":"done",
+            "created_at":"2026-05-28T10:00:00Z",
+            "processed_at":"2026-05-28T10:01:00Z",
+            "segmentation_status":"complete",
+            "timeline":{
+                "segments":[{
+                    "id":"segment-1",
+                    "element_type":"3A",
+                    "element_name":"Axel",
+                    "start_frame":10,
+                    "end_frame":30,
+                    "confidence":0.95,
+                    "phases_json":{"takeoff":12}
+                }],
+                "segmentation_confidence":0.9,
+                "segmentation_status":"complete"
+            },
+            "goe_grade":{
+                "grade":2,
+                "base_value":8.0,
+                "estimated_score":9.0,
+                "modifier":"clean",
+                "positives":["speed"],
+                "negatives":[],
+                "confidence":0.8,
+                "deductions":[]
+            }
+        }"""
+
+        val decoded = json.decodeFromString<SessionResponse>(payload)
+
+        assertEquals("w1", decoded.workspaceId)
+        assertEquals("videos/u1/s1.mp4", decoded.videoKey)
+        assertEquals("processed/u1/s1.mp4", decoded.processedVideoKey)
+        assertEquals("https://example.test/poses.json", decoded.posesUrl)
+        assertEquals("https://example.test/metrics.csv", decoded.csvUrl)
+        assertEquals("imu/u1/left.csv", decoded.imuLeftKey)
+        assertEquals("imu/u1/right.csv", decoded.imuRightKey)
+        assertEquals("manifests/u1/s1.json", decoded.manifestKey)
+        assertEquals("3A", decoded.isuCode)
+        assertEquals("complete", decoded.segmentationStatus)
+        assertEquals("segment-1", decoded.timeline?.segments?.single()?.id)
+        assertEquals(2, decoded.goeGrade?.grade)
+    }
+
+    @Test
     fun sessionResponse_handlesNullElementType() {
         val payload = """{"id":"s1","user_id":"u1","element_type":null,"status":"processing","overall_score":null,"recommendations":null,"metrics":[],"created_at":"2026-05-24T10:00:00Z"}"""
         val decoded = json.decodeFromString<SessionResponse>(payload)

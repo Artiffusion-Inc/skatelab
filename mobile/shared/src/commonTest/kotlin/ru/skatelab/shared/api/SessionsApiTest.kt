@@ -9,9 +9,12 @@ import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpMethod
 import io.ktor.http.HttpStatusCode
+import io.ktor.http.Parameters
+import io.ktor.http.content.TextContent
 import io.ktor.http.headersOf
 import io.ktor.serialization.kotlinx.json.json
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.jsonObject
 import ru.skatelab.shared.models.SessionListResponse
 import ru.skatelab.shared.models.SessionResponse
 import ru.skatelab.shared.models.SessionUpdateRequest
@@ -104,6 +107,32 @@ class SessionsApiTest {
     }
 
     @Test
+    fun list_passesOnlyBackendSupportedQueryParameters() = kotlinx.coroutines.test.runTest {
+        var capturedQuery: Parameters? = null
+        val engine = MockEngine { request ->
+            capturedQuery = request.url.parameters
+            respond(
+                "{\"sessions\":[],\"total\":0}",
+                status = HttpStatusCode.OK,
+                headers = headersOf(HttpHeaders.ContentType, ContentType.Application.Json.toString()),
+            )
+        }
+        val api = SessionsApi(client(engine))
+
+        api.list(limit = 10, cursor = "cursor-xyz", elementType = "lutz", userId = "student-1")
+
+        assertEquals("10", capturedQuery?.get("limit"))
+        assertEquals("cursor-xyz", capturedQuery?.get("cursor"))
+        assertEquals("lutz", capturedQuery?.get("element_type"))
+        assertEquals("student-1", capturedQuery?.get("user_id"))
+        assertEquals(null, capturedQuery?.get("status"))
+        assertEquals(null, capturedQuery?.get("date_from"))
+        assertEquals(null, capturedQuery?.get("date_to"))
+        assertEquals(null, capturedQuery?.get("attempt"))
+        assertEquals(null, capturedQuery?.get("season"))
+    }
+
+    @Test
     fun create_returnsNewSession() = kotlinx.coroutines.test.runTest {
         var requestMethod: HttpMethod? = null
         var requestPath: String? = null
@@ -142,6 +171,7 @@ class SessionsApiTest {
     fun update_returnsUpdatedSession() = kotlinx.coroutines.test.runTest {
         var requestMethod: HttpMethod? = null
         var requestPath: String? = null
+        var requestBody: String? = null
         val updatedJson = """{
             "id": "sess-1",
             "user_id": "user-1",
@@ -157,6 +187,7 @@ class SessionsApiTest {
         val engine = MockEngine { request ->
             requestMethod = request.method
             requestPath = request.url.encodedPath
+            requestBody = (request.body as? TextContent)?.text
             respond(
                 updatedJson,
                 status = HttpStatusCode.OK,
@@ -164,24 +195,45 @@ class SessionsApiTest {
             )
         }
         val api = SessionsApi(client(engine))
-        val response = api.update("sess-1", SessionUpdateRequest(elementType = "lutz", notes = "PR attempt"))
+        val response = api.update(
+            "sess-1",
+            SessionUpdateRequest(
+                elementType = "lutz",
+                notes = "PR attempt",
+                status = "queued",
+                processTaskId = "task-1",
+                isuCode = "3Lz",
+            ),
+        )
         assertEquals(HttpMethod.Patch, requestMethod)
         assertEquals("/sessions/sess-1", requestPath)
+        val body = json.parseToJsonElement(requestBody!!).jsonObject
+        assertEquals("lutz", body["element_type"]?.toString()?.trim('"'))
+        assertEquals("queued", body["status"]?.toString()?.trim('"'))
+        assertEquals("task-1", body["process_task_id"]?.toString()?.trim('"'))
+        assertEquals("3Lz", body["isu_code"]?.toString()?.trim('"'))
+        assertTrue("notes" !in body)
         assertEquals("lutz", response.elementType)
     }
 
     @Test
-    fun bulkDelete_sendsDeleteWithIds() = kotlinx.coroutines.test.runTest {
+    fun bulkDelete_sendsDeleteWithIdsQueryParameter() = kotlinx.coroutines.test.runTest {
         var requestMethod: HttpMethod? = null
         var requestPath: String? = null
+        var capturedIds: String? = null
+        var requestBody: String? = null
         val engine = MockEngine { request ->
             requestMethod = request.method
             requestPath = request.url.encodedPath
+            capturedIds = request.url.parameters["ids"]
+            requestBody = (request.body as? TextContent)?.text
             respondOk()
         }
         val api = SessionsApi(client(engine))
         api.bulkDelete(listOf("sess-1", "sess-2", "sess-3"))
         assertEquals(HttpMethod.Delete, requestMethod)
         assertEquals("/sessions/bulk", requestPath)
+        assertEquals("sess-1,sess-2,sess-3", capturedIds)
+        assertEquals(null, requestBody)
     }
 }
