@@ -232,6 +232,7 @@ class ProcessResponse(BaseModel):
     goe_grade: dict | None = None
     segments: list[dict] | None = None
     rotations: int | None = None
+    imu_stats: dict[str, object] | None = None
 
 
 def _s3(creds: ProcessRequest | DetectRequest):
@@ -305,6 +306,23 @@ async def detect(req: DetectRequest):
 
                 logger.info("Downloading video for detection from S3: %s", req.video_s3_key)
                 await _s3_download(s3, req.s3_bucket, req.video_s3_key, str(video_local))
+
+                imu_stats: dict[str, object] = {}
+                from src.sensor_fusion import decode_imu_file
+
+                for side, key in (("left", req.imu_left_s3_key), ("right", req.imu_right_s3_key)):
+                    if not key:
+                        continue
+                    imu_local = Path(tmpdir) / f"{side}.binpb"
+                    await _s3_download(s3, req.s3_bucket, key, str(imu_local))
+                    stream = decode_imu_file(imu_local)
+                    imu_stats[side] = {
+                        "samples": len(stream.timestamps_ns),
+                        "gaps": stream.gaps,
+                        "sample_rate_hz": round(stream.sample_rate_hz, 3),
+                        "first_timestamp_ns": stream.timestamps_ns[0] if stream.timestamps_ns else None,
+                        "last_timestamp_ns": stream.timestamps_ns[-1] if stream.timestamps_ns else None,
+                    }
 
                 cfg = DeviceConfig.default()
                 extractor = PoseExtractor(
@@ -597,6 +615,7 @@ async def process(req: ProcessRequest):
                     ),
                     "element_type": req.element_type,
                     "rotations": rotations,
+                    "imu_stats": imu_stats or None,
                 }
                 # #488: NaN/Infinity coerce + allow_nan=False. Pre-fix
                 # `json.dumps(..., allow_nan=True)` (the default) serialized
@@ -642,6 +661,7 @@ async def process(req: ProcessRequest):
                     goe_grade=metrics_data.get("goe_grade"),
                     segments=segments_result,
                     rotations=metrics_data.get("rotations"),
+                    imu_stats=metrics_data.get("imu_stats"),
                 )
     except Exception:
         INFERENCE_REQUESTS.labels(status="error").inc()
