@@ -13,6 +13,7 @@ from app.routes.metrics import MetricsController
 from app.routes.metrics_summary import ElementSummaryController
 from app.routes.misc import MiscController
 from app.routes.models import ModelsController
+from app.routes.notifications import NotificationsController
 from app.routes.phases import PhasesController
 from app.routes.process import ProcessController
 from app.routes.scores import ScoresController
@@ -29,6 +30,7 @@ detect = Router(path="/detect", route_handlers=[DetectController])
 metrics = Router(path="/metrics", route_handlers=[MetricsController, ElementSummaryController])
 misc = Router(path="", route_handlers=[MiscController])
 models = Router(path="/models", route_handlers=[ModelsController])
+notifications = Router(path="/notifications", route_handlers=[NotificationsController])
 process = Router(path="/process", route_handlers=[ProcessController])
 sessions = Router(
     path="/sessions",

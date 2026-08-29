@@ -8,7 +8,7 @@ from collections.abc import Sequence  # noqa: TC003
 from pathlib import Path
 from typing import TYPE_CHECKING, ClassVar
 
-from litestar import Controller, delete, get, post, put
+from litestar import Controller, Response, delete, get, post, put
 from litestar.connection import Request  # noqa: TC002
 from litestar.datastructures import UploadFile  # noqa: TC002
 from litestar.exceptions import ClientException
@@ -54,6 +54,7 @@ from app.services.choreography.csp_solver import solve_layout
 from app.services.choreography.music_analyzer import extract_features_for_csp
 from app.services.choreography.rink_renderer import render_rink
 from app.services.choreography.rules_engine import validate_layout as validate_layout_engine
+from app.services.pdf_report import generate_program_pdf
 from app.storage import upload_file
 
 if TYPE_CHECKING:
@@ -465,8 +466,8 @@ class ChoreographyController(Controller):
         data: ExportRequest,
         verified_user: VerifiedUser,
         db: DbDep,
-    ) -> dict:
-        """Export a program as SVG, PDF, or JSON."""
+    ) -> Response[bytes] | dict[str, object]:
+        """Export a program as a PDF, SVG, or JSON document."""
         program = await get_program_by_id(db, program_id)
         if not program:
             raise ClientException(
@@ -477,6 +478,26 @@ class ChoreographyController(Controller):
             raise ClientException(
                 status_code=HTTP_403_FORBIDDEN,
                 detail="Not authorized",
+            )
+
+        if data.format == "pdf":
+            elements = program.layout.get("elements", []) if program.layout else []
+            pdf = generate_program_pdf(
+                {
+                    "title": program.title,
+                    "discipline": program.discipline,
+                    "segment": program.segment,
+                    "season": program.season,
+                    "elements": elements,
+                    "estimated_total": program.estimated_total,
+                }
+            )
+            return Response(
+                content=pdf,
+                media_type="application/pdf",
+                headers={
+                    "Content-Disposition": f'attachment; filename="program-{program_id}.pdf"',
+                },
             )
 
         if data.format == "json":

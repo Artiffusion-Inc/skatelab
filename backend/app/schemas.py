@@ -582,6 +582,56 @@ class ConnectionListResponse(PaginatedResponse):
 
 
 # ---------------------------------------------------------------------------
+# Notifications
+# ---------------------------------------------------------------------------
+
+
+class NotificationResponse(BaseModel):
+    """Actionable in-app notification for mobile clients."""
+
+    id: str
+    user_id: str
+    event_type: str
+    title: str
+    body: str
+    deep_link: str | None
+    payload: dict[str, Any] | None
+    is_read: bool
+    read_at: str | None
+    created_at: str
+
+    model_config = {"from_attributes": True}
+
+    @field_validator("created_at", "read_at", mode="before")
+    @classmethod
+    def validate_datetime(cls, v: Any) -> str | None:
+        if v is None:
+            return None
+        if isinstance(v, datetime):
+            return v.isoformat()
+        return str(v)
+
+
+class NotificationListResponse(BaseModel):
+    notifications: list[NotificationResponse]
+    total: int
+    unread_count: int
+    page: int = 1
+    page_size: int = 20
+    pages: int = 1
+    has_next: bool = False
+    has_prev: bool = False
+
+
+class UnreadCountResponse(BaseModel):
+    unread_count: int
+
+
+class MarkAllNotificationsReadResponse(BaseModel):
+    marked_read: int
+
+
+# ---------------------------------------------------------------------------
 # Choreography
 # ---------------------------------------------------------------------------
 
@@ -727,7 +777,8 @@ class SaveProgramRequest(BaseModel):
 
 
 class ExportRequest(BaseModel):
-    format: str = Field(pattern=r"^(svg|json)$")  # #714: removed pdf — was returning SVG, not PDF
+    # PDF is part of the wire contract even while generation is unavailable.
+    format: str = Field(pattern=r"^(svg|pdf|json)$")
 
 
 class ElementDefResponse(BaseModel):

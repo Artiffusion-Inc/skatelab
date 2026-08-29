@@ -684,14 +684,14 @@ async def test_delete_existing_program_success(mock_user, mock_db):
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.parametrize("fmt", ["json", "svg", "pdf"])
+@pytest.mark.parametrize("fmt", ["json", "svg"])
 @pytest.mark.asyncio
 async def test_export_program_format(mock_user, mock_db, fmt):
     from app.schemas import ExportRequest
 
     layout = (
         {"elements": [{"code": "3A", "x": 10.0, "y": 5.0}]}
-        if fmt in ("svg", "pdf")
+        if fmt == "svg"
         else {"elements": [{"code": "3A"}]}
     )
     mock_program = _make_owned_entity(
@@ -707,7 +707,7 @@ async def test_export_program_format(mock_user, mock_db, fmt):
 
     body = ExportRequest(format=fmt)
 
-    svg_return = {"json": None, "svg": "<svg>rink</svg>", "pdf": "<svg>pdf-rink</svg>"}[fmt]
+    svg_return = {"json": None, "svg": "<svg>rink</svg>"}[fmt]
     render_patch = (
         patch("app.routes.choreography.render_rink", return_value=svg_return)
         if fmt != "json"
@@ -731,9 +731,6 @@ async def test_export_program_format(mock_user, mock_db, fmt):
         assert result["data"]["title"] == "My Program"
     else:
         assert result["svg"] is not None
-    if fmt == "pdf":
-        assert "note" in result
-        assert "headless browser" in result["note"]
 
 
 @pytest.mark.asyncio

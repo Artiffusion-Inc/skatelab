@@ -4,6 +4,7 @@ from app.models.auth_audit_log import AuthAuditLog
 from app.models.base import Base
 from app.models.choreography import ChoreographyProgram, MusicAnalysis
 from app.models.connection import Connection
+from app.models.notifications import Notification
 from app.models.password_reset_token import PasswordResetToken
 from app.models.refresh_token import RefreshToken
 from app.models.session import Session, SessionElement, SessionMetric
@@ -22,6 +23,7 @@ __all__ = [
     "ChoreographyProgram",
     "Connection",
     "MusicAnalysis",
+    "Notification",
     "PasswordResetToken",
     "RefreshToken",
     "Session",
