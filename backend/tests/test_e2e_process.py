@@ -85,7 +85,7 @@ async def test_e2e_presign_enqueue_poll(client, auth_headers, authed_user, mock_
     }
     with (
         patch(
-            "app.auth.ownership.get_task_state", new_callable=AsyncMock, return_value=fake_running
+            "app.routes.process.get_task_state", new_callable=AsyncMock, return_value=fake_running
         ),
     ):
         status_resp = await client.get(f"/v1/process/{task_id}/status", headers=auth_headers)
@@ -163,6 +163,11 @@ async def test_e2e_enqueue_then_cancel(client, auth_headers, authed_user):
         patch("app.routes.process.set_cancel_signal", new_callable=AsyncMock),
         patch(
             "app.auth.ownership.get_task_state",
+            new_callable=AsyncMock,
+            return_value=fake_running_for_cancel,
+        ),
+        patch(
+            "app.routes.process.get_task_state",
             new_callable=AsyncMock,
             return_value=fake_running_for_cancel,
         ),
