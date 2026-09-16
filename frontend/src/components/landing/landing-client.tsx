@@ -1,7 +1,7 @@
 "use client"
 
 import Image from "next/image"
-import { useRef, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { ArrowDown, ArrowUpRight, Check, Menu, X } from "lucide-react"
 import FocusLock from "react-focus-lock"
 import { useTranslations } from "@/i18n"
@@ -159,7 +159,7 @@ function DemoSection() {
             })}
           </div>
           <div id="demo-panel" className="py-8" role="tabpanel" aria-labelledby={`demo-tab-${tab}`}>
-            <p className="sh-micro uppercase tracking-[0.12em] text-ink-faint">
+            <p className="sh-micro uppercase tracking-[0.12em] text-ink-mute">
               {tab === "video" ? "01" : tab === "data" ? "02" : "03"}
             </p>
             <h3 className="mt-3 sh-display-md text-ink">{copy.title}</h3>
@@ -202,7 +202,7 @@ function SystemSection() {
         <ol className="mt-14 grid gap-4 lg:grid-cols-3">
           {steps.map(step => (
             <li key={step.number} className="border-t-2 border-primary pt-5">
-              <span className="sh-micro text-primary">{step.number}</span>
+              <span className="sh-micro text-primary-deep">{step.number}</span>
               <h3 className="mt-8 sh-display-md text-ink">{step.title}</h3>
               <p className="mt-4 sh-body-md text-ink-mute">{step.body}</p>
               <p className="mt-8 inline-flex rounded-md bg-canvas-soft px-3 py-2 sh-micro text-ink-mute">
@@ -266,6 +266,12 @@ function Navigation() {
 
   return (
     <header className="fixed inset-x-0 top-0 z-50 border-b border-hairline/80 bg-background/95 pt-[env(safe-area-inset-top)]">
+      <a
+        href="#main-content"
+        className="sr-only focus-visible:not-sr-only focus-visible:fixed focus-visible:left-4 focus-visible:top-4 focus-visible:z-[100] focus-visible:rounded-md focus-visible:bg-primary focus-visible:px-4 focus-visible:py-3 focus-visible:text-primary-foreground"
+      >
+        {t("skipToContent")}
+      </a>
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-6">
         <a href="#top" className="sh-heading-lg text-ink">
           SkateLab
@@ -423,7 +429,7 @@ function Footer() {
           </a>
         </div>
         <nav aria-label={t("footerProduct")}>
-          <p className="mb-3 sh-caption text-ink-faint">{t("footerProduct")}</p>
+          <p className="mb-3 sh-caption text-ink-mute">{t("footerProduct")}</p>
           <div className="flex flex-col items-start">
             <a href="#demo" className="min-h-11 py-3 sh-caption text-ink-mute hover:text-ink">
               {t("footerDemo")}
@@ -443,7 +449,7 @@ function Footer() {
           </div>
         </nav>
         <nav aria-label={t("footerLegal")}>
-          <p className="mb-3 sh-caption text-ink-faint">{t("footerLegal")}</p>
+          <p className="mb-3 sh-caption text-ink-mute">{t("footerLegal")}</p>
           <div className="flex flex-col items-start">
             <a href="/privacy" className="min-h-11 py-3 sh-caption text-ink-mute hover:text-ink">
               {t("footerPrivacy")}
@@ -469,14 +475,12 @@ function Footer() {
 
 export function LandingClient() {
   const t = useTranslations("landing")
+  useEffect(() => {
+    document.getElementById("landing-nojs-fallback")?.setAttribute("hidden", "")
+  }, [])
+
   return (
     <div id="top" className="landing-page overflow-x-hidden">
-      <a
-        href="#main-content"
-        className="sr-only focus-visible:not-sr-only focus-visible:fixed focus-visible:left-4 focus-visible:top-4 focus-visible:z-[100] focus-visible:rounded-md focus-visible:bg-primary focus-visible:px-4 focus-visible:py-3 focus-visible:text-primary-foreground"
-      >
-        {t("skipToContent")}
-      </a>
       <Navigation />
       <main id="main-content" tabIndex={-1}>
         <section className="relative overflow-hidden bg-primary pt-24" aria-labelledby="hero-title">
@@ -581,9 +585,12 @@ export function LandingClient() {
         <PilotSection />
       </main>
       <Footer />
-      <div className="fixed inset-x-0 bottom-0 z-40 border-t border-hairline bg-background/95 p-3 md:hidden">
+      <aside
+        className="fixed inset-x-0 bottom-0 z-40 border-t border-hairline bg-background/95 p-3 md:hidden"
+        aria-label={t("mobileCta")}
+      >
         <PilotLink className="w-full">{t("mobileCta")}</PilotLink>
-      </div>
+      </aside>
     </div>
   )
 }

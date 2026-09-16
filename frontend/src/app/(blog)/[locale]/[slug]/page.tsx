@@ -1,15 +1,16 @@
 import { notFound } from "next/navigation"
-import { loader, source } from "fumadocs-core/source"
+import { loader } from "fumadocs-core/source"
+import { toFumadocsSource } from "fumadocs-mdx/runtime/server"
 import { resolveLocale, LOCALES, DEFAULT_LOCALE, type Locale } from "@/lib/docs-i18n"
 // ponytail: see (docs)/[locale]/layout.tsx — relative import to generated
 // .source/server (Fumadocs generates .source on dev/build, not at test time;
-// no tsconfig/vitest alias for @/.source). `create.doc()` returns a bare
-// array of pages (no `.toFumadocsSource()` like `create.docs()` does), so
-// wrap with the `source({ pages, metas })` helper for non-docs collections.
+// no tsconfig/vitest alias for @/.source). `create.doc()` returns entries
+// with `info.path`; convert them with Fumadocs' `toFumadocsSource()` before
+// passing the collection to the loader.
 import { blog as blogPages } from "../../../../../.source/server"
 
 const blog = loader({
-  source: source({ pages: blogPages as never, metas: [] }),
+  source: toFumadocsSource(blogPages, []),
   baseUrl: "/blog",
   i18n: {
     languages: LOCALES as unknown as string[],
