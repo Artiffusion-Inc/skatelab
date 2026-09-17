@@ -1,7 +1,7 @@
 "use client"
 
 import Image from "next/image"
-import { useEffect, useRef, useState } from "react"
+import { useRef, useState } from "react"
 import { ArrowDown, ArrowUpRight, Check, Menu, X } from "lucide-react"
 import FocusLock from "react-focus-lock"
 import { useTranslations } from "@/i18n"
@@ -475,10 +475,6 @@ function Footer() {
 
 export function LandingClient() {
   const t = useTranslations("landing")
-  useEffect(() => {
-    document.getElementById("landing-nojs-fallback")?.setAttribute("hidden", "")
-  }, [])
-
   return (
     <div id="top" className="landing-page overflow-x-hidden">
       <Navigation />

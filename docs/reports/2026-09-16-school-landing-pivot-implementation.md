@@ -34,7 +34,7 @@ On 2026-09-16, after the original implementation was written, the parent session
 - `ibelick/fixing-accessibility`: corrected CTA analytics from pointer-only handlers to click handlers, added labelled tab panels with `aria-controls` / `aria-labelledby`, roving tab focus and ArrowLeft/ArrowRight/Home/End keyboard navigation, while retaining native links, disclosure and FocusLock Escape/return-focus behavior.
 - `ibelick/fixing-metadata`: changed the OG image to an absolute URL and added matching `summary_large_image` Twitter metadata; canonical and OG URL remain `https://skatelab.ru`, and JSON-LD continues to reflect rendered FAQ content only.
 - `pbakaus/critique`: retained school/trainer-specific language, the mobile fixed pilot action and explicitly labelled future-interface illustration; no two-agent critique fanout was run, so this is a degraded single-context application rather than a complete upstream critique run.
-- `addyosmani/web-quality-audit`: checked source-level resource/semantic decisions and was followed by a real production browser pass using a temporary Playwright + Chromium installation outside the repository. Responsive screenshots, metadata, keyboard navigation, reduced-motion preference, sitemap responses and axe were checked. No field CWV is claimed; lab CWV/Lighthouse was not run.
+- `addyosmani/web-quality-audit`: checked source-level resource/semantic decisions and was followed by a real production browser pass using temporary Playwright + Chromium and Lighthouse installations outside the repository. Responsive screenshots, metadata, keyboard navigation, reduced-motion preference, no-JS rendering, sitemap responses, axe and three controlled Lighthouse mobile performance runs were checked. No field CWV is claimed.
 
 The actual skill texts were fetched through MCP by the parent on this date; the worker's original environment exposed no MCP namespace. This report distinguishes source decisions from measured browser evidence.
 
@@ -44,7 +44,7 @@ The actual skill texts were fetched through MCP by the parent on this date; the 
 2. The Telegram URL exists in old code but responsible-person ownership and response workflow were not verified by this implementation. No public alternative email was available in repository evidence; do not publish a promise of response.
 3. Sensor kit configuration, calibration, recording requirements and end-to-end sensor + video + coach review behavior need validation in a real practice.
 4. Rights/consent for any future skater footage, especially minors, and the actual pilot data-access policy remain to be approved by the product owner.
-5. A no-JavaScript browser context does not materialize the Next.js RSC shell into DOM content, so the no-JS acceptance criterion remains open despite a server-side fallback being present in the RSC payload. This needs a broader server-rendering boundary decision before launch.
+5. Resolved: ConsentProvider now renders its children during the server pass instead of returning null until client storage initializes. The production no-JavaScript browser check now sees the complete landing h1 and pilot CTA.
 
 ## Validation
 
@@ -58,7 +58,8 @@ The actual skill texts were fetched through MCP by the parent on this date; the 
 - Added `frontend/src/lib/__tests__/sitemap.test.ts`; the regression test first failed on the missing helper, then passed after verifying docs/blog host selection, locale alternates and internal-doc exclusion.
 - Temporary `/tmp/skatelab-browser` tooling installed Playwright 1.52.0, Chromium and axe-core/playwright without repository dependency changes. Production `next start` was checked at 360, 390, 768, 1280, 1366x768 and 1440 px; no horizontal overflow, expected hero/CTA content and screenshots were produced under `/tmp/skatelab-landing-*.png`.
 - Production browser checks passed for canonical/OG/Twitter metadata, seven FAQ JSON-LD entries, Escape-closing mobile navigation, ArrowRight demo-tab navigation, reduced-motion media preference, host-aware docs/blog sitemap content, and axe after consent and contrast/landmark fixes.
-- Browser console was clean after adding the missing bilingual consent translation keys. The no-JavaScript context still had no materialized `h1`/pilot CTA because Next's RSC shell is script-dependent; this is recorded as an open technical risk, not a passed check.
+- Browser console was clean after adding the missing bilingual consent translation keys. The no-JavaScript context now exposes the full landing content after the ConsentProvider SSR fix.
+- Three Lighthouse 12.5.0 mobile performance runs (390x844, simulated mobile throttling) scored 0.86, 0.86 and 0.86; FCP 1.2 s in all runs, LCP 4.2 s in all runs, CLS 0, TBT 20-30 ms, TTI 4.3 s. These are controlled lab measurements, not field p75.
 - `git diff --check` passed.
 
 No production deployment or third-party contact was performed.

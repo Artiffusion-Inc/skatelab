@@ -68,14 +68,11 @@ export function ConsentProvider({ children }: { children: ReactNode }) {
     recordings: false,
   })
   const [showBanner, setShowBanner] = useState(true)
-  const [initialized, setInitialized] = useState(false)
 
   useMountEffect(() => {
     const stored = readConsent()
     setConsentState(stored)
     setShowBanner(!localStorage.getItem(STORAGE_KEY))
-    setInitialized(true)
-
     // Sync PostHog with stored consent on mount
     if (posthogKey && stored.analytics) {
       setTimeout(() => {
@@ -114,8 +111,6 @@ export function ConsentProvider({ children }: { children: ReactNode }) {
     (category: "analytics" | "recordings") => consent[category],
     [consent],
   )
-
-  if (!initialized) return null
 
   return (
     <ConsentContext.Provider
