@@ -1,15 +1,8 @@
 name: Deploy
 
+# The public website is deployed separately through Dokploy.
+# Keep the retired full-stack deployment manual to prevent accidental restarts.
 on:
-  push:
-    branches: [master]
-    paths-ignore:
-      - "ml/gpu_server/**"
-      - ".github/workflows/container.yml"
-      - "docs/**"
-      - "research/**"
-      - "experiments/**"
-      - "*.md"
   workflow_dispatch:
 
 concurrency:
