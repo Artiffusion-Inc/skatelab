@@ -49,15 +49,33 @@ export function proxy(request: NextRequest) {
     return NextResponse.redirect(new URL("/", request.url))
   }
 
-  const response = NextResponse.next()
+  const pathname = request.nextUrl.pathname
+  const legacyBlog = pathname.match(/^\/(ru|en)\/blog(?:\/(.*))?$/)
+  if (request.nextUrl.hostname === "blog.skatelab.ru" || legacyBlog) {
+    let path = pathname
+    if (legacyBlog) path = `/blog/${legacyBlog[1]}${legacyBlog[2] ? `/${legacyBlog[2]}` : ""}`
+    else if (/^\/(ru|en)(\/|$)/.test(path)) path = `/blog${path}`
+    else if (!path.startsWith("/blog/"))
+      path = `/blog/ru${path === "/" || path === "/blog" ? "" : path}`
+    const target = new URL(path, "https://skatelab.ru")
+    target.search = request.nextUrl.search
+    return NextResponse.redirect(target, 308)
+  }
 
+  const requestHeaders = new Headers(request.headers)
+  requestHeaders.delete("x-public-locale")
+  const blogLocale = pathname.match(/^\/blog\/(ru|en)(?:\/|$)/)?.[1]
+  if (blogLocale) requestHeaders.set("x-public-locale", blogLocale)
   if (process.env.NODE_ENV === "development") {
-    return response
+    return NextResponse.next({ request: { headers: requestHeaders } })
   }
 
   const nonce = crypto.randomUUID().replace(/-/g, "")
   const csp = buildCsp(nonce, false)
-
+  // Next must receive the nonce in request headers to apply it to rendered scripts.
+  requestHeaders.set("Content-Security-Policy", csp)
+  requestHeaders.set("X-Nonce", nonce)
+  const response = NextResponse.next({ request: { headers: requestHeaders } })
   response.headers.set("Content-Security-Policy", csp)
   response.headers.set("X-Nonce", nonce)
 

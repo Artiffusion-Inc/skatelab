@@ -49,25 +49,25 @@ export function ConsentBanner() {
                   </a>
                 </p>
               </div>
-              <div className="flex items-center gap-3">
+              <div className="flex flex-wrap items-center gap-3">
                 <Button
                   variant="ghost"
                   onClick={() => setShowCustomize(true)}
-                  className="min-h-[44px] min-w-[120px] shrink-0"
+                  className="min-h-[44px] min-w-[96px] shrink-0"
                 >
                   {t("cookieCustomize")}
                 </Button>
                 <Button
                   onClick={handleDecline}
                   variant="ghost"
-                  className="min-h-[44px] min-w-[120px] shrink-0"
+                  className="min-h-[44px] min-w-[96px] shrink-0"
                 >
                   {t("cookieDecline")}
                 </Button>
                 <Button
                   onClick={handleAcceptAll}
                   autoFocus
-                  className="min-h-[44px] min-w-[120px] shrink-0"
+                  className="min-h-[44px] min-w-[96px] shrink-0"
                 >
                   {t("cookieAccept")}
                 </Button>
@@ -79,11 +79,11 @@ export function ConsentBanner() {
                 {t("cookieHeading")}
               </h2>
               <div className="space-y-3">
-                <label className="flex items-center gap-3">
+                <label className="flex flex-wrap items-center gap-3">
                   <input type="checkbox" checked disabled className="accent-primary" />
                   <span className="sh-body-md text-ink">{t("cookieEssential")}</span>
                 </label>
-                <label className="flex items-center gap-3 cursor-pointer">
+                <label className="flex min-h-[44px] items-center gap-3 cursor-pointer">
                   <input
                     type="checkbox"
                     checked={analytics}
@@ -92,7 +92,7 @@ export function ConsentBanner() {
                   />
                   <span className="sh-body-md text-ink">{t("cookieAnalytics")}</span>
                 </label>
-                <label className="flex items-center gap-3 cursor-pointer">
+                <label className="flex min-h-[44px] items-center gap-3 cursor-pointer">
                   <input
                     type="checkbox"
                     checked={recordings}
@@ -102,7 +102,7 @@ export function ConsentBanner() {
                   <span className="sh-body-md text-ink">{t("cookieRecordings")}</span>
                 </label>
               </div>
-              <div className="flex items-center gap-3">
+              <div className="flex flex-wrap items-center gap-3">
                 <Button
                   variant="ghost"
                   onClick={() => setShowCustomize(false)}
@@ -112,7 +112,7 @@ export function ConsentBanner() {
                 </Button>
                 <Button
                   onClick={handleAcceptSelected}
-                  className="min-h-[44px] min-w-[120px] shrink-0"
+                  className="min-h-[44px] min-w-[96px] shrink-0"
                 >
                   {t("cookieSave")}
                 </Button>

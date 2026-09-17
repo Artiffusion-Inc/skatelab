@@ -1,38 +1,11 @@
 import type { Metadata } from "next"
-import { getTranslations } from "next-intl/server"
+import { getLocale, getTranslations } from "next-intl/server"
+import { publicMetadata } from "@/lib/public-site"
 import { LandingClient } from "@/components/landing/landing-client"
 
 export async function generateMetadata(): Promise<Metadata> {
-  return {
-    title: "SkateLab — мобильный разбор техники для школы",
-    description:
-      "SkateLab — мобильное приложение для iPhone, iPad и Android в разработке. Видео и данные с оборудования для точного разговора тренера о технике.",
-    alternates: { canonical: "https://skatelab.ru" },
-    openGraph: {
-      title: "SkateLab — мобильный разбор техники для школы",
-      description:
-        "SkateLab — мобильное приложение для iPhone, iPad и Android в разработке. Видео и данные с оборудования для точного разговора тренера о технике.",
-      url: "https://skatelab.ru",
-      siteName: "SkateLab",
-      locale: "ru_RU",
-      type: "website",
-      images: [
-        {
-          url: "https://skatelab.ru/images/landing/hero-rink.webp",
-          width: 1600,
-          height: 900,
-          alt: "Фигурист на тренировке",
-        },
-      ],
-    },
-    twitter: {
-      card: "summary_large_image",
-      title: "SkateLab — мобильный разбор техники для школы",
-      description:
-        "SkateLab — мобильное приложение для iPhone, iPad и Android в разработке. Видео и данные с оборудования для точного разговора тренера о технике.",
-      images: ["https://skatelab.ru/images/landing/hero-rink.webp"],
-    },
-  }
+  const t = await getTranslations("landing")
+  return publicMetadata(t("heroTitle"), t("heroLead"), "/", await getLocale())
 }
 
 export default async function LandingPage() {

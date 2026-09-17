@@ -9,3 +9,14 @@ export function isLocale(v: string | undefined): v is Locale {
 export function resolveLocale(seg: string | undefined): Locale {
   return isLocale(seg) ? seg : DEFAULT_LOCALE
 }
+
+export const CONTENT_I18N = {
+  languages: [...LOCALES],
+  defaultLanguage: DEFAULT_LOCALE,
+  parser: "dir" as const,
+  fallbackLanguage: null,
+}
+
+export function docsUrl(slugs: string[], locale: string = DEFAULT_LOCALE): string {
+  return `/${locale}/${slugs.join("/")}`
+}

@@ -1,30 +1,36 @@
-import Link from "next/link"
+import { getLocale, getTranslations } from "next-intl/server"
+import { PublicShell, ContactLink } from "@/components/landing/public-shell"
+import { publicMetadata } from "@/lib/public-site"
 
-const LINKS = [
-  {
-    href: "/register?utm_source=tiktok&utm_medium=organic&utm_campaign=bio_link",
-    label: "Start free analysis",
-  },
-  { href: "/login?utm_source=tiktok&utm_medium=organic&utm_campaign=bio_link", label: "Login" },
-  { href: "/?utm_source=tiktok&utm_medium=organic&utm_campaign=bio_link", label: "Learn more" },
-]
+export async function generateMetadata() {
+  const t = await getTranslations("publicSite")
+  return publicMetadata(t("bioTitle"), t("bioIntro"), "/tiktok", await getLocale())
+}
 
-export default function TikTokPage() {
+export default async function TikTokPage() {
+  const t = await getTranslations("publicSite")
   return (
-    <div className="min-h-[dvh] bg-background flex flex-col items-center justify-center p-6">
-      <h1 className="sh-display-lg text-ink mb-2">SkateLab</h1>
-      <p className="sh-body-md text-ink-mute mb-8">AI coach for figure skating</p>
-      <div className="w-full max-w-sm space-y-3">
-        {LINKS.map(link => (
-          <Link
-            key={link.href}
-            href={link.href}
-            className="block w-full rounded-lg border border-hairline bg-canvas-soft px-6 py-4 text-center sh-body-md text-ink hover:bg-canvas transition-colors"
-          >
-            {link.label}
-          </Link>
-        ))}
-      </div>
-    </div>
+    <PublicShell>
+      <main id="main-content" tabIndex={-1} className="public-page-intro public-bio">
+        <p className="public-eyebrow">SkateLab</p>
+        <h1>{t("bioTitle")}</h1>
+        <p>{t("bioIntro")}</p>
+        <nav aria-label={t("navProcess")}>
+          <a href="/how-it-works" className="public-text-link">
+            {t("navProcess")} ↗
+          </a>
+          <a href="/equipment" className="public-text-link">
+            {t("navEquipment")} ↗
+          </a>
+          <a href="/blog" className="public-text-link">
+            {t("navBlog")} ↗
+          </a>
+          <a href="/contact" className="public-text-link">
+            {t("navContact")} ↗
+          </a>
+          <ContactLink />
+        </nav>
+      </main>
+    </PublicShell>
   )
 }

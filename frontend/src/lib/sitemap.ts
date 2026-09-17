@@ -20,7 +20,8 @@ export function buildSitemapEntries(
   return pages
     .filter(page => !excludeInternal || !page.url.includes("/internal/"))
     .map(page => {
-      const path = page.url.startsWith("/") ? page.url : `/${page.url}`
+      const rawPath = page.url.startsWith("/") ? page.url : `/${page.url}`
+      const path = rawPath.replace(/^\/(ru|en)(?=\/|$)/, "")
       return {
         url: `https://${host}/${locale}${path}`,
         alternates: {

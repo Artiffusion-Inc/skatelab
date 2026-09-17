@@ -3,7 +3,7 @@ import { buildSitemapEntries, selectSitemapCollection } from "@/lib/sitemap"
 
 describe("host-aware content sitemaps", () => {
   it("keeps blog and docs entries on their intended hosts", () => {
-    const pages = [{ url: "/user/getting-started" }, { url: "/internal/architecture" }]
+    const pages = [{ url: "/en/user/getting-started" }, { url: "/en/internal/architecture" }]
 
     expect(buildSitemapEntries(pages, "docs.skatelab.ru", "en", true)).toEqual([
       {

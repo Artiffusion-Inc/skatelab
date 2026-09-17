@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react"
+import { render, screen } from "@testing-library/react"
 import { describe, expect, it, vi } from "vitest"
 import { ConsentProvider } from "@/components/consent-provider"
 import { LandingClient } from "../landing-client"
@@ -31,7 +31,14 @@ describe("LandingClient campaign", () => {
     expect(screen.getAllByRole("link").some(link => link.getAttribute("href") === "/login")).toBe(
       false,
     )
-    expect(screen.getAllByText(/iPhone, iPad и Android/).length).toBeGreaterThan(0)
+    expect(
+      screen
+        .getAllByRole("link")
+        .filter(link => link.getAttribute("href") === "https://t.me/xpos587").length,
+    ).toBeGreaterThan(2)
+    expect(
+      screen.queryByText(/Приложение в разработке|Сценарий проверяется|будет добавлена/),
+    ).not.toBeInTheDocument()
     expect(screen.getByRole("link", { name: "Конфиденциальность" })).toHaveAttribute(
       "href",
       "/privacy",
@@ -48,17 +55,12 @@ describe("LandingClient campaign", () => {
     }
   })
 
-  it("switches the working-loop story with accessible tabs", () => {
+  it("connects the homepage to complete public destinations", () => {
     renderLanding()
-
-    const connectTab = screen.getByRole("tab", { name: /Сопоставить/ })
-    fireEvent.click(connectTab)
-
-    expect(connectTab).toHaveAttribute("aria-selected", "true")
-    expect(screen.getByRole("tabpanel")).toHaveAttribute("aria-labelledby", "story-tab-sense")
-    expect(screen.getByRole("heading", { name: "Сопоставить движение" })).toBeInTheDocument()
-
-    fireEvent.keyDown(connectTab, { key: "ArrowRight" })
-    expect(screen.getByRole("tab", { name: /Решить/ })).toHaveAttribute("aria-selected", "true")
+    for (const href of ["/how-it-works", "/equipment", "/blog/ru", "/contact"]) {
+      expect(screen.getAllByRole("link").some(link => link.getAttribute("href") === href)).toBe(
+        true,
+      )
+    }
   })
 })

@@ -1,10 +1,11 @@
 import type { Metadata } from "next"
-import { getTranslations } from "next-intl/server"
+import { getLocale, getTranslations } from "next-intl/server"
+import { publicMetadata } from "@/lib/public-site"
 import LegalLayout from "../legal-layout"
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("offer")
-  return { title: `${t("title")} — SkateLab` }
+  return publicMetadata(t("title"), t("intro"), "/offer", await getLocale())
 }
 
 export default async function OfferPage() {

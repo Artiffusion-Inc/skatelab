@@ -419,3 +419,7 @@ Hero section uses `sh-ice-backdrop` (CSS radial gradient) over `bg-primary`. Sin
 - Use On-Dark-Faint for badge labels or any text below 18px on dark surfaces. It fails WCAG AA.
 - Use raw Tailwind font-weight utilities (font-medium, font-semibold, font-bold) on text. Always use a design token class.
 - Place two CTA buttons of equal visual weight in a single section. Secondary actions are text links.
+
+## Public Campaign Scope
+
+The approved public brand site (home, process, equipment, contact, journal and public legal shell) preserves its cool-white, graphite and muted-red campaign direction. Its `.landing-page` tokens in `frontend/src/app/globals.css` and existing heavier Inter editorial typography are intentional; Arctic Sky remains the application UI system. Public instructional diagrams are not athlete measurements or claims of product availability. See `docs/plans/2026-09-17-public-brand-site.md`.

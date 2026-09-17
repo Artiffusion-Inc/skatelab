@@ -9,6 +9,7 @@ import * as auth from "@/lib/auth"
 import { clearTokens } from "@/lib/api-client"
 import { useMountEffect } from "@/lib/useMountEffect"
 import { useConsent } from "@/components/consent-provider"
+import { isPublicPage } from "@/lib/is-public-page"
 import { identifyUser, resetIdentity } from "@/lib/posthog"
 
 interface AuthContextValue {
@@ -30,6 +31,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const { hasConsented } = useConsent()
 
   useMountEffect(() => {
+    if (isPublicPage(window.location.pathname)) {
+      setIsLoading(false)
+      return
+    }
     if (devMockAuth && isDevelopment) {
       setUser({
         id: "dev",

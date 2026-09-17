@@ -1,28 +1,22 @@
-import Link from "next/link"
+import { PublicShell } from "@/components/landing/public-shell"
+import { TELEGRAM_URL } from "@/lib/public-site"
 import { getTranslations } from "next-intl/server"
 
 export default async function LegalLayout({ children }: { children: React.ReactNode }) {
   const t = await getTranslations("common")
 
   return (
-    <div className="min-h-screen bg-background">
-      <header className="border-b border-hairline px-6 py-4">
-        <div className="mx-auto flex max-w-3xl items-center justify-between">
-          <Link href="/" className="sh-display-md text-ink">
-            SkateLab
-          </Link>
-          <Link href="/" className="sh-caption text-link hover:underline">
-            {t("home")}
-          </Link>
-        </div>
-      </header>
-      <main className="mx-auto max-w-3xl px-6 py-8">
+    <PublicShell>
+      <main id="main-content" tabIndex={-1} className="public-legal mx-auto max-w-3xl px-6 py-8">
         <aside className="mb-8 border-l-2 border-primary pl-4 sh-body-md text-ink-mute" role="note">
           <strong className="block text-ink">{t("legalDraftLabel")}</strong>
           {t("legalDraftNotice")}
+          <a className="block mt-3 underline" href={TELEGRAM_URL}>
+            Telegram ↗
+          </a>
         </aside>
         {children}
       </main>
-    </div>
+    </PublicShell>
   )
 }

@@ -1,4 +1,4 @@
-import { cookies } from "next/headers"
+import { cookies, headers } from "next/headers"
 import { getRequestConfig } from "next-intl/server"
 
 // #497: allow-list of valid locales. The NEXT_LOCALE cookie is
@@ -13,7 +13,7 @@ const DEFAULT_LOCALE: Locale = "ru"
 
 export default getRequestConfig(async () => {
   const store = await cookies()
-  const raw = store.get("NEXT_LOCALE")?.value
+  const raw = (await headers()).get("x-public-locale") ?? store.get("NEXT_LOCALE")?.value
   const locale: Locale =
     raw && (LOCALES as readonly string[]).includes(raw) ? (raw as Locale) : DEFAULT_LOCALE
 
