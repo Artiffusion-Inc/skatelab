@@ -558,11 +558,11 @@ body {
 
 /* Landing campaign: intentionally local so the product app keeps its existing system. */
 .landing-page {
-  --landing-paper: #f3f1ec;
-  --landing-paper-strong: #e8e5de;
+  --landing-paper: #f4f5f5;
+  --landing-paper-strong: #ffffff;
   --landing-ink: #202524;
   --landing-muted: #4f5957;
-  --landing-line: #d5d2ca;
+  --landing-line: #d7dcde;
   --landing-signal: #96352b;
   --landing-signal-dark: #752a24;
   --landing-moss: #485b55;
@@ -702,10 +702,10 @@ body {
 .landing-hero-shade {
   background: linear-gradient(
     90deg,
-    rgba(243, 241, 236, 0.95) 0%,
-    rgba(243, 241, 236, 0.76) 30%,
-    rgba(243, 241, 236, 0.08) 67%,
-    rgba(243, 241, 236, 0) 100%
+    rgba(244, 245, 245, 0.72) 0%,
+    rgba(244, 245, 245, 0.42) 30%,
+    rgba(244, 245, 245, 0.05) 67%,
+    rgba(244, 245, 245, 0) 100%
   );
   inset: 0;
   position: absolute;
@@ -727,12 +727,12 @@ body {
   text-transform: uppercase;
 }
 .landing-hero h1 {
-  font-size: clamp(3.2rem, 7.5vw, 8.7rem);
+  font-size: clamp(3rem, 5vw, 4.5rem);
   font-weight: 650;
-  letter-spacing: -0.085em;
-  line-height: 0.88;
+  letter-spacing: -0.075em;
+  line-height: 0.92;
   margin: 0;
-  max-width: 8.5ch;
+  max-width: 12ch;
 }
 .landing-hero-lead {
   color: var(--landing-muted);
@@ -846,7 +846,7 @@ body {
   object-fit: cover;
 }
 .landing-media-note {
-  background: rgba(243, 241, 236, 0.88);
+  background: rgba(244, 245, 245, 0.9);
   bottom: 1rem;
   color: var(--landing-muted);
   font-size: 0.65rem;
@@ -1047,14 +1047,8 @@ body {
   color: #fff;
   display: grid;
   gap: 2rem;
-  grid-template-columns: 0.32fr minmax(0, 1.3fr) minmax(14rem, 0.68fr);
+  grid-template-columns: minmax(0, 1.3fr) minmax(14rem, 0.68fr);
   padding: clamp(4.5rem, 9vw, 9rem) clamp(1.25rem, 8vw, 8rem);
-}
-.landing-pilot-mark {
-  color: #f6ddd8;
-  font-size: 0.7rem;
-  font-weight: 700;
-  letter-spacing: 0.1em;
 }
 .landing-pilot-content {
   max-width: 45rem;
@@ -1140,9 +1134,6 @@ body {
   min-height: auto;
   padding: 0;
 }
-.landing-mobile-bar {
-  display: none;
-}
 
 @media (max-width: 800px) {
   .landing-nav-inner {
@@ -1194,17 +1185,20 @@ body {
   .landing-hero-shade {
     background: linear-gradient(
       180deg,
-      rgba(243, 241, 236, 0.6) 0%,
-      rgba(243, 241, 236, 0.72) 43%,
-      rgba(243, 241, 236, 0.98) 82%
+      rgba(244, 245, 245, 0.28) 0%,
+      rgba(244, 245, 245, 0.42) 43%,
+      rgba(244, 245, 245, 0.78) 82%
     );
   }
   .landing-hero-content {
     padding: 8.5rem 1.25rem 4.5rem;
   }
   .landing-hero h1 {
-    font-size: clamp(3.35rem, 16vw, 5rem);
-    max-width: 7ch;
+    font-size: clamp(2.25rem, 9.3vw, 3rem);
+    max-width: 12.5ch;
+  }
+  .landing-hero h1 span {
+    display: block;
   }
   .landing-hero-lead {
     max-width: 23rem;
@@ -1257,9 +1251,6 @@ body {
     padding-bottom: 5.5rem;
     padding-top: 5.5rem;
   }
-  .landing-pilot-mark {
-    order: 2;
-  }
   .landing-pilot-side {
     order: 3;
   }
@@ -1274,19 +1265,6 @@ body {
   }
   .landing-footer-bottom nav {
     gap: 0.8rem 1.25rem;
-  }
-  .landing-mobile-bar {
-    background: rgba(243, 241, 236, 0.96);
-    border-top: 1px solid var(--landing-line);
-    bottom: 0;
-    display: block;
-    padding: 0.65rem 1rem calc(0.65rem + env(safe-area-inset-bottom));
-    position: fixed;
-    width: 100%;
-    z-index: 15;
-  }
-  .landing-mobile-bar .landing-button {
-    width: 100%;
   }
 }
 

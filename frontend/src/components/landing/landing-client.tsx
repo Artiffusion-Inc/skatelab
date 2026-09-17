@@ -119,7 +119,6 @@ function StorySection() {
   return (
     <section id="story" className="landing-story" aria-labelledby="story-title">
       <div className="landing-section-head">
-        <p className="landing-kicker">{t("storyKicker")}</p>
         <h2 id="story-title">{t("storyTitle")}</h2>
         <p>{t("storyIntro")}</p>
       </div>
@@ -211,7 +210,6 @@ function ReviewSection() {
         <span className="landing-media-note landing-media-note-light">{t("imageNote")}</span>
       </div>
       <div className="landing-review-copy">
-        <p className="landing-kicker">{t("reviewKicker")}</p>
         <h2 id="review-title">{t("reviewTitle")}</h2>
         <p className="landing-review-lead">{t("reviewLead")}</p>
         <ol className="landing-review-list">
@@ -246,11 +244,7 @@ function PilotSection() {
   const t = useTranslations("landing")
   return (
     <section id="pilot" className="landing-pilot" aria-labelledby="pilot-title">
-      <div className="landing-pilot-mark" aria-hidden="true">
-        SL / 01
-      </div>
       <div className="landing-pilot-content">
-        <p className="landing-kicker landing-kicker-light">{t("pilotKicker")}</p>
         <h2 id="pilot-title">{t("pilotTitle")}</h2>
         <p>{t("pilotBody")}</p>
         <a
@@ -284,7 +278,6 @@ function QuestionsSection() {
   return (
     <section className="landing-questions" aria-labelledby="questions-title">
       <div>
-        <p className="landing-kicker">{t("questionsKicker")}</p>
         <h2 id="questions-title">{t("questionsTitle")}</h2>
       </div>
       <div className="landing-question-list">
@@ -354,7 +347,10 @@ export function LandingClient() {
           <div className="landing-hero-shade" aria-hidden="true" />
           <div className="landing-hero-content">
             <p className="landing-kicker">{t("heroKicker")}</p>
-            <h1 id="hero-title">{t("heroTitle")}</h1>
+            <h1 id="hero-title">
+              <span>{t("heroTitleLine1")}</span> <span>{t("heroTitleLine2")}</span>{" "}
+              <span>{t("heroTitleLine3")}</span>
+            </h1>
             <p className="landing-hero-lead">{t("heroLead")}</p>
             <div className="landing-hero-actions">
               <PilotLink onClick={() => captureEvent("landing_pilot_intent", { location: "hero" })}>
@@ -377,9 +373,6 @@ export function LandingClient() {
         <PilotSection />
       </main>
       <Footer />
-      <aside className="landing-mobile-bar" aria-label={t("mobileCta")}>
-        <PilotLink>{t("mobileCta")}</PilotLink>
-      </aside>
     </div>
   )
 }

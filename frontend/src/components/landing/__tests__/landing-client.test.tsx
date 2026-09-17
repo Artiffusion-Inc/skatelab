@@ -15,7 +15,7 @@ describe("LandingClient campaign", () => {
     render(<LandingClient />)
 
     expect(
-      screen.getByRole("heading", { name: "Тренер видит то, что теряется между попытками." }),
+      screen.getByRole("heading", { name: "Каждая попытка. Понятнее тренеру." }),
     ).toBeInTheDocument()
     expect(screen.getAllByRole("link", { name: /Обсудить пилот/ }).length).toBeGreaterThan(0)
     expect(screen.getAllByRole("link", { name: "Войти" })[0]).toHaveAttribute("href", "/login")
