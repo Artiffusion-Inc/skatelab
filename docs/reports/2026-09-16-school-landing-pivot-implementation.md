@@ -41,6 +41,6 @@ The page is intentionally compact: a cinematic hero, one interactive working-loo
 - `cd frontend && bun run build`: passed; 25 static pages generated.
 - Production browser checks at 390, 768, 1366 and 1440 px: no horizontal overflow, complete hero/CTA content, all supplied images loaded, no console errors after consent keys were restored, and axe reported no remaining violations after contrast fixes.
 - Production browser checks: mobile menu opens and Escape closes it, story rail switches by click and keyboard, no-JavaScript DOM includes the main heading and Telegram pilot CTA, and reduced-motion styling is present.
-- Lighthouse has not been rerun for this redesign in this report; the earlier landing LCP baseline was 3.7–4.2 s under simulated mobile conditions and is not claimed as a pass.
+- Lighthouse 12.5.0 controlled mobile runs after the redesign measured LCP 3.77 s, 4.00 s and 3.77 s (performance scores 0.87, 0.86 and 0.87); these do not meet the <=2.5 s target and are not claimed as a pass. FCP was approximately 1.06 s and CLS 0. The remaining lab LCP candidate was the pilot copy, with render delay dominating; this is a follow-up performance risk rather than a product claim.
 
 No production deployment or third-party contact was performed.
