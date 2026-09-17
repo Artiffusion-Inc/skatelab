@@ -4,42 +4,42 @@ import { LandingClient } from "@/components/landing/landing-client"
 
 export async function generateMetadata(): Promise<Metadata> {
   return {
-    title: "SkateLab для школ фигурного катания",
+    title: "SkateLab — точный разбор техники для школы",
     description:
-      "Система датчиков и видеоанализа для разбора техники фигуристов. Обсудите с SkateLab пилот для вашей школы.",
+      "Видео, данные с оборудования и рабочий контур тренера для школ фигурного катания. Обсудите пилот со SkateLab.",
     alternates: { canonical: "https://skatelab.ru" },
     openGraph: {
-      title: "SkateLab для школ фигурного катания",
+      title: "SkateLab — точный разбор техники для школы",
       description:
-        "Система датчиков и видеоанализа для разбора техники фигуристов. Обсудите пилот для вашей школы.",
+        "Видео, данные с оборудования и рабочий контур тренера для школ фигурного катания. Обсудите пилот со SkateLab.",
       url: "https://skatelab.ru",
       siteName: "SkateLab",
       locale: "ru_RU",
       type: "website",
       images: [
         {
-          url: "https://skatelab.ru/images/moodboard/hero-desktop.webp",
-          width: 1200,
-          height: 630,
+          url: "https://skatelab.ru/images/landing/hero-rink.webp",
+          width: 1600,
+          height: 900,
           alt: "Фигурист на тренировке",
         },
       ],
     },
     twitter: {
       card: "summary_large_image",
-      title: "SkateLab для школ фигурного катания",
+      title: "SkateLab — точный разбор техники для школы",
       description:
-        "Система датчиков и видеоанализа для разбора техники фигуристов. Обсудите пилот для вашей школы.",
-      images: ["https://skatelab.ru/images/moodboard/hero-desktop.webp"],
+        "Видео, данные с оборудования и рабочий контур тренера для школ фигурного катания. Обсудите пилот со SkateLab.",
+      images: ["https://skatelab.ru/images/landing/hero-rink.webp"],
     },
   }
 }
 
 export default async function LandingPage() {
   const t = await getTranslations("landing")
-  const faqItems = [1, 2, 3, 4, 5, 6, 7].map(n => ({
-    q: t(`faqQ${n}`),
-    a: t(`faqA${n}`),
+  const faqItems = [1, 2, 3].map(n => ({
+    q: t(`question${n}`),
+    a: t(`answer${n}`),
   }))
   const jsonLd = [
     {

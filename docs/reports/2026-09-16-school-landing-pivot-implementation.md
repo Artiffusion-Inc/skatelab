@@ -1,65 +1,46 @@
-# School Landing Pivot: implementation report
+# SkateLab landing redesign implementation report
 
-Date: 2026-09-16.
-Status: implemented in the achievable repository scope; not approved for production launch.
-Spec: [school landing pivot](../specs/2026-09-16-school-landing-pivot-design.md).
+Date: 2026-09-17.
+Status: implemented in the repository; not approved for production launch.
+
+## Latest user override
+
+The original Arctic Sky landing, its photography, palette, composition and section organization were explicitly rejected. This pass replaces the public landing campaign rather than preserving that structure. The new direction is a pale neutral, graphite and deep signal-red sports-tech campaign for school buyers, grounded in the coach workflow: record, connect context, decide.
+
+The page is intentionally compact: a cinematic hero, one interactive working-loop story, one coach review chapter, three pre-pilot questions, and one pilot close. It avoids a pricing grid, repeated feature-card catalogue, fake product dashboard, customer proof, invented measurements and unsupported performance claims.
 
 ## Delivered
 
-- Replaced the consumer-oriented public landing composition with a school-focused Arctic Sky page.
-- Added a school-first hero, explicit development status, pilot CTA, review-example section, system workflow, coach/school scenarios, readiness matrix, FAQ and ocean closing band.
-- Added a clearly labelled future-interface illustration instead of inventing a measured demo. No prices, accuracy numbers, testimonials, partner logos or efficacy claims remain in landing copy or metadata.
-- Kept `/login`, legal links, existing app routes and the existing Telegram candidate contact. No backend, ML, mobile, payment or global design-system refactor was made.
-- Added an interactive three-state example with explicit tabs and an accessible native FAQ disclosure. Added focused regression tests for the school CTA, removal of pricing copy and labelled illustrative fallback.
-- Added consent-compatible PostHog event hooks using the existing `captureEvent` helper: `landing_pilot_intent`, `landing_demo_open`, and `landing_contact_click`, with only fixed location/type/tab properties.
-- Updated Russian and English landing translations and metadata/FAQ JSON-LD.
+- Rebuilt `LandingClient` around the new school-buyer narrative with Russian and English translations.
+- Added responsive campaign styling scoped to `.landing-page`; the existing app design tokens and product routes remain unchanged.
+- Added three supplied synthetic images under `frontend/public/images/landing/`: rink hero (16:9), skate/blade macro (4:5), and coach review (4:3). Captions identify them as synthetic direction, not product or customer evidence.
+- Added a keyboard-accessible three-step story rail with ArrowLeft/ArrowRight behavior and explicit prototype status.
+- Preserved working `/login`, `/privacy`, `/terms`, `/offer`, `/cookies`, Telegram pilot contact, consent banner and no-JavaScript content rendering.
+- Updated landing metadata, Open Graph/Twitter image, FAQ JSON-LD and focused regression tests.
+- Respected `prefers-reduced-motion`, 44px navigation/CTA targets, visible focus behavior and mobile fixed pilot action.
 
-## UI Skills evidence
+## Provenance and applied references
 
-The delegated worker environment did not expose the `functions.mcp` namespace, so it could not independently call `ui-skills_list_skills` or `ui-skills_get_skill`. The parent session previously verified the registry and router (`ibelick/ui-skills-root`) and specified the selected names in section 9.1. This report intentionally does not claim fresh MCP fetches by this worker. Parent must attach the actual MCP-fetched checklist and verify its applied decisions before accepting criterion 9.1.
-
-Applied decisions from the existing specification/routing context:
-
-- Landing composition: one school CTA, result-first sequence, large media area, editorial section rhythm, no pricing grid or repeated feature-card catalogue.
-- Accessibility: 44px controls, semantic headings, native disclosure, tab roles, visible focus styles, keyboard-safe mobile dialog via FocusLock, no autoplay/audio requirement.
-- Motion/performance: no new animation dependency or scroll interception; static content remains visible and media is below/alongside content with `next/image` sizing.
-- Metadata: B2B title/description, no precision claims, no deleted testimonials/prices in FAQ JSON-LD.
-- Critique/quality: Arctic Sky three-canvas rhythm, dark ink on sky hero, deep-ocean closing band, explicit prototype/illustration status and launch blockers.
-
-### Parent-fetched MCP late pass
-
-On 2026-09-16, after the original implementation was written, the parent session fetched and applied the actual MCP skill contents. This is a late corrective pass, not evidence that the delegated worker had MCP access or that the full upstream critique protocol ran:
-
-- `mengto/landing-page`: kept one school offer, audience and primary pilot action; retained the proof-status section beside the illustrative demo and did not add unsupported testimonials or risk-reversal claims.
-- `ibelick/fixing-accessibility`: corrected CTA analytics from pointer-only handlers to click handlers, added labelled tab panels with `aria-controls` / `aria-labelledby`, roving tab focus and ArrowLeft/ArrowRight/Home/End keyboard navigation, while retaining native links, disclosure and FocusLock Escape/return-focus behavior.
-- `ibelick/fixing-metadata`: changed the OG image to an absolute URL and added matching `summary_large_image` Twitter metadata; canonical and OG URL remain `https://skatelab.ru`, and JSON-LD continues to reflect rendered FAQ content only.
-- `pbakaus/critique`: retained school/trainer-specific language, the mobile fixed pilot action and explicitly labelled future-interface illustration; no two-agent critique fanout was run, so this is a degraded single-context application rather than a complete upstream critique run.
-- `addyosmani/web-quality-audit`: checked source-level resource/semantic decisions and was followed by a real production browser pass using temporary Playwright + Chromium and Lighthouse installations outside the repository. Responsive screenshots, metadata, keyboard navigation, reduced-motion preference, no-JS rendering, sitemap responses, axe and three controlled Lighthouse mobile performance runs were checked. No field CWV is claimed.
-
-The actual skill texts were fetched through MCP by the parent on this date; the worker's original environment exposed no MCP namespace. This report distinguishes source decisions from measured browser evidence.
+- The parent session searched the UI Skills MCP design catalog and fetched `anthropics/frontend-design`, `fixing-accessibility`, `fixing-metadata`, `web-quality-audit`, `landing-page` and `critique` guidance. The implementation applies the resulting constraints: distinctive subject-grounded art direction, compact token palette, purposeful type hierarchy, one memorable hero moment, semantic controls, metadata consistency, reduced motion, and an honest product stage.
+- The parent also searched for overlapping frontend skills through GitHub and did not install duplicates.
+- Art-direction references included `getcarv.com` and one of `whoop.com`/`ouraring.com`; their visual discipline was borrowed without copying claims, customer proof or product language.
+- Synthetic image assets were supplied through the separate `/tmp/skatelab-redesign-assets` lane and copied without modifying that temporary folder. No third-party outreach or deployment occurred.
 
 ## Human launch blockers
 
-1. No verified, rights-cleared, reproducible single-attempt analysis is present in the repository. The current review panel is an honest illustration and does not satisfy the final evidence-demo criterion.
-2. The Telegram URL exists in old code but responsible-person ownership and response workflow were not verified by this implementation. No public alternative email was available in repository evidence; do not publish a promise of response.
-3. Sensor kit configuration, calibration, recording requirements and end-to-end sensor + video + coach review behavior need validation in a real practice.
-4. Rights/consent for any future skater footage, especially minors, and the actual pilot data-access policy remain to be approved by the product owner.
-5. Resolved: ConsentProvider now renders its children during the server pass instead of returning null until client storage initializes. The production no-JavaScript browser check now sees the complete landing h1 and pilot CTA.
+1. A rights-cleared, reproducible single-attempt product example is still required before calling the review flow evidence.
+2. Responsible ownership and response workflow for the Telegram contact must be confirmed before launch.
+3. Sensor configuration, calibration, recording requirements and the end-to-end sensor + video + coach review path need a real practice validation.
+4. Rights/consent for future footage, especially minors, and pilot data-access policy remain product-owner decisions.
 
 ## Validation
 
-- `cd frontend && bun run lint` passed.
-- `cd frontend && bun run typecheck` passed.
-- `cd frontend && bun run test --run src/components/landing/__tests__/landing-client.test.tsx` passed: 2 tests, including tab arrow-navigation assertions.
-- `cd frontend && bun run test --run` passed: 58 files, 187 tests.
-- `cd frontend && bun run lint` passed after the late corrective pass.
-- `cd frontend && bun run typecheck` passed after the late corrective pass.
-- `cd frontend && bun run build` passed after replacing the colliding blog/docs metadata routes with one host-aware `/sitemap.xml` route and converting blog `create.doc()` entries through `toFumadocsSource()`. The build generated 25 static pages and includes `/sitemap.xml`.
-- Added `frontend/src/lib/__tests__/sitemap.test.ts`; the regression test first failed on the missing helper, then passed after verifying docs/blog host selection, locale alternates and internal-doc exclusion.
-- Temporary `/tmp/skatelab-browser` tooling installed Playwright 1.52.0, Chromium and axe-core/playwright without repository dependency changes. Production `next start` was checked at 360, 390, 768, 1280, 1366x768 and 1440 px; no horizontal overflow, expected hero/CTA content and screenshots were produced under `/tmp/skatelab-landing-*.png`.
-- Production browser checks passed for canonical/OG/Twitter metadata, seven FAQ JSON-LD entries, Escape-closing mobile navigation, ArrowRight demo-tab navigation, reduced-motion media preference, host-aware docs/blog sitemap content, and axe after consent and contrast/landmark fixes.
-- Browser console was clean after adding the missing bilingual consent translation keys. The no-JavaScript context now exposes the full landing content after the ConsentProvider SSR fix.
-- Three Lighthouse 12.5.0 mobile performance runs (390x844, simulated mobile throttling) scored 0.86, 0.86 and 0.86; FCP 1.2 s in all runs, LCP 4.2 s in all runs, CLS 0, TBT 20-30 ms, TTI 4.3 s. These are controlled lab measurements, not field p75.
-- `git diff --check` passed.
+- `cd frontend && bun run test --run`: passed, 59 files / 188 tests.
+- `cd frontend && bun run typecheck`: passed.
+- `cd frontend && bun run lint`: passed.
+- `cd frontend && bun run build`: passed; 25 static pages generated.
+- Production browser checks at 390, 768, 1366 and 1440 px: no horizontal overflow, complete hero/CTA content, all supplied images loaded, no console errors after consent keys were restored, and axe reported no remaining violations after contrast fixes.
+- Production browser checks: mobile menu opens and Escape closes it, story rail switches by click and keyboard, no-JavaScript DOM includes the main heading and Telegram pilot CTA, and reduced-motion styling is present.
+- Lighthouse has not been rerun for this redesign in this report; the earlier landing LCP baseline was 3.7–4.2 s under simulated mobile conditions and is not claimed as a pass.
 
 No production deployment or third-party contact was performed.

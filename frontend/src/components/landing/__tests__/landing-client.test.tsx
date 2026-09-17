@@ -10,34 +10,34 @@ vi.mock("react-focus-lock", () => ({
   default: ({ children }: { children: React.ReactNode }) => children,
 }))
 
-describe("LandingClient school landing", () => {
-  it("keeps the school pilot path and avoids consumer pricing copy", () => {
+describe("LandingClient campaign", () => {
+  it("presents a truthful school pilot path with working app and legal links", () => {
     render(<LandingClient />)
 
     expect(
-      screen.getByRole("heading", { name: "Техника фигуриста. Данные для тренера." }),
+      screen.getByRole("heading", { name: "Тренер видит то, что теряется между попытками." }),
     ).toBeInTheDocument()
     expect(screen.getAllByRole("link", { name: /Обсудить пилот/ }).length).toBeGreaterThan(0)
-    expect(screen.getByRole("link", { name: "Посмотреть пример разбора" })).toHaveAttribute(
+    expect(screen.getAllByRole("link", { name: "Войти" })[0]).toHaveAttribute("href", "/login")
+    expect(screen.getByRole("link", { name: "Конфиденциальность" })).toHaveAttribute(
       "href",
-      "#demo",
+      "/privacy",
     )
+    expect(screen.getByText("Синтетическое изображение · не кадр продукта")).toBeInTheDocument()
     expect(screen.queryByText("Тарифы")).not.toBeInTheDocument()
-    expect(screen.getByText("Иллюстрация будущего интерфейса")).toBeInTheDocument()
   })
 
-  it("switches the clearly labelled example states with keyboard-capable tabs", () => {
+  it("switches the working-loop story with accessible tabs", () => {
     render(<LandingClient />)
 
-    const dataTab = screen.getByRole("tab", { name: "Данные" })
-    fireEvent.click(dataTab)
+    const connectTab = screen.getByRole("tab", { name: /Сопоставить/ })
+    fireEvent.click(connectTab)
 
-    expect(dataTab).toHaveAttribute("aria-selected", "true")
-    expect(dataTab).toHaveAttribute("aria-controls", "demo-panel")
-    expect(screen.getByRole("heading", { name: "Связанные показатели" })).toBeInTheDocument()
-    expect(screen.getAllByText("Не является результатом измерения").length).toBeGreaterThan(0)
+    expect(connectTab).toHaveAttribute("aria-selected", "true")
+    expect(screen.getByRole("tabpanel")).toHaveAttribute("aria-labelledby", "story-tab-sense")
+    expect(screen.getByRole("heading", { name: "Сопоставить движение" })).toBeInTheDocument()
 
-    fireEvent.keyDown(dataTab, { key: "ArrowRight" })
-    expect(screen.getByRole("tab", { name: "Разбор" })).toHaveAttribute("aria-selected", "true")
+    fireEvent.keyDown(connectTab, { key: "ArrowRight" })
+    expect(screen.getByRole("tab", { name: /Решить/ })).toHaveAttribute("aria-selected", "true")
   })
 })
