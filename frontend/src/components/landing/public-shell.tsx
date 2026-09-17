@@ -6,6 +6,7 @@ import { useLocale, useTranslations } from "@/i18n"
 import { setLocale } from "@/i18n/actions"
 import { useConsent } from "@/components/consent-provider"
 import { TELEGRAM_URL } from "@/lib/public-site"
+import { posthogKey } from "@/lib/env"
 
 export function ContactLink({
   children,
@@ -120,9 +121,11 @@ export function PublicShell({
             <a href="/terms">{l("footerTerms")}</a>
             <a href="/offer">{l("footerOffer")}</a>
             <a href="/cookies">{l("footerCookiePolicy")}</a>
-            <button type="button" onClick={openBanner} className="landing-footer-cookie-settings">
-              {l("footerCookieSettings")}
-            </button>
+            {posthogKey && (
+              <button type="button" onClick={openBanner} className="landing-footer-cookie-settings">
+                {l("footerCookieSettings")}
+              </button>
+            )}
           </nav>
         </div>
       </footer>

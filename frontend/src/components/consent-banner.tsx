@@ -4,6 +4,7 @@ import { useState } from "react"
 import { useTranslations } from "@/i18n"
 import { useConsent } from "@/components/consent-provider"
 import { Button } from "@/components/ui/button"
+import { posthogKey } from "@/lib/env"
 import FocusLock from "react-focus-lock"
 
 export function ConsentBanner() {
@@ -13,7 +14,7 @@ export function ConsentBanner() {
   const [analytics, setAnalytics] = useState(false)
   const [recordings, setRecordings] = useState(false)
 
-  if (!showBanner) return null
+  if (!posthogKey || !showBanner) return null
 
   function handleAcceptAll() {
     setConsent({ essential: true, analytics: true, recordings: true })
