@@ -1,15 +1,21 @@
 import type { Metadata } from "next"
-import Link from "next/link"
 import { getTranslations } from "next-intl/server"
 import LegalLayout from "../legal-layout"
 
-export const metadata: Metadata = {
-  title: "Оферта — SkateLab",
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("offer")
+  return { title: `${t("title")} — SkateLab` }
 }
 
 export default async function OfferPage() {
   const t = await getTranslations("offer")
   const tCommon = await getTranslations("common")
+  const sections = [
+    [t("s1"), t("p1")],
+    [t("s2"), t("p2")],
+    [t("s3"), t("p3")],
+    [t("s4"), t("p4")],
+  ] as const
 
   return (
     <LegalLayout>
@@ -23,12 +29,15 @@ export default async function OfferPage() {
         <span>{t("title")}</span>
       </nav>
       <h1 className="sh-display-lg text-ink mb-8">{t("title")}</h1>
-      <p className="sh-body-lg text-ink-mute">{t("comingSoon")}</p>
-      <p className="mt-4">
-        <Link href="/" className="sh-button-cap text-link hover:underline">
-          {tCommon("home")} →
-        </Link>
-      </p>
+      <div className="space-y-6 sh-body-md text-ink-mute">
+        <p className="sh-body-lg">{t("intro")}</p>
+        {sections.map(([heading, body]) => (
+          <section key={heading} className="space-y-2">
+            <h2 className="sh-heading-lg text-ink">{heading}</h2>
+            <p>{body}</p>
+          </section>
+        ))}
+      </div>
     </LegalLayout>
   )
 }

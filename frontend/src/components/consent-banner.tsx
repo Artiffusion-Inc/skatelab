@@ -45,7 +45,7 @@ export function ConsentBanner() {
                 <p className="sh-body-md text-ink-mute">
                   {t("cookieText")}{" "}
                   <a href="/cookies" className="text-link hover:underline">
-                    Cookie Policy
+                    {t("cookiePolicyLink")}
                   </a>
                 </p>
               </div>
@@ -55,7 +55,7 @@ export function ConsentBanner() {
                   onClick={() => setShowCustomize(true)}
                   className="min-h-[44px] min-w-[120px] shrink-0"
                 >
-                  Customize
+                  {t("cookieCustomize")}
                 </Button>
                 <Button
                   onClick={handleDecline}
@@ -76,12 +76,12 @@ export function ConsentBanner() {
           ) : (
             <div className="space-y-4">
               <h2 id="consent-heading" className="sh-heading-lg text-ink">
-                Cookie Preferences
+                {t("cookieHeading")}
               </h2>
               <div className="space-y-3">
                 <label className="flex items-center gap-3">
                   <input type="checkbox" checked disabled className="accent-primary" />
-                  <span className="sh-body-md text-ink">Essential (required)</span>
+                  <span className="sh-body-md text-ink">{t("cookieEssential")}</span>
                 </label>
                 <label className="flex items-center gap-3 cursor-pointer">
                   <input
@@ -90,7 +90,7 @@ export function ConsentBanner() {
                     onChange={e => setAnalytics(e.target.checked)}
                     className="accent-primary"
                   />
-                  <span className="sh-body-md text-ink">Analytics (pageviews, events)</span>
+                  <span className="sh-body-md text-ink">{t("cookieAnalytics")}</span>
                 </label>
                 <label className="flex items-center gap-3 cursor-pointer">
                   <input
@@ -99,9 +99,7 @@ export function ConsentBanner() {
                     onChange={e => setRecordings(e.target.checked)}
                     className="accent-primary"
                   />
-                  <span className="sh-body-md text-ink">
-                    Session Recordings (heatmaps, replays)
-                  </span>
+                  <span className="sh-body-md text-ink">{t("cookieRecordings")}</span>
                 </label>
               </div>
               <div className="flex items-center gap-3">
@@ -110,13 +108,13 @@ export function ConsentBanner() {
                   onClick={() => setShowCustomize(false)}
                   className="min-h-[44px] shrink-0"
                 >
-                  Back
+                  {t("cookieBack")}
                 </Button>
                 <Button
                   onClick={handleAcceptSelected}
                   className="min-h-[44px] min-w-[120px] shrink-0"
                 >
-                  Save Preferences
+                  {t("cookieSave")}
                 </Button>
               </div>
             </div>

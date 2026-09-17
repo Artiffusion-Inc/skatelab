@@ -611,7 +611,8 @@ body {
 }
 .landing-desktop-nav a,
 .landing-login,
-.landing-footer a {
+.landing-footer a,
+.landing-footer-cookie-settings {
   color: inherit;
   font-size: 0.78rem;
   font-weight: 600;
@@ -622,7 +623,8 @@ body {
 }
 .landing-desktop-nav a:hover,
 .landing-login:hover,
-.landing-footer a:hover {
+.landing-footer a:hover,
+.landing-footer-cookie-settings:hover {
   color: var(--landing-signal);
 }
 .landing-nav-actions {
@@ -633,6 +635,13 @@ body {
 .landing-login {
   display: inline-flex;
   align-items: center;
+}
+.landing-footer-cookie-settings {
+  appearance: none;
+  background: none;
+  border: 0;
+  cursor: pointer;
+  font-family: inherit;
 }
 .landing-button {
   align-items: center;

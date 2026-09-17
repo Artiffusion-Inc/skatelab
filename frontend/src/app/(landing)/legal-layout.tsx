@@ -16,7 +16,13 @@ export default async function LegalLayout({ children }: { children: React.ReactN
           </Link>
         </div>
       </header>
-      <main className="mx-auto max-w-3xl px-6 py-8">{children}</main>
+      <main className="mx-auto max-w-3xl px-6 py-8">
+        <aside className="mb-8 border-l-2 border-primary pl-4 sh-body-md text-ink-mute" role="note">
+          <strong className="block text-ink">{t("legalDraftLabel")}</strong>
+          {t("legalDraftNotice")}
+        </aside>
+        {children}
+      </main>
     </div>
   )
 }

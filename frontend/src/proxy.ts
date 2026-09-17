@@ -44,7 +44,11 @@ function buildCsp(nonce: string, isDev: boolean): string {
     .join("; ")
 }
 
-export function proxy(_request: NextRequest) {
+export function proxy(request: NextRequest) {
+  if (request.nextUrl.pathname === "/login" || request.nextUrl.pathname === "/register") {
+    return NextResponse.redirect(new URL("/", request.url))
+  }
+
   const response = NextResponse.next()
 
   if (process.env.NODE_ENV === "development") {

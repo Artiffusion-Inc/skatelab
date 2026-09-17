@@ -5,9 +5,9 @@ import { useState } from "react"
 import { ArrowDownRight, ArrowUpRight, Menu, Plus, X } from "lucide-react"
 import FocusLock from "react-focus-lock"
 import { useTranslations } from "@/i18n"
+import { useConsent } from "@/components/consent-provider"
 import { captureEvent } from "@/lib/posthog"
 
-const TELEGRAM_URL = "https://t.me/SkateLabPro"
 const STORY_KEYS = ["capture", "sense", "review"] as const
 
 type StoryKey = (typeof STORY_KEYS)[number]
@@ -61,9 +61,6 @@ function Navigation() {
           ))}
         </nav>
         <div className="landing-nav-actions">
-          <a href="/login" className="landing-login">
-            {t("signIn")}
-          </a>
           <PilotLink className="landing-nav-cta">{t("navCta")}</PilotLink>
           <button
             type="button"
@@ -97,9 +94,6 @@ function Navigation() {
             <PilotLink className="landing-mobile-cta" onClick={close}>
               {t("navCta")}
             </PilotLink>
-            <a href="/login" onClick={close} className="landing-mobile-login">
-              {t("signIn")}
-            </a>
           </div>
         </FocusLock>
       )}
@@ -131,7 +125,6 @@ function StorySection() {
             sizes="(max-width: 800px) 100vw, 48vw"
             className="landing-cover"
           />
-          <span className="landing-media-note">{t("imageNote")}</span>
         </div>
         <div className="landing-story-copy">
           <p className="landing-story-index" aria-hidden="true">
@@ -207,7 +200,6 @@ function ReviewSection() {
           sizes="(max-width: 800px) 100vw, 58vw"
           className="landing-cover"
         />
-        <span className="landing-media-note landing-media-note-light">{t("imageNote")}</span>
       </div>
       <div className="landing-review-copy">
         <h2 id="review-title">{t("reviewTitle")}</h2>
@@ -247,17 +239,12 @@ function PilotSection() {
       <div className="landing-pilot-content">
         <h2 id="pilot-title">{t("pilotTitle")}</h2>
         <p>{t("pilotBody")}</p>
-        <a
-          href={TELEGRAM_URL}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="landing-button landing-button-paper"
-          onClick={() =>
-            captureEvent("landing_contact_click", { location: "pilot", type: "telegram" })
-          }
+        <p
+          className="landing-button landing-button-paper landing-button-disabled"
+          aria-disabled="true"
         >
-          {t("pilotCta")} <ArrowUpRight aria-hidden="true" className="h-4 w-4" />
-        </a>
+          {t("pilotCtaPending")}
+        </p>
         <p className="landing-pilot-note">{t("pilotNote")}</p>
       </div>
       <div className="landing-pilot-side">
@@ -297,6 +284,7 @@ function QuestionsSection() {
 
 function Footer() {
   const t = useTranslations("landing")
+  const { openBanner } = useConsent()
   return (
     <footer className="landing-footer">
       <div className="landing-footer-top">
@@ -304,16 +292,7 @@ function Footer() {
           Skate<span>Lab</span>
         </a>
         <p>{t("footerTagline")}</p>
-        <a
-          href={TELEGRAM_URL}
-          target="_blank"
-          rel="noopener noreferrer"
-          onClick={() =>
-            captureEvent("landing_contact_click", { location: "footer", type: "telegram" })
-          }
-        >
-          Telegram <ArrowUpRight aria-hidden="true" className="h-4 w-4" />
-        </a>
+        <span>{t("telegramPending")}</span>
       </div>
       <div className="landing-footer-bottom">
         <span>{t("footerCopyright")}</span>
@@ -322,7 +301,9 @@ function Footer() {
           <a href="/terms">{t("footerTerms")}</a>
           <a href="/offer">{t("footerOffer")}</a>
           <a href="/cookies">{t("footerCookiePolicy")}</a>
-          <a href="/login">{t("footerLogin")}</a>
+          <button type="button" onClick={openBanner} className="landing-footer-cookie-settings">
+            {t("footerCookieSettings")}
+          </button>
         </nav>
       </div>
     </footer>
@@ -365,7 +346,6 @@ export function LandingClient() {
               {t("stage")}
             </p>
           </div>
-          <p className="landing-hero-credit">{t("heroCredit")}</p>
         </section>
         <StorySection />
         <ReviewSection />

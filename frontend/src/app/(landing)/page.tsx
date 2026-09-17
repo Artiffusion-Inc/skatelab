@@ -4,14 +4,14 @@ import { LandingClient } from "@/components/landing/landing-client"
 
 export async function generateMetadata(): Promise<Metadata> {
   return {
-    title: "SkateLab — точный разбор техники для школы",
+    title: "SkateLab — мобильный разбор техники для школы",
     description:
-      "Видео, данные с оборудования и рабочий контур тренера для школ фигурного катания. Обсудите пилот со SkateLab.",
+      "SkateLab — мобильное приложение для iPhone, iPad и Android в разработке. Видео и данные с оборудования для точного разговора тренера о технике.",
     alternates: { canonical: "https://skatelab.ru" },
     openGraph: {
-      title: "SkateLab — точный разбор техники для школы",
+      title: "SkateLab — мобильный разбор техники для школы",
       description:
-        "Видео, данные с оборудования и рабочий контур тренера для школ фигурного катания. Обсудите пилот со SkateLab.",
+        "SkateLab — мобильное приложение для iPhone, iPad и Android в разработке. Видео и данные с оборудования для точного разговора тренера о технике.",
       url: "https://skatelab.ru",
       siteName: "SkateLab",
       locale: "ru_RU",
@@ -27,9 +27,9 @@ export async function generateMetadata(): Promise<Metadata> {
     },
     twitter: {
       card: "summary_large_image",
-      title: "SkateLab — точный разбор техники для школы",
+      title: "SkateLab — мобильный разбор техники для школы",
       description:
-        "Видео, данные с оборудования и рабочий контур тренера для школ фигурного катания. Обсудите пилот со SkateLab.",
+        "SkateLab — мобильное приложение для iPhone, iPad и Android в разработке. Видео и данные с оборудования для точного разговора тренера о технике.",
       images: ["https://skatelab.ru/images/landing/hero-rink.webp"],
     },
   }

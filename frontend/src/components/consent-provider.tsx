@@ -15,6 +15,7 @@ interface ConsentContextValue extends ConsentState {
   setConsent: (state: ConsentState) => void
   hasConsented: (category: "analytics" | "recordings") => boolean
   showBanner: boolean
+  openBanner: () => void
   dismissBanner: () => void
 }
 
@@ -103,6 +104,10 @@ export function ConsentProvider({ children }: { children: ReactNode }) {
     }
   }, [])
 
+  const openBanner = useCallback(() => {
+    setShowBanner(true)
+  }, [])
+
   const dismissBanner = useCallback(() => {
     setShowBanner(false)
   }, [])
@@ -114,7 +119,7 @@ export function ConsentProvider({ children }: { children: ReactNode }) {
 
   return (
     <ConsentContext.Provider
-      value={{ ...consent, setConsent, hasConsented, showBanner, dismissBanner }}
+      value={{ ...consent, setConsent, hasConsented, showBanner, openBanner, dismissBanner }}
     >
       {children}
     </ConsentContext.Provider>

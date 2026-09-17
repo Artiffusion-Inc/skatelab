@@ -1,86 +1,45 @@
 import type { Metadata } from "next"
+import { getTranslations } from "next-intl/server"
 import LegalLayout from "../legal-layout"
 
-export const metadata: Metadata = {
-  title: "Политика конфиденциальности — SkateLab",
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("privacy")
+  return { title: `${t("title")} — SkateLab` }
 }
 
-export default function PrivacyPage() {
+export default async function PrivacyPage() {
+  const t = await getTranslations("privacy")
+  const tCommon = await getTranslations("common")
+  const sections = [
+    [t("s1"), t("p1")],
+    [t("s2"), t("p2")],
+    [t("s3"), t("p3")],
+    [t("s4"), t("p4")],
+    [t("s5"), t("p5")],
+    [t("s6"), t("p6")],
+    [t("s7"), t("p7")],
+  ] as const
+
   return (
     <LegalLayout>
       <nav className="mb-6 sh-caption text-ink-mute">
         <a href="/" className="hover:text-ink">
-          Главная
+          {tCommon("home")}
         </a>
         {" > "}
-        <span>Правовая информация</span>
+        <span>{tCommon("legalInfo")}</span>
         {" > "}
-        <span>Политика конфиденциальности</span>
+        <span>{t("title")}</span>
       </nav>
-      <h1 className="sh-display-lg text-ink mb-8">Политика конфиденциальности</h1>
+      <h1 className="sh-display-lg text-ink mb-8">{t("title")}</h1>
       <div className="space-y-6 sh-body-md text-ink-mute">
-        <h2 className="sh-heading-lg text-ink">1. Общие положения</h2>
-        <p>
-          Настоящая Политика конфиденциальности (далее — Политика) определяет порядок обработки и
-          защиты персональных данных пользователей сервиса SkateLab (далее — Сервис), принадлежащего
-          ООО «СкейтЛаб» (далее — Оператор).
-        </p>
-        <h2 className="sh-heading-lg text-ink">2. Состав персональных данных</h2>
-        <p>
-          Оператор обрабатывает следующие персональные данные пользователя: имя, адрес электронной
-          почты, видео- и биометрические данные (скелетон тела), загруженные пользователем для
-          анализа.
-        </p>
-        <h2 className="sh-heading-lg text-ink">3. Цели обработки</h2>
-        <p>
-          Персональные данные обрабатываются в целях: предоставления сервиса биомеханического
-          анализа видео; идентификации пользователя; связи с пользователем; улучшения качества
-          сервиса.
-        </p>
-        <h2 className="sh-heading-lg text-ink">4. Правовые основания</h2>
-        <p>
-          Обработка персональных данных осуществляется на основании согласия субъекта персональных
-          данных (ст. 6 п. 1 пп. 1 ФЗ-152) и исполнения договора (ст. 6 п. 1 пп. 5 ФЗ-152).
-        </p>
-        <h2 className="sh-heading-lg text-ink">5. Биометрические данные</h2>
-        <p>
-          Обработка биометрических данных (скелетон тела, полученный из видео) осуществляется только
-          с отдельного согласия пользователя. Биометрические данные обрабатываются в
-          анонимизированном виде. Согласие запрашивается при первой загрузке видео.
-        </p>
-        <h2 className="sh-heading-lg text-ink">Обработка данных PostHog</h2>
-        <p>
-          Мы используем самохостинг PostHog на собственном сервере (ЕС) для анализа использования
-          продукта. Данные обрабатываются:
-        </p>
-        <ul className="list-disc pl-6 space-y-1">
-          <li>События (просмотры страниц, клики, действия) — 13 месяцев</li>
-          <li>Записи сессий (экран) — 30 дней, требуют отдельного согласия</li>
-          <li>Feature flags — функциональные данные, работают без согласия</li>
-        </ul>
-        <p>
-          Без согласия на аналитику используется cookieless режим — анонимизированный хеш (IP +
-          User-Agent, daily salt). Данные не покидают наш сервер. Третьи стороны не имеют доступа к
-          данным PostHog.
-        </p>
-        <h2 className="sh-heading-lg text-ink">6. Хранение и защита</h2>
-        <p>
-          Персональные данные хранятся в зашифрованном виде. Срок хранения — до удаления аккаунта
-          пользователем или до истечения срока, установленного законодательством. Оператор принимает
-          организационные и технические меры для защиты данных от несанкционированного доступа.
-        </p>
-        <h2 className="sh-heading-lg text-ink">7. Права субъекта</h2>
-        <p>
-          Пользователь вправе: запросить информацию об обработке своих данных; потребовать
-          уточнения, блокирования или удаления данных; отозвать согласие на обработку.
-        </p>
-        <h2 className="sh-heading-lg text-ink">8. Контакт</h2>
-        <p>
-          По вопросам обработки персональных данных обращайтесь:{" "}
-          <a href="https://t.me/SkateLabBot" className="text-link">
-            Telegram
-          </a>
-        </p>
+        <p className="sh-body-lg">{t("intro")}</p>
+        {sections.map(([heading, body]) => (
+          <section key={heading} className="space-y-2">
+            <h2 className="sh-heading-lg text-ink">{heading}</h2>
+            <p>{body}</p>
+          </section>
+        ))}
       </div>
     </LegalLayout>
   )
