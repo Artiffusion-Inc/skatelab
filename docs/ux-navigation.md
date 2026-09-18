@@ -43,10 +43,12 @@ explicit home return, and the visitor lost their place.
 
 - Frontend unit regressions cover in-place selection, matching explanations,
   phase URL restoration/validation, explicit destination, and home return.
-- Browser checks at 360, 390, 768, and 1440px cover figure hit areas, keyboard
+- Browser checks at 320, 360, 390, 768, and 1440px cover figure hit areas, keyboard
   activation, unchanged scroll on selection, same-document navigation,
   browser Back restoring scroll and phase, direct entry, home anchors, menu
   dismissal, reduced motion, console errors, and horizontal overflow.
+- The 320px check also caught an existing editorial-image overflow caused by
+  aspect ratio and minimum height. Constrain images to their column width.
 - Before release run all frontend tests, typecheck, lint, production build,
   and design-lock verification. Re-run browser checks against public HTTPS.
 - Roll back only the website application to the previous verified frontend

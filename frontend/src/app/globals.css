@@ -1436,6 +1436,8 @@ body {
 }
 .public-editorial-image {
   position: relative;
+  min-width: 0;
+  width: 100%;
   min-height: 300px;
   aspect-ratio: 4 / 3;
   overflow: hidden;
