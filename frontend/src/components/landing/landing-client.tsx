@@ -1,6 +1,7 @@
 "use client"
 
 import Image from "next/image"
+import Link from "next/link"
 import { ArrowDownRight, Plus } from "lucide-react"
 import { useTranslations } from "@/i18n"
 import { PublicShell, ContactLink, ContactClose } from "./public-shell"
@@ -98,9 +99,9 @@ export function LandingClient() {
             <p className="landing-hero-lead">{t("heroLead")}</p>
             <div className="landing-hero-actions">
               <ContactLink>{t("heroCta")}</ContactLink>
-              <a href="/how-it-works" className="landing-text-link">
+              <Link href="/how-it-works" className="landing-text-link">
                 {t("heroSecondary")} <ArrowDownRight aria-hidden="true" className="h-4 w-4" />
-              </a>
+              </Link>
             </div>
             <p className="landing-stage">
               <span aria-hidden="true" />

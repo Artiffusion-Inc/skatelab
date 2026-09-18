@@ -1,20 +1,22 @@
 "use client"
 
 import Image from "next/image"
+import Link from "next/link"
+import { useSearchParams } from "next/navigation"
 import { ArrowUpRight, Plus } from "lucide-react"
 import { useLocale, useTranslations } from "@/i18n"
 import { blogUrl } from "@/lib/public-site"
 import { resolveLocale } from "@/lib/docs-i18n"
 import { ContactClose, ContactLink, PublicShell } from "./public-shell"
-import { EquipmentDiagram, PhaseExplorer, ReviewWorkspace, SkaterTrace } from "./movement-scenes"
+import { EquipmentDiagram, PhaseExplorer, ReviewWorkspace } from "./movement-scenes"
 
 function ArticleLink({ slug, children }: { slug: string; children: React.ReactNode }) {
   const locale = resolveLocale(useLocale())
   return (
-    <a href={blogUrl(locale, [slug])} className="public-text-link">
+    <Link href={blogUrl(locale, [slug])} className="public-text-link">
       {children}
       <ArrowUpRight size={18} aria-hidden="true" />
-    </a>
+    </Link>
   )
 }
 
@@ -63,6 +65,7 @@ export function PublicFAQ({ kind }: { kind: "equipment" | "contact" | "process" 
 
 export function HomeJourney() {
   const t = useTranslations("publicSite")
+  const phase = useSearchParams().get("phase")
   return (
     <section id="story" className="public-section home-journey">
       <div className="public-section-heading">
@@ -78,13 +81,15 @@ export function HomeJourney() {
           </li>
         ))}
       </ol>
-      <a href="/how-it-works" className="home-trace-link">
-        <SkaterTrace active={2} />
-        <span className="public-text-link">
-          {t("homeProcessLink")}
-          <ArrowUpRight size={20} aria-hidden="true" />
-        </span>
-      </a>
+      <p className="public-caption">{t("phaseLabel")}</p>
+      <PhaseExplorer />
+      <Link
+        href={`/how-it-works${phase && /^[1-4]$/.test(phase) ? `?phase=${phase}` : ""}#phases`}
+        className="public-text-link"
+      >
+        {t("homeProcessLink")}
+        <ArrowUpRight size={20} aria-hidden="true" />
+      </Link>
     </section>
   )
 }
@@ -93,16 +98,16 @@ export function HomeEquipment() {
   const t = useTranslations("publicSite")
   const l = useTranslations("landing")
   return (
-    <section className="public-equipment-teaser">
+    <section id="equipment" className="public-equipment-teaser">
       <EditorialImage image="blade-macro" alt={l("bladeAlt")} />
       <div>
         <p className="public-eyebrow">{t("equipmentKicker")}</p>
         <h2>{t("equipmentTitle")}</h2>
         <p>{t("equipmentIntro")}</p>
-        <a href="/equipment" className="public-text-link">
+        <Link href="/equipment" className="public-text-link">
           {t("homeEquipmentLink")}
           <ArrowUpRight size={18} aria-hidden="true" />
-        </a>
+        </Link>
       </div>
     </section>
   )
@@ -111,7 +116,7 @@ export function HomeEquipment() {
 export function HomeEditorial() {
   const t = useTranslations("publicSite")
   return (
-    <section className="public-section home-editorial">
+    <section id="journal" className="public-section home-editorial">
       <div>
         <p className="public-eyebrow">{t("blogKicker")}</p>
         <h2>{t("homeJournalTitle")}</h2>
@@ -134,10 +139,10 @@ export function ProcessPage() {
           <p>{t("processIntro")}</p>
           <nav className="public-chapters" aria-label={t("navProcess")}>
             {["Capture", "Phases", "Review", "Task"].map((key, index) => (
-              <a key={key} href={`#${key.toLowerCase()}`}>
+              <Link key={key} href={`#${key.toLowerCase()}`}>
                 <span>0{index + 1}</span>
                 {t(`chapter${key}`)}
-              </a>
+              </Link>
             ))}
           </nav>
         </section>

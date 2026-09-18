@@ -1,6 +1,7 @@
 "use client"
 
-import { useState } from "react"
+import { useId, useState } from "react"
+import { useSearchParams } from "next/navigation"
 import { useTranslations } from "@/i18n"
 
 // Four schematic poses share a coordinate system so selection changes both pose and trace.
@@ -94,7 +95,9 @@ export function SkaterTrace({
 
 export function PhaseExplorer() {
   const t = useTranslations("publicSite")
-  const [active, setActive] = useState(0)
+  const phase = useSearchParams().get("phase")
+  const active = phase && /^[1-4]$/.test(phase) ? Number(phase) - 1 : 0
+  const descriptionId = useId()
   return (
     <div className="phase-workspace">
       <div className="phase-visual">
@@ -102,24 +105,31 @@ export function PhaseExplorer() {
           <span>SkateLab / {t("chapterPhases")}</span>
           <span aria-hidden="true">0{active + 1} / 04</span>
         </div>
-        <SkaterTrace active={active} />
+        <fieldset className="phase-selector" aria-label={t("phaseLabel")}>
+          <SkaterTrace active={active} />
+          <div className="phase-controls">
+            {POSES.map((pose, index) => (
+              <button
+                key={pose.body}
+                type="button"
+                aria-label={`0${index + 1} ${t(`phase${index}`)}`}
+                aria-pressed={active === index}
+                aria-controls={descriptionId}
+                onClick={() => {
+                  const url = new URL(window.location.href)
+                  url.searchParams.set("phase", String(index + 1))
+                  window.history.replaceState(null, "", url)
+                }}
+              >
+                <span className="phase-hit-area" aria-hidden="true" />
+                <span className="phase-choice-label">{t(`phase${index}`)}</span>
+              </button>
+            ))}
+          </div>
+        </fieldset>
         <p className="public-caption">{t("phaseCaption")}</p>
       </div>
-      <fieldset className="phase-controls" aria-label={t("phaseLabel")}>
-        {POSES.map((pose, index) => (
-          <button
-            key={pose.body}
-            type="button"
-            aria-pressed={active === index}
-            aria-controls="phase-description"
-            onClick={() => setActive(index)}
-          >
-            <span>0{index + 1}</span>
-            {t(`phase${index}`)}
-          </button>
-        ))}
-      </fieldset>
-      <div id="phase-description" className="phase-description" aria-live="polite">
+      <div id={descriptionId} className="phase-description" aria-live="polite">
         <p className="public-eyebrow">{t(`phase${active}`)}</p>
         <h3>{t(`phaseCheck${active}`)}</h3>
         <p>{t(`phaseBody${active}`)}</p>

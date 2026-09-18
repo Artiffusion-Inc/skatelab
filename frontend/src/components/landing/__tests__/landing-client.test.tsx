@@ -1,5 +1,6 @@
-import { render, screen } from "@testing-library/react"
-import { describe, expect, it, vi } from "vitest"
+import { fireEvent, render, screen } from "@testing-library/react"
+import { beforeEach, describe, expect, it, vi } from "vitest"
+import { useSearchParams } from "next/navigation"
 import { ConsentProvider } from "@/components/consent-provider"
 import { LandingClient } from "../landing-client"
 
@@ -20,6 +21,12 @@ function renderLanding() {
 }
 
 describe("LandingClient campaign", () => {
+  beforeEach(() => {
+    window.history.replaceState(null, "", "/")
+    vi.mocked(useSearchParams).mockImplementation(
+      () => new URLSearchParams(window.location.search) as ReturnType<typeof useSearchParams>,
+    )
+  })
   it("presents a mobile-first school pilot path without web-account access", () => {
     renderLanding()
 
@@ -47,10 +54,30 @@ describe("LandingClient campaign", () => {
     expect(screen.queryByText("Тарифы")).not.toBeInTheDocument()
   })
 
-  it("keeps landing headings free of terminal punctuation", () => {
+  it("explains the chosen phase in place instead of linking the figures to another page", () => {
+    const { container, rerender } = renderLanding()
+    const phase = screen.getByRole("button", { name: /02 Отталкивание/ })
+    fireEvent.click(phase)
+    rerender(
+      <ConsentProvider>
+        <LandingClient />
+      </ConsentProvider>,
+    )
+    expect(phase).toHaveAttribute("aria-pressed", "true")
+    expect(container.querySelector("#story .phase-description")).toHaveTextContent("Отталкивание")
+    expect(container.querySelector("#story a svg.public-trace")).toBeNull()
+    expect(screen.getByRole("link", { name: "Как устроен разбор: все этапы" })).toHaveAttribute(
+      "href",
+      "/how-it-works?phase=2#phases",
+    )
+  })
+
+  it("keeps landing editorial headings free of terminal punctuation", () => {
     renderLanding()
 
-    for (const heading of screen.getAllByRole("heading")) {
+    for (const heading of screen
+      .getAllByRole("heading")
+      .filter(heading => !heading.closest(".phase-description"))) {
       expect(heading.textContent).not.toMatch(/[.!?]$/)
     }
   })

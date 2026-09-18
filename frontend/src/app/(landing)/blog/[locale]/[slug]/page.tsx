@@ -1,4 +1,5 @@
 import Image from "next/image"
+import Link from "next/link"
 import { notFound } from "next/navigation"
 import { getTranslations } from "next-intl/server"
 import { blog, getBlogPosts } from "@/lib/blog-source"
@@ -54,9 +55,9 @@ export default async function BlogArticle({ params }: Props) {
     <main id="main-content" tabIndex={-1} lang={locale}>
       <article>
         <header className="public-page-intro public-article-header">
-          <a href={blogUrl(locale)} className="public-text-link">
+          <Link href={blogUrl(locale)} className="public-text-link">
             ← {t("backBlog")}
-          </a>
+          </Link>
           <h1>{post.data.title}</h1>
           <p>{post.data.description}</p>
           <p className="public-article-date">
@@ -86,9 +87,9 @@ export default async function BlogArticle({ params }: Props) {
             <p className="public-eyebrow">{t("blogKicker")}</p>
             <nav aria-label={t("chapterReview")}>
               {post.data.toc.map(item => (
-                <a key={item.url} href={item.url}>
+                <Link key={item.url} href={item.url}>
                   {item.title}
-                </a>
+                </Link>
               ))}
             </nav>
           </div>
@@ -103,9 +104,9 @@ export default async function BlogArticle({ params }: Props) {
           .filter(item => item.url !== post.url && item.slugs[0] !== "2026-07-07-launch")
           .slice(0, 2)
           .map(item => (
-            <a key={item.url} className="public-text-link" href={item.url}>
+            <Link key={item.url} className="public-text-link" href={item.url}>
               {item.data.title} ↗
-            </a>
+            </Link>
           ))}
       </section>
     </main>

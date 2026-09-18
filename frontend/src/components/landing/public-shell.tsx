@@ -1,7 +1,8 @@
 "use client"
 
-import { usePathname } from "next/navigation"
-import { ArrowUpRight, Menu } from "lucide-react"
+import { usePathname, useSearchParams } from "next/navigation"
+import Link from "next/link"
+import { ArrowLeft, ArrowUpRight, Menu } from "lucide-react"
 import { useLocale, useTranslations } from "@/i18n"
 import { setLocale } from "@/i18n/actions"
 import { useConsent } from "@/components/consent-provider"
@@ -35,6 +36,7 @@ export function PublicShell({
   const l = useTranslations("landing")
   const locale = useLocale()
   const pathname = usePathname()
+  const phase = useSearchParams().get("phase")
   const { openBanner } = useConsent()
   const links = [
     ["/how-it-works", t("navProcess")],
@@ -42,14 +44,26 @@ export function PublicShell({
     [`/blog/${locale}`, t("navBlog")],
     ["/contact", t("navContact")],
   ]
+  const homeHref =
+    pathname === "/how-it-works"
+      ? `/${phase && /^[1-4]$/.test(phase) ? `?phase=${phase}` : ""}#story`
+      : pathname === "/equipment"
+        ? "/#equipment"
+        : pathname.startsWith("/blog")
+          ? "/#journal"
+          : "/"
   const navLinks = links.map(([href, label]) => (
-    <a
+    <Link
       key={href}
       href={href}
+      onClick={event => {
+        const menu = event.currentTarget.closest("details")
+        if (menu) menu.open = false
+      }}
       aria-current={pathname === href || pathname.startsWith(`${href}/`) ? "page" : undefined}
     >
       {label}
-    </a>
+    </Link>
   ))
   const blogLocale = pathname.match(/^\/blog\/(ru|en)(\/.*)?$/)
   return (
@@ -62,9 +76,15 @@ export function PublicShell({
           {l("skipToContent")}
         </a>
         <div className="landing-nav-inner">
-          <a href="/" className="landing-wordmark" aria-label="SkateLab">
+          <Link href="/" className="landing-wordmark" aria-label="SkateLab">
             Skate<span>Lab</span>
-          </a>
+          </Link>
+          {!home && (
+            <Link href={homeHref} className="public-back-link">
+              <ArrowLeft size={16} aria-hidden="true" />
+              {t("backHome")}
+            </Link>
+          )}
           <nav className="landing-desktop-nav" aria-label={l("mainNav")}>
             {navLinks}
           </nav>
@@ -104,23 +124,23 @@ export function PublicShell({
       {children}
       <footer className="landing-footer">
         <div className="landing-footer-top">
-          <a href="/" className="landing-wordmark">
+          <Link href="/" className="landing-wordmark">
             Skate<span>Lab</span>
-          </a>
+          </Link>
           <p>{l("footerTagline")}</p>
           <a href={TELEGRAM_URL}>Telegram ↗</a>
         </div>
         <nav className="public-footer-nav" aria-label={t("footerNav")}>
           {navLinks}
-          <a href="/how-it-works#faq">{t("faqTitle")}</a>
+          <Link href="/how-it-works#faq">{t("faqTitle")}</Link>
         </nav>
         <div className="landing-footer-bottom">
           <span>{l("footerCopyright")}</span>
           <nav aria-label={l("footerLegal")}>
-            <a href="/privacy">{l("footerPrivacy")}</a>
-            <a href="/terms">{l("footerTerms")}</a>
-            <a href="/offer">{l("footerOffer")}</a>
-            <a href="/cookies">{l("footerCookiePolicy")}</a>
+            <Link href="/privacy">{l("footerPrivacy")}</Link>
+            <Link href="/terms">{l("footerTerms")}</Link>
+            <Link href="/offer">{l("footerOffer")}</Link>
+            <Link href="/cookies">{l("footerCookiePolicy")}</Link>
             {posthogKey && (
               <button type="button" onClick={openBanner} className="landing-footer-cookie-settings">
                 {l("footerCookieSettings")}

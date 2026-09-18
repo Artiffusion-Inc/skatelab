@@ -10,6 +10,7 @@ vi.mock("@/i18n", () => ({
 
 vi.mock("next/navigation", () => ({
   usePathname: () => "/blog/en/recording-guide",
+  useSearchParams: () => new URLSearchParams(),
 }))
 
 describe(PublicShell, () => {
@@ -21,6 +22,8 @@ describe(PublicShell, () => {
         </PublicShell>
       </ConsentProvider>,
     )
+
+    expect(screen.getByRole("link", { name: "backHome" })).toHaveAttribute("href", "/#journal")
 
     for (const link of screen.getAllByRole("link", { name: "navBlog" })) {
       expect(link).toHaveAttribute("href", "/blog/en")

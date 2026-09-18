@@ -10,7 +10,10 @@ vi.mock("@/i18n", () => ({
   useLocale: () => "ru",
 }))
 vi.mock("@/i18n/actions", () => ({ setLocale: vi.fn() }))
-vi.mock("next/navigation", () => ({ usePathname: () => "/" }))
+vi.mock("next/navigation", () => ({
+  usePathname: () => "/",
+  useSearchParams: () => new URLSearchParams(),
+}))
 vi.mock("../consent-provider", () => ({
   useConsent: () => ({ showBanner: true, setConsent: mocks.setConsent, openBanner: vi.fn() }),
 }))

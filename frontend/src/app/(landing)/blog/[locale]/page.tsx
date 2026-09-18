@@ -1,4 +1,5 @@
 import Image from "next/image"
+import Link from "next/link"
 import { notFound } from "next/navigation"
 import { getTranslations } from "next-intl/server"
 import { isLocale } from "@/lib/docs-i18n"
@@ -34,7 +35,7 @@ export default async function BlogIndex({ params }: Props) {
         <p>{t("blogIntro")}</p>
       </section>
       <section className="public-section public-blog-lead">
-        <a href={lead.url} className="public-editorial-image">
+        <Link href={lead.url} className="public-editorial-image">
           <Image
             src={`/images/landing/${lead.data.image}.webp`}
             alt={t("recordingAlt")}
@@ -43,16 +44,16 @@ export default async function BlogIndex({ params }: Props) {
             className="landing-cover"
             priority
           />
-        </a>
+        </Link>
         <div>
           <p className="public-eyebrow">01 / {t("chapterCapture")}</p>
           <h2>
-            <a href={lead.url}>{lead.data.title}</a>
+            <Link href={lead.url}>{lead.data.title}</Link>
           </h2>
           <p>{lead.data.description}</p>
-          <a href={lead.url} className="public-text-link">
+          <Link href={lead.url} className="public-text-link">
             {t("readMore")} ↗
-          </a>
+          </Link>
         </div>
       </section>
       <section className="public-section public-blog-list" aria-label={t("allArticles")}>
@@ -63,17 +64,17 @@ export default async function BlogIndex({ params }: Props) {
               <span className="public-eyebrow">0{index + 2}</span>
               <div>
                 <h2>
-                  <a href={post.url}>{post.data.title}</a>
+                  <Link href={post.url}>{post.data.title}</Link>
                 </h2>
                 <p>{post.data.description}</p>
               </div>
-              <a
+              <Link
                 href={post.url}
                 className="public-text-link"
                 aria-label={`${t("readMore")}: ${post.data.title}`}
               >
                 ↗
-              </a>
+              </Link>
             </article>
           ))}
       </section>
