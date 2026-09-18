@@ -72,16 +72,6 @@ export function HomeJourney() {
         <h2>{t("homeTrackTitle")}</h2>
         <p>{t("homeTrackIntro")}</p>
       </div>
-      <ol className="public-journey-stops">
-        {[0, 1, 2].map(index => (
-          <li key={index}>
-            <span>0{index + 1}</span>
-            <h3>{t(`homeStep${index}`)}</h3>
-            <p>{t(`homeStepBody${index}`)}</p>
-          </li>
-        ))}
-      </ol>
-      <p className="public-caption">{t("phaseLabel")}</p>
       <PhaseExplorer />
       <Link
         href={`/how-it-works${phase && /^[1-4]$/.test(phase) ? `?phase=${phase}` : ""}#phases`}
@@ -101,7 +91,6 @@ export function HomeEquipment() {
     <section id="equipment" className="public-equipment-teaser">
       <EditorialImage image="blade-macro" alt={l("bladeAlt")} />
       <div>
-        <p className="public-eyebrow">{t("equipmentKicker")}</p>
         <h2>{t("equipmentTitle")}</h2>
         <p>{t("equipmentIntro")}</p>
         <Link href="/equipment" className="public-text-link">
@@ -118,7 +107,6 @@ export function HomeEditorial() {
   return (
     <section id="journal" className="public-section home-editorial">
       <div>
-        <p className="public-eyebrow">{t("blogKicker")}</p>
         <h2>{t("homeJournalTitle")}</h2>
         <p>{t("homeJournalBody")}</p>
         <ArticleLink slug="recording-guide">{t("readMore")}</ArticleLink>
@@ -134,7 +122,6 @@ export function ProcessPage() {
     <PublicShell>
       <main id="main-content" tabIndex={-1}>
         <section className="public-page-intro">
-          <p className="public-eyebrow">{t("processKicker")}</p>
           <h1>{t("processTitle")}</h1>
           <p>{t("processIntro")}</p>
           <nav className="public-chapters" aria-label={t("navProcess")}>
@@ -203,7 +190,6 @@ export function EquipmentPage() {
     <PublicShell>
       <main id="main-content" tabIndex={-1}>
         <section className="public-page-intro">
-          <p className="public-eyebrow">{t("equipmentKicker")}</p>
           <h1>{t("equipmentTitle")}</h1>
           <p>{t("equipmentIntro")}</p>
         </section>
@@ -273,7 +259,6 @@ export function ContactPage() {
     <PublicShell>
       <main id="main-content" tabIndex={-1}>
         <section className="public-page-intro public-contact-intro">
-          <p className="public-eyebrow">{t("contactKicker")}</p>
           <h1>{t("contactTitle")}</h1>
           <p>{t("contactIntro")}</p>
         </section>
@@ -290,16 +275,6 @@ export function ContactPage() {
             <p className="public-contact-privacy">{t("contactPrivacy")}</p>
           </div>
         </section>
-        <section className="public-section public-audiences">
-          {[0, 1, 2].map(index => (
-            <div key={index}>
-              <span className="public-eyebrow">0{index + 1}</span>
-              <h2>{t(`audience${index}`)}</h2>
-              <p>{t(`audienceBody${index}`)}</p>
-            </div>
-          ))}
-        </section>
-        <PublicFAQ kind="contact" />
       </main>
     </PublicShell>
   )

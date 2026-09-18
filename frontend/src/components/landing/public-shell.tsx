@@ -139,7 +139,6 @@ export function PublicShell({
           <nav aria-label={l("footerLegal")}>
             <Link href="/privacy">{l("footerPrivacy")}</Link>
             <Link href="/terms">{l("footerTerms")}</Link>
-            <Link href="/offer">{l("footerOffer")}</Link>
             <Link href="/cookies">{l("footerCookiePolicy")}</Link>
             {posthogKey && (
               <button type="button" onClick={openBanner} className="landing-footer-cookie-settings">

@@ -15,10 +15,6 @@ export default async function PrivacyPage() {
     [t("s1"), t("p1")],
     [t("s2"), t("p2")],
     [t("s3"), t("p3")],
-    [t("s4"), t("p4")],
-    [t("s5"), t("p5")],
-    [t("s6"), t("p6")],
-    [t("s7"), t("p7")],
   ] as const
 
   return (

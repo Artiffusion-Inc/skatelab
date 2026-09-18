@@ -1,40 +1,30 @@
 ---
-title: "Video and sensors answer different questions"
-description: "What a frame shows, what an inertial sensor records and why aligned evidence matters more than an impressive number."
+title: "What cameras and sensors measure"
+description: "Body position on video, sensor rotation and recording synchronisation."
 date: "2026-09-17"
 image: "blade-macro"
 ---
 
-## Not two ways to obtain one truth
+## Video shows movement in the frame
 
-Video and inertial sensors observe movement differently. A camera records light and object positions in an image. An inertial measurement unit usually includes an accelerometer and gyroscope: they record specific force and angular velocity in device coordinates. These are different raw signals, not two independent judgements of jump quality.
+A recording lets you examine arm and torso position, the approach and the exit. Neighbouring frames help identify the beginning and end of a jump phase.
 
-The useful first question is not which source is universally more accurate, but what you need to learn about this attempt. Visible footage is needed to discuss arm position in the frame. A gyroscope may help describe rapid changes in the device’s angular velocity. Neither source by itself explains why a skater made an error.
+Camera angle matters: an angle in an image is not necessarily the angle between body segments in space. A hidden skate means the camera cannot observe its ice contact. A model-reconstructed point remains an estimate, not a direct measurement.
 
-## What video contributes
+## Sensors record acceleration and rotation
 
-A recording lets you return to the sequence, watch the approach and exit, and discuss body position that is actually visible. Neighbouring frames explain transitions better than one striking still. But the image remains a projection of a three-dimensional scene onto a plane.
+An inertial sensor usually includes an accelerometer and a gyroscope. The accelerometer measures specific force; the gyroscope measures the device’s angular velocity. Readings depend on orientation and mounting.
 
-Perspective, camera motion and body occlusion affect conclusions. An angle in the image is not necessarily an anatomical angle in space. If one skate hides the other, a model has no direct observation of that ice contact. An estimated invisible point is an inference with limitations, not a newly measured detail.
+These signals do not directly provide skating speed or jump quality. Calculations require calibration, gravity compensation and a validated method. Errors can accumulate over time.
 
-## What an inertial sensor contributes
+## Align the recordings in time
 
-A gyroscope describes rotation of the sensor, not automatically every body segment. An accelerometer does not output ready-made skating speed. Motion estimation needs to account for orientation, gravity, measurement bias and mounting. Integration can accumulate errors over time.
+To compare a frame with a sensor reading, establish that they represent the same moment. The camera and sensor may start recording at different times, and their clocks can drift.
 
-Even an estimated device orientation is not yet a reliable conclusion about skate edge use. The relationship between sensor axes and equipment, calibration and a checked method for the specific scenario all matter. Changing the mounting position changes that relationship. That is why the [equipment page](/equipment) does not promise that any tracker will produce an equivalent result.
+A similar-looking chart peak alone does not establish alignment. Check timestamps and the synchronisation method before connecting a signal to takeoff or landing.
 
-## Align time before interpreting
+## When the sources disagree
 
-To compare a signal with a frame, you must establish that they refer to the same moment. Camera and sensor clocks can drift, recordings may start at different times, and exports may change timestamps. A similar-looking peak on a chart is not proof of exact alignment.
+Check the angle, skate visibility, sensor mounting, calibration and timeline. A difference between sources does not always mean a change in technique.
 
-Check the synchronisation method and original data before interpretation. If timing uncertainty is large relative to the event of interest, do not draw a conclusion about the exact order of actions. Explicitly keeping a limitation is better than presenting decimal places as reliability.
-
-## Discuss the result with the coach
-
-Separate three levels: what the instrument recorded, what processing calculated and what the coach concludes. Visible contact in a video, a selected phase boundary and a task for the next exit are not the same thing. Each level needs its own check.
-
-When sources disagree, start with recording conditions: angle, occlusion, timeline, calibration and mounting. Do not automatically prefer the more technical-looking signal. Sometimes the useful outcome is “we need another recording”, not a rating of the skater.
-
-## Limits of application
-
-This article explains data sources. It does not certify a particular device’s specifications or the availability of a SkateLab feature. It does not replace judging, medical assessment or the coach’s decisions about training load. Explore the [review sequence](/how-it-works) and [feedback structure](/blog/en/coach-feedback) to connect an observation with a clear next task.
+SkateLab sensor support is in development. See [Camera and sensors](/equipment) for more, or use the [recording guide](/blog/en/recording-guide) to prepare video footage.

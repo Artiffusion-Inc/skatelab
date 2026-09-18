@@ -7,50 +7,6 @@ import { useTranslations } from "@/i18n"
 import { PublicShell, ContactLink, ContactClose } from "./public-shell"
 import { HomeJourney, HomeEditorial, HomeEquipment } from "./public-pages"
 
-function ReviewSection() {
-  const t = useTranslations("landing")
-  return (
-    <section id="review" className="landing-review" aria-labelledby="review-title">
-      <div className="landing-review-image">
-        <Image
-          src="/images/landing/coach-review.webp"
-          alt={t("coachImageAlt")}
-          fill
-          sizes="(max-width: 800px) 100vw, 58vw"
-          className="landing-cover"
-        />
-      </div>
-      <div className="landing-review-copy">
-        <h2 id="review-title">{t("reviewTitle")}</h2>
-        <p className="landing-review-lead">{t("reviewLead")}</p>
-        <ol className="landing-review-list">
-          <li>
-            <span>01</span>
-            <p>
-              <strong>{t("reviewOneTitle")}</strong>
-              {t("reviewOneBody")}
-            </p>
-          </li>
-          <li>
-            <span>02</span>
-            <p>
-              <strong>{t("reviewTwoTitle")}</strong>
-              {t("reviewTwoBody")}
-            </p>
-          </li>
-          <li>
-            <span>03</span>
-            <p>
-              <strong>{t("reviewThreeTitle")}</strong>
-              {t("reviewThreeBody")}
-            </p>
-          </li>
-        </ol>
-      </div>
-    </section>
-  )
-}
-
 function QuestionsSection() {
   const t = useTranslations("landing")
   const questions = [1, 2, 3]
@@ -91,7 +47,6 @@ export function LandingClient() {
           />
           <div className="landing-hero-shade" aria-hidden="true" />
           <div className="landing-hero-content">
-            <p className="landing-kicker">{t("heroKicker")}</p>
             <h1 id="hero-title">
               <span>{t("heroTitleLine1")}</span> <span>{t("heroTitleLine2")}</span>{" "}
               <span>{t("heroTitleLine3")}</span>
@@ -99,18 +54,13 @@ export function LandingClient() {
             <p className="landing-hero-lead">{t("heroLead")}</p>
             <div className="landing-hero-actions">
               <ContactLink>{t("heroCta")}</ContactLink>
-              <Link href="/how-it-works" className="landing-text-link">
+              <Link href="#story" className="landing-text-link">
                 {t("heroSecondary")} <ArrowDownRight aria-hidden="true" className="h-4 w-4" />
               </Link>
             </div>
-            <p className="landing-stage">
-              <span aria-hidden="true" />
-              {t("stage")}
-            </p>
           </div>
         </section>
         <HomeJourney />
-        <ReviewSection />
         <HomeEquipment />
         <HomeEditorial />
         <QuestionsSection />

@@ -40,10 +40,10 @@ describe("public instructional scenes", () => {
 
   it("changes frame context and the review task rather than only tab text", () => {
     const { container } = render(<ReviewWorkspace />)
-    fireEvent.click(screen.getByRole("button", { name: /Следующая попытка/ }))
+    fireEvent.click(screen.getByRole("button", { name: /Сравнить попытки/ }))
     expect(container.querySelector(".public-review-frame")).toHaveAttribute("data-mode", "2")
     expect(
-      screen.getByRole("heading", { name: "Какую одну задачу взять на лёд?" }),
+      screen.getByRole("heading", { name: "Что изменилось в следующей попытке?" }),
     ).toBeInTheDocument()
     expect(screen.getByText("Сравнить следующую попытку с тем же ракурсом")).toBeInTheDocument()
   })

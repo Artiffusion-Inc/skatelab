@@ -27,13 +27,19 @@ describe("LandingClient campaign", () => {
       () => new URLSearchParams(window.location.search) as ReturnType<typeof useSearchParams>,
     )
   })
-  it("presents a mobile-first school pilot path without web-account access", () => {
+  it("offers a Telegram conversation and an inline example without promising app access", () => {
     renderLanding()
 
     expect(
-      screen.getByRole("heading", { name: "Каждая попытка Понятнее тренеру" }),
+      screen.getByRole("heading", { name: "Разбор техники фигурного катания" }),
     ).toBeInTheDocument()
-    expect(screen.getAllByRole("link", { name: /Обсудить пилот/ }).length).toBeGreaterThan(0)
+    expect(screen.getAllByRole("link", { name: /Написать в Telegram/ }).length).toBeGreaterThan(0)
+    expect(screen.getByRole("link", { name: "Посмотреть пример" })).toHaveAttribute(
+      "href",
+      "#story",
+    )
+    expect(document.querySelector(".landing-stage")).toBeNull()
+    expect(document.querySelector("#review")).toBeNull()
     expect(screen.queryByRole("link", { name: "Войти" })).not.toBeInTheDocument()
     expect(screen.getAllByRole("link").some(link => link.getAttribute("href") === "/login")).toBe(
       false,
@@ -44,7 +50,7 @@ describe("LandingClient campaign", () => {
         .filter(link => link.getAttribute("href") === "https://t.me/xpos587").length,
     ).toBeGreaterThan(2)
     expect(
-      screen.queryByText(/Приложение в разработке|Сценарий проверяется|будет добавлена/),
+      screen.queryByText(/В текущем продукте доступен сценарий анализа загруженного видео/),
     ).not.toBeInTheDocument()
     expect(screen.getByRole("link", { name: "Конфиденциальность" })).toHaveAttribute(
       "href",
@@ -66,7 +72,7 @@ describe("LandingClient campaign", () => {
     expect(phase).toHaveAttribute("aria-pressed", "true")
     expect(container.querySelector("#story .phase-description")).toHaveTextContent("Отталкивание")
     expect(container.querySelector("#story a svg.public-trace")).toBeNull()
-    expect(screen.getByRole("link", { name: "Как устроен разбор: все этапы" })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: "Разбор прыжка по видео" })).toHaveAttribute(
       "href",
       "/how-it-works?phase=2#phases",
     )

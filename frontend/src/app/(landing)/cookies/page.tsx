@@ -1,3 +1,4 @@
+import { posthogKey } from "@/lib/env"
 import type { Metadata } from "next"
 import { getLocale, getTranslations } from "next-intl/server"
 import { publicMetadata } from "@/lib/public-site"
@@ -13,10 +14,8 @@ export default async function CookiesPage() {
   const tCommon = await getTranslations("common")
   const sections = [
     [t("s1"), t("p1")],
-    [t("s2"), t("p2")],
+    [t("s2"), t(posthogKey ? "p2" : "p2Disabled")],
     [t("s3"), t("p3")],
-    [t("s4"), t("p4")],
-    [t("s5"), t("p5")],
   ] as const
 
   return (

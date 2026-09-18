@@ -11,12 +11,7 @@ export async function generateMetadata(): Promise<Metadata> {
 export default async function OfferPage() {
   const t = await getTranslations("offer")
   const tCommon = await getTranslations("common")
-  const sections = [
-    [t("s1"), t("p1")],
-    [t("s2"), t("p2")],
-    [t("s3"), t("p3")],
-    [t("s4"), t("p4")],
-  ] as const
+  const sections = [[t("s1"), t("p1")]] as const
 
   return (
     <LegalLayout>
