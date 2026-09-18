@@ -78,14 +78,13 @@ describe("LandingClient campaign", () => {
     )
   })
 
-  it("keeps landing editorial headings free of terminal punctuation", () => {
-    renderLanding()
-
-    for (const heading of screen
-      .getAllByRole("heading")
-      .filter(heading => !heading.closest(".phase-description"))) {
-      expect(heading.textContent).not.toMatch(/[.!?]$/)
-    }
+  it("punctuates the contact question and keeps the footer focused on navigation", () => {
+    const { container } = renderLanding()
+    expect(screen.getByRole("heading", { name: "Есть вопрос о SkateLab?" })).toBeInTheDocument()
+    expect(container.querySelector("footer")).not.toHaveTextContent(
+      "Видео и датчики для разбора техники фигурного катания",
+    )
+    expect(container.querySelector(".landing-footer-top nav")).toBeInTheDocument()
   })
 
   it("connects the homepage to complete public destinations", () => {

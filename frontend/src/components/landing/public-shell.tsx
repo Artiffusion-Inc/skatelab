@@ -127,13 +127,10 @@ export function PublicShell({
           <Link href="/" className="landing-wordmark">
             Skate<span>Lab</span>
           </Link>
-          <p>{l("footerTagline")}</p>
-          <a href={TELEGRAM_URL}>Telegram ↗</a>
+          <nav className="public-footer-nav" aria-label={t("footerNav")}>
+            {navLinks}
+          </nav>
         </div>
-        <nav className="public-footer-nav" aria-label={t("footerNav")}>
-          {navLinks}
-          <Link href="/how-it-works#faq">{t("faqTitle")}</Link>
-        </nav>
         <div className="landing-footer-bottom">
           <span>{l("footerCopyright")}</span>
           <nav aria-label={l("footerLegal")}>
@@ -157,7 +154,6 @@ export function ContactClose() {
   return (
     <section className="public-close">
       <div>
-        <p className="public-eyebrow">SkateLab / Telegram</p>
         <h2>{t("closeTitle")}</h2>
         <p>{t("closeBody")}</p>
       </div>
