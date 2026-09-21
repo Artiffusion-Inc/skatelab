@@ -113,7 +113,7 @@ describe("completed session result rendering", () => {
   it("shows unavailable provenance when sensor keys are absent", () => {
     render(<SessionDetailPage />)
 
-    expect(screen.getByRole("status")).toHaveTextContent("Sensor fusion: unavailable")
+    expect(screen.getByRole("status")).toHaveTextContent("Слияние сенсоров: недоступно")
   })
 
   it("renders a nullable score and recommendation without changing result state", () => {

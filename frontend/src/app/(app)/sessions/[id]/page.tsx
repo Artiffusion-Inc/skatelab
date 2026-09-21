@@ -2,7 +2,8 @@
 
 import Link from "next/link"
 import { useParams, useRouter } from "next/navigation"
-import { lazy, Suspense, useMemo, useState } from "react"
+import { useMemo, useState } from "react"
+import { AnalysisReadiness } from "@/components/analysis/analysis-readiness"
 import { PhaseTimeline } from "@/components/analysis/phase-timeline"
 import { SkeletonDetail } from "@/components/skeleton-detail"
 import { VideoWithSkeleton } from "@/components/analysis/video-with-skeleton"
@@ -26,12 +27,8 @@ import { useTabParam } from "@/hooks/use-tab-param"
 import { AnalyzerTab } from "@/components/analysis/analyzer-tab"
 import { CoachCommentForm } from "@/components/coach/coach-comment-form"
 import { useAuth } from "@/components/auth-provider"
-
-const ThreeJSkeletonViewer = lazy(() =>
-  import("@/components/analysis/threejs-skeleton-viewer").then(m => ({
-    default: m.ThreeJSkeletonViewer,
-  })),
-)
+import { ErrorState } from "@/components/error-state"
+import { ApiError } from "@/lib/api-client"
 
 const POLLING_STATUSES = SESSION_POLLING_STATUSES
 const SENSOR_METRIC_NAMES = new Set([
@@ -59,6 +56,7 @@ function isAxelElement(elementType: string): boolean {
 type ReportSession = NonNullable<ReturnType<typeof useSession>["data"]>
 
 function SensorProvenance({ session, failed }: { session: ReportSession; failed: boolean }) {
+  const t = useTranslations("session")
   const hasLeft = Boolean(session.imu_left_key)
   const hasRight = Boolean(session.imu_right_key)
   const hasManifest = Boolean(session.manifest_key)
@@ -68,25 +66,28 @@ function SensorProvenance({ session, failed }: { session: ReportSession; failed:
   return (
     <section
       className="rounded-2xl border border-hairline p-3 sm:p-4"
-      aria-label="Sensor provenance"
+      aria-label={t("sensorTitle")}
     >
-      <h2 className="mb-2 text-sm font-medium">Sensor provenance</h2>
-      <p className="text-sm font-semibold" role="status">
-        {fused ? "Sensor fusion: synthetic/unvalidated" : "Sensor fusion: unavailable"}
+      <h2 className="mb-2 sh-button-cap text-ink">{t("sensorTitle")}</h2>
+      <p className="text-sm sh-body-md" role="status">
+        {fused ? t("sensorFusionSynthetic") : t("sensorFusionUnavailable")}
       </p>
       <p className="mt-1 text-xs text-ink-mute">
-        Source: LEFT IMU {hasLeft ? "attached" : "absent"}; RIGHT IMU{" "}
-        {hasRight ? "attached" : "absent"}; manifest {hasManifest ? "attached" : "absent"}.
+        {t("sensorSource", {
+          left: hasLeft ? t("attached") : t("absent"),
+          right: hasRight ? t("attached") : t("absent"),
+          manifest: hasManifest ? t("attached") : t("absent"),
+        })}
       </p>
-      <p className="mt-1 text-xs text-ink-mute">
-        Validation: unvalidated; hardware validation pending.
-      </p>
+      <p className="mt-1 text-xs text-ink-mute">{t("sensorValidation")}</p>
       {failed && session.error_message && (
-        <p className="mt-2 text-xs text-destructive">Analysis error: {session.error_message}</p>
+        <p className="mt-2 text-xs text-destructive">
+          {t("analysisError")}: {session.error_message}
+        </p>
       )}
       {diagnostics.length > 0 && (
         <div className="mt-3 border-t border-hairline pt-3">
-          <h3 className="mb-1 text-xs font-medium">Measured diagnostics (not skating scores)</h3>
+          <h3 className="mb-1 text-xs sh-button-cap text-ink">{t("measuredDiagnostics")}</h3>
           <dl className="space-y-1">
             {diagnostics.map(metric => {
               const decimals =
@@ -118,7 +119,7 @@ function SensorProvenance({ session, failed }: { session: ReportSession; failed:
 export default function SessionDetailPage() {
   const { id } = useParams<{ id: string }>()
   const router = useRouter()
-  const { data: session, isLoading } = useSession(id)
+  const { data: session, isLoading, isError, error, refetch } = useSession(id)
   const { user } = useAuth()
   const elementLabel = useElementLabel()
   const ts = useTranslations("sessions")
@@ -141,15 +142,21 @@ export default function SessionDetailPage() {
   })
   const [dismissed, setDismissed] = useState(false)
 
-  const totalFrames = session?.pose_data ? Math.max(...session.pose_data.frames) : 300
+  const videoUrl = session?.processed_video_url ?? session?.video_url ?? null
+  const hasVideo = Boolean(videoUrl)
+  const poseData = session?.pose_data ?? null
+  const hasPoseData = Boolean(poseData?.frames.length && poseData.poses.length)
+  const totalFrames = hasPoseData && poseData ? Math.max(...poseData.frames) : 0
 
-  // Overview tab: show only out-of-range + PRs
+  // Overview: prioritize warnings and records, then show the first available values.
+  const resultMetrics = useMemo(
+    () => session?.metrics.filter(m => !SENSOR_METRIC_NAMES.has(m.metric_name)) ?? [],
+    [session?.metrics],
+  )
   const highlightMetrics = useMemo(() => {
-    if (!session?.metrics) return []
-    return session.metrics.filter(
-      m => !SENSOR_METRIC_NAMES.has(m.metric_name) && (m.is_pr || m.is_in_range === false),
-    )
-  }, [session?.metrics])
+    const highlighted = resultMetrics.filter(m => m.is_pr || m.is_in_range === false)
+    return highlighted.length > 0 ? highlighted : resultMetrics.slice(0, 4)
+  }, [resultMetrics])
 
   const handleShare = async () => {
     const url = typeof document !== "undefined" ? document.URL : ""
@@ -165,6 +172,29 @@ export default function SessionDetailPage() {
   }
 
   if (isLoading) return <SkeletonDetail />
+
+  if (isError) {
+    const requiresAuth = error instanceof ApiError && error.status === 401
+    return (
+      <div className="mx-auto max-w-2xl px-4 py-10">
+        <ErrorState
+          title={requiresAuth ? tSession("sessionAuthError") : tSession("sessionLoadError")}
+          message={
+            requiresAuth ? tSession("sessionAuthErrorHint") : tSession("sessionLoadErrorHint")
+          }
+          onRetry={requiresAuth ? undefined : () => void refetch()}
+        />
+        {requiresAuth && (
+          <div className="flex justify-center">
+            <Button asChild>
+              <Link href="/login">{tSession("signInAgain")}</Link>
+            </Button>
+          </div>
+        )}
+      </div>
+    )
+  }
+
   if (!session)
     return (
       <div className="flex flex-col items-center py-20 text-center" role="status">
@@ -184,6 +214,11 @@ export default function SessionDetailPage() {
     { key: "export" as const, label: tSession("tabExport") },
   ]
 
+  const handleRetry = () => {
+    if (!session.video_key) return
+    retryMutation.mutate({ sessionId: session.id, videoKey: session.video_key })
+  }
+
   return (
     <>
       {/* Processing banner — replaces full-page SessionStatus */}
@@ -195,14 +230,7 @@ export default function SessionDetailPage() {
               cancelMutation.mutate(session.process_task_id)
             }
           }}
-          onRetry={() => {
-            if (session.video_key) {
-              retryMutation.mutate({
-                sessionId: session.id,
-                videoKey: session.video_key as string,
-              })
-            }
-          }}
+          onRetry={handleRetry}
         />
       )}
 
@@ -211,21 +239,20 @@ export default function SessionDetailPage() {
         <div className="border-b border-destructive/20 bg-destructive/5 px-4 py-3" role="alert">
           <div className="mx-auto flex max-w-2xl items-center gap-3">
             <div className="flex-1">
-              <p className="text-sm font-medium text-destructive">{ts("analysisFailed")}</p>
+              <p className="sh-button-cap text-destructive">{ts("analysisFailed")}</p>
+              <p className="mt-0.5 text-xs text-ink-mute">{tSession("analysisFailedHint")}</p>
               {session.error_message && (
                 <p className="mt-0.5 text-xs text-ink-mute">{session.error_message}</p>
+              )}
+              {retryMutation.isError && (
+                <p className="mt-1 text-xs text-destructive">{tSession("retryError")}</p>
               )}
             </div>
             {session.video_key && (
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() =>
-                  retryMutation.mutate({
-                    sessionId: session.id,
-                    videoKey: session.video_key as string,
-                  })
-                }
+                onClick={handleRetry}
                 disabled={retryMutation.isPending}
               >
                 {retryMutation.isPending ? tSession("retrying") : tSession("retry")}
@@ -256,7 +283,7 @@ export default function SessionDetailPage() {
               {new Date(session.created_at).toLocaleDateString(locale)}
             </p>
             {session.overall_score !== null && (
-              <p className="text-sm font-medium" style={{ color: "oklch(var(--score-good))" }}>
+              <p className="text-sm sh-button-cap" style={{ color: "var(--color-score-good)" }}>
                 {/* #504/#507: backend emits overall_score as a 0..1 ratio
                  * (session_saver.py:94). The "из 10" label implies a 0..10
                  * scale, so scale x10 for display (1.0 → "10.0 из 10"), not
@@ -317,40 +344,49 @@ export default function SessionDetailPage() {
       <div className="mx-auto max-w-2xl px-4 py-4 lg:max-w-none" role="tabpanel">
         {activeTab === "overview" && (
           <div className="space-y-6">
+            <AnalysisReadiness
+              hasVideo={hasVideo}
+              hasPoseData={hasPoseData}
+              metricCount={resultMetrics.length}
+            />
+
             {/* Video hero */}
-            {session.processed_video_url && session.pose_data && (
+            {videoUrl && poseData && hasPoseData && (
               <VideoWithSkeleton
-                videoUrl={session.processed_video_url}
-                poseData={session.pose_data}
+                videoUrl={videoUrl}
+                poseData={poseData}
                 phases={session.phases ?? null}
                 totalFrames={totalFrames}
-                fps={session.pose_data.fps}
+                fps={poseData.fps}
                 className="rounded-xl"
               />
             )}
-            {session.processed_video_url && !session.pose_data && (
-              <video src={session.processed_video_url} controls className="w-full rounded-xl">
+            {videoUrl && (!poseData || !hasPoseData) && (
+              <video src={videoUrl} controls playsInline className="w-full rounded-xl">
                 <track kind="captions" />
               </video>
             )}
-            {!session.processed_video_url && session.video_url && (
-              <video src={session.video_url} controls className="w-full rounded-xl">
-                <track kind="captions" />
-              </video>
+            {!hasVideo && (
+              <div className="rounded-2xl border border-hairline bg-muted/40 px-4 py-8 text-center">
+                <p className="sh-heading-lg text-ink">{tSession("videoUnavailable")}</p>
+                <p className="mx-auto mt-2 max-w-xl text-sm leading-6 text-ink-mute">
+                  {tSession("videoUnavailableHint")}
+                </p>
+              </div>
             )}
 
             {/* Phase timeline */}
-            {session.pose_data && (
-              <PhaseTimeline totalFrames={totalFrames} phases={session.phases} />
-            )}
+            {hasPoseData && <PhaseTimeline totalFrames={totalFrames} phases={session.phases} />}
 
             <SensorProvenance session={session} failed={isFailed} />
 
             {/* Recommendations */}
             {session.recommendations && session.recommendations.length > 0 && (
               <div className="rounded-2xl border border-hairline p-3 sm:p-4">
-                <h2 className="mb-2 text-sm font-medium">
-                  {isAxelElement(elementType) ? "Axel recommendation" : ts("recommendations")}
+                <h2 className="mb-2 sh-button-cap text-ink">
+                  {isAxelElement(elementType)
+                    ? tSession("axelRecommendation")
+                    : ts("recommendations")}
                 </h2>
                 <ul className="space-y-1 text-sm text-ink-mute">
                   {(isAxelElement(elementType)
@@ -367,7 +403,16 @@ export default function SessionDetailPage() {
             {(session.status === "completed" || session.status === "done") &&
               user?.onboarding_role === "coach" && <CoachCommentForm sessionId={session.id} />}
 
-            {/* Key metrics — out-of-range + PRs only */}
+            {resultMetrics.length === 0 && (
+              <div className="rounded-2xl border border-hairline bg-muted/40 p-4">
+                <h2 className="sh-button-cap text-ink">{tSession("metricsUnavailable")}</h2>
+                <p className="mt-1 text-sm leading-6 text-ink-mute">
+                  {tSession("metricsUnavailableHint")}
+                </p>
+              </div>
+            )}
+
+            {/* Key metrics — warnings and records first, then available values */}
             {highlightMetrics.length > 0 && (
               <div className="rounded-2xl border border-hairline p-3 sm:p-4">
                 <h2 className="mb-2 text-sm font-medium">{ts("metrics")}</h2>
@@ -406,7 +451,7 @@ export default function SessionDetailPage() {
                     />
                   )
                 })}
-                {session.metrics.length > highlightMetrics.length && (
+                {resultMetrics.length > highlightMetrics.length && (
                   <button
                     type="button"
                     onClick={() => setTab("details")}
@@ -423,9 +468,9 @@ export default function SessionDetailPage() {
         {activeTab === "details" && (
           <div className="space-y-6">
             {/* Frame metrics chart */}
-            {session.pose_data && session.frame_metrics && (
+            {poseData && hasPoseData && session.frame_metrics && (
               <FrameMetricsChart
-                poseData={session.pose_data}
+                poseData={poseData}
                 frameMetrics={session.frame_metrics}
                 phases={session.phases ?? null}
                 totalFrames={totalFrames}
@@ -433,36 +478,12 @@ export default function SessionDetailPage() {
             )}
 
             {/* Synced phase timeline */}
-            {session.pose_data && (
-              <PhaseTimeline totalFrames={totalFrames} phases={session.phases} />
-            )}
+            {hasPoseData && <PhaseTimeline totalFrames={totalFrames} phases={session.phases} />}
 
-            {/* 3D viewer — only mounted when details tab is active */}
-            {session.pose_data && session.frame_metrics && (
-              <div className="relative">
-                <Suspense
-                  fallback={<div className="aspect-square animate-pulse rounded-xl bg-muted" />}
-                >
-                  <ThreeJSkeletonViewer
-                    poseData={session.pose_data}
-                    frameMetrics={session.frame_metrics}
-                    className="rounded-xl"
-                  />
-                </Suspense>
-                {visitCount === 3 && !dismissed && (
-                  <div className="absolute -bottom-8 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-lg bg-foreground px-3 py-1.5 text-xs text-background shadow-lg">
-                    {tSession("tour3d")}
-                    <button
-                      type="button"
-                      onClick={() => setDismissed(true)}
-                      className="ml-2 opacity-70 hover:opacity-100"
-                    >
-                      &times;
-                    </button>
-                  </div>
-                )}
-              </div>
-            )}
+            <div className="rounded-2xl border border-hairline bg-muted/40 p-4">
+              <h2 className="sh-button-cap text-ink">{tSession("threeDPanelTitle")}</h2>
+              <p className="mt-1 text-sm leading-6 text-ink-mute">{tSession("threeDPanelHint")}</p>
+            </div>
 
             {/* Full metrics table */}
             {session.metrics.length > 0 && (
@@ -514,7 +535,7 @@ export default function SessionDetailPage() {
             // PhaseTimelineExtended's percent math produce values ~10x too
             // large → phase zones render off-screen on every session.
             // Mirrors the correct pattern at line 61.
-            totalFrames={Math.max(...(session.pose_data?.frames ?? [120]))}
+            totalFrames={totalFrames || 120}
           />
         )}
 

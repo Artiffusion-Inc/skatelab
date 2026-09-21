@@ -1,5 +1,6 @@
 "use client"
 
+import { useTranslations } from "@/i18n"
 import type { PhasesData } from "@/types"
 
 interface PhaseLabelsProps {
@@ -9,51 +10,30 @@ interface PhaseLabelsProps {
 }
 
 export function PhaseLabels({ phases, currentFrame, width }: PhaseLabelsProps) {
-  if (!phases.takeoff && !phases.peak && !phases.landing) return null
+  const t = useTranslations("analysis")
+  const hasPhase = phases.takeoff !== null || phases.peak !== null || phases.landing !== null
+  if (!hasPhase || currentFrame <= 0) return null
 
-  // Calculate label positions (normalized 0-1)
-  const takeoffX = phases.takeoff ? (phases.takeoff.frame / currentFrame) * width : null
-  const peakX = phases.peak ? (phases.peak.frame / currentFrame) * width : null
-  const landingX = phases.landing ? (phases.landing.frame / currentFrame) * width : null
+  const phaseLabels = [
+    { key: "takeoff", frame: phases.takeoff?.frame ?? null, label: t("phases.takeoff") },
+    { key: "peak", frame: phases.peak?.frame ?? null, label: t("phases.air") },
+    { key: "landing", frame: phases.landing?.frame ?? null, label: t("phases.landing") },
+  ] as const
 
   return (
-    <div className="absolute top-2 left-0 right-0 flex justify-between px-4">
-      {takeoffX !== null && (
-        <div
-          className="absolute top-0 rounded-full px-2 py-1 text-xs font-medium"
-          style={{
-            left: `${takeoffX}px`,
-            backgroundColor: "oklch(var(--score-good) / 0.8)",
-            color: "oklch(var(--background))",
-          }}
-        >
-          Takeoff
-        </div>
+    <fieldset className="absolute inset-x-0 top-2 m-0 min-w-0 border-0 p-0 px-4">
+      <legend className="sr-only">{t("phaseMarkers")}</legend>
+      {phaseLabels.map(({ key, frame, label }) =>
+        frame === null ? null : (
+          <div
+            key={key}
+            className="absolute top-0 rounded-full bg-background/90 px-2 py-1 text-xs sh-button-cap text-ink shadow-sm"
+            style={{ left: `${(frame / currentFrame) * width}px` }}
+          >
+            {label}
+          </div>
+        ),
       )}
-      {peakX !== null && (
-        <div
-          className="absolute top-0 rounded-full px-2 py-1 text-xs font-medium"
-          style={{
-            left: `${peakX}px`,
-            backgroundColor: "oklch(var(--score-mid) / 0.8)",
-            color: "oklch(var(--background))",
-          }}
-        >
-          Peak
-        </div>
-      )}
-      {landingX !== null && (
-        <div
-          className="absolute top-0 rounded-full px-2 py-1 text-xs font-medium"
-          style={{
-            left: `${landingX}px`,
-            backgroundColor: "oklch(var(--score-bad) / 0.8)",
-            color: "oklch(var(--background))",
-          }}
-        >
-          Landing
-        </div>
-      )}
-    </div>
+    </fieldset>
   )
 }

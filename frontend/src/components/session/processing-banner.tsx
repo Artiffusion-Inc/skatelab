@@ -34,6 +34,7 @@ export function ProcessingBanner({ taskId, onCancel, onRetry }: ProcessingBanner
   const rawProgress = stream.state?.progress ?? 0
   const progress = Math.min(Math.round(rawProgress * 100), 100)
   const status = stream.state?.status ?? "queued"
+  const streamFailed = status === "failed"
 
   const elapsed = (now - mountTime.current) / 1000
   const isSlow = elapsed > 180 // 3 min
@@ -49,14 +50,23 @@ export function ProcessingBanner({ taskId, onCancel, onRetry }: ProcessingBanner
     >
       <div className="mx-auto flex max-w-2xl items-center gap-3">
         <div className="flex-1 space-y-1">
-          <p className="text-sm font-medium">
-            {status === "queued" ? t("queued") : t("analyzing")}
+          <p className={`sh-button-cap ${streamFailed ? "text-destructive" : "text-ink"}`}>
+            {streamFailed
+              ? t("analysisFailed")
+              : status === "queued"
+                ? t("queued")
+                : stream.state?.message || t("processingMessageFallback")}
           </p>
-          <Progress value={progress} className="h-1.5" />
+          {!streamFailed && <Progress value={progress} className="h-1.5" />}
+          {streamFailed && (
+            <p className="text-xs text-destructive" role="alert">
+              {t("processingStreamError")}
+            </p>
+          )}
           {isStale && <p className="text-xs font-medium text-warning">{t("staleAnalysis")}</p>}
           {isSlow && !isStale && <p className="text-xs text-ink-mute">{t("slowAnalysis")}</p>}
         </div>
-        {isStale && onRetry && (
+        {(isStale || streamFailed) && onRetry && (
           <Button
             variant="outline"
             size="sm"

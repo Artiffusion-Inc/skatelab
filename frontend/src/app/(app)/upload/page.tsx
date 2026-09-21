@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useRef } from "react"
+import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { Loader2, CheckCircle2, X } from "lucide-react"
 import { toast } from "sonner"
@@ -16,9 +17,34 @@ import { DropZone } from "@/components/upload/drop-zone"
 import { FilePreview } from "@/components/upload/file-preview"
 import { useVideoCompression } from "@/lib/use-video-compression"
 import { shouldCompress, COMPRESSION_TIMEOUT_MS } from "@/lib/video-compression"
+import { ApiError } from "@/lib/api-client"
 import { captureEvent } from "@/lib/posthog"
 
 type Step = "idle" | "parsing" | "picked" | "compressing" | "uploading" | "done"
+
+function UploadErrorNotice({ message, requiresAuth }: { message: string; requiresAuth: boolean }) {
+  const t = useTranslations("upload")
+
+  return (
+    <div
+      className="mx-auto flex max-w-lg items-start gap-3 rounded-2xl border border-destructive/25 bg-destructive/5 px-4 py-3 text-sm"
+      role="alert"
+    >
+      <div className="min-w-0 flex-1">
+        <p className="sh-button-cap text-destructive">{t("uploadError")}</p>
+        <p className="mt-1 leading-6 text-ink-mute">{message}</p>
+        {requiresAuth && (
+          <Link
+            href="/login"
+            className="mt-2 inline-flex min-h-11 items-center text-link underline"
+          >
+            {t("signInAgain")}
+          </Link>
+        )}
+      </div>
+    </div>
+  )
+}
 
 export default function UploadPage() {
   const router = useRouter()
@@ -34,6 +60,8 @@ export default function UploadPage() {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const [progress, setProgress] = useState(0)
   const [uploadPhase, setUploadPhase] = useState("")
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const [errorRequiresAuth, setErrorRequiresAuth] = useState(false)
   const uploaderRef = useRef<ChunkedUploader | null>(null)
   const { state: compressionState, compress, abort: abortCompression } = useVideoCompression()
 
@@ -45,6 +73,8 @@ export default function UploadPage() {
   })
 
   async function handleFile(f: File) {
+    setErrorMessage(null)
+    setErrorRequiresAuth(false)
     if (user && !user.is_verified) {
       setShowVerifyModal(true)
       return
@@ -54,7 +84,8 @@ export default function UploadPage() {
       try {
         const contents = await parseZip(f)
         if (!contents.video) {
-          toast.error(t("noVideoInZip"))
+          setErrorMessage(t("noVideoInZip"))
+          setErrorRequiresAuth(false)
           setStep("idle")
           return
         }
@@ -62,7 +93,8 @@ export default function UploadPage() {
         setZipContents(contents)
         setStep("picked")
       } catch {
-        toast.error(t("zipReadError"))
+        setErrorMessage(t("zipReadError"))
+        setErrorRequiresAuth(false)
         setStep("idle")
       }
     } else {
@@ -79,6 +111,8 @@ export default function UploadPage() {
     setZipContents(null)
     setPreviewUrl(null)
     setProgress(0)
+    setErrorMessage(null)
+    setErrorRequiresAuth(false)
     setStep("idle")
   }
 
@@ -94,6 +128,8 @@ export default function UploadPage() {
 
   async function handleUpload() {
     if (!file) return
+    setErrorMessage(null)
+    setErrorRequiresAuth(false)
     setStep("compressing")
     setProgress(0)
 
@@ -206,8 +242,16 @@ export default function UploadPage() {
       if (session?.id) {
         router.push(`/sessions/${session.id}`)
       }
-    } catch {
-      toast.error(t("uploadError"))
+    } catch (error) {
+      const requiresAuth = error instanceof ApiError && error.status === 401
+      setErrorRequiresAuth(requiresAuth)
+      setErrorMessage(
+        requiresAuth
+          ? t("authError")
+          : error instanceof TypeError || (error instanceof ApiError && error.status === 0)
+            ? t("networkError")
+            : t("uploadErrorDetail"),
+      )
       setProgress(0)
       setStep("picked")
     }
@@ -307,6 +351,11 @@ export default function UploadPage() {
   if (step === "picked" && file) {
     return (
       <>
+        {errorMessage && (
+          <div className="px-4 pt-4">
+            <UploadErrorNotice message={errorMessage} requiresAuth={errorRequiresAuth} />
+          </div>
+        )}
         <FilePreview
           file={file}
           zipContents={zipContents}
@@ -321,6 +370,11 @@ export default function UploadPage() {
 
   return (
     <>
+      {errorMessage && (
+        <div className="px-4 pt-4">
+          <UploadErrorNotice message={errorMessage} requiresAuth={errorRequiresAuth} />
+        </div>
+      )}
       <div className="flex flex-col items-center justify-center gap-4 px-4 py-8">
         <DropZone
           onFile={handleFile}

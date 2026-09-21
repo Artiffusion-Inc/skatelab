@@ -98,6 +98,12 @@ export function useProcessStream(taskId: string | null) {
           const backoff = BASE_BACKOFF_MS * 2 ** attempt
           const jitter = Math.random() * backoff * 0.3
           reconnectTimerRef.current = setTimeout(connect, backoff + jitter)
+        } else {
+          setState(previous => ({
+            status: "failed",
+            progress: previous?.progress ?? 0,
+            message: "",
+          }))
         }
       }
     }

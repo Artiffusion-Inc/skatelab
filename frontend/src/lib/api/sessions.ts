@@ -8,7 +8,7 @@ import {
   type UseQueryOptions,
 } from "@tanstack/react-query"
 import { z } from "zod"
-import { apiDelete, apiFetch, apiPatch, apiPost } from "@/lib/api-client"
+import { ApiError, apiDelete, apiFetch, apiPatch, apiPost } from "@/lib/api-client"
 
 const SessionMetricSchema = z.object({
   id: z.string(),
@@ -153,6 +153,10 @@ export function useSession(id: string, opts?: { refetchInterval?: number | false
     queryKey: ["session", id],
     queryFn: () => apiFetch(`/sessions/${id}`, SessionSchema),
     enabled: !!id,
+    retry: (failureCount, error) => {
+      if (error instanceof ApiError && (error.status === 401 || error.status === 404)) return false
+      return failureCount < 2
+    },
     refetchInterval: query => {
       const data = query.state.data
       // Poll while the session is in any in-progress status. This must match the
@@ -236,11 +240,15 @@ export function useRetrySession() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: async ({ sessionId, videoKey }: { sessionId: string; videoKey: string }) => {
-      await apiPost("/process/queue", z.any(), {
+      const process = await apiPost("/process/queue", z.any(), {
         video_key: videoKey,
         person_click: { x: 0.5, y: 0.5 },
+        session_id: sessionId,
       })
-      return apiPatch(`/sessions/${sessionId}`, SessionSchema, { status: "queued" })
+      return apiPatch(`/sessions/${sessionId}`, SessionSchema, {
+        status: "queued",
+        process_task_id: process.task_id,
+      })
     },
     onSuccess: (_, { sessionId }) => {
       qc.invalidateQueries({ queryKey: ["session", sessionId] })

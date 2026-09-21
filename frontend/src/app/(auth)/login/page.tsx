@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation"
 import { type FormEvent, useState } from "react"
 import { toast } from "sonner"
 import { useAuth } from "@/components/auth-provider"
+import { ApiError } from "@/lib/api-client"
 import { FormField } from "@/components/form-field"
 import { Button } from "@/components/ui/button"
 import { useTranslations } from "@/i18n"
@@ -19,6 +20,7 @@ export default function LoginPage() {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [loading, setLoading] = useState(false)
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
 
   // #470: key on isAuthenticated — the async fetchMe() in AuthProvider resolves
   // AFTER mount, flipping isAuthenticated false→true. A mount-only effect
@@ -40,13 +42,21 @@ export default function LoginPage() {
       toast.error(t("passwordRequired"), { duration: 3000 })
       return
     }
+    setErrorMessage(null)
     setLoading(true)
     try {
       await login(email, password)
       toast.success(t("signInSuccess"), { duration: 3000 })
       router.push("/feed")
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : t("signInError"), { duration: 3000 })
+      const message =
+        err instanceof ApiError && err.status === 401
+          ? t("invalidCredentials")
+          : err instanceof TypeError || (err instanceof ApiError && err.status === 0)
+            ? t("serviceUnavailable")
+            : t("signInError")
+      setErrorMessage(message)
+      toast.error(message, { duration: 3000 })
     } finally {
       setLoading(false)
     }
@@ -58,6 +68,14 @@ export default function LoginPage() {
         <h1 className="sh-display-lg text-ink">{t("signIn")}</h1>
         <p className="sh-caption text-ink-mute">{t("signInSubtitle")}</p>
       </div>
+      {errorMessage && (
+        <div
+          className="rounded-xl border border-destructive/25 bg-destructive/5 px-4 py-3 text-sm leading-6 text-destructive"
+          role="alert"
+        >
+          {errorMessage}
+        </div>
+      )}
       <form onSubmit={handleSubmit} className="space-y-4">
         <FormField
           label="Email"
@@ -77,7 +95,7 @@ export default function LoginPage() {
           onChange={e => setPassword(e.target.value)}
           placeholder="••••••••"
         />
-        <Button type="submit" className="w-full" disabled={loading}>
+        <Button type="submit" size="lg" className="w-full" disabled={loading}>
           {loading ? t("signingIn") : t("signInBtn")}
         </Button>
       </form>
