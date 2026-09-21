@@ -42,6 +42,8 @@ def _make_vast_result(**overrides):
     result.goe_grade = None
     result.segments = []
     result.rotations = None
+    result.cost_estimate_usd = None
+    result.cost_actual_usd = None
     for k, v in overrides.items():
         setattr(result, k, v)
     return result
@@ -342,12 +344,42 @@ class TestProcessVideoTask:
                     person_click={"x": 100, "y": 200},
                 )
 
-        # The published event must be 'queued' (retryable), not 'failed'.
+        # The published event must be 'retrying' (non-terminal), not 'failed'.
         statuses = [
             call.args[1].get("status") for call in mock_publish.call_args_list if len(call.args) > 1
         ]
         assert "failed" not in statuses
-        assert "queued" in statuses
+        assert "retrying" in statuses
+
+    @pytest.mark.asyncio
+    async def test_retryable_error_at_attempt_limit_is_terminal(self, mock_valkey):
+        """Retryable failures stop requeueing after the configured attempt limit."""
+        from app.worker import process_video_task
+
+        with (
+            patch(
+                "app.vastai.client.process_video_remote_async", new_callable=AsyncMock
+            ) as mock_remote,
+            patch("app.worker.store_error", new_callable=AsyncMock) as mock_store_err,
+            patch("app.worker.publish_task_event", new_callable=AsyncMock) as mock_publish,
+            patch("app.database.async_session_factory", create=True),
+        ):
+            mock_remote.side_effect = ConnectionError("Network unreachable")
+
+            with pytest.raises(ConnectionError, match="Network unreachable"):
+                await process_video_task(
+                    ctx={"job_try": 3},
+                    task_id="proc_retry_exhausted",
+                    video_key="input/video.mp4",
+                    person_click=None,
+                )
+
+        mock_store_err.assert_awaited_once()
+        statuses = [
+            call.args[1].get("status") for call in mock_publish.call_args_list if len(call.args) > 1
+        ]
+        assert "failed" in statuses
+        assert "retrying" not in statuses
 
     @pytest.mark.asyncio
     async def test_with_session_id_saves_results(self, mock_valkey):

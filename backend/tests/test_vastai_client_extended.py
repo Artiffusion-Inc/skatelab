@@ -111,9 +111,10 @@ async def test_async_route_request_raises_on_http_error():
 
 
 @pytest.mark.asyncio
-async def test_process_video_remote_async_happy_path():
-    """Full async flow: route -> process -> return VastResult."""
+async def test_process_video_remote_async_preserves_route_cost_and_actual_is_unknown():
+    """The route estimate is retained; the bridge does not invent a billed actual."""
     route_resp = _make_route_resp()
+    route_resp.json.return_value["cost"] = 0.0125
     process_resp = MagicMock()
     process_resp.status_code = 200
     process_resp.json.return_value = _make_process_result()
@@ -141,6 +142,8 @@ async def test_process_video_remote_async_happy_path():
     assert result.metrics == [{"name": "airtime", "value": 0.5}]
     assert result.phases == {"takeoff": 10, "peak": 20, "landing": 30}
     assert result.recommendations == ["Keep your back straight"]
+    assert result.cost_estimate_usd == 0.0125
+    assert result.cost_actual_usd is None
 
     # Verify body has auth_data + payload structure
     process_call = mock_client.post.call_args_list[1]

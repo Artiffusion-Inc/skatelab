@@ -1,6 +1,7 @@
 """Unit tests for Valkey-backed task state management with mocked redis client."""
 
 import json
+from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import app.task_manager as tm_module
@@ -192,6 +193,45 @@ async def test_store_error():
     assert mapping["status"] == TaskStatus.FAILED
     assert mapping["error"] == "OOM error"
     assert mapping["completed_at"]  # timestamp set
+    assert mapping["updated_at"]
+
+
+async def test_mark_retrying_keeps_task_non_terminal():
+    """Retryable work is visible as retrying instead of a false terminal failure."""
+    mock_redis = AsyncMock()
+    tm_module._test_pool = mock_redis
+
+    await tm_module.mark_retrying("t1", "GPU worker warming up", attempt=2)
+
+    mapping = mock_redis.hset.call_args[1]["mapping"]
+    assert mapping["status"] == TaskStatus.RETRYING
+    assert mapping["attempt"] == "2"
+    assert mapping["message"] == "GPU worker warming up"
+    assert mapping["error"] == ""
+    assert mapping["updated_at"]
+
+
+async def test_fail_stale_task_marks_old_active_task_failed():
+    """An active task with an old heartbeat becomes terminal with a clear error."""
+    mock_redis = AsyncMock()
+    tm_module._test_pool = mock_redis
+    stale_at = (datetime.now(UTC) - timedelta(seconds=120)).isoformat()
+    mock_redis.hgetall.return_value = {
+        "task_id": "t1",
+        "status": TaskStatus.RUNNING,
+        "progress": "0.4",
+        "updated_at": stale_at,
+        "error": "",
+    }
+    settings = _mock_settings()
+    settings.app.task_stale_after_seconds = 60
+
+    with patch("app.task_manager.get_settings", return_value=settings):
+        assert await tm_module.fail_stale_task("t1") is True
+
+    mapping = mock_redis.hset.call_args[1]["mapping"]
+    assert mapping["status"] == TaskStatus.FAILED
+    assert "stale" in mapping["error"].lower()
 
 
 async def test_mark_cancelled():

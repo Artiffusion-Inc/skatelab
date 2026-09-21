@@ -207,12 +207,14 @@ class AppConfig(BaseSettings):
     log_level: str = "INFO"
     omp_num_threads: int = 2
     task_ttl_seconds: int = 86400  # #642: must be > 0, validator below
+    task_max_attempts: int = 3
+    task_stale_after_seconds: int = 1800
 
-    @field_validator("task_ttl_seconds")
+    @field_validator("task_ttl_seconds", "task_max_attempts", "task_stale_after_seconds")
     @classmethod
-    def _ttl_positive(cls, v: int) -> int:
+    def _task_limits_positive(cls, v: int, info: Any) -> int:
         if v <= 0:
-            raise ValueError(f"task_ttl_seconds must be > 0, got {v}")
+            raise ValueError(f"{info.field_name} must be > 0, got {v}")
         return v
 
     skip_auth: bool = False

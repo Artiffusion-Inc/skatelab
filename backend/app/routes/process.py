@@ -27,6 +27,7 @@ from app.task_manager import (
     TaskStatus,
     create_task_state,
     delete_task_state,
+    fail_stale_task,
     get_task_state,
     get_valkey,
     set_cancel_signal,
@@ -114,6 +115,8 @@ class ProcessController(Controller):
     async def get_process_status(self, task_id: str, user: CurrentUser) -> TaskStatusResponse:
         """Poll task status."""
         state = await assert_task_owned(task_id, user)
+        if await fail_stale_task(task_id, state):
+            state = await get_task_state(task_id) or state
 
         # #697: defensive read — legacy workers / partial Valkey writes may
         # omit keys. state["progress"]/state["status"] raised KeyError on a
@@ -138,6 +141,8 @@ class ProcessController(Controller):
             message=state.get("message", ""),
             result=result,  # type: ignore[reportArgumentType]
             error=state.get("error"),
+            cost_estimate_usd=state.get("cost_estimate_usd"),
+            cost_actual_usd=state.get("cost_actual_usd"),
         )
 
     @post("/{task_id:str}/cancel", status_code=200)

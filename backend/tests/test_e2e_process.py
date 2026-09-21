@@ -6,9 +6,51 @@ verifying that each stage correctly chains into the next.
 
 from __future__ import annotations
 
+import time
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+
+
+class _MemoryValkey:
+    """Disposable in-process Valkey double for the API-to-worker boundary test."""
+
+    def __init__(self):
+        self.hashes: dict[str, dict[str, str]] = {}
+        self.values: dict[str, str] = {}
+        self.events: list[tuple[str, str]] = []
+
+    async def hset(self, key, mapping):
+        self.hashes.setdefault(key, {}).update({str(k): str(v) for k, v in mapping.items()})
+
+    async def hgetall(self, key):
+        return dict(self.hashes.get(key, {}))
+
+    async def expire(self, _key, _seconds):
+        return True
+
+    async def get(self, key):
+        return self.values.get(key)
+
+    async def setex(self, key, _ttl, value):
+        self.values[key] = str(value)
+
+    async def publish(self, channel, message):
+        self.events.append((channel, message))
+        return 1
+
+    def pipeline(self):
+        class Pipeline:
+            def incr(self, _key):
+                return self
+
+            def ttl(self, _key):
+                return self
+
+            async def execute(self):
+                return [1, 60]
+
+        return Pipeline()
 
 
 @pytest.fixture
@@ -85,7 +127,7 @@ async def test_e2e_presign_enqueue_poll(client, auth_headers, authed_user, mock_
     }
     with (
         patch(
-            "app.routes.process.get_task_state", new_callable=AsyncMock, return_value=fake_running
+            "app.auth.ownership.get_task_state", new_callable=AsyncMock, return_value=fake_running
         ),
     ):
         status_resp = await client.get(f"/v1/process/{task_id}/status", headers=auth_headers)
@@ -128,6 +170,89 @@ async def test_e2e_presign_enqueue_poll(client, auth_headers, authed_user, mock_
     assert final_data["status"] == "completed"
     assert final_data["result"] is not None
     assert final_data["result"]["stats"]["total_frames"] == 300
+
+
+@pytest.mark.asyncio
+async def test_e2e_upload_queue_worker_status_with_fake_remote(
+    client, auth_headers, mock_s3_client
+):
+    """Exercise upload -> queue -> worker -> status without a paid GPU request."""
+    from app.task_manager import _set_test_pool
+    from app.vastai.client import VastResult
+    from app.worker import process_video_task
+
+    memory_valkey = _MemoryValkey()
+    _set_test_pool(memory_valkey)
+    started = time.perf_counter()
+    try:
+        with (
+            patch("app.routes.uploads.get_s3_client", return_value=mock_s3_client),
+            patch("app.routes.uploads.get_settings") as mock_upload_settings,
+        ):
+            mock_cfg = MagicMock()
+            mock_cfg.s3.bucket = "test-bucket"
+            mock_upload_settings.return_value = mock_cfg
+            upload_resp = await client.post(
+                "/v1/uploads/presign",
+                params={"file_name": "skater.mp4", "content_type": "video/mp4"},
+                headers=auth_headers,
+            )
+        assert upload_resp.status_code == 201
+        video_key = upload_resp.json()["key"]
+
+        process_resp = await client.post(
+            "/v1/process/queue",
+            json={"video_key": video_key, "person_click": {"x": 120, "y": 240}},
+            headers=auth_headers,
+        )
+        assert process_resp.status_code == 200
+        task_id = process_resp.json()["task_id"]
+        enqueue_kwargs = client.app.state.arq_pool.enqueue_job.call_args.kwargs
+
+        fake_result = VastResult(
+            poses_key=None,
+            metrics_key=None,
+            stats={
+                "fps": 30.0,
+                "total_frames": 1,
+                "valid_frames": 1,
+                "resolution": "1x1",
+            },
+            metrics=None,
+            phases=None,
+            recommendations=None,
+            cost_estimate_usd=0.0125,
+        )
+        with (
+            patch("app.vastai.client.process_video_remote_async", new_callable=AsyncMock) as remote,
+            patch("app.analytics_events.vastai_dispatched"),
+            patch("app.analytics_events.analysis_completed"),
+        ):
+            remote.return_value = fake_result
+            worker_result = await process_video_task(
+                ctx={},
+                task_id=task_id,
+                video_key=enqueue_kwargs["video_key"],
+                person_click=enqueue_kwargs["person_click"],
+                frame_skip=enqueue_kwargs["frame_skip"],
+                tracking=enqueue_kwargs["tracking"],
+                ml_flags=enqueue_kwargs["ml_flags"],
+                user_id=enqueue_kwargs["user_id"],
+                lang=enqueue_kwargs["lang"],
+            )
+
+        assert worker_result["status"] == "Analysis complete!"
+        assert worker_result["cost_estimate_usd"] == 0.0125
+        assert worker_result["cost_actual_usd"] is None
+        status_resp = await client.get(f"/v1/process/{task_id}/status", headers=auth_headers)
+        assert status_resp.status_code == 200
+        status_data = status_resp.json()
+        assert status_data["status"] == "completed"
+        assert status_data["cost_estimate_usd"] == 0.0125
+        assert status_data["cost_actual_usd"] is None
+        assert time.perf_counter() - started < 10
+    finally:
+        _set_test_pool(None)
 
 
 @pytest.mark.asyncio

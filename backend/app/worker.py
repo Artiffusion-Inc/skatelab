@@ -35,6 +35,7 @@ from app.task_manager import (
     init_valkey_pool,
     is_cancelled,
     mark_cancelled,
+    mark_retrying,
     publish_task_event,
     store_error,
     store_result,
@@ -310,12 +311,18 @@ async def process_video_task(
         ml_flags["lift_3d"] = ml_flags.pop("depth")
     settings = get_settings()
     valkey = get_valkey()
+    cost_estimate_usd: float | None = None
 
     try:
         now = datetime.now(UTC).isoformat()
         await valkey.hset(
             f"task:{task_id}",
-            mapping={"status": TaskStatus.RUNNING, "started_at": now},
+            mapping={
+                "status": TaskStatus.RUNNING,
+                "started_at": now,
+                "updated_at": now,
+                "attempt": str(ctx.get("job_try", 1)),
+            },
         )
         await update_progress(task_id, 0.0, "Starting...")
         await publish_task_event(
@@ -362,7 +369,7 @@ async def process_video_task(
             distinct_id=user_id or session_id or task_id,
             session_id=session_id or "",
             instance_type="vastai-serverless",
-            estimated_cost_usd=0.0,  # No estimate available at dispatch time
+            estimated_cost_usd=None,
         )
 
         async with _VASTAI_SEMAPHORE:
@@ -381,6 +388,7 @@ async def process_video_task(
                 imu_right_key=imu_right_key,
                 manifest_key=manifest_key,
             )
+        cost_estimate_usd = vast_result.cost_estimate_usd
         # NoReadyWorkerError is retryable in _async_route_request (3 attempts), so
         # reaching here means the endpoint stayed workerless across all retries —
         # re-raise as a Retry so arq defers it and the autoscaler gets more time.
@@ -453,6 +461,8 @@ async def process_video_task(
             "stats": result_stats,
             "imu_stats": imu_stats,
             "sensor_fusion": sensor_fusion,
+            "cost_estimate_usd": cost_estimate_usd,
+            "cost_actual_usd": None,
             "status": "Analysis complete!",
         }
         # Track whether the (non-critical) analyzer post-processing failed. When
@@ -606,7 +616,11 @@ async def process_video_task(
                 # failed if this re-surfaces there; we do not commit here so the
                 # rollback inside the inner except is the last DB write on this path.)
                 logger.warning("Failed to save session data: %s", save_err)
-                await store_error(task_id, str(save_err))
+                await store_error(
+                    task_id,
+                    str(save_err),
+                    cost_estimate_usd=cost_estimate_usd,
+                )
                 await publish_task_event(
                     task_id,
                     {"status": "failed", "progress": 1.0, "message": str(save_err)},
@@ -645,7 +659,11 @@ async def process_video_task(
         # Write Valkey status LAST, after DB commit (if any)
         if analyzer_failed:
             response_data["status"] = "Analysis complete with partial results"
-        await store_result(task_id, response_data)
+        await store_result(
+            task_id,
+            response_data,
+            cost_estimate_usd=cost_estimate_usd,
+        )
 
         if session_id and user_id:
             try:
@@ -697,36 +715,52 @@ async def process_video_task(
         # mark the task failed, just requeue it.
         is_no_ready_worker = isinstance(e, NoReadyWorkerError)
         logger.exception("Pipeline task %s failed", task_id)
-        await store_error(task_id, str(e))
 
         from app.analytics_events import analysis_failed
 
+        job_try = int(ctx.get("job_try", 1))
+        max_attempts = settings.app.task_max_attempts
         analysis_failed(
             distinct_id=user_id or session_id or task_id,
             session_id=session_id or "",
             error_type=type(e).__name__,
-            retry_count=ctx.get("job_try", 1),
+            retry_count=job_try,
         )
 
         error_msg = str(e).lower()
         retryable = is_no_ready_worker or any(
             term in error_msg for term in ["timeout", "connection", "network"]
         )
+        will_retry = retryable and job_try < max_attempts
+        event_message = "GPU worker warming up, retrying..." if is_no_ready_worker else str(e)
+        if will_retry:
+            await mark_retrying(
+                task_id,
+                event_message,
+                attempt=job_try,
+                cost_estimate_usd=cost_estimate_usd,
+            )
+        else:
+            await store_error(
+                task_id,
+                str(e),
+                cost_estimate_usd=cost_estimate_usd,
+            )
         try:
-            event_status = "queued" if retryable else "failed"
-            event_message = "GPU worker warming up, retrying..." if is_no_ready_worker else str(e)
             await publish_task_event(
                 task_id,
-                {"status": event_status, "progress": 0.1, "message": event_message},
+                {
+                    "status": "retrying" if will_retry else "failed",
+                    "progress": 0.1 if will_retry else 0.0,
+                    "message": event_message,
+                },
             )
         except (OSError, RuntimeError):
             logger.warning("Failed to publish error event for task %s", task_id)
 
-        # Non-retryable failure: mark the DB Session row as failed so the user
-        # polling GET /sessions/{id} (which reads the DB, not Valkey) sees a
-        # terminal state instead of a stuck queued/uploading row. Mirrors
-        # analyze_music_task's DB-status-failed update (worker.py:815-831).
-        if not retryable and session_id:
+        # Any exhausted or non-retryable failure must mark the DB Session row as
+        # failed so clients do not see a queued/uploading row forever.
+        if not will_retry and session_id:
             try:
                 from app.crud.session import get_by_id as _get_by_id_failed
                 from app.database import async_session_factory  # type: ignore[import-untyped]
@@ -757,8 +791,8 @@ async def process_video_task(
                     notification_err,
                 )
 
-        if retryable:
-            raise Retry(defer=ctx.get("job_try", 1) * 10) from e
+        if will_retry:
+            raise Retry(defer=job_try * 10) from e
         raise
 
 

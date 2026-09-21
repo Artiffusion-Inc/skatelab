@@ -314,6 +314,8 @@ class ProcessResponse(BaseModel):
     metrics_key: str | None = None
     imu_stats: dict | None = None
     sensor_fusion: dict | None = None
+    cost_estimate_usd: float | None = None
+    cost_actual_usd: float | None = None
 
 
 class QueueProcessResponse(BaseModel):
@@ -329,6 +331,8 @@ class TaskStatusResponse(BaseModel):
     # #757: result can be either ProcessResponse (for /process) or DetectResultResponse (for /detect)
     result: ProcessResponse | DetectResultResponse | None = None
     error: str | None = None
+    cost_estimate_usd: float | None = None
+    cost_actual_usd: float | None = None
 
 
 # ---------------------------------------------------------------------------

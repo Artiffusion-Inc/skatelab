@@ -50,6 +50,8 @@ class VastResult:
     rotations: int | None = None
     imu_stats: dict | None = None
     sensor_fusion: dict | None = None
+    cost_estimate_usd: float | None = None
+    cost_actual_usd: float | None = None
 
 
 @dataclass
@@ -120,7 +122,7 @@ async def _async_route_request(endpoint_name: str, api_key: str) -> dict:
         "signature": data["signature"],
         "reqnum": data["reqnum"],
         "request_idx": data["request_idx"],
-        "cost": data["cost"],
+        "cost": data.get("cost"),
     }
 
 
@@ -199,6 +201,7 @@ async def process_video_remote_async(
         rotations=result.get("rotations"),
         imu_stats=result.get("imu_stats"),
         sensor_fusion=result.get("sensor_fusion"),
+        cost_estimate_usd=route.get("cost"),
     )
 
 

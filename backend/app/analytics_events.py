@@ -54,7 +54,7 @@ def vastai_dispatched(
     *,
     session_id: str,
     instance_type: str,
-    estimated_cost_usd: float,
+    estimated_cost_usd: float | None,
 ) -> None:
     capture_event(
         "vastai_dispatched",
@@ -62,7 +62,9 @@ def vastai_dispatched(
         {
             "session_id": session_id,
             "instance_type": instance_type,
-            "estimated_cost_usd": round(estimated_cost_usd, 4),
+            "estimated_cost_usd": (
+                round(estimated_cost_usd, 4) if estimated_cost_usd is not None else None
+            ),
         },
     )
 

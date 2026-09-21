@@ -229,6 +229,8 @@ async def test_process_status_with_error(client, auth_headers, authed_user):
         "message": "Error",
         "result": None,
         "error": "Model loading failed",
+        "cost_estimate_usd": None,
+        "cost_actual_usd": None,
         "user_id": str(authed_user.id),
     }
 
@@ -239,6 +241,9 @@ async def test_process_status_with_error(client, auth_headers, authed_user):
 
     assert response.status_code == 200
     data = response.json()
+    assert data["error"] == "Model loading failed"
+    assert data["cost_estimate_usd"] is None
+    assert data["cost_actual_usd"] is None
 
 
 # ---------------------------------------------------------------------------

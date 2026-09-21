@@ -37,6 +37,7 @@ _test_pool: aioredis.Redis | None = None
 class TaskStatus(StrEnum):
     PENDING = "pending"
     RUNNING = "running"
+    RETRYING = "retrying"
     COMPLETED = "completed"
     FAILED = "failed"
     CANCELLED = "cancelled"
@@ -117,8 +118,12 @@ async def create_task_state(
         "progress": "0.0",
         "message": "Queued",
         "created_at": now,
+        "updated_at": now,
         "started_at": "",
         "completed_at": "",
+        "attempt": "0",
+        "cost_estimate_usd": "",
+        "cost_actual_usd": "",
         "error": "",
     }
     if user_id is not None:
@@ -138,44 +143,122 @@ async def update_progress(
     valkey = get_valkey()
     await valkey.hset(
         f"{TASK_KEY_PREFIX}{task_id}",
-        mapping={"progress": str(round(fraction, 3)), "message": message},
+        mapping={
+            "progress": str(round(fraction, 3)),
+            "message": message,
+            "updated_at": datetime.now(UTC).isoformat(),
+        },
     )
 
 
 async def store_result(
     task_id: str,
     result: dict[str, Any],
+    *,
+    cost_estimate_usd: float | None = None,
+    cost_actual_usd: float | None = None,
 ) -> None:
     valkey = get_valkey()
     now = datetime.now(UTC).isoformat()
-    await valkey.hset(
-        f"{TASK_KEY_PREFIX}{task_id}",
-        mapping={
-            "status": TaskStatus.COMPLETED,
-            "progress": "1.0",
-            "message": "Done",
-            "completed_at": now,
-            "result": json.dumps(result),
-        },
-    )
+    mapping: dict[str, str | TaskStatus] = {
+        "status": TaskStatus.COMPLETED,
+        "progress": "1.0",
+        "message": "Done",
+        "completed_at": now,
+        "updated_at": now,
+        "result": json.dumps(result),
+    }
+    if cost_estimate_usd is not None:
+        mapping["cost_estimate_usd"] = str(cost_estimate_usd)
+    if cost_actual_usd is not None:
+        mapping["cost_actual_usd"] = str(cost_actual_usd)
+    await valkey.hset(f"{TASK_KEY_PREFIX}{task_id}", mapping=mapping)
 
 
 async def store_error(
     task_id: str,
     error_message: str,
+    *,
+    cost_estimate_usd: float | None = None,
+    cost_actual_usd: float | None = None,
 ) -> None:
     valkey = get_valkey()
     now = datetime.now(UTC).isoformat()
-    await valkey.hset(
-        f"{TASK_KEY_PREFIX}{task_id}",
-        mapping={
-            "status": TaskStatus.FAILED,
-            "progress": "0.0",
-            "message": "Failed",
-            "completed_at": now,
-            "error": error_message,
-        },
-    )
+    mapping: dict[str, str | TaskStatus] = {
+        "status": TaskStatus.FAILED,
+        "progress": "0.0",
+        "message": "Failed",
+        "completed_at": now,
+        "updated_at": now,
+        "error": error_message,
+    }
+    if cost_estimate_usd is not None:
+        mapping["cost_estimate_usd"] = str(cost_estimate_usd)
+    if cost_actual_usd is not None:
+        mapping["cost_actual_usd"] = str(cost_actual_usd)
+    await valkey.hset(f"{TASK_KEY_PREFIX}{task_id}", mapping=mapping)
+
+
+async def mark_retrying(
+    task_id: str,
+    message: str,
+    *,
+    attempt: int,
+    cost_estimate_usd: float | None = None,
+) -> None:
+    """Record a retryable attempt without exposing a terminal failure."""
+    valkey = get_valkey()
+    mapping: dict[str, str | TaskStatus] = {
+        "status": TaskStatus.RETRYING,
+        "progress": "0.1",
+        "message": message,
+        "attempt": str(attempt),
+        "updated_at": datetime.now(UTC).isoformat(),
+        "error": "",
+    }
+    if cost_estimate_usd is not None:
+        mapping["cost_estimate_usd"] = str(cost_estimate_usd)
+    await valkey.hset(f"{TASK_KEY_PREFIX}{task_id}", mapping=mapping)
+
+
+async def fail_stale_task(
+    task_id: str,
+    state: dict[str, Any] | None = None,
+    *,
+    now: datetime | None = None,
+) -> bool:
+    """Fail an active task whose heartbeat is older than the configured limit."""
+    if state is None:
+        state = await get_task_state(task_id)
+    if not state or state.get("status") not in {
+        TaskStatus.PENDING,
+        TaskStatus.RUNNING,
+        TaskStatus.RETRYING,
+    }:
+        return False
+    updated_at = state.get("updated_at")
+    if not updated_at:
+        return False
+    try:
+        heartbeat = datetime.fromisoformat(str(updated_at).replace("Z", "+00:00"))
+    except ValueError:
+        logger.warning("Invalid task heartbeat task_id=%s updated_at=%s", task_id, updated_at)
+        return False
+    current = now or datetime.now(UTC)
+    if heartbeat.tzinfo is None:
+        heartbeat = heartbeat.replace(tzinfo=UTC)
+    if (current - heartbeat).total_seconds() <= get_settings().app.task_stale_after_seconds:
+        return False
+    error = "Task failed because the worker heartbeat became stale."
+    await store_error(task_id, error)
+    try:
+        await publish_task_event(
+            task_id,
+            {"status": TaskStatus.FAILED, "progress": 0.0, "message": error},
+        )
+    except (OSError, RuntimeError):
+        logger.warning("Failed to publish stale-task event task_id=%s", task_id)
+    return True
 
 
 async def mark_cancelled(task_id: str) -> None:
@@ -187,6 +270,7 @@ async def mark_cancelled(task_id: str) -> None:
             "status": TaskStatus.CANCELLED,
             "progress": "0.0",
             "completed_at": now,
+            "updated_at": now,
             "message": "Cancelled",
         },
     )
@@ -208,6 +292,10 @@ async def get_task_state(task_id: str) -> dict[str, Any] | None:
     else:
         data["result"] = None
     data["progress"] = float(data.get("progress", "0"))
+    data["attempt"] = int(data.get("attempt", "0") or 0)
+    for field in ("cost_estimate_usd", "cost_actual_usd"):
+        raw_cost = data.get(field)
+        data[field] = float(raw_cost) if raw_cost not in (None, "") else None
     return data
 
 
