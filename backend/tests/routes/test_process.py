@@ -195,6 +195,21 @@ async def test_process_status_with_result(client, auth_headers, authed_user):
             "resolution": "1920x1080",
         },
         "status": "completed",
+        "metrics": [{"name": "airtime", "value": 0.5}],
+        "phases": {"takeoff": 1},
+        "recommendations": ["Keep the landing stable"],
+        "schema_version": "skatelab.inference.v1",
+        "processed_frames": 300,
+        "valid_frames": 280,
+        "timings": {"total_wall_time_s": 12.5},
+        "stages": {"pose_2d": True, "pose_3d": False},
+        "warnings": ["3D disabled: TCPFormer model not found"],
+        "annotations": {
+            "coordinate_space": "normalized",
+            "frame_indices": [0],
+            "poses": [[[0.5, 0.5]]],
+            "confidence": [[1.0]],
+        },
     }
     fake_state = {
         "task_id": "proc_done",
@@ -217,6 +232,12 @@ async def test_process_status_with_result(client, auth_headers, authed_user):
     assert data["result"] is not None
     assert data["result"]["video_path"] == "output/proc_abc/result.mp4"
     assert data["result"]["stats"]["total_frames"] == 300
+    assert data["result"]["schema_version"] == "skatelab.inference.v1"
+    assert data["result"]["processed_frames"] == 300
+    assert data["result"]["metrics"] == [{"name": "airtime", "value": 0.5}]
+    assert data["result"]["stages"]["pose_3d"] is False
+    assert data["result"]["warnings"] == ["3D disabled: TCPFormer model not found"]
+    assert data["result"]["annotations"]["coordinate_space"] == "normalized"
 
 
 @pytest.mark.asyncio

@@ -231,10 +231,13 @@ class ProcessResponse(BaseModel):
     imu_stats: dict[str, object] | None = None
     sensor_fusion: dict[str, object] | None = None
     processed_frames: int | None = None
+    valid_frames: int | None = None
     timings: dict[str, float] | None = None
     stages: dict[str, bool] | None = None
     warnings: list[str] | None = None
     annotations: dict | None = None
+    schema_version: str | None = None
+    analysis: dict | None = None
 
 
 def _s3(creds: ProcessRequest | DetectRequest):
@@ -896,10 +899,13 @@ async def process(req: ProcessRequest):
                     imu_stats=metrics_data.get("imu_stats"),
                     sensor_fusion=metrics_data.get("sensor_fusion"),
                     processed_frames=result.processed_frames,
+                    valid_frames=result.valid_frames,
                     timings=result.timings,
                     stages=result.stages,
                     warnings=result.warnings,
                     annotations=result.annotations,
+                    schema_version=result.schema_version,
+                    analysis=result.analysis,
                 )
     except Exception:
         INFERENCE_REQUESTS.labels(status="error").inc()

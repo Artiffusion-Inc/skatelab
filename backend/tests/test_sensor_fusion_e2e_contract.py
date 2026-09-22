@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -106,9 +107,21 @@ async def test_worker_propagates_session_artifacts_and_result_diagnostics() -> N
         poses_key=None,
         metrics_key=None,
         stats={"total_frames": 2, "valid_frames": 2, "fps": 100.0},
-        metrics=None,
-        phases=None,
-        recommendations=None,
+        metrics=[{"name": "airtime", "value": 0.5}],
+        phases={"takeoff": 1, "peak": 2, "landing": 3},
+        recommendations=["Keep the landing stable"],
+        schema_version="skatelab.inference.v1",
+        processed_frames=2,
+        valid_frames=2,
+        timings={"total_wall_time_s": 1.25},
+        stages={"pose_2d": True, "pose_3d": False},
+        warnings=["3D disabled: TCPFormer model not found"],
+        annotations={
+            "coordinate_space": "normalized",
+            "frame_indices": [0, 1],
+            "poses": [],
+            "confidence": [],
+        },
         sensor_fusion={
             "status": "available",
             "provenance": "android_binpb",
@@ -124,6 +137,7 @@ async def test_worker_propagates_session_artifacts_and_result_diagnostics() -> N
         patch("app.database.async_session_factory", create=True) as session_factory,
         patch("app.crud.session.get_by_id", new_callable=AsyncMock, return_value=session),
         patch("app.vastai.client.process_video_remote_async", new_callable=AsyncMock) as remote,
+        patch("app.services.session_saver.save_analysis_results", new_callable=AsyncMock),
         patch(
             "app.services.analyzer_save.save_analyzer_results",
             new_callable=AsyncMock,
@@ -148,6 +162,18 @@ async def test_worker_propagates_session_artifacts_and_result_diagnostics() -> N
     assert call_kwargs["manifest_key"] == "uploads/session/manifest.json"
     assert response["sensor_fusion"]["provenance"] == "android_binpb"
     assert response["stats"]["sensor_fusion"]["validation"] == "unvalidated"
+    assert response["schema_version"] == "skatelab.inference.v1"
+    assert response["processed_frames"] == 2
+    assert response["valid_frames"] == 2
+    assert response["metrics"] == [{"name": "airtime", "value": 0.5}]
+    assert response["phases"] == {"takeoff": 1, "peak": 2, "landing": 3}
+    assert response["timings"] == {"total_wall_time_s": 1.25}
+    assert response["stages"]["pose_3d"] is False
+    assert response["warnings"] == ["3D disabled: TCPFormer model not found"]
+    assert response["annotations"]["coordinate_space"] == "normalized"
+    stored = store_result.await_args.args[1]
+    assert stored["annotations"] == response["annotations"]
+    json.dumps(stored, allow_nan=False)
     store_result.assert_awaited_once()
 
 

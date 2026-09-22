@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from app.schemas import (
     DiagnosticsResponse,
+    ProcessResponse,
     ProcessStats,
     SessionMetricResponse,
     SessionPhaseResponse,
@@ -20,6 +21,33 @@ def _subscore() -> dict:
         "confidence": 0.9,
         "contributing_metrics": ["airtime"],
     }
+
+
+def test_process_response_accepts_inference_contract_v1_fields() -> None:
+    response = ProcessResponse(
+        video_path="uploads/video.mp4",
+        poses_path="output/poses.npy",
+        csv_path="output/metrics.json",
+        stats=ProcessStats(total_frames=2, valid_frames=2, fps=30.0, resolution="640x480"),
+        status="Analysis complete!",
+        metrics=[{"name": "airtime", "value": 0.5}],
+        phases={"takeoff": 1},
+        recommendations=["Keep the landing stable"],
+        schema_version="skatelab.inference.v1",
+        processed_frames=2,
+        valid_frames=2,
+        timings={"total_wall_time_s": 1.25},
+        stages={"pose_2d": True, "pose_3d": False},
+        warnings=["3D disabled: TCPFormer model not found"],
+        annotations={"coordinate_space": "normalized", "poses": []},
+    )
+
+    assert response.schema_version == "skatelab.inference.v1"
+    assert response.processed_frames == 2
+    assert response.metrics == [{"name": "airtime", "value": 0.5}]
+    assert response.phases == {"takeoff": 1}
+    assert response.stages["pose_3d"] is False
+    assert response.annotations["coordinate_space"] == "normalized"
 
 
 def test_process_stats_keeps_sensor_payload_optional() -> None:

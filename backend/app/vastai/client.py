@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
+from typing import Any
 
 import httpx
 from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
@@ -50,6 +51,14 @@ class VastResult:
     rotations: int | None = None
     imu_stats: dict | None = None
     sensor_fusion: dict | None = None
+    schema_version: str | None = None
+    processed_frames: int | None = None
+    valid_frames: int | None = None
+    timings: dict[str, float] | None = None
+    stages: dict[str, bool] | None = None
+    warnings: list[str] | None = None
+    annotations: dict[str, Any] | None = None
+    analysis: dict[str, Any] | None = None
     cost_estimate_usd: float | None = None
     cost_actual_usd: float | None = None
 
@@ -201,6 +210,14 @@ async def process_video_remote_async(
         rotations=result.get("rotations"),
         imu_stats=result.get("imu_stats"),
         sensor_fusion=result.get("sensor_fusion"),
+        schema_version=result.get("schema_version"),
+        processed_frames=result.get("processed_frames"),
+        valid_frames=result.get("valid_frames"),
+        timings=result.get("timings"),
+        stages=result.get("stages"),
+        warnings=result.get("warnings"),
+        annotations=result.get("annotations"),
+        analysis=result.get("analysis"),
         cost_estimate_usd=route.get("cost"),
     )
 

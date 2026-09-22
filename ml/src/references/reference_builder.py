@@ -93,7 +93,7 @@ class ReferenceBuilder:
 
         # Create filename from element type and source
         source_path = Path(ref.source)
-        filename = f"{ref.element_type}_{source_path.name}.npz"
+        filename = f"{ref.element_type}_{source_path.stem}.npz"
         output_path = output_dir / filename
 
         # Save to .npz format
@@ -155,7 +155,7 @@ class ReferenceBuilder:
 
         return ReferenceData(
             element_type=str(data["element_type"]),
-            name=str(data["source"]),
+            name=Path(str(data["source"])).name,
             poses=data["poses"],
             poses_3d=poses_3d,
             phases=phases,

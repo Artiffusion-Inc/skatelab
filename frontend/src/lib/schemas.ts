@@ -72,6 +72,20 @@ export const ProcessResponseSchema = z.object({
   csv_path: z.string().nullable(),
   stats: ProcessStatsSchema,
   status: z.string(),
+  metrics: z.array(z.record(z.string(), z.unknown())).nullable().optional(),
+  phases: z.unknown().nullable().optional(),
+  recommendations: z.array(z.string()).nullable().optional(),
+  goe_grade: z.record(z.string(), z.unknown()).nullable().optional(),
+  segments: z.array(z.record(z.string(), z.unknown())).nullable().optional(),
+  rotations: z.number().int().nullable().optional(),
+  schema_version: z.string().nullable().optional(),
+  processed_frames: z.number().int().nonnegative().nullable().optional(),
+  valid_frames: z.number().int().nonnegative().nullable().optional(),
+  timings: z.record(z.string(), z.number().nonnegative()).nullable().optional(),
+  stages: z.record(z.string(), z.boolean()).nullable().optional(),
+  warnings: z.array(z.string()).nullable().optional(),
+  annotations: z.record(z.string(), z.unknown()).nullable().optional(),
+  analysis: z.record(z.string(), z.unknown()).nullable().optional(),
 })
 
 export const TaskStatusResponseSchema = z.object({

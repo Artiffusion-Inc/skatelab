@@ -44,6 +44,14 @@ def _make_vast_result(**overrides):
     result.rotations = None
     result.cost_estimate_usd = None
     result.cost_actual_usd = None
+    result.schema_version = None
+    result.processed_frames = None
+    result.valid_frames = None
+    result.timings = None
+    result.stages = None
+    result.warnings = None
+    result.annotations = None
+    result.analysis = None
     for k, v in overrides.items():
         setattr(result, k, v)
     return result

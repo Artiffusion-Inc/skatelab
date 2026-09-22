@@ -314,6 +314,20 @@ class ProcessResponse(BaseModel):
     metrics_key: str | None = None
     imu_stats: dict | None = None
     sensor_fusion: dict | None = None
+    metrics: list[dict[str, Any]] | None = None
+    phases: Any = None
+    recommendations: list[str] | None = None
+    goe_grade: dict[str, Any] | None = None
+    segments: list[dict[str, Any]] | None = None
+    rotations: int | None = None
+    schema_version: str | None = None
+    processed_frames: int | None = None
+    valid_frames: int | None = None
+    timings: dict[str, float] | None = None
+    stages: dict[str, bool] | None = None
+    warnings: list[str] | None = None
+    annotations: dict[str, Any] | None = None
+    analysis: dict[str, Any] | None = None
     cost_estimate_usd: float | None = None
     cost_actual_usd: float | None = None
 

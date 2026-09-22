@@ -40,6 +40,20 @@ export interface ProcessResponse {
   csv_path: string | null
   stats: ProcessStats
   status: string
+  metrics?: Record<string, unknown>[] | null
+  phases?: unknown
+  recommendations?: string[] | null
+  goe_grade?: Record<string, unknown> | null
+  segments?: Record<string, unknown>[] | null
+  rotations?: number | null
+  schema_version?: string | null
+  processed_frames?: number | null
+  valid_frames?: number | null
+  timings?: Record<string, number> | null
+  stages?: Record<string, boolean> | null
+  warnings?: string[] | null
+  annotations?: Record<string, unknown> | null
+  analysis?: Record<string, unknown> | null
 }
 
 // ---------------------------------------------------------------------------

@@ -46,6 +46,18 @@ def _make_process_result(**overrides):
         "metrics": [{"name": "airtime", "value": 0.5}],
         "phases": {"takeoff": 10, "peak": 20, "landing": 30},
         "recommendations": ["Keep your back straight"],
+        "schema_version": "skatelab.inference.v1",
+        "processed_frames": 100,
+        "valid_frames": 90,
+        "timings": {"total_wall_time_s": 1.25},
+        "stages": {"pose_2d": True, "pose_3d": False},
+        "warnings": ["3D disabled: TCPFormer model not found"],
+        "annotations": {
+            "coordinate_space": "normalized",
+            "frame_indices": [0, 1],
+            "poses": [[[0.5, 0.5]]],
+            "confidence": [[1.0]],
+        },
     }
     data.update(overrides)
     return data
@@ -142,6 +154,12 @@ async def test_process_video_remote_async_preserves_route_cost_and_actual_is_unk
     assert result.metrics == [{"name": "airtime", "value": 0.5}]
     assert result.phases == {"takeoff": 10, "peak": 20, "landing": 30}
     assert result.recommendations == ["Keep your back straight"]
+    assert result.schema_version == "skatelab.inference.v1"
+    assert result.processed_frames == 100
+    assert result.timings == {"total_wall_time_s": 1.25}
+    assert result.stages == {"pose_2d": True, "pose_3d": False}
+    assert result.warnings == ["3D disabled: TCPFormer model not found"]
+    assert result.annotations["coordinate_space"] == "normalized"
     assert result.cost_estimate_usd == 0.0125
     assert result.cost_actual_usd is None
 
