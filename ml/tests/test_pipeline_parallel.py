@@ -8,8 +8,22 @@ from unittest import mock
 import numpy as np
 import pytest
 
+from src.model_config import ModelConfig
 from src.pipeline import AnalysisPipeline
 from src.types import ElementPhase, VideoMeta
+
+
+@pytest.fixture
+def model_config(tmp_path):
+    """Provide required placeholder model files without downloading binaries."""
+    for relative_path in (
+        "data/models/moganet_b_ap2d_384x288.onnx",
+        "data/models/rf_detr_nano.onnx",
+    ):
+        path = tmp_path / relative_path
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(b"test model placeholder")
+    return ModelConfig.from_root(tmp_path)
 
 
 @pytest.mark.asyncio
@@ -24,9 +38,9 @@ async def test_analyze_async_exists():
 
 
 @pytest.mark.asyncio
-async def test_analyze_async_without_element():
+async def test_analyze_async_without_element(model_config):
     """Test analyze_async without element type."""
-    pipeline = AnalysisPipeline(enable_smoothing=False)
+    pipeline = AnalysisPipeline(enable_smoothing=False, model_config=model_config)
 
     # Mock both get_video_meta and extract_and_track
     mock_meta = VideoMeta(
@@ -56,9 +70,9 @@ async def test_analyze_async_without_element():
     assert report.phases.landing == 0
 
 
-def test_analyze_sync_still_works():
+def test_analyze_sync_still_works(model_config):
     """Test that sync analyze method still works after adding async."""
-    pipeline = AnalysisPipeline(enable_smoothing=False)
+    pipeline = AnalysisPipeline(enable_smoothing=False, model_config=model_config)
 
     # Mock both get_video_meta and extract_and_track
     mock_meta = VideoMeta(

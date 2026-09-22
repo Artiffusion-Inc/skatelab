@@ -63,7 +63,7 @@ describe("staff gate", () => {
       json: async () => ({ is_staff: false }),
     })
     await expect(requireStaff("/ru/internal/architecture")).rejects.toThrow(
-      "REDIRECT:/login?next=" + encodeURIComponent("/ru/internal/architecture"),
+      `REDIRECT:/login?next=${encodeURIComponent("/ru/internal/architecture")}`,
     )
   })
 

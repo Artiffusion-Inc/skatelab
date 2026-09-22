@@ -121,9 +121,9 @@ class TestResolveModel:
 
     def test_moganet_key(self, tmp_path, monkeypatch):
         """Should resolve moganet model key."""
-        model_dir = tmp_path / "data" / "models" / "moganet"
+        model_dir = tmp_path / "data" / "models"
         model_dir.mkdir(parents=True)
-        model_file = model_dir / "moganet_b_ap2d_384x288_fp16.onnx"
+        model_file = model_dir / "moganet_b_ap2d_384x288.onnx"
         model_file.write_bytes(b"fake onnx")
 
         monkeypatch.setattr(
@@ -138,7 +138,7 @@ class TestResolveModel:
         """Should resolve rf_detr model key."""
         model_dir = tmp_path / "data" / "models"
         model_dir.mkdir(parents=True)
-        model_file = model_dir / "rf_detr_nano_fp16.onnx"
+        model_file = model_dir / "rf_detr_nano.onnx"
         model_file.write_bytes(b"fake onnx")
 
         monkeypatch.setattr(
