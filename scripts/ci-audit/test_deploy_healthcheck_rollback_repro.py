@@ -31,18 +31,16 @@ def main() -> int:
         return 1
 
     required_workflow_markers = (
-        "sync-traefik-config.sh",
         "health-check-poll.sh",
+        "curl --fail-with-body",
         "http://127.0.0.1:3000/api/compose.deploy",
     )
     missing = [marker for marker in required_workflow_markers if marker not in workflow]
     if missing:
         print(f"FAIL: deployment workflow lost required gates: {missing}")  # noqa: T201
         return 1
-    if workflow.index("- name: Synchronize Traefik routing source") < workflow.index(
-        "- name: Trigger Dokploy compose.deploy via SSH"
-    ):
-        print("FAIL: Traefik health gate runs before the app compose deploy")  # noqa: T201
+    if "sync-traefik-config.sh" in workflow or "seq 1 30" in workflow:
+        print("FAIL: deployment must not replace shared routing or enqueue duplicate deploys")  # noqa: T201
         return 1
 
     if '"https://api.skatelab.ru/v1/health"' not in health:

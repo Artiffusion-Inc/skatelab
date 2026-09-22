@@ -1,7 +1,7 @@
 name: Deploy
 
 # The public website is deployed separately through Dokploy.
-# Keep the retired full-stack deployment manual to prevent accidental restarts.
+# API/workers deploy manually; Dokploy owns their domain and runtime secrets.
 on:
   workflow_dispatch:
 
@@ -172,46 +172,38 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - name: Load VPS SSH key
-        uses: webfactory/ssh-agent@v0.9.0
-        with:
-          ssh-private-key: ${{ secrets.VPS_SSH_KEY }}
-
       - name: Trigger Dokploy compose.deploy via SSH
         uses: appleboy/ssh-action@v1.2.5
+        env:
+          DOKPLOY_API_KEY: ${{ secrets.DOKPLOY_API_KEY }}
+          DOKPLOY_COMPOSE_ID: ${{ secrets.DOKPLOY_COMPOSE_ID }}
         with:
           host: ${{ secrets.VPS_HOST }}
           port: 22
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
           command_timeout: 10m
-          request_pty: true
+          envs: DOKPLOY_API_KEY,DOKPLOY_COMPOSE_ID
           script: |
-            set -e
-            # New :latest images already pushed to GHCR by build jobs.
-            # Dokploy compose.deploy runs `docker compose up -d --pull always`
-            # (command set on the skatelab-dk stack) → pulls fresh images + recreates.
-            for i in $(seq 1 30); do
-              RESP=$(curl -s -X POST http://127.0.0.1:3000/api/compose.deploy \
-                -H "x-api-key: ${{ secrets.DOKPLOY_API_KEY }}" \
-                -H "Content-Type: application/json" \
-                -d '{"composeId":"${{ secrets.DOKPLOY_COMPOSE_ID }}"}' \
-                --max-time 15 || true)
-              echo "$RESP"
-              echo "$RESP" | grep -q '"success":true' && break
-              echo "retry $i..."; sleep 5
+            set -eu
+            # Native Dokploy Domains preserve the website and unrelated routes.
+            curl --fail-with-body --silent --show-error --max-time 30 \
+              -X POST http://127.0.0.1:3000/api/compose.deploy \
+              -H "x-api-key: $DOKPLOY_API_KEY" \
+              -H "Content-Type: application/json" \
+              -d "$(jq -n --arg id "$DOKPLOY_COMPOSE_ID" '{composeId: $id}')"
+            for i in $(seq 1 60); do
+              STATUS=$(curl --fail-with-body --silent --show-error --max-time 10 \
+                "http://127.0.0.1:3000/api/deployment.allByCompose?composeId=$DOKPLOY_COMPOSE_ID" \
+                -H "x-api-key: $DOKPLOY_API_KEY" | jq -r '.[0].status // "pending"')
+              case "$STATUS" in
+                done) exit 0 ;;
+                error) echo "Dokploy deployment failed" >&2; exit 1 ;;
+              esac
+              sleep 5
             done
-            echo "$RESP" | grep -q '"success":true' || { echo "::error::Dokploy deploy trigger failed"; exit 1; }
-
-      - name: Synchronize Traefik routing source
-        env:
-          VPS_HOST: ${{ secrets.VPS_HOST }}
-          VPS_USER: ${{ secrets.VPS_USER }}
-        run: |
-          bash infra/dokploy/scripts/sync-traefik-config.sh \
-            --host "$VPS_HOST" \
-            --user "$VPS_USER" \
-            --port 22
+            echo "Dokploy deployment timed out" >&2
+            exit 1
 
       - name: Verify public API and frontend health
         run: bash infra/dokploy/scripts/health-check-poll.sh 120 5
