@@ -106,6 +106,10 @@ async def test_process_decodes_both_uploaded_streams_and_returns_provenance(tmp_
     assert result.sensor_fusion["left"]["samples"] == 2
     assert result.sensor_fusion["right"]["samples"] == 2
     assert result.sensor_fusion["pair"]["peak_delta_ms"] == 10.0
+    assert result.processed_frames == 2
+    assert result.timings is not None and result.timings["total_wall_time_s"] >= 0
+    assert result.stages is not None and result.stages["pose_2d"] is True
+    assert result.warnings is not None
 
 
 @pytest.mark.asyncio

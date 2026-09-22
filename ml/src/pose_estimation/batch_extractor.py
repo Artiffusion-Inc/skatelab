@@ -24,6 +24,7 @@ if TYPE_CHECKING:
 import cv2
 import numpy as np
 
+from ..model_config import ModelConfig
 from ..types import PersonClick, TrackedExtraction
 from ..utils.video import get_video_meta
 from .h36m import coco_to_h36m
@@ -86,14 +87,14 @@ class BatchPoseExtractor:
     def __init__(
         self,
         batch_size: int = 8,
-        model_path: str = "data/models/moganet/moganet_b_ap2d_384x288_fp16.onnx",
+        model_path: str | Path | None = None,
         conf_threshold: float = 0.3,
         output_format: str = "normalized",
         detection_stride: int = 1,
         device: str = "auto",
     ) -> None:
         self.batch_size = max(1, batch_size)
-        self._model_path = model_path
+        self._model_path = model_path or ModelConfig.default().moganet
         self._conf_threshold = conf_threshold
         self._output_format = output_format
         self._detection_stride = max(1, detection_stride)
@@ -306,7 +307,7 @@ class BatchPoseExtractor:
 def extract_poses_batched(
     video_path: Path | str,
     batch_size: int = 8,
-    model_path: str = "data/models/moganet/moganet_b_ap2d_384x288_fp16.onnx",
+    model_path: str | Path | None = None,
     output_format: str = "normalized",
     person_click: PersonClick | None = None,
 ) -> TrackedExtraction:

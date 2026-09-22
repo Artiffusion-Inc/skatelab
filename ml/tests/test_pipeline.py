@@ -172,6 +172,10 @@ class TestAnalysisPipelineAnalyze:
         assert report.metrics[0].name == "airtime"
         assert report.recommendations == ["Test recommendation"]
         assert report.overall_score == 10.0
+        assert report.processed_frames == 10
+        assert report.valid_frames == 10
+        assert report.stages["pose_2d"] is True
+        assert len(report.annotations["poses"]) == 10
 
         pipeline._extract_and_track.assert_called_once()
         pipeline._get_normalizer().normalize.assert_called_once()

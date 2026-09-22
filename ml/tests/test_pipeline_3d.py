@@ -3,6 +3,7 @@
 import numpy as np
 import pytest
 
+from src.model_config import ModelConfig
 from src.pipeline import AnalysisPipeline
 from src.types import H36Key
 
@@ -15,14 +16,14 @@ def test_pipeline_has_3d_lifter_attribute():
 
 def test_get_3d_lifter_returns_none_without_model():
     """_get_3d_lifter() returns None when model file not found."""
-    pipeline = AnalysisPipeline(device="cpu")
+    pipeline = AnalysisPipeline(device="cpu", model_config=ModelConfig.from_root("/missing"))
     result = pipeline._get_3d_lifter()
     assert result is None
 
 
 def test_3d_lifter_unavailable_flag_prevents_retry():
     """When model is missing, _3d_lifter_unavailable=True prevents repeated warnings."""
-    pipeline = AnalysisPipeline(device="cpu")
+    pipeline = AnalysisPipeline(device="cpu", model_config=ModelConfig.from_root("/missing"))
     # First call sets the flag
     assert pipeline._get_3d_lifter() is None
     assert pipeline._3d_lifter_unavailable is True
@@ -32,7 +33,7 @@ def test_3d_lifter_unavailable_flag_prevents_retry():
 
 def test_3d_lifter_release_resets_to_none():
     """After release(), _3d_lifter is None and can be re-created (if model exists)."""
-    pipeline = AnalysisPipeline(device="cpu")
+    pipeline = AnalysisPipeline(device="cpu", model_config=ModelConfig.from_root("/missing"))
     # Simulate a released lifter (was created, then released)
     pipeline._3d_lifter = None
     # Should not set _3d_lifter_unavailable (that's only for missing model file)

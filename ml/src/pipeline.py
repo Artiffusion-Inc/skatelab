@@ -24,6 +24,8 @@ from typing import TYPE_CHECKING, cast
 import numpy as np
 
 from .device import DeviceConfig
+from .inference_result import build_annotations
+from .model_config import ModelConfig
 from .types import AnalysisReport, ElementPhase, PersonClick, ReferenceData, SegmentationResult
 from .utils.geometry import calculate_com_trajectory
 from .utils.profiling import PipelineProfiler
@@ -67,6 +69,7 @@ class AnalysisPipeline:
         person_click: PersonClick | None = None,
         reestimate_camera: bool = False,
         profiler: PipelineProfiler | None = None,
+        model_config: ModelConfig | None = None,
     ) -> None:
         """Initialize analysis pipeline.
 
@@ -87,6 +90,8 @@ class AnalysisPipeline:
         self._person_click = person_click
         self._reestimate_camera = reestimate_camera
         self._profiler = profiler or PipelineProfiler()
+        self._model_config = model_config or ModelConfig.default()
+        self._warnings: list[str] = []
 
         # Components will be lazy-loaded
         self._detector: PersonDetector | None = None  # type: ignore[valid-type]
@@ -224,6 +229,8 @@ class AnalysisPipeline:
         Raises:
             ValueError: If video cannot be processed or element type not supported.
         """
+        self._warnings = self._model_config.validate()
+
         # Validate element type (only when specified)
         from .analysis import element_defs
 
@@ -238,7 +245,7 @@ class AnalysisPipeline:
         self._profiler.record("video_meta", time.perf_counter() - t0)
 
         t0 = time.perf_counter()
-        compensated_h36m, _frame_offset = self._extract_and_track(video_path, meta)
+        compensated_h36m, frame_offset = self._extract_and_track(video_path, meta)
         self._profiler.record("extract_and_track", time.perf_counter() - t0)
 
         t0 = time.perf_counter()
@@ -421,6 +428,21 @@ class AnalysisPipeline:
             physics_dict = {}
             goe_grade = None
 
+        annotations = build_annotations(
+            compensated_h36m[:, :, :2],
+            compensated_h36m[:, :, 2],
+            np.arange(frame_offset, frame_offset + len(compensated_h36m)),
+            fps=meta.fps,
+        )
+        valid_frames = int(np.isfinite(compensated_h36m[:, :, :2]).all(axis=(1, 2)).sum())
+        stages = {
+            "pose_2d": True,
+            "pose_3d": poses_3d is not None,
+            "smoothing": self._enable_smoothing,
+            "phase_detection": element_type is not None,
+            "metrics": element_type is not None,
+            "recommendations": element_type is not None,
+        }
         return AnalysisReport(
             element_type=element_type or "unknown",
             phases=phases,
@@ -431,6 +453,18 @@ class AnalysisPipeline:
             dtw_distance=dtw_distance,
             physics=physics_dict,
             profiling=self._profiler.to_dict(),
+            video={
+                "path": str(video_path),
+                "width": meta.width,
+                "height": meta.height,
+                "fps": meta.fps,
+                "total_frames": meta.num_frames,
+            },
+            processed_frames=len(compensated_h36m),
+            valid_frames=valid_frames,
+            stages=stages,
+            warnings=list(self._warnings),
+            annotations=annotations,
         )
 
     def segment_video(
@@ -489,6 +523,7 @@ class AnalysisPipeline:
             self._pose_2d_extractor = PoseExtractor(
                 output_format="normalized",
                 device=self._device_config.device,
+                model_config=self._model_config,
             )
         return self._pose_2d_extractor  # type: ignore[return-value]
 
@@ -583,30 +618,23 @@ class AnalysisPipeline:
         return None
 
     def _get_3d_lifter(self):
-        """Lazy-load TCPFormer 3D lifter (ONNX).
-
-        Uses model_downloader to resolve model path (local search → S3 download).
-        Returns None if model unavailable (graceful degradation).
-        After release(), calling again re-creates the ONNX session.
-        """
+        """Lazy-load TCPFormer from the explicit model configuration."""
         if getattr(self, "_3d_lifter_unavailable", False):
             return None
 
+        model_path = self._model_config.tcpformer
+        if model_path is None or not model_path.is_file():
+            self._3d_lifter_unavailable = True
+            return None
+
         if self._3d_lifter is None:
-            from .pose_3d.model_downloader import resolve_model
+            from .pose_3d.onnx_extractor import ONNXPoseExtractor
 
-            model_path = resolve_model("tcpformer", device=self._device_config.device)
-
-            if model_path is not None:
-                from .pose_3d.onnx_extractor import ONNXPoseExtractor
-
-                self._3d_lifter = ONNXPoseExtractor(
-                    model_path=model_path,
-                    device=self._device_config.device,
-                    temporal_window=81,
-                )
-            else:
-                self._3d_lifter_unavailable = True
+            self._3d_lifter = ONNXPoseExtractor(
+                model_path=model_path,
+                device=self._device_config.device,
+                temporal_window=81,
+            )
 
         return self._3d_lifter
 
@@ -742,6 +770,8 @@ class AnalysisPipeline:
         Returns:
             AnalysisReport with metrics, recommendations, and scores.
         """
+        self._warnings = self._model_config.validate()
+
         # Validate element type
         from .analysis import element_defs
 
@@ -755,7 +785,7 @@ class AnalysisPipeline:
         meta = get_video_meta(video_path)
 
         # Stage 1-2.6: Extract poses with tracking (must be sequential)
-        compensated_h36m, _frame_offset = self._extract_and_track(video_path, meta)
+        compensated_h36m, frame_offset = self._extract_and_track(video_path, meta)
 
         # Stage 3: Normalize poses (fast, run in main)
         normalized = self._get_normalizer().normalize(compensated_h36m)
@@ -905,6 +935,13 @@ class AnalysisPipeline:
             dtw_distance = None
             physics_dict = {}
 
+        annotations = build_annotations(
+            compensated_h36m[:, :, :2],
+            compensated_h36m[:, :, 2],
+            np.arange(frame_offset, frame_offset + len(compensated_h36m)),
+            fps=meta.fps,
+        )
+        valid_frames = int(np.isfinite(compensated_h36m[:, :, :2]).all(axis=(1, 2)).sum())
         return AnalysisReport(
             element_type=element_type or "unknown",
             phases=phases,
@@ -914,6 +951,25 @@ class AnalysisPipeline:
             dtw_distance=dtw_distance,
             physics=physics_dict,
             profiling=self._profiler.to_dict(),
+            video={
+                "path": str(video_path),
+                "width": meta.width,
+                "height": meta.height,
+                "fps": meta.fps,
+                "total_frames": meta.num_frames,
+            },
+            processed_frames=len(compensated_h36m),
+            valid_frames=valid_frames,
+            stages={
+                "pose_2d": True,
+                "pose_3d": poses_3d is not None,
+                "smoothing": self._enable_smoothing,
+                "phase_detection": element_type is not None,
+                "metrics": element_type is not None,
+                "recommendations": element_type is not None,
+            },
+            warnings=list(self._warnings),
+            annotations=annotations,
         )
 
     async def _detect_phases_async(

@@ -22,6 +22,7 @@ import cv2
 import numpy as np
 
 from ..detection.person_detector import PersonDetector
+from ..model_config import ModelConfig
 from ..tracking.skeletal_identity import compute_2d_skeletal_ratios
 from ..tracking.tracklet_merger import TrackletMerger, build_tracklets
 from ..types import BoundingBox, PersonClick, TrackedExtraction
@@ -123,7 +124,7 @@ class PoseExtractor:
 
     def __init__(
         self,
-        model_path: str = "data/models/moganet/moganet_b_ap2d_384x288_fp16.onnx",
+        model_path: str | Path | None = None,
         tracking_backend: str = "custom",
         tracking_mode: str = "auto",
         conf_threshold: float = 0.3,
@@ -131,8 +132,13 @@ class PoseExtractor:
         frame_skip: int = 1,
         detection_stride: int = 1,
         device: str = "auto",
+        detector_model_path: str | Path | None = None,
+        model_config: ModelConfig | None = None,
     ) -> None:
-        self._model_path = model_path
+        self._model_config = model_config or ModelConfig.default()
+        self._model_path = (
+            Path(model_path) if model_path is not None else self._model_config.moganet
+        )
         self._tracking_backend = tracking_backend
         self._tracking_mode = tracking_mode
         self._conf_threshold = conf_threshold
@@ -147,9 +153,12 @@ class PoseExtractor:
 
             self._device = DeviceConfig(device="auto").device
 
-        self._person_detector = PersonDetector(confidence=conf_threshold)
+        self._person_detector = PersonDetector(
+            model_path=detector_model_path or self._model_config.rf_detr,
+            confidence=conf_threshold,
+        )
         self._moganet = MogaNetBatch(
-            model_path=model_path,
+            model_path=self._model_path,
             device=self._device,
             score_thr=conf_threshold,
         )
@@ -1012,17 +1021,9 @@ class PoseExtractor:
         valid_mask_pre = ~np.isnan(all_poses[:, 0, 0])
         if valid_mask_pre.all() or not frame_track_data or target_track_id is None:
             return
-        model_3d = Path("data/models/motionagformer-s-ap3d.onnx")
-        identity_ext = None
-        if model_3d.exists():
-            from ..tracking.skeletal_identity import SkeletalIdentityExtractor
-
-            identity_ext = SkeletalIdentityExtractor(
-                model_path=model_3d,
-                device="auto",
-            )
+        # Keep tracklet merging available without a hidden optional 3D model.
         merger = TrackletMerger(
-            identity_extractor=identity_ext,
+            identity_extractor=None,
             similarity_threshold=0.80,
         )
         tracklets = build_tracklets(frame_track_data)
@@ -1073,7 +1074,7 @@ class PoseExtractor:
 
 def extract_poses(
     video_path: Path | str,
-    model_path: str = "data/models/moganet/moganet_b_ap2d_384x288_fp16.onnx",
+    model_path: str | Path | None = None,
     output_format: str = "normalized",
     person_click: PersonClick | None = None,
 ) -> TrackedExtraction:

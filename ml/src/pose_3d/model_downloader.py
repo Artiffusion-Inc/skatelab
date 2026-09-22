@@ -10,19 +10,26 @@ import logging
 import os
 from pathlib import Path
 
+from ..model_config import ModelConfig
+
 logger = logging.getLogger(__name__)
 
-# Search locations (in order): local dev → Docker container
-_LOCAL_PREFIXES: list[str] = [
-    "",  # relative to CWD
-    "/app",  # Docker container
-]
+# Search locations are retained for callers that run from a copied worker tree.
+_LOCAL_PREFIXES: list[str] = ["", "/app"]
 
-# S3 model key → local relative path mapping
-_MODEL_MAP: dict[str, str] = {
-    "tcpformer": "data/models/tcpformer/TCPFormer_ap3d_81_fp16.onnx",
-    "moganet": "data/models/moganet/moganet_b_ap2d_384x288_fp16.onnx",
-    "rf_detr": "data/models/rf_detr_nano_fp16.onnx",
+_MODEL_MAP: dict[str, tuple[str, str]] = {
+    "tcpformer": (
+        "data/models/tcpformer/TCPFormer_ap3d_81_fp16.onnx",
+        "models/tcpformer/TCPFormer_ap3d_81_fp16.onnx",
+    ),
+    "moganet": (
+        "data/models/moganet_b_ap2d_384x288.onnx",
+        "models/moganet/moganet_b_ap2d_384x288_fp16.onnx",
+    ),
+    "rf_detr": (
+        "data/models/rf_detr_nano.onnx",
+        "models/rf_detr_nano_fp16.onnx",
+    ),
 }
 
 # Track which models we already tried to download (avoid retries)
@@ -42,19 +49,25 @@ def resolve_model(name: str, device: str = "auto") -> Path | None:
     Returns:
         Path to the model file, or None if unavailable.
     """
-    relative_path = _MODEL_MAP.get(name)
-    if relative_path is None:
+    model_entry = _MODEL_MAP.get(name)
+    if model_entry is None:
         logger.warning("Unknown model key: %s", name)
         return None
+    relative_path = model_entry[0]
 
     # Already tried and failed — don't retry
     if name in _download_attempted:
         return None
 
-    # Search local paths
+    configured_path = getattr(ModelConfig.default(), name)
+    if configured_path is not None and configured_path.is_file():
+        logger.debug("Model %s found at %s", name, configured_path)
+        return configured_path
+
+    # Search the explicit worker-relative locations.
     for prefix in _LOCAL_PREFIXES:
         candidate = Path(prefix) / relative_path
-        if candidate.exists():
+        if candidate.is_file():
             logger.debug("Model %s found at %s", name, candidate)
             return candidate
 
@@ -75,7 +88,7 @@ def resolve_model(name: str, device: str = "auto") -> Path | None:
     return None
 
 
-def _download_from_s3(name: str, relative_path: str) -> Path | None:
+def _download_from_s3(name: str, relative_path: str, s3_key: str | None = None) -> Path | None:
     """Download a model from S3 to its local path.
 
     Returns the local path on success, None on failure.
@@ -91,7 +104,7 @@ def _download_from_s3(name: str, relative_path: str) -> Path | None:
         logger.debug("S3 credentials not configured — skipping download for %s", name)
         return None
 
-    s3_key = relative_path.replace("data/models/", "models/")
+    s3_key = s3_key or _MODEL_MAP[name][1]
     local_path = Path(relative_path)
 
     try:

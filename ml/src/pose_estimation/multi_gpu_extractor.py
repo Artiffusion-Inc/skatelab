@@ -21,6 +21,7 @@ from pathlib import Path
 import numpy as np
 
 from ..device import MultiGPUConfig
+from ..model_config import ModelConfig
 from ..types import PersonClick, TrackedExtraction
 from ..utils.video import VideoMeta, get_video_meta
 
@@ -45,7 +46,7 @@ class MultiGPUPoseExtractor:
         config: MultiGPUConfig | None = None,
         output_format: str = "normalized",
         conf_threshold: float = 0.5,
-        model_path: str = "data/models/moganet/moganet_b_ap2d_384x288_fp16.onnx",
+        model_path: str | Path | None = None,
     ) -> None:
         """Initialize multi-GPU pose extractor.
 
@@ -58,7 +59,7 @@ class MultiGPUPoseExtractor:
         self.config = config or MultiGPUConfig()
         self.output_format = output_format
         self.conf_threshold = conf_threshold
-        self.model_path = model_path
+        self.model_path = str(model_path or ModelConfig.default().moganet)
 
     def extract_video_tracked(
         self,

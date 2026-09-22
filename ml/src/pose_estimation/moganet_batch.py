@@ -16,6 +16,8 @@ import math
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from ..model_config import ModelConfig
+
 if TYPE_CHECKING:
     from types import TracebackType
 
@@ -189,7 +191,7 @@ class MogaNetBatch:
 
     def __init__(
         self,
-        model_path: str = "data/models/moganet/moganet_b_ap2d_384x288_fp16.onnx",
+        model_path: str | Path | None = None,
         device: str = "auto",
         score_thr: float = 0.3,
     ) -> None:
@@ -204,6 +206,7 @@ class MogaNetBatch:
             FileNotFoundError: If the model file does not exist.
         """
         self._score_thr = score_thr
+        model_path = model_path or ModelConfig.default().moganet
 
         # Resolve device
         if device == "auto":

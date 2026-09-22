@@ -112,6 +112,10 @@ RUN groupadd -r appuser -g 1000 && \
 COPY --from=builder --chown=appuser:appuser /opt/venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH" \
     PROJECT_ROOT=/app \
+    SKATELAB_MOGANET_MODEL=/app/data/models/moganet/moganet_b_ap2d_384x288_fp16.onnx \
+    SKATELAB_RF_DETR_MODEL=/app/data/models/rf_detr_nano_fp16.onnx \
+    SKATELAB_TCPFORMER_MODEL=/app/data/models/tcpformer/TCPFormer_ap3d_81_fp16.onnx \
+    SKATELAB_TAS_MODEL=/app/data/models/tas/bigr_refiner_best.onnx \
     VIRTUAL_ENV=/opt/venv \
     WORKER_PORT=5000 \
     MODEL_LOG_FILE=/tmp/skatelab-server.log \

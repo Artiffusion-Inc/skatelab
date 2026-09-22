@@ -7,6 +7,7 @@ from unittest.mock import MagicMock
 import numpy as np
 import pytest
 
+from src.model_config import ModelConfig
 from src.pose_estimation.pose_extractor import PoseExtractor, extract_poses
 from src.types import PersonClick, TrackedExtraction, VideoMeta
 
@@ -206,7 +207,7 @@ class TestPoseExtractorInit:
     def test_default_init(self, mock_moganet_batch, mock_person_detector):
         """Should initialize with default parameters."""
         extractor = PoseExtractor()
-        assert extractor._model_path == "data/models/moganet/moganet_b_ap2d_384x288_fp16.onnx"
+        assert extractor._model_path == ModelConfig.default().moganet
         assert extractor._tracking_backend == "custom"
         assert extractor._tracking_mode == "auto"
         assert extractor._conf_threshold == 0.3
@@ -224,7 +225,7 @@ class TestPoseExtractorInit:
             frame_skip=0,
             device="cuda",
         )
-        assert extractor._model_path == "custom.onnx"
+        assert extractor._model_path == Path("custom.onnx")
         assert extractor._tracking_backend == "custom"
         assert extractor._tracking_mode == "sports2d"
         assert extractor._conf_threshold == 0.5

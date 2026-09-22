@@ -12,11 +12,9 @@ import cv2
 import numpy as np
 import onnxruntime as ort
 
+from ..model_config import ModelConfig
 from ..types import BoundingBox
 from ..utils.video import extract_frames
-
-# Default model path (relative to PROJECT_ROOT)
-_DEFAULT_MODEL = Path("data/models/rf_detr_nano_fp16.onnx")
 
 # Default input size for RF-DETR-Nano; configurable per model variant
 _DEFAULT_INPUT_SIZE = 384
@@ -110,11 +108,13 @@ class PersonDetector:
 
     def __init__(
         self,
-        model_path: str | Path = str(_DEFAULT_MODEL),
+        model_path: str | Path | None = None,
         confidence: float = 0.5,
         input_size: int = _DEFAULT_INPUT_SIZE,
     ) -> None:
-        self._model_path = Path(model_path)
+        self._model_path = (
+            Path(model_path) if model_path is not None else ModelConfig.default().rf_detr
+        )
         self._confidence = confidence
         self._input_size = input_size
         self._session: ort.InferenceSession | None = None

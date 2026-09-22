@@ -585,6 +585,12 @@ class AnalysisReport:
     dtw_distance: float | None = None
     overall_score: float | None = None
     profiling: dict[str, Any] | None = None
+    video: dict[str, Any] = field(default_factory=dict)
+    processed_frames: int = 0
+    valid_frames: int = 0
+    stages: dict[str, bool] = field(default_factory=dict)
+    warnings: list[str] = field(default_factory=list)
+    annotations: dict[str, Any] | None = None
 
     def format(self) -> str:
         """Format report as readable Russian text."""

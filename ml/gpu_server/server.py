@@ -65,22 +65,14 @@ ACTIVE_REQUESTS = Gauge(
     "Number of requests currently being processed",
 )
 
-# Models are at /app/data/models/ inside the container
-os.environ.setdefault("PROJECT_ROOT", "/app")
+# Model locations are explicit and can be overridden for the worker image.
+from src.model_config import ModelConfig
 
-_PROJECT_ROOT = Path(os.environ.get("PROJECT_ROOT", "/app"))
-MOGANET_MODEL_PATH = _PROJECT_ROOT / "data/models/moganet/moganet_b_ap2d_384x288_fp16.onnx"
-RF_DETR_MODEL_PATH = _PROJECT_ROOT / "data/models/rf_detr_nano_fp16.onnx"
-TAS_MODEL_PATH = _PROJECT_ROOT / "data/models/tas/bigr_refiner_best.onnx"
-TCPFORMER_MODEL_PATH = _PROJECT_ROOT / "data/models/tcpformer/TCPFormer_ap3d_81_fp16.onnx"
-
-# S3 keys for each model
-_S3_MODELS: list[tuple[Path, str]] = [
-    (MOGANET_MODEL_PATH, "models/moganet/moganet_b_ap2d_384x288_fp16.onnx"),
-    (RF_DETR_MODEL_PATH, "models/rf_detr_nano_fp16.onnx"),
-    (TAS_MODEL_PATH, "models/tas/bigr_refiner_best.onnx"),
-    (TCPFORMER_MODEL_PATH, "models/tcpformer/TCPFormer_ap3d_81_fp16.onnx"),
-]
+_MODEL_CONFIG = ModelConfig.from_root(os.environ.get("PROJECT_ROOT", "/app"))
+MOGANET_MODEL_PATH = _MODEL_CONFIG.moganet
+RF_DETR_MODEL_PATH = _MODEL_CONFIG.rf_detr
+TAS_MODEL_PATH = _MODEL_CONFIG.tas
+TCPFORMER_MODEL_PATH = _MODEL_CONFIG.tcpformer
 
 # TAS segmenter (loaded at startup, None if model unavailable)
 _tas_segmenter = None
@@ -89,16 +81,22 @@ _async_session = aiobotocore.session.get_session()
 
 
 _models_ready = False
+_model_warnings: list[str] = []
 
 
 async def _background_init():
     """Download models + warmup CUDA — runs after server is accepting requests."""
-    global _models_ready, _tas_segmenter, _tcpformer_extractor  # noqa: PLW0603
+    global _models_ready, _tas_segmenter, _tcpformer_extractor, _model_warnings  # noqa: PLW0603
     try:
-        if not MOGANET_MODEL_PATH.exists():
-            raise OSError(f"Model not found: {MOGANET_MODEL_PATH}")
-        if not RF_DETR_MODEL_PATH.exists():
-            raise OSError(f"Model not found: {RF_DETR_MODEL_PATH}")
+        if not MOGANET_MODEL_PATH.is_file():
+            raise OSError(f"Required model not found: {MOGANET_MODEL_PATH}")
+        if not RF_DETR_MODEL_PATH.is_file():
+            raise OSError(f"Required model not found: {RF_DETR_MODEL_PATH}")
+        _model_warnings = []
+        if TCPFORMER_MODEL_PATH is None or not TCPFORMER_MODEL_PATH.is_file():
+            _model_warnings.append(
+                f"3D disabled: TCPFormer model not found at {TCPFORMER_MODEL_PATH}"
+            )
 
         from src.device import DeviceConfig
 
@@ -115,7 +113,7 @@ async def _background_init():
         # (src.tas.classifier), which is NOT installed in the serverless GPU image (it
         # ships onnxruntime only). Skip the import entirely when the model is absent so
         # we never raise ModuleNotFoundError → Traceback → PyWorker fatal error.
-        if not TAS_MODEL_PATH.exists():
+        if TAS_MODEL_PATH is None or not TAS_MODEL_PATH.is_file():
             logger.warning("TAS model not found at %s — timeline unavailable", TAS_MODEL_PATH)
         else:
             try:
@@ -129,20 +127,17 @@ async def _background_init():
         # Load TCPFormer 3D lifter if model exists
         _tcpformer_extractor = None
         try:
-            from src.pose_3d.model_downloader import resolve_model
-
-            tcpformer_path = resolve_model("tcpformer", device=cfg.device)
-            if tcpformer_path is not None:
+            if TCPFORMER_MODEL_PATH is not None and TCPFORMER_MODEL_PATH.is_file():
                 from src.pose_3d.onnx_extractor import ONNXPoseExtractor
 
                 _tcpformer_extractor = ONNXPoseExtractor(
-                    model_path=tcpformer_path,
+                    model_path=TCPFORMER_MODEL_PATH,
                     device=cfg.device,
                     temporal_window=81,
                 )
                 logger.info("TCPFormer 3D lifter loaded at startup (ONNX)")
             else:
-                logger.warning("TCPFormer model unavailable — 3D lift disabled")
+                logger.warning("3D disabled: TCPFormer model unavailable")
         except (ValueError, RuntimeError, OSError):
             logger.warning("TCPFormer not loaded — 3D lift disabled", exc_info=True)
 
@@ -235,6 +230,11 @@ class ProcessResponse(BaseModel):
     rotations: int | None = None
     imu_stats: dict[str, object] | None = None
     sensor_fusion: dict[str, object] | None = None
+    processed_frames: int | None = None
+    timings: dict[str, float] | None = None
+    stages: dict[str, bool] | None = None
+    warnings: list[str] | None = None
+    annotations: dict | None = None
 
 
 def _s3(creds: ProcessRequest | DetectRequest):
@@ -555,16 +555,32 @@ async def process(req: ProcessRequest):
                 logger.info(
                     "Running pipeline (element=%s, ml_flags=%s)", req.element_type, req.ml_flags
                 )
+                pose_started = time.perf_counter()
                 prepared = prepare_poses(
                     video_local,
                     person_click=click,
                     frame_skip=req.frame_skip,
                     tracking=req.tracking,
                     progress_cb=None,
+                    model_config=_MODEL_CONFIG,
+                    lift_3d=False,
                 )
+                timings = dict(getattr(prepared, "timings", {}))
+                timings["pose_preparation"] = time.perf_counter() - pose_started
 
                 poses_3d_norm = None
                 poses_3d_key = ""
+                warnings = list(
+                    dict.fromkeys([*_model_warnings, *getattr(prepared, "warnings", [])])
+                )
+                stages = {
+                    "pose_2d": True,
+                    "pose_3d": False,
+                    **getattr(prepared, "stages", {}),
+                }
+                stages["tas"] = _tas_segmenter is not None
+                stages["analysis"] = req.element_type is not None
+                analysis_started = time.perf_counter()
 
                 # --- TAS element segmentation (concurrent with biomechanics) ---
                 def _run_tas_sync():
@@ -636,9 +652,18 @@ async def process(req: ProcessRequest):
                         poses_3d_raw = _tcpformer_extractor.estimate_3d(prepared.poses_norm)
                         normalizer_3d = PoseNormalizer(target_spine_length=0.4)
                         poses_3d_norm = normalizer_3d.normalize_3d(poses_3d_raw)
+                        stages["pose_3d"] = True
                         logger.info("3D lift complete: %d frames", len(poses_3d_norm))
                     except Exception:
+                        stages["pose_3d"] = False
+                        warnings.append(
+                            "3D disabled: TCPFormer inference failed; continuing with 2D"
+                        )
                         logger.warning("3D lift failed — continuing with 2D", exc_info=True)
+                else:
+                    stages["pose_3d"] = False
+
+                timings["analysis"] = time.perf_counter() - analysis_started
 
                 # Wait for TAS to finish
                 segments_result = await segments_coro
@@ -743,6 +768,8 @@ async def process(req: ProcessRequest):
                         metrics, req.element_type, goe_grade, lang=req.lang
                     )
                 sensor_fusion = _sensor_fusion_result(imu_streams, imu_fusion)
+                warnings = list(dict.fromkeys(warnings))
+                timings["total_wall_time_s"] = time.perf_counter() - start
                 # --- Upload results to S3 ---
                 poses_key, metrics_key = _make_output_keys(req.video_s3_key)
                 upload_tasks = []
@@ -765,37 +792,63 @@ async def process(req: ProcessRequest):
 
                 # Save metrics + phases + recommendations as JSON
                 metrics_json = Path(tmpdir) / "metrics.json"
-                metrics_data = {
-                    "stats": {
-                        "total_frames": prepared.meta.num_frames,
-                        "valid_frames": prepared.n_valid,
+                from src.inference_result import InferenceResult
+
+                metric_data = [
+                    {"name": m.name, "value": m.value, "unit": m.unit, "is_good": m.is_good}
+                    for m in metrics
+                ]
+                result = InferenceResult(
+                    video={
+                        "width": prepared.meta.width,
+                        "height": prepared.meta.height,
                         "fps": prepared.meta.fps,
-                        "resolution": f"{prepared.meta.width}x{prepared.meta.height}",
+                        "total_frames": prepared.meta.num_frames,
                     },
-                    "metrics": [
-                        {"name": m.name, "value": m.value, "unit": m.unit, "is_good": m.is_good}
-                        for m in metrics
-                    ],
-                    "phases": phases.__dict__ if phases else None,
-                    "recommendations": recommendations,
-                    "goe_grade": (
-                        {
-                            "grade": goe_grade.grade,
-                            "base_value": goe_grade.base_value,
-                            "estimated_score": goe_grade.estimated_score,
-                            "modifier": goe_grade.modifier,
-                            "positives": goe_grade.positives,
-                            "negatives": goe_grade.negatives,
-                            "confidence": goe_grade.confidence,
-                        }
-                        if goe_grade
-                        else None
-                    ),
-                    "element_type": req.element_type,
-                    "rotations": rotations,
-                    "imu_stats": imu_stats or None,
-                    "sensor_fusion": sensor_fusion,
+                    processed_frames=len(prepared.poses_norm),
+                    valid_frames=prepared.n_valid,
+                    metrics=metric_data,
+                    timings=timings,
+                    stages=stages,
+                    warnings=warnings,
+                    annotations=getattr(prepared, "annotations", {}),
+                    analysis={
+                        "element_type": req.element_type,
+                        "phases": phases.__dict__ if phases else None,
+                        "recommendations": recommendations,
+                        "goe_grade": (
+                            {
+                                "grade": goe_grade.grade,
+                                "base_value": goe_grade.base_value,
+                                "estimated_score": goe_grade.estimated_score,
+                                "modifier": goe_grade.modifier,
+                                "positives": goe_grade.positives,
+                                "negatives": goe_grade.negatives,
+                                "confidence": goe_grade.confidence,
+                            }
+                            if goe_grade
+                            else None
+                        ),
+                        "rotations": rotations,
+                        "imu_stats": imu_stats or None,
+                        "sensor_fusion": sensor_fusion,
+                    },
+                )
+                metrics_data = result.to_dict()
+                metrics_data["stats"] = {
+                    "total_frames": prepared.meta.num_frames,
+                    "processed_frames": len(prepared.poses_norm),
+                    "valid_frames": prepared.n_valid,
+                    "fps": prepared.meta.fps,
+                    "resolution": f"{prepared.meta.width}x{prepared.meta.height}",
                 }
+                metrics_data["phases"] = phases.__dict__ if phases else None
+                metrics_data["recommendations"] = recommendations
+                metrics_data["goe_grade"] = metrics_data["analysis"]["goe_grade"]
+                metrics_data["element_type"] = req.element_type
+                metrics_data["rotations"] = rotations
+                metrics_data["imu_stats"] = imu_stats or None
+                metrics_data["sensor_fusion"] = sensor_fusion
                 # #488: NaN/Infinity coerce + allow_nan=False. Pre-fix
                 # `json.dumps(..., allow_nan=True)` (the default) serialized
                 # a raw `NaN` literal into the S3 metrics.json artifact,
@@ -842,6 +895,11 @@ async def process(req: ProcessRequest):
                     rotations=metrics_data.get("rotations"),
                     imu_stats=metrics_data.get("imu_stats"),
                     sensor_fusion=metrics_data.get("sensor_fusion"),
+                    processed_frames=result.processed_frames,
+                    timings=result.timings,
+                    stages=result.stages,
+                    warnings=result.warnings,
+                    annotations=result.annotations,
                 )
     except Exception:
         INFERENCE_REQUESTS.labels(status="error").inc()
