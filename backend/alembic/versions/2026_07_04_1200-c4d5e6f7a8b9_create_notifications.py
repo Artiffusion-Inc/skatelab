@@ -47,9 +47,7 @@ def upgrade() -> None:
         ),
     )
     op.create_index("ix_notifications_user_id", "notifications", ["user_id"])
-    op.create_index(
-        "ix_notifications_user_created", "notifications", ["user_id", "created_at"]
-    )
+    op.create_index("ix_notifications_user_created", "notifications", ["user_id", "created_at"])
     op.create_index(
         "ix_notifications_user_read_created",
         "notifications",

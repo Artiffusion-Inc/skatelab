@@ -1,4 +1,4 @@
-from app.metrics_registry import METRIC_REGISTRY, JUMP_ELEMENTS
+from app.metrics_registry import JUMP_ELEMENTS, METRIC_REGISTRY
 
 
 def test_sensor_fusion_metrics_are_registered_for_jumps() -> None:

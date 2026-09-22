@@ -57,7 +57,7 @@ jobs:
               - "Taskfile.yml"
               - ".github/workflows/**"
               - "scripts/ci-audit/**"
-              - "infra/deploy.sh"
+              - "infra/dokploy/scripts/**"
               - "infra/prometheus/**"
             frontend:
               - "frontend/**"
@@ -145,6 +145,18 @@ jobs:
       fail-fast: false
       matrix:
         group: [1, 2]
+    services:
+      valkey:
+        image: valkey/valkey:8-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "valkey-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 20
+    env:
+      VALKEY_URL: redis://127.0.0.1:6379/0
     steps:
       - uses: actions/checkout@v6
       - uses: ./.github/actions/setup-python-venv

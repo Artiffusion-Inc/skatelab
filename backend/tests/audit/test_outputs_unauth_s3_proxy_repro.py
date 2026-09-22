@@ -70,7 +70,6 @@ def _mock_storage(monkeypatch):
         async def iter_chunks(self, chunk_size: int = 8192):  # noqa: ARG002
             yield b"VIDEOFETCH"
 
-    monkeypatch.setattr(misc_mod, "object_exists_async", AsyncMock(return_value=True))
     monkeypatch.setattr(
         misc_mod,
         "stream_object_async",

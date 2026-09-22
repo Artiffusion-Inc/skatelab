@@ -66,7 +66,8 @@ def _generate_back_half_variants(
     variants: list[dict] = []
     seen_bh: set[frozenset[int]] = set()
 
-    # All possible ways to pick 3 jump passes for back-half bonus
+    # Collect every placement before truncating so small inventories still get
+    # genuinely different TES values instead of the first equivalent combos.
     for combo in combinations(range(n_jp), 3):
         bh = frozenset(jump_pass_indices[i] for i in combo)
         if bh in seen_bh:
@@ -81,11 +82,18 @@ def _generate_back_half_variants(
                 "back_half_indices": sorted(bh),
             }
         )
-        if len(variants) >= max_variants:
-            break
 
     variants.sort(key=lambda c: c["total_tes"], reverse=True)
-    return variants
+    distinct: list[dict] = []
+    seen_tes: set[float] = set()
+    for variant in variants:
+        if variant["total_tes"] in seen_tes:
+            continue
+        seen_tes.add(variant["total_tes"])
+        distinct.append(variant)
+        if len(distinct) >= max_variants:
+            break
+    return distinct
 
 
 def _generate_candidates(
@@ -356,4 +364,17 @@ def solve_layout(
         for i, el in enumerate(elements):
             el["position"] = positions[i]
 
-    return candidates[:num_layouts]
+    selected: list[dict] = []
+    seen_tes: set[float] = set()
+    for layout in candidates:
+        if layout["total_tes"] in seen_tes:
+            continue
+        seen_tes.add(layout["total_tes"])
+        selected.append(layout)
+        if len(selected) >= num_layouts:
+            return selected
+
+    # If every valid layout scores identically, still return the requested count.
+    selected_ids = {id(layout) for layout in selected}
+    selected.extend(layout for layout in candidates if id(layout) not in selected_ids)
+    return selected[:num_layouts]

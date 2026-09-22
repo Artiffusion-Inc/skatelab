@@ -293,13 +293,13 @@ class GapFiller:
         num_gap_frames = gap_end - gap_start + 1
 
         if left_idx is not None and right_idx is not None:
-            # Interpolate between left and right
+            # Interpolate between left and right in one vectorized assignment.
             left_pose = poses[left_idx].copy()
             right_pose = poses[right_idx].copy()
-            for t in range(num_gap_frames):
-                alpha = (t + 1) / (num_gap_frames + 1)
-                poses[gap_start + t] = left_pose * (1 - alpha) + right_pose * alpha
-                poses[gap_start + t, :, 2] = 0.0  # zero confidence
+            alpha = np.arange(1, num_gap_frames + 1, dtype=float)[:, None, None]
+            alpha /= num_gap_frames + 1
+            poses[gap_start : gap_end + 1] = left_pose * (1 - alpha) + right_pose * alpha
+            poses[gap_start : gap_end + 1, :, 2] = 0.0  # zero confidence
         elif left_idx is not None:
             # Gap at end: repeat last valid frame
             poses[gap_start : gap_end + 1] = poses[left_idx]
@@ -352,13 +352,11 @@ class GapFiller:
         velocities = np.gradient(recent_poses, axis=0)  # (K, 17, 3)
         avg_velocity = velocities.mean(axis=0)  # (17, 3)
 
-        # Extrapolate from last known pose
+        # Extrapolate from last known pose in one vectorized assignment.
         last_pose = poses[last_valid_idx].copy()
-
-        for t in range(gap_len):
-            dt = t + 1
-            poses[gap_start + t] = last_pose + avg_velocity * dt
-            poses[gap_start + t, :, 2] = 0.0  # zero confidence
+        dt = np.arange(1, gap_len + 1, dtype=float)[:, None, None]
+        poses[gap_start : gap_end + 1] = last_pose + avg_velocity * dt
+        poses[gap_start : gap_end + 1, :, 2] = 0.0  # zero confidence
 
     @staticmethod
     def interpolate_low_confidence(

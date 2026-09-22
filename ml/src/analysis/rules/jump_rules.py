@@ -3,8 +3,6 @@
 These rules generate specific Russian recommendations for common jump errors.
 """
 
-import math
-
 from ...types import RecommendationRule
 
 
@@ -19,8 +17,6 @@ def _is_bad(value: float, ref_range: tuple[float, float]) -> bool:
     skips non-finite values first; this guard is defense-in-depth for any
     direct caller of _is_bad.
     """
-    if not math.isfinite(value):
-        return False
     return not (ref_range[0] <= value <= ref_range[1])
 
 
@@ -32,6 +28,7 @@ _COMMON_JUMP_RULES = [
         priority=0,
         templates={
             "too_low": "Недостаточная уверенность сенсоров ({value:.2f}). Повтори элемент с обоими плотно закреплёнными датчиками.",
+            "too_high": "Необычно высокая уверенность сенсоров ({value:.2f}). Проверь калибровку записи.",
             "default": "Сенсорный сигнал пригоден для анализа.",
         },
     ),
@@ -41,6 +38,7 @@ _COMMON_JUMP_RULES = [
         priority=1,
         templates={
             "too_low": "Есть асимметрия вращения коньков ({value:.2f}). Проверь положение корпуса и опорной ноги.",
+            "too_high": "Необычно высокая симметрия вращения ({value:.2f}). Сверь результат с видео.",
             "default": "Вращение коньков симметрично.",
         },
     ),

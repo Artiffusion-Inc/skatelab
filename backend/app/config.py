@@ -212,7 +212,7 @@ class AppConfig(BaseSettings):
 
     @field_validator("task_ttl_seconds", "task_max_attempts", "task_stale_after_seconds")
     @classmethod
-    def _task_limits_positive(cls, v: int, info: Any) -> int:
+    def _ttl_positive(cls, v: int, info: Any) -> int:
         if v <= 0:
             raise ValueError(f"{info.field_name} must be > 0, got {v}")
         return v

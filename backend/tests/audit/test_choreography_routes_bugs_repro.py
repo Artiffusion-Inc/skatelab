@@ -141,14 +141,9 @@ def test_validate_has_verified_user_in_source():
 def test_elements_registry_has_verified_user_in_source():
     """#711: get_elements_registry has VerifiedUser dependency."""
     source = ROUTES_PATH.read_text()
-    # Find the line with get_elements_registry
-    lines = source.splitlines()
-    for line in lines:
-        if "get_elements_registry" in line and "async def" in line:
-            assert "verified_user" in line, "#711: get_elements_registry missing auth"
-            break
-    else:
-        pytest.fail("#711: get_elements_registry not found in source")
+    start = source.index("async def get_elements_registry")
+    signature = source[start : source.index(")", start) + 1]
+    assert "verified_user" in signature, "#711: get_elements_registry missing auth"
 
 
 # ---------------------------------------------------------------------------
@@ -159,13 +154,9 @@ def test_elements_registry_has_verified_user_in_source():
 def test_render_rink_has_verified_user_in_source():
     """#709: render_rink_diagram has VerifiedUser dependency."""
     source = ROUTES_PATH.read_text()
-    lines = source.splitlines()
-    for line in lines:
-        if "render_rink_diagram" in line and "async def" in line:
-            assert "verified_user" in line, "#709: render_rink_diagram missing auth"
-            break
-    else:
-        pytest.fail("#709: render_rink_diagram not found in source")
+    start = source.index("async def render_rink_diagram")
+    signature = source[start : source.index(")", start) + 1]
+    assert "verified_user" in signature, "#709: render_rink_diagram missing auth"
 
 
 # ---------------------------------------------------------------------------

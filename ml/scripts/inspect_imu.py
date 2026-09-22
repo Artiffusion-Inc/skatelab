@@ -21,15 +21,21 @@ def main() -> int:
         manifest = json.loads(args.manifest.read_text())
         args.t0_ns = int(manifest.get("t0_ns", args.t0_ns) or 0)
     stream = decode_imu_file(args.path)
-    print(json.dumps({
-        "path": str(args.path),
-        "samples": len(stream.timestamps_ns),
-        "gaps": stream.gaps,
-        "sample_rate_hz": round(stream.sample_rate_hz, 3),
-        "first_timestamp_ns": stream.timestamps_ns[0] if stream.timestamps_ns else None,
-        "last_timestamp_ns": stream.timestamps_ns[-1] if stream.timestamps_ns else None,
-        "angular_velocity": stream.angular_velocity_summary(args.t0_ns),
-    }, ensure_ascii=False, indent=2))
+    print(
+        json.dumps(
+            {
+                "path": str(args.path),
+                "samples": len(stream.timestamps_ns),
+                "gaps": stream.gaps,
+                "sample_rate_hz": round(stream.sample_rate_hz, 3),
+                "first_timestamp_ns": stream.timestamps_ns[0] if stream.timestamps_ns else None,
+                "last_timestamp_ns": stream.timestamps_ns[-1] if stream.timestamps_ns else None,
+                "angular_velocity": stream.angular_velocity_summary(args.t0_ns),
+            },
+            ensure_ascii=False,
+            indent=2,
+        )
+    )
     return 0
 
 

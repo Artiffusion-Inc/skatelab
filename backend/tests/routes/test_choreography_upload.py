@@ -348,7 +348,7 @@ async def test_generate_layout_empty_result(mock_user, mock_db):
     ],
 )
 @pytest.mark.asyncio
-async def test_validate_choreography(is_valid, errors, warnings):
+async def test_validate_choreography(is_valid, errors, warnings, mock_user):
     from app.schemas import ValidateRequest, ValidateResponse
 
     elements = [{"code": "3A"}] if is_valid else [{"code": "3A"}, {"code": "3A"}, {"code": "3A"}]
@@ -362,7 +362,7 @@ async def test_validate_choreography(is_valid, errors, warnings):
     mock_result.warnings = warnings
 
     with patch("app.routes.choreography.validate_layout_engine", return_value=mock_result):
-        result = await _bound("validate_choreography")(body)
+        result = await _bound("validate_choreography")(body, mock_user)
 
     assert isinstance(result, ValidateResponse)
     assert result.is_valid is is_valid
@@ -376,19 +376,19 @@ async def test_validate_choreography(is_valid, errors, warnings):
 
 
 @pytest.mark.asyncio
-async def test_render_rink_diagram():
+async def test_render_rink_diagram(mock_user):
     from app.schemas import RenderRinkRequest
 
     body = RenderRinkRequest(elements=[{"code": "3A", "x": 10.0, "y": 5.0}])
 
     with patch("app.routes.choreography.render_rink", return_value="<svg>...</svg>"):
-        result = await _bound("render_rink_diagram")(body)
+        result = await _bound("render_rink_diagram")(body, mock_user)
 
     assert result["svg"] == "<svg>...</svg>"
 
 
 @pytest.mark.asyncio
-async def test_render_rink_diagram_custom_size():
+async def test_render_rink_diagram_custom_size(mock_user):
     from app.schemas import RenderRinkRequest
 
     body = RenderRinkRequest(
@@ -402,7 +402,7 @@ async def test_render_rink_diagram_custom_size():
     with patch(
         "app.routes.choreography.render_rink", return_value="<svg>wide</svg>"
     ) as mock_render:
-        result = await _bound("render_rink_diagram")(body)
+        result = await _bound("render_rink_diagram")(body, mock_user)
 
     mock_render.assert_called_once_with(
         [], width=2000, height=1000, rink_width=56.0, rink_height=26.0

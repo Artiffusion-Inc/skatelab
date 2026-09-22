@@ -6,6 +6,8 @@ Score formula: BV * (1 + grade * 0.10).
 
 from __future__ import annotations
 
+import math
+
 from ..types import GOEGrade, MetricResult
 
 # Positive bullet thresholds
@@ -98,6 +100,8 @@ class GOEGrader:
     ) -> str:
         mv = metrics if isinstance(metrics, dict) else {m.name: m.value for m in metrics}
         actual = mv.get("rotation_count", expected_rotations)
+        if not math.isfinite(actual):
+            return "<<"
         shortfall = expected_rotations - actual
 
         if shortfall >= 0.5:
@@ -193,8 +197,10 @@ class GOEGrader:
                 return clean_bv
             case "<":
                 return clean_bv * 0.80
-            case "<<" | "e" | "!":
-                return clean_bv  # Downgraded/e/! need external BV lookup
+            case "<<" | "e":
+                return clean_bv * 0.70
+            case "!":
+                return clean_bv * 0.85
             case _:
                 return clean_bv
 

@@ -143,7 +143,6 @@ def create_app(
             "/v1/health",
             "/v1/metrics/registry",
             "/v1/metrics/elements",
-            "/v1/choreography/elements/registry",
             "/v1/docs",
             "/v1/redoc",
             "/v1/openapi.json",

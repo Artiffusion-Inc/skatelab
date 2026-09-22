@@ -184,9 +184,7 @@ class ElementSegmenter:
             video_path=video_path,
             video_meta=video_meta,
             method="tas_ml",
-            confidence=float(np.mean([s.confidence for s in element_segs]))
-            if element_segs
-            else 0.0,
+            confidence=self._compute_overall_confidence(element_segs),
         )
 
     def _segment_with_tas_v2(
@@ -237,7 +235,7 @@ class ElementSegmenter:
             video_path=video_meta.path,
             video_meta=video_meta,
             method="tas_ml_v2",
-            confidence=float(np.mean([s.confidence for s in segments])),
+            confidence=self._compute_overall_confidence(segments),
         )
 
     def _compute_motion_energy(self, poses: NormalizedPose) -> NDArray[np.float32]:
@@ -466,25 +464,49 @@ class ElementSegmenter:
 
         # Motion energy
         motion_energy = self._compute_motion_energy(poses)
-        features["motion_energy_mean"] = float(np.mean(motion_energy))
-        features["motion_energy_std"] = float(np.std(motion_energy))
-        features["motion_energy_max"] = float(np.max(motion_energy))
+        finite_motion = motion_energy[np.isfinite(motion_energy)]
+        if finite_motion.size:
+            features["motion_energy_mean"] = float(np.mean(finite_motion))
+            features["motion_energy_std"] = float(np.std(finite_motion))
+            features["motion_energy_max"] = float(np.max(finite_motion))
+        else:
+            features["motion_energy_mean"] = 0.0
+            features["motion_energy_std"] = 0.0
+            features["motion_energy_max"] = 0.0
 
         # Hip Y trajectory (for jumps)
         hip_y = get_mid_hip(poses)[:, 1]
-        features["hip_y_range"] = float(np.max(hip_y) - np.min(hip_y))
-        features["hip_y_min_idx"] = int(np.argmin(hip_y))
+        finite_hip = np.isfinite(hip_y)
+        if np.any(finite_hip):
+            valid_hip = hip_y[finite_hip]
+            features["hip_y_range"] = float(np.max(valid_hip) - np.min(valid_hip))
+            features["hip_y_min_idx"] = int(np.flatnonzero(finite_hip)[np.argmin(valid_hip)])
+        else:
+            features["hip_y_range"] = 0.0
+            features["hip_y_min_idx"] = 0
 
         # Detect jump-like pattern
-        hip_y_derivative = np.gradient(hip_y)
+        hip_y_signal = np.nan_to_num(hip_y, nan=0.0)
+        hip_y_derivative = np.gradient(hip_y_signal) if len(hip_y_signal) > 1 else hip_y_signal
         has_takeoff = np.any(hip_y_derivative < -0.02)  # Rapid rise (negative Y is up)
         has_landing = np.any(hip_y_derivative > 0.02)  # Rapid descent
         features["has_jump_pattern"] = bool(has_takeoff and has_landing)
 
         # Edge indicator (for steps/turns)
         edge_ind = self._compute_edge_indicator(poses)
-        features["edge_change_count"] = int(np.sum(np.abs(np.diff(edge_ind)) > 0.3))
-        features["edge_indicator_mean"] = float(np.mean(np.abs(edge_ind)))
+        finite_edge = edge_ind[np.isfinite(edge_ind)]
+        from ..types import H36Key
+
+        foot_data = poses[:, (H36Key.LFOOT, H36Key.RFOOT), :]
+        foot_nan_frames = np.count_nonzero(~np.isfinite(foot_data).all(axis=(1, 2)))
+        edge_nan_frames = np.count_nonzero(~np.isfinite(edge_ind))
+        features["n_nan_frames"] = int(max(foot_nan_frames, edge_nan_frames))
+        features["edge_change_count"] = (
+            int(np.sum(np.abs(np.diff(finite_edge)) > 0.3)) if len(finite_edge) > 1 else 0
+        )
+        features["edge_indicator_mean"] = (
+            float(np.mean(np.abs(finite_edge))) if len(finite_edge) else 0.0
+        )
 
         # Rotation speed (shoulder axis)
         shoulder_angles = self._compute_shoulder_rotation(poses)
@@ -593,8 +615,8 @@ class ElementSegmenter:
         if not segments:
             return 0.0
 
-        # Average of segment confidences
-        return float(np.mean([s.confidence for s in segments]))
+        finite_confidences = [s.confidence for s in segments if np.isfinite(s.confidence)]
+        return float(np.mean(finite_confidences)) if finite_confidences else 0.0
 
     def _compute_edge_indicator(self, poses: NormalizedPose) -> NDArray[np.float32]:
         """Compute edge indicator for step/turn detection.
@@ -623,8 +645,8 @@ class ElementSegmenter:
         edge_left = np.sign(left_vel[:, 0])
         edge_right = np.sign(right_vel[:, 0])
 
-        # Average both feet
-        edge = (edge_left + edge_right) / 2
+        # Average both feet; contaminated frames are treated as no edge.
+        edge = np.nan_to_num((edge_left + edge_right) / 2, nan=0.0)
 
         return edge.astype(np.float32)
 

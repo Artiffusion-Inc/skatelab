@@ -30,6 +30,12 @@ class TestMetricRegistry:
             "rotation_speed",
             "total_rotation_deg",
             "rotation_count",
+            "sensor_confidence",
+            "rotation_symmetry",
+            "imu_peak_delta",
+            "landing_stability",
+            "imu_offset_error",
+            "imu_rate_error",
             "under_rotation_deg",
             "jump_type",
             # Step metrics
@@ -87,7 +93,7 @@ class TestMetricRegistry:
             )
 
             # Valid unit values
-            valid_units = {"s", "deg", "score", "norm", "ratio", "deg/s"}
+            valid_units = {"s", "deg", "score", "norm", "ratio", "deg/s", "ms", "Hz"}
             assert metric_def.unit in valid_units, (
                 f"{metric_name}: unit '{metric_def.unit}' not in {valid_units}"
             )
@@ -128,6 +134,12 @@ class TestMetricRegistry:
             "rotation_speed",
             "total_rotation_deg",
             "rotation_count",
+            "sensor_confidence",
+            "rotation_symmetry",
+            "imu_peak_delta",
+            "landing_stability",
+            "imu_offset_error",
+            "imu_rate_error",
             "rotation_discrepancy",
             "under_rotation_deg",
             "jump_type",

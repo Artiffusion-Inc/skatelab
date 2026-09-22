@@ -13,8 +13,10 @@ if TYPE_CHECKING:
 
 
 @pytest.mark.anyio
-async def test_elements_registry_returns_all_elements(client: AsyncTestClient) -> None:
-    response = await client.get("/v1/choreography/elements/registry")
+async def test_elements_registry_returns_all_elements(
+    client: AsyncTestClient, auth_headers: dict
+) -> None:
+    response = await client.get("/v1/choreography/elements/registry", headers=auth_headers)
     assert response.status_code == 200
     data = response.json()
     assert len(data["elements"]) >= 30  # jumps + spins + sequences
@@ -35,9 +37,10 @@ async def test_create_program_persists_music_analysis_id(
     client: AsyncTestClient,
     auth_headers: dict,
     db_session: AsyncSession,
+    authed_user,
 ) -> None:
     music = MusicAnalysis(
-        user_id="test-user-id",
+        user_id=authed_user.id,
         filename="test.mp3",
         audio_url="https://example.com/test.mp3",
         duration_sec=120.0,

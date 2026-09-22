@@ -131,7 +131,11 @@ class TestMainSaveSwallowRepro:
             mock_remote.return_value = _make_vast_result()
 
             mock_db = AsyncMock()
-            mock_async_session.return_value = _make_async_session_cm(mock_db)
+            notification_db = AsyncMock()
+            mock_async_session.side_effect = [
+                _make_async_session_cm(mock_db),
+                _make_async_session_cm(notification_db),
+            ]
 
             mock_session = MagicMock()
             mock_session.element_type = "waltz_jump"

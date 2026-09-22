@@ -26,8 +26,7 @@ def upgrade() -> None:
     # because offline execution has no result object.
     op.execute(
         sa.text(
-            "UPDATE refresh_tokens SET user_agent_hash = 'legacy' "
-            "WHERE user_agent_hash IS NULL"
+            "UPDATE refresh_tokens SET user_agent_hash = 'legacy' WHERE user_agent_hash IS NULL"
         )
     )
 

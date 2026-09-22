@@ -5,6 +5,7 @@ from __future__ import annotations
 import os
 import sys
 import types
+from contextlib import asynccontextmanager
 from importlib.util import spec_from_loader
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -157,6 +158,12 @@ class _FakeValkey:
         pass
 
 
+@asynccontextmanager
+async def _test_lifespan(_app):
+    """Keep route tests independent from external Valkey/S3 services."""
+    yield
+
+
 @pytest.fixture
 def app():
     """Build a Litestar app with external dependencies mocked."""
@@ -213,7 +220,8 @@ def app():
 
                                             from app.main import create_app
 
-                                            litestar_app = create_app()
+                                            with patch("app.main.app_lifespan", _test_lifespan):
+                                                litestar_app = create_app()
                                             litestar_app.state.arq_pool = AsyncMock()
                                             yield litestar_app
     finally:
@@ -269,8 +277,12 @@ async def client(db_engine, db_session):
         settings.valkey.build_url.return_value = "redis://localhost:6379/0"
         settings.app.log_level = "INFO"
         settings.app.skip_auth = True
+        settings.app.cookie_domain = "skatelab.ru"
+        settings.app.cookie_secure = False
+        settings.app.cookie_samesite = "lax"
         settings.jwt.refresh_token_expire_days = 7
         mock_get.return_value = settings
+        stack.enter_context(patch("app.routes.auth.get_settings", return_value=settings))
 
         mock_rl_cls = stack.enter_context(patch("app.main.RateLimitConfig"))
         mock_rl_cls.return_value = MagicMock(middleware=DummyRateLimitMiddleware)
@@ -278,7 +290,8 @@ async def client(db_engine, db_session):
         mock_rc = stack.enter_context(patch("app.main.ResponseCacheConfig"))
         mock_rc.return_value = None
 
-        test_app = create_app(on_app_init=[on_app_init])
+        with patch("app.main.app_lifespan", _test_lifespan):
+            test_app = create_app(on_app_init=[on_app_init])
         test_app.state.arq_pool = AsyncMock()
         test_app.state.test_db_session = db_session
 

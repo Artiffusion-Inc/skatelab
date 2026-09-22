@@ -2,40 +2,56 @@
 
 from __future__ import annotations
 
+from contextlib import asynccontextmanager
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from litestar.testing import AsyncTestClient
 
 
+@asynccontextmanager
+async def _test_lifespan(_app):
+    yield
+
+
 @pytest.fixture
 def app():
     """Build Litestar app with external dependencies mocked."""
-    with patch("app.main.configure_logging"):
-        with patch("app.lifespan.init_valkey_pool", new_callable=AsyncMock):
-            with patch("app.lifespan.close_valkey_pool", new_callable=AsyncMock):
-                with patch("app.lifespan.create_pool", new_callable=AsyncMock) as mock_create_pool:
-                    mock_pool = AsyncMock()
-                    mock_create_pool.return_value = mock_pool
+    from app.task_manager import _set_test_pool
 
-                    with patch("app.main.get_settings") as mock_get:
-                        settings = MagicMock()
-                        settings.cors.origins = ["http://localhost:3000"]
-                        settings.jwt.secret_key.get_secret_value.return_value = (
-                            "test-secret-key-for-backend-tests-32b"  # noqa: S105
-                        )
-                        settings.valkey.host = "localhost"
-                        settings.valkey.port = 6379
-                        settings.valkey.db = 0
-                        settings.valkey.password.get_secret_value.return_value = ""
-                        settings.valkey.build_url.return_value = "redis://localhost:6379/0"
-                        settings.app.log_level = "INFO"
-                        settings.app.skip_auth = False
-                        mock_get.return_value = settings
+    healthy_valkey = MagicMock()
+    healthy_valkey.ping = AsyncMock(return_value=True)
+    _set_test_pool(healthy_valkey)
+    try:
+        with (
+            patch("app.main.configure_logging"),
+            patch("app.lifespan.init_valkey_pool", new_callable=AsyncMock),
+            patch("app.lifespan.close_valkey_pool", new_callable=AsyncMock),
+            patch("app.lifespan.create_pool", new_callable=AsyncMock) as mock_create_pool,
+            patch("app.main.get_settings") as mock_get,
+            patch("app.main.app_lifespan", _test_lifespan),
+        ):
+            mock_pool = AsyncMock()
+            mock_create_pool.return_value = mock_pool
+            settings = MagicMock()
+            settings.cors.origins = ["http://localhost:3000"]
+            settings.jwt.secret_key.get_secret_value.return_value = (
+                "test-secret-key-for-backend-tests-32b"  # noqa: S105
+            )
+            settings.valkey.host = "localhost"
+            settings.valkey.port = 6379
+            settings.valkey.db = 0
+            settings.valkey.password.get_secret_value.return_value = ""
+            settings.valkey.build_url.return_value = "redis://localhost:6379/0"
+            settings.app.log_level = "INFO"
+            settings.app.skip_auth = False
+            mock_get.return_value = settings
 
-                        from app.main import create_app
+            from app.main import create_app
 
-                        yield create_app()
+            yield create_app()
+    finally:
+        _set_test_pool(None)
 
 
 @pytest.fixture
@@ -52,7 +68,8 @@ async def test_health_endpoint(client):
     assert response.status_code == 200
     data = response.json()
     assert data["status"] in ("ok", "degraded")
-    assert "valkey" in data
+    # Anonymous health checks expose liveness only, not Valkey internals (#770).
+    assert "valkey" not in data
 
 
 @pytest.mark.anyio
