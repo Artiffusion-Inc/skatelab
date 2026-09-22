@@ -185,13 +185,13 @@ jobs:
           bash infra/dokploy/scripts/sync-traefik-config.sh \
             --host "$VPS_HOST" \
             --user "$VPS_USER" \
-            --port 43210
+            --port 22
 
       - name: Trigger Dokploy compose.deploy via SSH
         uses: appleboy/ssh-action@v1.2.5
         with:
           host: ${{ secrets.VPS_HOST }}
-          port: 43210
+          port: 22
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
           command_timeout: 10m

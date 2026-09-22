@@ -12,7 +12,7 @@ STATIC_SOURCE="$REPO_ROOT/infra/dokploy/traefik/traefik.yml"
 DYNAMIC_SOURCE="$REPO_ROOT/infra/dokploy/traefik/dynamic.yml"
 REMOTE_STATIC="/etc/dokploy/traefik/traefik.yml"
 REMOTE_DYNAMIC="/etc/dokploy/traefik/dynamic/skatelab.yml"
-PORT=43210
+PORT=22
 HOST=""
 USER_NAME=""
 HEALTH_URL="https://api.skatelab.ru/v1/health"
@@ -25,7 +25,7 @@ Usage: sync-traefik-config.sh --host HOST --user USER [options]
 Options:
   --host HOST       VPS hostname or address
   --user USER       VPS SSH user
-  --port PORT       SSH port (default: 43210)
+  --port PORT       SSH port (default: 22)
   --health-url URL  health endpoint (default: https://api.skatelab.ru/v1/health)
   --dry-run         validate local sources and print remote targets only
 EOF
