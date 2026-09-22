@@ -114,17 +114,28 @@ root_cmd install -d -m 0700 "$BACKUP_DIR"
 [[ ! -e "$REMOTE_STATIC" ]] || root_cmd cp -a "$REMOTE_STATIC" "$BACKUP_DIR/traefik.yml"
 [[ ! -e "$REMOTE_DYNAMIC" ]] || root_cmd cp -a "$REMOTE_DYNAMIC" "$BACKUP_DIR/skatelab.yml"
 
-# Validate static syntax with the exact image used by the Dokploy installer.
-# If the image is already local this is offline; a missing image is a hard fail.
+# Validate the static config with the exact image used by the Dokploy installer.
+# Traefik 3.6.7 has no check-config subcommand, so a clean startup is the check.
 docker_cmd image inspect traefik:v3.6.7 >/dev/null 2>&1 || {
   echo "traefik:v3.6.7 is not present on the VPS; refusing an unvalidated install" >&2
   exit 1
 }
-docker_cmd run --rm \
+VALIDATION_LOG="/tmp/skatelab-traefik-check-$$.log"
+set +e
+timeout 10s "${SUDO[@]}" docker run --rm \
   -v "$REMOTE_TMP/traefik.yml:/etc/traefik/traefik.yml:ro" \
   -v "$REMOTE_TMP/dynamic.yml:/etc/dokploy/traefik/dynamic/skatelab.yml:ro" \
   traefik:v3.6.7 \
-  traefik check-config --configFile=/etc/traefik/traefik.yml >/dev/null
+  --configFile=/etc/traefik/traefik.yml >"$VALIDATION_LOG" 2>&1
+VALIDATION_STATUS=$?
+set -e
+if [[ $VALIDATION_STATUS -ne 124 ]]; then
+  cat "$VALIDATION_LOG" >&2
+  rm -f "$VALIDATION_LOG"
+  echo "Traefik config validation failed" >&2
+  exit "$VALIDATION_STATUS"
+fi
+rm -f "$VALIDATION_LOG"
 
 # Write both files before either becomes live, then atomically replace each target.
 root_cmd install -m 0644 "$REMOTE_TMP/traefik.yml" "$REMOTE_STATIC.new"

@@ -19,7 +19,8 @@ def main() -> int:
     required_sync_markers = (
         'BACKUP_DIR="/etc/dokploy/traefik/rollback/',
         "trap rollback ERR",
-        "traefik check-config",
+        "timeout 10s",
+        "--configFile=/etc/traefik/traefik.yml",
         "curl --fail --silent --show-error",
     )
     missing = [marker for marker in required_sync_markers if marker not in sync]
