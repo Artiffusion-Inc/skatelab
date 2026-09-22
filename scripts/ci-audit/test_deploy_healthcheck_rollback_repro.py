@@ -30,7 +30,11 @@ def main() -> int:
         print(f"FAIL: Traefik sync lost rollback/validation markers: {missing}")  # noqa: T201
         return 1
 
-    required_workflow_markers = ("sync-traefik-config.sh", "health-check-poll.sh")
+    required_workflow_markers = (
+        "sync-traefik-config.sh",
+        "health-check-poll.sh",
+        "http://127.0.0.1:3000/api/compose.deploy",
+    )
     missing = [marker for marker in required_workflow_markers if marker not in workflow]
     if missing:
         print(f"FAIL: deployment workflow lost required gates: {missing}")  # noqa: T201

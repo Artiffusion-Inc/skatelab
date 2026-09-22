@@ -192,7 +192,7 @@ jobs:
             # Dokploy compose.deploy runs `docker compose up -d --pull always`
             # (command set on the skatelab-dk stack) → pulls fresh images + recreates.
             for i in $(seq 1 30); do
-              RESP=$(curl -s -X POST http://10.99.0.1:18080/api/compose.deploy \
+              RESP=$(curl -s -X POST http://127.0.0.1:3000/api/compose.deploy \
                 -H "x-api-key: ${{ secrets.DOKPLOY_API_KEY }}" \
                 -H "Content-Type: application/json" \
                 -d '{"composeId":"${{ secrets.DOKPLOY_COMPOSE_ID }}"}' \
@@ -224,7 +224,7 @@ jobs:
 
           **Commit:** \`${{ github.sha }}\`
           **Triggered by:** @${{ github.actor }}
-          **Path:** GHCR push → Dokploy \`compose.deploy\` (VPN-only API) → \`docker compose up -d --pull always\`
+          **Path:** GHCR push → local Dokploy \`compose.deploy\` API → \`docker compose up -d --pull always\`
 
           EOF
 
