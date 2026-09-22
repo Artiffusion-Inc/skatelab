@@ -21,6 +21,8 @@ def main() -> int:
         "trap rollback ERR",
         "timeout 10s",
         "--configFile=/etc/traefik/traefik.yml",
+        'if [[ -d "$REMOTE_DYNAMIC" ]]; then',
+        'root_cmd rm -rf "$REMOTE_DYNAMIC"',
         "curl --fail --silent --show-error",
     )
     missing = [marker for marker in required_sync_markers if marker not in sync]
@@ -32,6 +34,11 @@ def main() -> int:
     missing = [marker for marker in required_workflow_markers if marker not in workflow]
     if missing:
         print(f"FAIL: deployment workflow lost required gates: {missing}")  # noqa: T201
+        return 1
+    if workflow.index("- name: Synchronize Traefik routing source") < workflow.index(
+        "- name: Trigger Dokploy compose.deploy via SSH"
+    ):
+        print("FAIL: Traefik health gate runs before the app compose deploy")  # noqa: T201
         return 1
 
     if '"https://api.skatelab.ru/v1/health"' not in health:

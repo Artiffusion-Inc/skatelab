@@ -94,8 +94,11 @@ rollback() {
   if [[ -f "$BACKUP_DIR/traefik.yml" ]]; then
     root_cmd install -m 0644 "$BACKUP_DIR/traefik.yml" "$REMOTE_STATIC"
   fi
-  if [[ -f "$BACKUP_DIR/skatelab.yml" ]]; then
-    root_cmd install -m 0644 "$BACKUP_DIR/skatelab.yml" "$REMOTE_DYNAMIC"
+  if [[ -e "$BACKUP_DIR/skatelab.yml" ]]; then
+    if [[ -e "$REMOTE_DYNAMIC" || -L "$REMOTE_DYNAMIC" ]]; then
+      root_cmd rm -rf "$REMOTE_DYNAMIC"
+    fi
+    root_cmd cp -a "$BACKUP_DIR/skatelab.yml" "$REMOTE_DYNAMIC"
   fi
   if docker_cmd inspect dokploy-traefik >/dev/null 2>&1; then
     docker_cmd restart dokploy-traefik >/dev/null
@@ -112,7 +115,11 @@ docker_cmd inspect dokploy-traefik >/dev/null 2>&1 || {
 root_cmd install -d -m 0755 /etc/dokploy/traefik/dynamic /etc/dokploy/traefik/rollback
 root_cmd install -d -m 0700 "$BACKUP_DIR"
 [[ ! -e "$REMOTE_STATIC" ]] || root_cmd cp -a "$REMOTE_STATIC" "$BACKUP_DIR/traefik.yml"
-[[ ! -e "$REMOTE_DYNAMIC" ]] || root_cmd cp -a "$REMOTE_DYNAMIC" "$BACKUP_DIR/skatelab.yml"
+if [[ -d "$REMOTE_DYNAMIC" ]]; then
+  root_cmd cp -a "$REMOTE_DYNAMIC" "$BACKUP_DIR/skatelab.yml"
+elif [[ -e "$REMOTE_DYNAMIC" ]]; then
+  root_cmd cp -a "$REMOTE_DYNAMIC" "$BACKUP_DIR/skatelab.yml"
+fi
 
 # Validate the static config with the exact image used by the Dokploy installer.
 # Traefik 3.6.7 has no check-config subcommand, so a clean startup is the check.
@@ -139,6 +146,9 @@ rm -f "$VALIDATION_LOG"
 
 # Write both files before either becomes live, then atomically replace each target.
 root_cmd install -m 0644 "$REMOTE_TMP/traefik.yml" "$REMOTE_STATIC.new"
+if [[ -d "$REMOTE_DYNAMIC" ]]; then
+  root_cmd rm -rf "$REMOTE_DYNAMIC"
+fi
 root_cmd install -m 0644 "$REMOTE_TMP/dynamic.yml" "$REMOTE_DYNAMIC.new"
 root_cmd mv -f "$REMOTE_STATIC.new" "$REMOTE_STATIC"
 root_cmd mv -f "$REMOTE_DYNAMIC.new" "$REMOTE_DYNAMIC"

@@ -177,16 +177,6 @@ jobs:
         with:
           ssh-private-key: ${{ secrets.VPS_SSH_KEY }}
 
-      - name: Synchronize Traefik routing source
-        env:
-          VPS_HOST: ${{ secrets.VPS_HOST }}
-          VPS_USER: ${{ secrets.VPS_USER }}
-        run: |
-          bash infra/dokploy/scripts/sync-traefik-config.sh \
-            --host "$VPS_HOST" \
-            --user "$VPS_USER" \
-            --port 22
-
       - name: Trigger Dokploy compose.deploy via SSH
         uses: appleboy/ssh-action@v1.2.5
         with:
@@ -212,6 +202,16 @@ jobs:
               echo "retry $i..."; sleep 5
             done
             echo "$RESP" | grep -q '"success":true' || { echo "::error::Dokploy deploy trigger failed"; exit 1; }
+
+      - name: Synchronize Traefik routing source
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_USER: ${{ secrets.VPS_USER }}
+        run: |
+          bash infra/dokploy/scripts/sync-traefik-config.sh \
+            --host "$VPS_HOST" \
+            --user "$VPS_USER" \
+            --port 22
 
       - name: Verify public API and frontend health
         run: bash infra/dokploy/scripts/health-check-poll.sh 120 5
