@@ -9,6 +9,8 @@ import {
 } from "@tanstack/react-query"
 import { z } from "zod"
 import { ApiError, apiDelete, apiFetch, apiPatch, apiPost } from "@/lib/api-client"
+import { poseDataFromAnnotations } from "@/components/analysis/pose-data"
+import type { PoseData } from "@/types"
 
 const SessionMetricSchema = z.object({
   id: z.string(),
@@ -22,11 +24,45 @@ const SessionMetricSchema = z.object({
 })
 
 // Analysis data schemas (Task 6, 2026-04-16)
-const PoseDataSchema = z.object({
+const LegacyPosePointSchema = z
+  .array(z.number())
+  .min(2)
+  .max(3)
+  .transform(point => [point[0], point[1], point[2] ?? 1] as [number, number, number])
+  .nullable()
+
+const LegacyPoseDataSchema = z.object({
   frames: z.array(z.number()),
-  poses: z.array(z.array(z.array(z.number()))), // [frame][keypoint][x,y,conf]
+  poses: z.array(z.array(LegacyPosePointSchema)),
   fps: z.number(),
+  timestamps: z.array(z.number()).optional(),
 })
+
+const PoseAnnotationsSchema = z.object({
+  keypoint_format: z.literal("h36m17"),
+  coordinate_space: z.literal("normalized"),
+  frame_indices: z.array(z.number()),
+  timestamps_s: z.array(z.number()),
+  poses: z.array(z.array(z.array(z.number()).length(2).nullable())),
+  confidence: z.array(z.array(z.number().nullable())),
+  fps: z.number().optional(),
+})
+
+export function parsePoseDataPayload(value: unknown, fallbackFps?: number): PoseData {
+  const annotations = PoseAnnotationsSchema.safeParse(value)
+  if (annotations.success) {
+    return poseDataFromAnnotations(annotations.data, annotations.data.fps ?? fallbackFps ?? 0)
+  }
+  return LegacyPoseDataSchema.parse(value)
+}
+
+const PoseDataSchema = z.preprocess(value => {
+  try {
+    return parsePoseDataPayload(value)
+  } catch {
+    return value
+  }
+}, LegacyPoseDataSchema)
 
 const FrameMetricsSchema = z.object({
   knee_angles_r: z.array(z.number().nullable()),
@@ -71,7 +107,7 @@ const TimelineDataSchema = z.object({
 
 const NullableStringSchema = z.string().nullable().optional().default(null)
 
-const SessionSchema = z.object({
+const SessionObjectSchema = z.object({
   id: z.string(),
   user_id: z.string(),
   element_type: NullableStringSchema,
@@ -98,6 +134,24 @@ const SessionSchema = z.object({
   timeline: TimelineDataSchema.nullable().optional().default(null),
   segmentation_status: z.string().default("pending"),
 })
+
+const SessionSchema = z.preprocess(value => {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return value
+  const payload = value as Record<string, unknown>
+  if (payload.pose_data || !payload.annotations) return value
+  const video = payload.video
+  const stats = payload.stats
+  const fps =
+    video && typeof video === "object" && "fps" in video && typeof video.fps === "number"
+      ? video.fps
+      : stats && typeof stats === "object" && "fps" in stats && typeof stats.fps === "number"
+        ? stats.fps
+        : undefined
+  return {
+    ...payload,
+    pose_data: { ...(payload.annotations as Record<string, unknown>), fps },
+  }
+}, SessionObjectSchema)
 
 const SessionListSchema = z.object({
   sessions: z.array(SessionSchema),

@@ -8,6 +8,8 @@ import * as THREE from "three"
 import type { FrameMetrics, PoseData } from "@/types"
 import { useAnalysisStore } from "@/stores/analysis"
 import { JointLabel } from "./joint-label"
+import { nearestPoseIndex } from "./pose-data"
+import { H36M_SKELETON_CONNECTIONS } from "./h36m-skeleton"
 
 interface BoneProps {
   start: [number, number, number]
@@ -63,31 +65,6 @@ interface SkeletalMeshProps {
   currentFrame: number
   renderMode: "wireframe" | "solid"
 }
-
-// H3.6M 17-keypoint skeleton connections (same as 2D)
-const CONNECTIONS = [
-  // Right leg
-  [0, 1],
-  [1, 2],
-  [2, 3],
-  // Left leg
-  [0, 4],
-  [4, 5],
-  [5, 6],
-  // Spine + head
-  [0, 7],
-  [7, 8],
-  [8, 9],
-  [9, 10],
-  // Left arm
-  [9, 11],
-  [11, 12],
-  [12, 13],
-  // Right arm
-  [9, 14],
-  [14, 15],
-  [15, 16],
-]
 
 // Color coding based on joint angle quality
 function getJointColor(
@@ -150,7 +127,7 @@ export function SkeletalMesh({
 
   const { joints, bones } = useMemo(() => {
     // Find the frame index in sampled data
-    const frameIndex = poseData.frames.indexOf(currentFrame)
+    const frameIndex = nearestPoseIndex(poseData, currentFrame)
     if (frameIndex === -1) return { joints: [], bones: [] }
 
     const pose = poseData.poses[frameIndex]
@@ -171,7 +148,9 @@ export function SkeletalMesh({
 
     // First pass: collect all joint positions
     for (let i = 0; i < pose.length; i++) {
-      const [x, y, conf] = pose[i]
+      const joint = pose[i]
+      if (!joint) continue
+      const [x, y, conf] = joint
       if (conf < 0.3) continue // Skip low-confidence joints
 
       jointPositions.push({
@@ -182,8 +161,8 @@ export function SkeletalMesh({
     }
 
     // Second pass: create bones
-    for (let boneIdx = 0; boneIdx < CONNECTIONS.length; boneIdx++) {
-      const [start, end] = CONNECTIONS[boneIdx]
+    for (let boneIdx = 0; boneIdx < H36M_SKELETON_CONNECTIONS.length; boneIdx++) {
+      const [start, end] = H36M_SKELETON_CONNECTIONS[boneIdx]
       const startJoint = pose[start]
       const endJoint = pose[end]
 

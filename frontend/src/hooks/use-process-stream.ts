@@ -1,7 +1,7 @@
 "use client"
 
 import { useRef, useState } from "react"
-import { useMountEffect } from "@/lib/useMountEffect"
+import { useKeyedEffect } from "@/lib/useMountEffect"
 import { API_BASE } from "@/lib/api-client"
 
 interface ProcessState {
@@ -48,7 +48,7 @@ export function useProcessStream(taskId: string | null) {
   const retryCountRef = useRef(0)
   const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  useMountEffect(() => {
+  useKeyedEffect(() => {
     if (!taskId) return
 
     const connect = () => {
@@ -115,7 +115,7 @@ export function useProcessStream(taskId: string | null) {
       esRef.current?.close()
       setIsConnected(false)
     }
-  })
+  }, [taskId])
 
   if (!taskId) return IDLE
   return { state, isConnected }

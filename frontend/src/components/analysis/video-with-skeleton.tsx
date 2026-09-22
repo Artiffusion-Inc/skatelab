@@ -3,6 +3,7 @@
 import { useRef, useEffect, useState, useCallback } from "react"
 import { useAnalysisStore } from "@/stores/analysis"
 import type { PhasesData, PoseData } from "@/types"
+import { frameToTime } from "./pose-data"
 import { PhaseLabels } from "./phase-labels"
 import { SkeletonCanvas } from "./skeleton-canvas"
 import { Play, Pause } from "lucide-react"
@@ -29,15 +30,21 @@ export function VideoWithSkeleton({
   const { currentFrame, setCurrentFrame, isPlaying, setIsPlaying, playbackSpeed } =
     useAnalysisStore()
 
-  // Sync store currentFrame → video time
+  // The store keeps absolute video frames; annotation samples may be sparse.
   useEffect(() => {
     const video = videoRef.current
     if (!video?.duration || Number.isNaN(video.duration)) return
-    const targetTime = currentFrame / fps
+    const targetTime = poseData ? frameToTime(poseData, currentFrame) : currentFrame / fps
     if (Math.abs(video.currentTime - targetTime) > 1 / fps) {
       video.currentTime = targetTime
     }
-  }, [currentFrame, fps])
+  }, [currentFrame, fps, poseData])
+
+  // A result page can be reopened with a previous analysis still in the store.
+  useEffect(() => {
+    setCurrentFrame(0)
+    setIsPlaying(false)
+  }, [setCurrentFrame, setIsPlaying])
 
   // Sync store isPlaying → video play/pause
   useEffect(() => {
@@ -67,7 +74,10 @@ export function VideoWithSkeleton({
     // analysis store, breaking ThreeJSkeletonViewer and FrameMetricsChart
     // until the store is reset.
     if (!video.duration || Number.isNaN(video.duration)) return
-    const frame = Math.floor((video.currentTime / video.duration) * totalFrames)
+    const frame = Math.min(
+      Math.max(Math.round(video.currentTime * fps), 0),
+      Math.max(totalFrames, 0),
+    )
     setCurrentFrame(frame)
   }
 

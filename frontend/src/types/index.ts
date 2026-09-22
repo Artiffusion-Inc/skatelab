@@ -46,10 +46,13 @@ export interface ProcessResponse {
 // Analysis Data Types (Task 4, 2026-04-16)
 // ---------------------------------------------------------------------------
 
+export type PosePoint = [x: number, y: number, confidence: number] | null
+
 export interface PoseData {
-  frames: number[] // Sampled frame indices (e.g., [0, 10, 20, ...])
-  poses: number[][][] // [frame][keypoint][x,y,conf] - (N_sampled, 17, 3)
+  frames: number[] // Absolute video frame indices for each pose sample.
+  poses: PosePoint[][] // [frame][H3.6M-17 keypoint][x,y,confidence]
   fps: number // Video frame rate
+  timestamps?: number[] // Optional source timestamps aligned with frames.
 }
 
 export interface FrameMetrics {

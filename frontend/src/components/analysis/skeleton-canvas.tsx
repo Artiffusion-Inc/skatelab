@@ -2,6 +2,8 @@
 
 import { useLayoutEffect, useRef, useState, useCallback } from "react"
 import type { PoseData } from "@/types"
+import { nearestPoseIndex } from "./pose-data"
+import { H36M_SKELETON_CONNECTIONS } from "./h36m-skeleton"
 
 interface SkeletonCanvasProps {
   poseData: PoseData
@@ -10,32 +12,7 @@ interface SkeletonCanvasProps {
   height: number
 }
 
-// H3.6M 17-keypoint skeleton connections
-const CONNECTIONS = [
-  // Right leg
-  [0, 1],
-  [1, 2],
-  [2, 3],
-  // Left leg
-  [0, 4],
-  [4, 5],
-  [5, 6],
-  // Spine + head
-  [0, 7],
-  [7, 8],
-  [8, 9],
-  [9, 10],
-  // Left arm
-  [9, 11],
-  [11, 12],
-  [12, 13],
-  // Right arm
-  [9, 14],
-  [14, 15],
-  [15, 16],
-]
-
-// Joint colors (COCO 17kp format)
+// H3.6M-17 joint colors
 const JOINT_COLORS = [
   "#FF0000", // 0: hip_center (red)
   "#00FF00", // 1: r_hip (green)
@@ -89,7 +66,7 @@ export function SkeletonCanvas({ poseData, currentFrame, width, height }: Skelet
       const my = e.clientY - rect.top
       setMousePos({ x: mx, y: my })
 
-      const frameIndex = poseData.frames.indexOf(currentFrame)
+      const frameIndex = nearestPoseIndex(poseData, currentFrame)
       if (frameIndex === -1) return
       const pose = poseData.poses[frameIndex]
       if (!pose) return
@@ -128,7 +105,7 @@ export function SkeletonCanvas({ poseData, currentFrame, width, height }: Skelet
     ctx.clearRect(0, 0, width, height)
 
     // Find the frame index in sampled data
-    const frameIndex = poseData.frames.indexOf(currentFrame)
+    const frameIndex = nearestPoseIndex(poseData, currentFrame)
     if (frameIndex === -1) return
 
     const pose = poseData.poses[frameIndex]
@@ -138,7 +115,7 @@ export function SkeletonCanvas({ poseData, currentFrame, width, height }: Skelet
     ctx.strokeStyle = "rgba(255, 255, 255, 0.6)"
     ctx.lineWidth = 2
 
-    for (const [start, end] of CONNECTIONS) {
+    for (const [start, end] of H36M_SKELETON_CONNECTIONS) {
       const startJoint = pose[start]
       const endJoint = pose[end]
 
